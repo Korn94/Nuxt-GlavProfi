@@ -1,0 +1,128 @@
+@use 'variables';
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+
+  font-family: "Rubik", sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+
+  // font-family: "Comfortaa", sans-serif;
+}
+
+input,
+textarea {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  -webkit-appearance: none;
+     -moz-appearance: none;
+          appearance: none;
+}
+
+input {
+  &:focus {
+    border-color: #00c3f5;
+    box-shadow: 0 0 5px rgba(0, 195, 245, 0.5);
+  }
+}
+
+span, p {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font-size: 100%;
+    font: inherit;
+    vertical-align: baseline;
+}
+
+span {
+  color: #00c3f5;
+}
+
+body, button {
+    line-height: 1.2;
+}
+
+p, a, div {
+  color: #333;
+}
+
+b, .bold {
+  font-weight: 500;
+}
+
+// h1, h2 ,h3 ,h4, h5  {
+//   color: #02feff;
+// }
+
+h1, h2, h3 ,h4, h5 + p {
+  margin-bottom: 1em;
+}
+
+h3 {
+  font-size: 20px;
+}
+
+.endh {
+  text-align: end;
+  color: #00c3f5;
+  font-weight: 700;
+  margin-top: 1em;
+}
+
+::selection {
+  background-color: #00c3f5; /* Цвет фона при выделении текста */
+  color: #333; /* Цвет текста при выделении */
+}
+
+// Переменная для цвета фона body
+$background: #fff; // значение по умолчанию
+
+// Применяем переменную к body
+body {
+  background: var(--background, $background);
+  // margin-top: 80px;
+}
+
+ul {
+  margin: 0;
+  padding: 0;
+  list-style-type: none;
+}
+
+a {
+  text-decoration: none;
+}
+
+a:hover {
+  color: #00c3f5;
+}
+
+:hover{
+  transition: .3s;
+}
+
+hr {
+  margin: 0 1em;
+  color: #2f2f2f80;
+}
+
+.line {
+  border-top: 1px solid #fff;
+  // border-image: linear-gradient(to right, #18191b, #fff, #18191b);
+  border-image-slice: 1;
+  margin: 1em auto;
+  max-width: 600px;
+}
+
+// button + button {
+//   margin: 0 2em;
+// }
+
+@import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@300..700&family=LXGW+WenKai+TC&family=Mulish:ital,wght@0,200..1000;1,200..1000&family=Pacifico&family=Roboto+Condensed:ital,wght@0,100..900;1,100..900&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap" rel="stylesheet');
+// @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&family=Nanum+Myeongjo&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&family=Rubik:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet');

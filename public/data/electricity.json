@@ -1,0 +1,30 @@
+{
+  "id": "electricity",
+  "categories": [
+    {
+      "id": 1,
+      "title": "Демонтажные работы",
+      "file": "electricity/dismantling.json"
+    },
+    {
+      "id": 2,
+      "title": "Монтажные работы",
+      "file": "electricity/installation.json"
+    },
+    {
+      "id": 3,
+      "title": "Пуско-наладочные работы",
+      "file": "electricity/commissioning.json"
+    },
+    {
+      "id": 4,
+      "title": "Ремонт и обслуживание",
+      "file": "electricity/repair.json"
+    },
+    {
+      "id": 5,
+      "title": "Специальные системы",
+      "file": "electricity/special_systems.json"
+    }
+  ]
+}

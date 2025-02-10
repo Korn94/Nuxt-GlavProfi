@@ -1,0 +1,30 @@
+{
+  "id": "other",
+  "categories": [
+    {
+      "id": 1,
+      "title": "Дополнительные услуги",
+      "file": "other/additional_services.json"
+    },
+    {
+      "id": 2,
+      "title": "Специальные услуги",
+      "file": "other/special_services.json"
+    },
+    {
+      "id": 3,
+      "title": "Установка мебели и оборудования",
+      "file": "other/furniture_equipment_installation.json"
+    },
+    {
+      "id": 4,
+      "title": "Благоустройство территории (для помещений с прилегающей территорией)",
+      "file": "other/landscaping.json"
+    },
+    {
+      "id": 5,
+      "title": "Уборка и вывоз мусора",
+      "file": "other/cleaning_waste_removal.json"
+    }
+  ]
+}

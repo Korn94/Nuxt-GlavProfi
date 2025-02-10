@@ -1,0 +1,55 @@
+{
+  "id": "walls",
+  "categories": [
+    {
+      "id": 1,
+      "title": "Подготовка стен",
+      "file": "walls/preparation.json"
+    },
+    {
+      "id": 2,
+      "title": "Отделка стен",
+      "file": "walls/finishing.json"
+    },
+    {
+      "id": 3,
+      "title": "Укладка керамической плитки на стены",
+      "file": "walls/tiling_ceramic.json"
+    },
+    {
+      "id": 4,
+      "title": "Укладка керамогранита на стены",
+      "file": "walls/tiling_porcelain.json"
+    },
+    {
+      "id": 5,
+      "title": "Укладка клинкерного камня на стены",
+      "file": "walls/tiling_clinker.json"
+    },
+    {
+      "id": 6,
+      "title": "Устройство перегородок",
+      "file": "walls/partitions.json"
+    },
+    {
+      "id": 7,
+      "title": "Установка дверей и окон",
+      "file": "walls/doors_windows.json"
+    },
+    {
+      "id": 8,
+      "title": "Декоративные элементы",
+      "file": "walls/decorative.json"
+    },
+    {
+      "id": 9,
+      "title": "Ремонт и восстановление стен",
+      "file": "walls/repair.json"
+    },
+    {
+      "id": 10,
+      "title": "Специальные покрытия",
+      "file": "walls/special_coatings.json"
+    }
+  ]
+}

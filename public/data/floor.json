@@ -1,0 +1,40 @@
+{
+  "id": "floor",
+  "categories": [
+    {
+      "id": 1,
+      "title": "Подготовка основания",
+      "file": "floor/preparation.json"
+    },
+    {
+      "id": 2,
+      "title": "Укладка напольных покрытий (Без плитки)",
+      "file": "floor/coverings.json"
+    },
+    {
+      "id": 3,
+      "title": "Укладка керамической плитки на пол",
+      "file": "floor/tiling.json"
+    },
+    {
+      "id": 4,
+      "title": "Укладка керамогранита на пол",
+      "file": "floor/porc_tile.json"
+    },
+    {
+      "id": 5,
+      "title": "Финишная отделка",
+      "file": "floor/finishing.json"
+    },
+    {
+      "id": 6,
+      "title": "Ремонт и восстановление пола",
+      "file": "floor/repair.json"
+    },
+    {
+      "id": 7,
+      "title": "Специальные покрытия",
+      "file": "floor/special_coatings.json"
+    }
+  ]
+}

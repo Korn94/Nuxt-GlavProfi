@@ -1,0 +1,35 @@
+{
+  "id": "plumbing",
+  "categories": [
+    {
+      "id": 1,
+      "title": "Демонтажные работы",
+      "file": "plumbing/dismantling.json"
+    },
+    {
+      "id": 2,
+      "title": "Монтажные работы",
+      "file": "plumbing/installation.json"
+    },
+    {
+      "id": 3,
+      "title": "Гидроизоляция",
+      "file": "plumbing/waterproofing.json"
+    },
+    {
+      "id": 4,
+      "title": "Пуско-наладочные работы",
+      "file": "plumbing/commissioning.json"
+    },
+    {
+      "id": 5,
+      "title": "Ремонт и обслуживание",
+      "file": "plumbing/repair.json"
+    },
+    {
+      "id": 6,
+      "title": "Специальные системы",
+      "file": "plumbing/special_systems.json"
+    }
+  ]
+}
