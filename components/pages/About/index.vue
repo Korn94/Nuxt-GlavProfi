@@ -85,13 +85,6 @@ const handleFormSubmitted = (formData) => {
   // Здесь можно добавить логику отправки данных на сервер
   closeModal() // Закрываем форму после отправки
 }
-
-useHead({
-  title: 'О компании',
-  meta: [
-    { name: 'description', content: 'Информация о нашей компании и услугах' }
-  ]
-})
 </script>
 
 <style lang="scss" scoped>

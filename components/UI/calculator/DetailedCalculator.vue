@@ -294,6 +294,10 @@ export default {
 
     // Динамическое вычисление viewBox для SVG
     const dynamicViewBox = computed(() => {
+      if (walls.value.length === 0) {
+    // Если стен нет, возвращаем дефолтное значение viewBox
+    return "0 0 100 100";
+  }
       const allX = walls.value.flatMap((wall) => [
         wall.start.x,
         wall.end.x,

@@ -2,7 +2,9 @@
   <header :class="{ scrolled: data.isScrolled, home: isHomePage }">
     <div class="container">
       <div class="logo">
-        <p><span>Г</span>лав<span>П</span>рофи</p>
+        <NuxtLink to="/">
+          <p><span>Г</span>лав<span>П</span>рофи</p>
+        </NuxtLink>
       </div>
       <nav>
         <ul>
@@ -41,7 +43,7 @@
           <li>
             <nuxt-link
               to="/#portfolio"
-              :class="{ active: route.path === '/#portfolio' }"
+              :class="{ active: route.path === 'portfolio' }"
               @click.prevent="navigateTo('/#portfolio')"
             >
               Портфолио
@@ -92,7 +94,7 @@
     </div>
     <!-- Попап уведомления -->
     <Notification
-      :visible="isNotificationVisible"
+      :visible="data.isNotificationVisible"
       message="Номер скопирован!"
       color="green"
       @update:visible="isNotificationVisible = false"
@@ -288,8 +290,13 @@ header {
     font-size: 20px;
     font-weight: 600;
     font-family: "Comfortaa", sans-serif;
+    transition: 0.3s;
 
     span {
+      color: #00c3f5;
+    }
+    
+    &:hover {
       color: #00c3f5;
     }
   }

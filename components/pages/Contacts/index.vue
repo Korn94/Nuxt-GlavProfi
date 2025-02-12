@@ -40,12 +40,12 @@
         <!-- Форма обратной связи -->
         <section class="contact-form">
           <UIForms @formSubmitted="handleFormSubmission" />
-          <Notification
+          <!-- <Notification
             :visible="notificationVisible"
             :message="notificationMessage"
             :color="notificationColor"
             @update:visible="notificationVisible = false"
-          />
+          /> -->
         </section>
       </div>
 

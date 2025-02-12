@@ -16,16 +16,17 @@
     <!-- <hr class="line" /> -->
 
     <div class="navigation" v-if="activeCategories.length > 0">
-      <UIButtonsSecondButton
-        v-for="(category, index) in activeCategories"
-        :key="index"
-        :text="category"
-        :class="{ active: activeCategory === category }"
-        :reverseEffect="activeCategory !== category"
-        @click="setActiveCategory(category)"
-      />
+      <div class="inner">
+        <button
+          v-for="(category, index) in activeCategories"
+          :key="index"
+          :text="category"
+          :class="{ active: activeCategory === category }"
+          :reverseEffect="activeCategory !== category"
+          @click="setActiveCategory(category)"
+        >{{ category }}</button>
+      </div>
     </div>
-
     <transition-group
       name="fade-slide"
       tag="div"
@@ -36,13 +37,16 @@
         class="image"
         v-for="(image, index) in visibleImages"
         :key="index"
-        :style="{ backgroundImage: `url(${image})` }"
-      ></div>
+        :style="{ backgroundImage: `url(${image.src})` }"
+        @click="navigateToProject(image)"
+      >
+        <div class="info-overlay">{{ image.info }}</div>
+      </div>
     </transition-group>
 
     <UIButtonsMainButton
       class="openbtn"
-      text="Показать больше"
+      text="Показать еще"
       v-if="filteredImages.length > 9 && !showAll"
       @click="showAllImages"
     ></UIButtonsMainButton>
@@ -58,53 +62,60 @@ export default {
   },
   data() {
     return {
-      activeTab: 'projects',
-      activeCategory: 'Все проекты',
+      activeTab: "projects",
+      activeCategory: "Все проекты",
       showAll: false,
     };
   },
   computed: {
     tabsWithLabels() {
-      return this.tabs.filter(tab => tab.label);
+      return this.tabs.filter((tab) => tab.label);
     },
     shouldShowToggleButtons() {
       return this.tabsWithLabels.length > 1;
     },
     activeCategories() {
-      const currentTab = this.tabs.find(tab => tab.key === this.activeTab);
+      const currentTab = this.tabs.find((tab) => tab.key === this.activeTab);
       return currentTab ? currentTab.categories : [];
     },
     filteredImages() {
-      const currentTab = this.tabs.find(tab => tab.key === this.activeTab);
+      const currentTab = this.tabs.find((tab) => tab.key === this.activeTab);
       if (!currentTab) return [];
 
       const images = currentTab.images || [];
-      if (this.activeCategory === 'Все услуги' || this.activeCategory === 'Все проекты') {
-        return images.map(img => img.src);
+      if (
+        this.activeCategory === "Все услуги" ||
+        this.activeCategory === "Все проекты"
+      ) {
+        return images;
       }
 
-      return images.filter(img => img.category === this.activeCategory).map(img => img.src);
+      return images.filter((img) => img.category === this.activeCategory);
     },
     visibleImages() {
-      return this.showAll ? this.filteredImages : this.filteredImages.slice(0, 9);
+      return this.showAll
+        ? this.filteredImages
+        : this.filteredImages.slice(0, 9);
     },
     containerHeight() {
-    if (process.client) {
-      const rows = Math.ceil(this.visibleImages.length / (window.innerWidth < 768 ? 1 : 3));
-      const imageHeight = window.innerWidth < 768 ? 150 : 200; // Динамическая высота изображения
-      const gap = 10; // Отступ между изображениями (grid-gap)
-      return `${rows * (imageHeight + gap) - gap}px`; // Учитываем отступы между строками
-    }
-    return 'auto'; // Возвращаем значение по умолчанию при серверном рендеринге
-  },
+      if (process.client) {
+        const rows = Math.ceil(
+          this.visibleImages.length / (window.innerWidth < 768 ? 1 : 3)
+        );
+        const imageHeight = window.innerWidth < 768 ? 150 : 200; // Динамическая высота изображения
+        const gap = 10; // Отступ между изображениями (grid-gap)
+        return `${rows * (imageHeight + gap) - gap}px`; // Учитываем отступы между строками
+      }
+      return "auto"; // Возвращаем значение по умолчанию при серверном рендеринге
+    },
   },
   methods: {
     setActiveTab(tabKey) {
       this.activeTab = tabKey;
-      if (tabKey === 'projects') {
-        this.activeCategory = 'Все проекты';
-      } else if (tabKey === 'services') {
-        this.activeCategory = 'Все услуги';
+      if (tabKey === "projects") {
+        this.activeCategory = "Все проекты";
+      } else if (tabKey === "services") {
+        this.activeCategory = "Все услуги";
       }
     },
     setActiveCategory(category) {
@@ -113,9 +124,13 @@ export default {
     showAllImages() {
       this.showAll = true;
     },
+    navigateToProject(image) {
+      const projectId = this.tabs[0].images.indexOf(image) + 1; // Генерация ID на основе индекса
+      this.$router.push(`/projects/${projectId}`);
+    },
   },
   mounted() {
-    const firstTab = this.tabs.find(tab => tab.key);
+    const firstTab = this.tabs.find((tab) => tab.key);
     if (firstTab) {
       this.setActiveTab(firstTab.key);
     }
@@ -130,11 +145,61 @@ export default {
   max-width: 1200px;
   margin: auto auto 2em;
 
-  .toggle-buttons, .navigation {
-    display: flex;
-    justify-content: center;
-    gap: 1em;
-    flex-wrap: wrap; // Перенос кнопок на новую строку
+  .toggle-buttons,
+  .navigation {
+    width: 100%;
+  overflow-x: auto; // Включаем горизонтальную прокрутку
+  -webkit-overflow-scrolling: touch; // Плавная прокрутка на мобильных устройствах
+  margin-bottom: 20px;
+  white-space: nowrap; // Запрещаем перенос строк
+  position: relative;
+
+  /* Стилизация для WebKit (Chrome, Safari) */
+  &::-webkit-scrollbar {
+    height: 6px; // Высота полосы прокрутки
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #ccc; // Цвет ползунка
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent; // Фон полосы прокрутки
+  }
+
+  /* Стилизация для Firefox */
+  scrollbar-width: thin; // Устанавливаем тонкую полосу прокрутки
+  scrollbar-color: #ccc transparent; // Цвет ползунка и фона
+
+  .inner {
+    display: inline-flex; // Размещаем кнопки в одну линию
+    gap: 10px; // Расстояние между кнопками
+    padding: 10px 0 10px 10px; // Отступы внутри контейнера
+
+    
+    button {
+      padding: 10px 15px;
+      cursor: pointer;
+      border: none;
+      background: #f0f0f0;
+      // color: $sub-item-bg;
+      border-radius: 5px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      
+      &.active {
+        color: #f0f0f0;
+        background: linear-gradient(to right, #00c3f5, #00a3d3);
+        box-shadow: 0 4px 10px rgba(0, 195, 245, 0.3);
+      }
+      
+      &:hover {
+        background: linear-gradient(to right, #00c3f5, #00a3d3);
+        box-shadow: 0 4px 10px rgba(0, 195, 245, 0.3);
+      }
+    }
+  }
   }
 
   h2 {
@@ -158,9 +223,14 @@ export default {
     transition: transform 0.3s ease, opacity 0.5s ease;
     opacity: 1;
     transform: scale(0.95);
+    cursor: pointer;
 
     &:hover {
       transform: scale(1);
+
+      .info-overlay {
+        opacity: 1;
+      }
     }
 
     /* Анимация появления */
@@ -173,6 +243,20 @@ export default {
     &.fade-slide-leave-to {
       opacity: 0;
       transform: scale(0.9);
+    }
+
+    .info-overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(0, 0, 0, 0.5);
+      border-bottom-right-radius: 10px;
+      border-bottom-left-radius: 10px;
+      color: white;
+      padding: 10px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
     }
   }
 

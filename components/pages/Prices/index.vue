@@ -2,6 +2,7 @@
   <div class="container" :key="activeCategory">
     <!-- Заголовок -->
     <h1>Цены на ремонт помещений - <span>2025</span></h1>
+    <h2 style="text-decoration: underline;">Формируем цены, ожидайте к 01.03.25</h2>
 
     <!-- Динамический подзаголовок -->
     <h2>{{ activeCategoryTitle }}</h2>
@@ -324,6 +325,7 @@ $shadow-color: rgba(0, 0, 0, 0.05);
 
   @media (max-width: 768px) {
     margin-top: 2em;
+    padding: 0;
   }
 }
 
@@ -340,7 +342,7 @@ h1, h2 {
   width: 100%;
   overflow-x: auto; // Включаем горизонтальную прокрутку
   -webkit-overflow-scrolling: touch; // Плавная прокрутка на мобильных устройствах
-  margin-bottom: 20px;
+  margin-bottom: 10px;
   white-space: nowrap; // Запрещаем перенос строк
   position: relative;
 
@@ -365,7 +367,7 @@ h1, h2 {
   .inner {
     display: inline-flex; // Размещаем кнопки в одну линию
     gap: 10px; // Расстояние между кнопками
-    padding: 10px 0; // Отступы внутри контейнера
+    padding: 10px; // Отступы внутри контейнера
 
     
     button {
@@ -395,6 +397,10 @@ h1, h2 {
 // Поиск
 .search-bar {
   margin-bottom: 15px;
+
+  @media (max-width: 768px) {
+    padding: 0 10px;
+  }
 
   input {
     width: 100%;
@@ -476,6 +482,11 @@ h1, h2 {
   padding: 20px;
   background: $background-light;
   box-shadow: 0 4px 10px $shadow-color;
+
+  @media (max-width: 768px) {
+    padding: 10px;
+  }
+
 
   .category-block {
     margin-bottom: 20px;
@@ -646,11 +657,12 @@ h1, h2 {
 
 @media (max-width: 768px) {
   h1 {
-    font-size: 1.7em;
+    font-size: 1.5em;
+    margin-bottom: .5em;
   }
   
   h2 {
-    font-size: 1.5em;
+    font-size: 1.3em;
   }
 
   .navigation {

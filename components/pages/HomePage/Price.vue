@@ -1,8 +1,5 @@
 <template>
   <div class="container">
-    <!-- Заголовок -->
-    <h2>Ремонт помещений, <span>цены на работы - 2025</span></h2>
-
     <!-- Навигация -->
     <div class="navigation">
       <button
@@ -12,6 +9,8 @@
         @click="setCategory(category.id)"
       >
         {{ category.name }}
+        <button @click.stop="editCategory(category)">✎</button>
+        <button @click.stop="deleteCategory(category.id)">🗑️</button>
       </button>
     </div>
 
@@ -27,39 +26,27 @@
     <!-- Таблица -->
     <div class="price-list">
       <!-- Условие загрузки -->
-      <div v-if="isLoading" class="loader">Загрузка...</div>
+      <div v-if="isLoading">Загрузка...</div>
       <!-- Условие ошибки -->
-      <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
-
-          <!-- Меню навигации для заголовков работ -->
-    <div class="work-navigation">
-      <div class="work-navigation-inner">
-        <button
-          :class="{ active: activeWork === 'all' }"
-          @click="setActiveWork('all')"
-        >
-          Все работы
-        </button>
-        <button
-          v-for="category in allWorks"
-          :key="category.id"
-          :class="{ active: activeWork === category.id }"
-          @click="setActiveWork(category.id)"
-        >
-          {{ category.title }}
-        </button>
-      </div>
-    </div>
+      <div v-if="errorMessage">{{ errorMessage }}</div>
 
       <!-- Категории, условие если есть работы -->
       <div v-if="filteredWorks.length">
         <!-- Добавляем заголовки категорий и списки работ -->
         <div v-for="category in filteredWorks" :key="category.id" class="category-block">
-          <h2>{{ category.title }}</h2>
+          <h2>{{ category.title }} 
+            <button @click.stop="editTitle(category)">✎</button>
+            <button @click.stop="deleteCategory(category.id)">🗑️</button>
+            <button @click.stop="saveCategoryData(category.id)" style="margin-left: 10px;">Сохранить</button>
+            <button @click.stop="addWork(category.id)" style="margin-left: 10px;">Добавить раздел работ</button>
+          </h2>
           <div v-for="work in category.items" :key="work.id" class="work-category">
             <!-- Заголовок работы -->
             <h3 @click="toggleCategory(work.id)">
               {{ work.name }}
+              <button @click.stop="editName(work)">✎</button>
+              <button @click.stop="deleteWork(work.id)">🗑️</button>
+              <button @click.stop="addItem(work.id)" style="margin-left: 10px;">Добавить работу</button>
             </h3>
 
             <!-- Список работ, только если категория открыта -->
@@ -68,34 +55,40 @@
                 <div class="work-main">
                   <Icon name="fluent:copy-16-filled" width="16" height="16" class="pointer ico" @click="copyToClipboard(item.type)" />
                   <p class="work-title pointer" @click="toggleSubItems(item.id)">
-                    <strong v-html="highlightText(item.type)"></strong>
+                    <strong><span v-html="highlightText(item.type)"></span></strong>
+                    <button @click.stop="editType(item)">✎</button>
+                    <button @click.stop="deleteItem(item.id)">🗑️</button>
+                    <button @click.stop="addTypeWork(item.id)" style="margin-left: 10px;">Добавить подработу</button>
                   </p>
                   <p class="work-unit">{{ item.unit }}</p>
-                  <p class="work-price">{{ item.price }} ₽</p>
+                  <p class="work-price">
+                    <input 
+                      type="number" 
+                      :value="item.price" 
+                      @input="updatePrice(item.id, $event.target.value)" 
+                      style="width: 80px;" 
+                    /> ₽
+                  </p>
                 </div>
 
                 <!-- Вложенные элементы, если они есть -->
                 <ul v-if="item.typeWorks && isSubItemsOpen(item.id)" class="sub-items">
-                  <!-- Основные работы -->
                   <li v-for="typeWork in item.typeWorks" :key="typeWork.id" class="sub-work-item">
-                    <p class="work-title" v-html="highlightText(typeWork.nameWork)"></p>
+                    <p class="work-title">
+                      <span v-html="highlightText(typeWork.nameWork)"></span>
+                      <button @click.stop="editNameWork(typeWork)">✎</button>
+                      <button @click.stop="deleteTypeWork(typeWork.id)">🗑️</button>
+                    </p>
                     <p class="work-unit">{{ typeWork.unit }}</p>
-                    <p class="work-price">{{ typeWork.price }} ₽</p>
+                    <p class="work-price">
+                      <input 
+                        type="number" 
+                        :value="typeWork.price" 
+                        @input="updatePrice(typeWork.id, $event.target.value)" 
+                        style="width: 80px;" 
+                      /> ₽
+                    </p>
                   </li>
-
-                  <!-- Дополнительные работы -->
-                  <template v-if="item.dopworks && item.dopworks.length">
-                    <p class="additional-works-label">Доп. работы</p>
-                    <li v-for="dopworkGroup in item.dopworks" :key="dopworkGroup.label">
-                      <ul>
-                        <li v-for="dopwork in dopworkGroup.works" :key="dopwork.id" class="sub-work-item">
-                          <p class="work-title" v-html="highlightText(dopwork.dopwork)"></p>
-                          <p class="work-unit">{{ dopwork.unit }}</p>
-                          <p class="work-price">{{ dopwork.price }} ₽</p>
-                        </li>
-                      </ul>
-                    </li>
-                  </template>
                 </ul>
               </li>
             </ul>
@@ -104,7 +97,7 @@
       </div>
 
       <!-- Если ничего не найдено -->
-      <div v-else class="no-results">Работы не найдены</div>
+      <div v-else>Работы не найдены</div>
     </div>
 
     <!-- Всплывающее окно для уведомления -->
@@ -126,18 +119,17 @@ export default {
     const route = useRoute();
 
     // Данные категорий
-    const categories = [
+    const categories = ref([
       { id: "floor", name: "Пол" },
       { id: "walls", name: "Стены" },
       { id: "ceiling", name: "Потолок" },
       { id: "plumbing", name: "Сантехника" },
       { id: "electricity", name: "Электрика" },
       { id: "other", name: "Дополнительные услуги" },
-    ];
+    ]);
 
     // Состояния
     const activeCategory = ref("ceiling"); // Начальное значение
-    const activeWork = ref("all"); // Активная работа (по умолчанию "Все работы")
     const works = ref([]); // Работы текущей категории
     const searchQuery = ref("");
     const openCategories = ref([]); // Открытые категории
@@ -185,41 +177,38 @@ export default {
       }
     };
 
-    // Получение всех категорий из всех категорий
-    const allWorks = computed(() => {
-      return works.value.map(category => ({
-        id: category.id,
-        title: category.title,
-      }));
-    });
+    // Обработка хэша после загрузки данных
+    const processHash = () => {
+      const [categoryId, workId] = route.hash.slice(1).split('-');
+      activeCategory.value = categoryId || "ceiling";
+      if (workId) openCategories.value.push(workId);
+    };
 
-    // Фильтрация работ
-    const filteredWorks = computed(() => {
-      const query = searchQuery.value.trim().toLowerCase();
-      let filtered = works.value;
+    // Смена активной категории
+    const setCategory = (categoryId) => {
+      activeCategory.value = categoryId;
+      history.replaceState(null, '', `#${categoryId}`);
+      loadCategoryData(categoryId);
+    };
 
-      // Фильтрация по активной категории
-      if (activeWork.value !== "all") {
-        filtered = filtered.filter(category => category.id === activeWork.value);
-      }
+    // Функция для открытия всех категорий
+    const openAllCategories = () => {
+      openCategories.value = works.value.flatMap(category =>
+        category.items.map(item => item.id)
+      );
+    };
 
-      // Фильтрация по строке поиска
-      if (query) {
-        filtered = filtered.map(category => ({
-          ...category,
-          items: category.items.filter(item =>
-            item.name.toLowerCase().includes(query) ||
-            item.subItems.some(subItem => subItem.type.toLowerCase().includes(query))
-          ),
-        })).filter(category => category.items.length > 0);
-      }
-
-      return filtered;
-    });
-
-    // Установка активной категории
-    const setActiveWork = (categoryId) => {
-      activeWork.value = categoryId;
+    // Функция для открытия всех подкатегорий
+    const openAllSubItems = () => {
+      works.value.forEach(category => {
+        category.items.forEach(item => {
+          if (item.subItems) {
+            item.subItems.forEach(subItem => {
+              openSubItems.value[subItem.id] = true; // Открываем только subItems
+            });
+          }
+        });
+      });
     };
 
     // Проверка, открыта ли категория
@@ -247,6 +236,22 @@ export default {
       openSubItems.value[id] = !openSubItems.value[id];
     };
 
+    // Фильтрация работ
+    const filteredWorks = computed(() => {
+      const query = searchQuery.value.trim().toLowerCase();
+      if (!query) return works.value;
+
+      return works.value
+        .map((category) => ({
+          ...category,
+          items: category.items.filter((item) =>
+            item.name.toLowerCase().includes(query) || // Ищем только по имени основной работы
+            item.subItems.some(subItem => subItem.type.toLowerCase().includes(query)) // И по типу подэлементов
+          ),
+        }))
+        .filter((category) => category.items.length > 0);
+    });
+
     // Подсветка текста
     const highlightText = (text) => {
       if (!text) return "";
@@ -273,30 +278,199 @@ export default {
         });
     };
 
-    // Обработка хэша после загрузки данных
-    const processHash = () => {
-      const [categoryId, workId] = route.hash.slice(1).split('-');
-      activeCategory.value = categoryId || "ceiling";
-      if (workId) openCategories.value.push(workId);
+    // Обновление цены
+    const updatePrice = (id, newPrice) => {
+      const findAndSetPrice = (items) => {
+        items.forEach(item => {
+          if (item.id === id) {
+            item.price = parseFloat(newPrice) || 0;
+          }
+          if (item.subItems) {
+            findAndSetPrice(item.subItems);
+          }
+          if (item.typeWorks) {
+            findAndSetPrice(item.typeWorks);
+          }
+        });
+      };
+
+      works.value.forEach(category => {
+        findAndSetPrice(category.items);
+      });
     };
 
-    // Смена активной категории
-    const setCategory = (categoryId) => {
-      activeCategory.value = categoryId;
-      history.replaceState(null, '', `#${categoryId}`);
-      loadCategoryData(categoryId);
+    // Сохранение данных категории в JSON файл
+    const saveCategoryData = (categoryId) => {
+      const categoryData = works.value.find(category => category.id === categoryId);
+
+      if (!categoryData) {
+        console.error(`Категория с id ${categoryId} не найдена.`);
+        return;
+      }
+
+      const dataToSave = {
+        title: categoryData.title,
+        items: categoryData.items.map(item => ({
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          subItems: item.subItems ? item.subItems.map(subItem => ({
+            id: subItem.id,
+            type: subItem.type,
+            price: subItem.price,
+            unit: subItem.unit,
+            typeWorks: subItem.typeWorks ? subItem.typeWorks.map(typeWork => ({
+              id: typeWork.id,
+              nameWork: typeWork.nameWork,
+              price: typeWork.price,
+              unit: typeWork.unit
+            })) : []
+          })) : []
+        }))
+      };
+
+      const jsonData = JSON.stringify(dataToSave, null, 2);
+      const blob = new Blob([jsonData], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${categoryId}.json`; // Имя файла соответствует ID категории
+      a.click();
+
+      URL.revokeObjectURL(url);
+    };
+
+    // Методы для редактирования
+    const editCategory = (category) => {
+      const newName = prompt("Введите новое название категории:", category.name);
+      if (newName) {
+        category.name = newName;
+      }
+    };
+
+    const editTitle = (category) => {
+      const newTitle = prompt("Введите новый заголовок категории:", category.title);
+      if (newTitle) {
+        category.title = newTitle;
+      }
+    };
+
+    const editName = (work) => {
+      const newName = prompt("Введите новое название работы:", work.name);
+      if (newName) {
+        work.name = newName;
+      }
+    };
+
+    const editType = (item) => {
+      const newType = prompt("Введите новый тип:", item.type);
+      if (newType) {
+        item.type = newType;
+      }
+    };
+
+    const editNameWork = (typeWork) => {
+      const newNameWork = prompt("Введите новое название работы:", typeWork.nameWork);
+      if (newNameWork) {
+        typeWork.nameWork = newNameWork;
+      }
+    };
+
+    // Методы для удаления
+    const deleteCategory = (categoryId) => {
+      categories.value = categories.value.filter(cat => cat.id !== categoryId);
+    };
+
+    const deleteWork = (workId) => {
+      works.value.forEach(category => {
+        category.items = category.items.filter(item => item.id !== workId);
+      });
+    };
+
+    const deleteItem = (itemId) => {
+      works.value.forEach(category => {
+        category.items.forEach(item => {
+          item.subItems = item.subItems.filter(subItem => subItem.id !== itemId);
+        });
+      });
+    };
+
+    const deleteTypeWork = (typeWorkId) => {
+      works.value.forEach(category => {
+        category.items.forEach(item => {
+          item.subItems.forEach(subItem => {
+            subItem.typeWorks = subItem.typeWorks.filter(typeWork => typeWork.id !== typeWorkId);
+          });
+        });
+      });
+    };
+
+    // Методы для добавления
+    const addWork = (categoryId) => {
+      const newWorkName = prompt("Введите название новой работы:");
+      if (newWorkName) {
+        const newWork = {
+          id: `work-${Date.now()}`,
+          name: newWorkName,
+          price: 0,
+          subItems: [],
+        };
+        const category = works.value.find(cat => cat.id === categoryId);
+        if (category) {
+          category.items.push(newWork);
+        }
+      }
+    };
+
+    const addItem = (workId) => {
+      const newItemType = prompt("Введите тип нового элемента:");
+      if (newItemType) {
+        const newItem = {
+          id: `item-${Date.now()}`,
+          type: newItemType,
+          price: 0,
+          unit: "шт",
+          typeWorks: [],
+        };
+        works.value.forEach(category => {
+          category.items.forEach(item => {
+            if (item.id === workId) {
+              item.subItems.push(newItem);
+            }
+          });
+        });
+      }
+    };
+
+    const addTypeWork = (itemId) => {
+      const newNameWork = prompt("Введите название новой работы:");
+      if (newNameWork) {
+        const newTypeWork = {
+          id: `typeWork-${Date.now()}`,
+          nameWork: newNameWork,
+          price: 0,
+          unit: "шт",
+        };
+        works.value.forEach(category => {
+          category.items.forEach(item => {
+            item.subItems.forEach(subItem => {
+              if (subItem.id === itemId) {
+                subItem.typeWorks.push(newTypeWork);
+              }
+            });
+          });
+        });
+      }
     };
 
     // Отслеживание изменений в searchQuery
     watch(searchQuery, (newQuery) => {
       if (newQuery.trim()) {
-        openCategories.value = works.value.flatMap(category =>
-          category.items.map(item => item.id)
-        );
-        Object.keys(openSubItems.value).forEach(key => {
-          openSubItems.value[key] = true;
-        });
+        openAllCategories();
+        openAllSubItems();
       } else {
+        // Если строка поиска пустая, закрываем все категории и подкатегории
         openCategories.value = [];
         openSubItems.value = {};
       }
@@ -319,21 +493,32 @@ export default {
       categories,
       works,
       activeCategory,
-      activeWork,
-      allWorks,
       searchQuery,
-      filteredWorks,
-      isLoading,
-      errorMessage,
-      notificationVisible,
       setCategory,
-      setActiveWork,
       toggleCategory,
       isCategoryOpen,
       isSubItemsOpen,
       toggleSubItems,
+      filteredWorks,
+      isLoading,
+      errorMessage,
       copyToClipboard,
+      notificationVisible,
       highlightText,
+      updatePrice,
+      saveCategoryData, // Новая функция для сохранения данных категории
+      editCategory,
+      editTitle,
+      editName,
+      editType,
+      editNameWork,
+      deleteCategory,
+      deleteWork,
+      deleteItem,
+      deleteTypeWork,
+      addWork,
+      addItem,
+      addTypeWork,
     };
   },
 };
@@ -345,13 +530,22 @@ $highlight-color: #ff9800;  // Цвет подсветки
 $border-color: #ddd;
 $background-light: #f7f7f7;
 $sub-item-bg: #f0f0f0; // Цвет фона для расшифровок
-$text-color: #18191b;
-$shadow-color: rgba(0, 0, 0, 0.05);
 
 .container {
   max-width: 1200px;
   margin: 5em auto;
-  border-radius: 5px;
+}
+
+button {
+  background-color: #f0f0f0;
+  color: #18191b;
+  border: 1px solid #18191b;
+  padding: 2px;
+  margin: 0 .5em;
+
+  &:hover {
+    background-color: #00c3f5;
+  }
 }
 
 .pointer {
@@ -360,6 +554,7 @@ $shadow-color: rgba(0, 0, 0, 0.05);
 
 h2 {
   text-align: center;
+  margin-bottom: 0;
 }
 
 // Навигация
@@ -373,97 +568,33 @@ h2 {
     padding: 10px 15px;
     cursor: pointer;
     border: none;
-    background: $sub-item-bg;
-    color: $text-color;
+    background: #f0f0f0;
+    color: #18191b;
     border-radius: 5px;
     font-weight: 600;
-    transition: all 0.3s ease;
+    transition: 0.3s;
 
     &.active {
-      background: linear-gradient(to right, #00c3f5, #00a3d3);
-      box-shadow: 0 4px 10px rgba(0, 195, 245, 0.3);
+      background: $primary-color;
+      color: white;
     }
 
     &:hover {
-      background: linear-gradient(to right, #00c3f5, #00a3d3);
-      box-shadow: 0 4px 10px rgba(0, 195, 245, 0.3);
+      background: $primary-color;
+      color: white;
     }
   }
 }
 
 // Поиск
 .search-bar {
-  margin-bottom: 15px;
+  margin-bottom: 20px;
 
   input {
     width: 100%;
-    padding: 10px 15px;
+    padding: 10px;
     border: 1px solid $border-color;
     border-radius: 5px;
-    outline: none;
-    transition: all 0.3s ease;
-    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.05);
-
-    &:focus {
-      border-color: $primary-color;
-      box-shadow: 0 0 5px rgba(0, 195, 245, 0.5);
-    }
-  }
-}
-
-// Меню навигации для заголовков работ
-.work-navigation {
-  width: 100%;
-  overflow-x: auto; // Включаем горизонтальную прокрутку
-  -webkit-overflow-scrolling: touch; // Плавная прокрутка на мобильных устройствах
-  margin-bottom: 20px;
-  white-space: nowrap; // Запрещаем перенос строк
-  position: relative;
-
-  /* Стилизация для WebKit (Chrome, Safari) */
-  &::-webkit-scrollbar {
-    height: 6px; // Высота полосы прокрутки
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: #ccc; // Цвет ползунка
-    border-radius: 3px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent; // Фон полосы прокрутки
-  }
-
-  /* Стилизация для Firefox */
-  scrollbar-width: thin; // Устанавливаем тонкую полосу прокрутки
-  scrollbar-color: #ccc transparent; // Цвет ползунка и фона
-}
-
-.work-navigation-inner {
-  display: inline-flex; // Размещаем кнопки в одну линию
-  gap: 10px; // Расстояние между кнопками
-  padding: 10px 0; // Отступы внутри контейнера
-}
-
-.work-navigation button {
-  flex-shrink: 0; // Запрещаем уменьшение размера кнопок
-  padding: 10px 15px;
-  cursor: pointer;
-  border: 1px solid $border-color;
-  background: #fff;
-  color: $text-color;
-  border-radius: 5px;
-  font-weight: 600;
-  transition: all 0.3s ease;
-
-  &.active {
-    background: linear-gradient(to right, #00c3f5, #00a3d3);
-    box-shadow: 0 4px 10px rgba(0, 195, 245, 0.3);
-  }
-
-  &:hover {
-    background: linear-gradient(to right, #00c3f5, #00a3d3);
-    box-shadow: 0 4px 10px rgba(0, 195, 245, 0.3);
   }
 }
 
@@ -471,26 +602,7 @@ h2 {
 .price-list {
   border: 1px solid $border-color;
   border-radius: 5px;
-  padding: 20px;
-  background: $background-light;
-  box-shadow: 0 4px 10px $shadow-color;
-
-  .category-block {
-    margin-bottom: 20px;
-    border-bottom: 1px solid #ddd;
-
-      &:last-child {
-        border-bottom: none;
-      }
-
-    h2 {
-      font-size: 1.5rem;
-      color: $text-color;
-      margin-bottom: 10px;
-      position: relative;
-      text-align: center;
-    }
-  }
+  padding: 10px;
 
   .work-category {
     margin-bottom: 15px;
@@ -498,21 +610,21 @@ h2 {
     h3 {
       cursor: pointer;
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 1rem;
-      background: linear-gradient(to bottom, #ffffff, #f7f7f7);
-      padding: 10px 15px;
+      // justify-content: space-between;
+      background: $background-light;
+      padding: 5px 5px 5px 25px;
       margin: 0;
       border: 1px solid $border-color;
       border-radius: 5px;
-      transition: all 1.3s ease;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+      // justify-content: center;
+      font-size: 16px;
+
+      span {
+        color: #18191b;
+      }
 
       &:hover {
-        background: linear-gradient(to right, #00c3f5, #00a3d3);
-        // background: linear-gradient(to right, #f7f7f7, #00c3f5);
-        box-shadow: 0 4px 10px rgba(0, 195, 245, 0.3);
+        color: $primary-color;
       }
     }
 
@@ -526,13 +638,8 @@ h2 {
     .work-item {
       display: flex;
       flex-direction: column;
-      padding: 10px;
+      padding: 5px 10px;
       border-bottom: 1px solid $border-color;
-      transition: all 0.3s ease;
-
-      &:hover {
-        background: $sub-item-bg;
-      }
 
       .work-main {
         display: flex;
@@ -541,55 +648,28 @@ h2 {
 
         .ico {
           margin-right: 1em;
-          transition: transform 0.3s ease;
-
-          &:hover {
-            transform: scale(1.2);
-          }
         }
-      }
-
-      // Стили для заголовка "Дополнительные работы"
-      .additional-works-label {
-        font-size: .8rem;
-        font-weight: 600;
-        margin-top: 10px;
-        color: #333;
-        // padding-left: 20px;
-        font-style: normal;
-        border-bottom: 1px solid $border-color;
-        // width: 150px;
-        text-align: center;
-        // border: 1px solid red;
-        // background: $background-light;
       }
 
       .work-title {
         flex: 1;
         white-space: pre-wrap;
-        font-size: 1rem;
-        color: $text-color;
-        transition: color 0.3s ease;
 
-        // &:hover {
-        //   color: $primary-color;
-        // }
+        span {
+          color: #18191b;
+        }
       }
 
       .highlight {
         background-color: $highlight-color;
         color: white;
         font-weight: bold;
-        padding: 2px 5px;
-        border-radius: 3px;
       }
 
       .work-unit, .work-price {
         display: inline-flex;
         align-items: center;
         width: 50px;
-        font-size: 0.9rem;
-        color: #555;
       }
 
       .sub-items {
@@ -597,19 +677,20 @@ h2 {
         padding-left: 20px;
         background: $sub-item-bg;
         font-style: italic;
-        margin-top: 1em;
-        border-radius: 5px;
 
         .sub-work-item {
           display: flex;
           justify-content: space-between;
           padding: 5px 0;
-          border-bottom: 1px solid $border-color;
+          border-top: 1px solid $border-color;
 
           .work-title {
             font-weight: normal;
             color: #555;
-            font-size: 0.9rem;
+
+            span {
+              color: #18191b;
+            }
           }
         }
       }

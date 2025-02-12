@@ -24,7 +24,6 @@
       <textarea 
         id="comment" 
         v-model="comment" 
-         
         placeholder="Комментарий (не обязательно)"
       ></textarea>
     </div>
@@ -67,10 +66,18 @@ export default {
         text: message,
       })
       .then(() => {
-        this.$emit('formSubmitted', true); // Сообщаем об успешной отправке формы
+        // Успешная отправка формы
+        this.$emit('formSubmitted', true);
+
+        // Отправка цели в Яндекс.Метрику
+        this.$ym('reachGoal', 'FORM_SUBMITTED'); // "FORM_SUBMITTED" — название цели
       })
       .catch(() => {
-        this.$emit('formSubmitted', false); // Сообщаем о неудачной отправке формы
+        // Неудачная отправка формы
+        this.$emit('formSubmitted', false);
+
+        // Отправка цели в Яндекс.Метрику для ошибок
+        this.$ym('reachGoal', 'FORM_ERROR');
       });
     },
   },

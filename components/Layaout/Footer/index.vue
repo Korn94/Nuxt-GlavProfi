@@ -23,7 +23,7 @@
         <ul class="footer-nav">
           <li><NuxtLink href="/about">О компании</NuxtLink></li>
           <!-- <li><NuxtLink href="/services">Услуги</NuxtLink></li> -->
-          <li><NuxtLink href="/portfolio">Портфолио</NuxtLink></li>
+          <li><NuxtLink href="#portfolio">Портфолио</NuxtLink></li>
           <li><NuxtLink href="/contacts">Контакты</NuxtLink></li>
           <li><NuxtLink href="/privacy-policy">Политика конфиденциальности</NuxtLink></li>
           <li><NuxtLink href="/terms-of-service">Условия использования</NuxtLink></li>
@@ -86,13 +86,9 @@ import axios from "axios";
 import { telegramToken, telegramChatId } from "~/config/config.js";
 
 export default {
-  components: {
-    Notification,
-  },
   data() {
     return {
       currentYear: new Date().getFullYear(),
-      phoneNumber: '',
       isNotificationVisible: false,
       notificationMessage: '',
       phoneNumber: "+7 ",

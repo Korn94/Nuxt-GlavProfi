@@ -1,14 +1,31 @@
 <template>
   <main>
     <PagesHomePage />
-    <PagesHomePageServices id="portfolio" />
-    <PagesHomePageBrands />
-    <PagesHomePageIntro />
-    <PagesHomePageCall />
+    <UIElementsBlockAnimator>
+      <PagesHomePageInsert />
+    </UIElementsBlockAnimator>
+    <UIElementsBlockAnimator>
+      <PagesHomePageServices id="portfolio" />
+    </UIElementsBlockAnimator>
+    <UIElementsBlockAnimator>
+      <PagesHomePageBrands />
+    </UIElementsBlockAnimator>
+    <UIElementsBlockAnimator>
+      <PagesHomePageIntro />
+    </UIElementsBlockAnimator>
+    <UIElementsBlockAnimator>
+      <PagesHomePageCall />
+    </UIElementsBlockAnimator>
     <!-- <PagesHomePagePrice /> -->
-    <PagesHomePageWorks />
-    <PagesHomePageCallRevers />
-    <PagesHomePageCalc id="calculator" />
+    <UIElementsBlockAnimator>
+      <PagesHomePageWorks />
+    </UIElementsBlockAnimator>
+    <UIElementsBlockAnimator>
+      <PagesHomePageCallRevers />
+    </UIElementsBlockAnimator>
+    <UIElementsBlockAnimator>
+      <PagesHomePageCalc id="calculator" />
+    </UIElementsBlockAnimator>
   </main>
 </template>
 
