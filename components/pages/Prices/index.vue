@@ -2,10 +2,10 @@
   <div class="container" :key="activeCategory">
     <!-- Заголовок -->
     <h1>Цены на ремонт помещений - <span>2025</span></h1>
-    <h2 style="text-decoration: underline;">Формируем цены, ожидайте к 01.03.25</h2>
-
+    
     <!-- Динамический подзаголовок -->
-    <h2>{{ activeCategoryTitle }}</h2>
+    <h2>Цены на <span>{{ activeCategoryTitle }}</span></h2>
+    <p style="text-align: center; margin-bottom: 1em;">Идет расчет цен, ожидаемая дата утверждения - <span style="text-decoration: underline; color: unset;">01.03.25</span></p>
 
     <!-- Навигация -->
     <div class="navigation">
@@ -72,10 +72,26 @@
             <ul v-if="isCategoryOpen(work.id)">
               <li v-for="item in work.subItems" :key="item.id" class="work-item">
                 <div class="work-main">
-                  <Icon name="fluent:copy-16-filled" width="16" height="16" class="pointer ico" @click="copyToClipboard(item.type)" />
-                  <p class="work-title pointer" @click="toggleSubItems(item.id)">
-                    <strong v-html="highlightText(item.type)"></strong>
-                  </p>
+                  <Icon 
+                    :name="item.isCopied ? 'fluent:copy-16-filled' : 'fluent:copy-16-regular'" 
+                    width="16" 
+                    height="16" 
+                    class="pointer ico" 
+                    @click="handleCopyClick(item)"
+                  />
+                  <div class="work-title pointer" @click="toggleSubItems(item.id)">
+                    <p>
+                      <strong v-html="highlightText(item.type)"></strong>
+                    </p>
+                    <!-- Отображение иконки -->
+                    <Icon 
+                      v-if="item.typeWorks && item.typeWorks.length"
+                      :name="isSubItemsOpen(item.id) ? 'iconamoon:arrow-up-2' : 'iconamoon:arrow-down-2'" 
+                      class="ico"
+                      width="24" 
+                      height="24" 
+                    />
+                  </div>
                   <p class="work-unit">{{ item.unit }}</p>
                   <p class="work-price">{{ item.price }} ₽</p>
                 </div>
@@ -131,12 +147,12 @@ const route = useRoute();
 
 // Данные категорий
 const categories = [
-  { id: "floor", name: "Пол", title: "Цены на ремонт пола" },
-  { id: "walls", name: "Стены", title: "Цены на ремонт стен" },
-  { id: "ceiling", name: "Потолок", title: "Цены на ремонт потолка" },
-  { id: "plumbing", name: "Сантехника", title: "Цены на ремонт сантехники" },
-  { id: "electricity", name: "Электрика", title: "Цены на ремонт электрики" },
-  { id: "other", name: "Дополнительные услуги", title: "Цены на дополнительные услуги" },
+  { id: "floor", name: "Пол", title: "ремонт пола" },
+  { id: "walls", name: "Стены", title: "ремонт стен" },
+  { id: "ceiling", name: "Потолок", title: "ремонт потолка" },
+  { id: "plumbing", name: "Сантехника", title: "ремонт сантехники" },
+  { id: "electricity", name: "Электрика", title: "ремонт электрики" },
+  { id: "other", name: "Дополнительные услуги", title: "дополнительные услуги" },
 ];
 
 // Состояния
@@ -149,6 +165,7 @@ const openSubItems = ref({}); // Открытые вложенные элеме�
 const isLoading = ref(false);
 const errorMessage = ref("");
 const notificationVisible = ref(false); // Состояние для показа уведомления
+const copiedItems = ref({}); // Новое состояние для отслеживания активных иконок
 
 // Вычисляемое свойство для динамического заголовка
 const activeCategoryTitle = computed(() => {
@@ -272,19 +289,25 @@ const highlightText = (text) => {
 };
 
 // Скопировать в буфер
-const copyToClipboard = (text) => {
-  if (!navigator.clipboard) {
-    console.error("Буфер обмена недоступен.");
-    return;
-  }
-
-  navigator.clipboard.writeText(text)
+// Метод для обработки клика по иконке копирования
+const handleCopyClick = (item) => {
+  navigator.clipboard.writeText(item.type)
     .then(() => {
+      item.isCopied = true; // Устанавливаем флаг
       notificationVisible.value = true;
+
+      setTimeout(() => {
+        item.isCopied = false; // Сбрасываем флаг через 5 секунд
+      }, 5000);
     })
     .catch((err) => {
       console.error("Ошибка копирования текста:", err);
     });
+};
+
+// Метод для определения текущей иконки
+const getCopyIcon = (type) => {
+  return copiedItems.value[type] ? "fluent:copy-16-filled" : "fluent:copy-16-regular";
 };
 
 // Смена активной категории
@@ -367,7 +390,11 @@ h1, h2 {
   .inner {
     display: inline-flex; // Размещаем кнопки в одну линию
     gap: 10px; // Расстояние между кнопками
-    padding: 10px; // Отступы внутри контейнера
+    // padding: 0; // Отступы внутри контейнера
+
+    @media (max-width: 768px) {
+        padding: 10px;
+      }
 
     
     button {
@@ -591,6 +618,23 @@ h1, h2 {
         font-size: 1rem;
         color: $text-color;
         transition: color 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px; // Расстояние между текстом и иконкой
+        // border: 1px solid red;
+        
+        .highlight {
+          background-color: $highlight-color;
+          color: white;
+          font-weight: bold;
+          padding: 2px 5px;
+          border-radius: 3px;
+        }
+        
+        .ico {
+          width: 18px;
+          height: 18px;
+        }
         
         @media (max-width: 768px) {
           font-size: .8rem;

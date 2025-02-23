@@ -2,13 +2,13 @@
   <div class="container">
     <div class="background" v-if="isDesktop">
       <div class="dark-overlay"></div>
-      <video v-if="isDesktop" class="background-video" autoplay muted loop>
+      <video v-if="isDesktop" class="background-video" autoplay muted loop playsinline>
         <source src="/main/video/main-pk.mp4" type="video/mp4" />
       </video>
     </div>
     <div class="background" v-if="!isDesktop">
       <div class="dark-overlay"></div>
-      <video v-if="!isDesktop" class="background-video" autoplay muted loop>
+      <video v-if="!isDesktop" class="background-video" autoplay muted loop playsinline>
         <source src="/main/video/main-pk.mp4" type="video/mp4" />
       </video>
     </div>
@@ -100,8 +100,9 @@ export default {
   position: relative;
   width: 100%;
   overflow: hidden;
-
+  
   .background {
+    background: #111;
     position: absolute;
     top: 0;
     left: 0;
@@ -121,7 +122,6 @@ export default {
     background: linear-gradient(110deg, rgba(0, 0, 0, 0.7) 100%, rgba(0, 0, 0, 0) 80%);
     clip-path: polygon(70% 0%, 30% 100%, 0% 100%, 0% 0%);
     z-index: 1;
-    animation: fadeIn 3s forwards;
   }
 
   .background-video {
@@ -132,6 +132,8 @@ export default {
     height: 100%;
     object-fit: cover;
     z-index: 0;
+    pointer-events: none; // Отключает взаимодействие с видео
+    user-select: none;    // Запрещает выделение элементов
   }
 
   .image-container {
@@ -214,15 +216,6 @@ export default {
     h1 {
       color: white;
       font-size: 2.5rem;
-    }
-  }
-
-  @keyframes fadeIn {
-    0% {
-      opacity: 0;
-    }
-    100% {
-      opacity: 1;
     }
   }
 

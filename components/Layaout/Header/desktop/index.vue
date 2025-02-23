@@ -52,8 +52,8 @@
           <li>
             <nuxt-link
               to="/prices/floor"
-              :class="{ active: route.hash === '#prices' || isPricesActive }"
-              @click.prevent="scrollToSection('prices')"
+              :class="{ active: route.path === '/prices/floor' || isPricesActive }"
+              @click.prevent="navigateTo('/prices/floor')"
             >
               Цены
             </nuxt-link>

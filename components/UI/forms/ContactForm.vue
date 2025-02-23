@@ -1,5 +1,4 @@
 <template>
-  <div class="container">
     <div class="modal" @click="closeModal">
       <div class="content">
         <span class="close" @click.stop="closeModal">&times;</span>
@@ -16,7 +15,6 @@
         </div>
       </div>
     </div>
-  </div>
 </template>
 
 <script>
@@ -46,7 +44,7 @@ $shadow-color: rgba(0, 0, 0, 0.05);
 
 .modal {
   position: fixed;
-  z-index: 100;
+  z-index: 999;
   left: 0;
   top: 0;
   width: 100%;

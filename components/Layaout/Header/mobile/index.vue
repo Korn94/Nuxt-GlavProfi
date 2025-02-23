@@ -13,7 +13,7 @@
           <Icon name="solar:clipboard-text-outline" size="28px" />
           <span class="label">Услуги</span>
         </li> -->
-        <li :class="{ active: !isMenuActive && currentRoute === 'prices/category' }">
+        <li :class="{ active: !isMenuActive && currentRoute === 'prices/floor' }">
           <nuxt-link to="/prices/floor" @click.native="closeMenus">
             <Icon name="solar:tag-price-broken" size="28px" />
             <span class="label">Прайс-лист</span>

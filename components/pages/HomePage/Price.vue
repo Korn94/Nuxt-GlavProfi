@@ -555,6 +555,7 @@ button {
 h2 {
   text-align: center;
   margin-bottom: 0;
+  margin: 2em 0 1em;
 }
 
 // Навигация

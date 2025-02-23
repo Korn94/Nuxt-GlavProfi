@@ -16,6 +16,7 @@
             <li><strong>Адрес:</strong> г. Рязань, ул. Примерная, д. 10</li>
             <li><strong>Режим работы:</strong> Пн–Пт: 9:00–18:00, Сб: 10:00–15:00, Вс: выходной</li>
           </ul>
+          <p><strong>Ремонтируем коммерческую недвижимость в Рязани и области</strong></p>
 
           <!-- Социальные сети -->
           <div class="social-icons">
@@ -52,7 +53,7 @@
       <!-- Карта -->
       <section class="contact-map">
         <h2>Мы на карте</h2>
-        <iframe src="https://yandex.ru/map-widget/v1/?um=constructor%3A39f28302aab56728d15ec234b6565ae996e28c32a2f61e1e48fec4cc75ee4df3&amp;source=constructor" width="100%" height="400" frameborder="0"></iframe>
+        <iframe src="https://yandex.ru/map-widget/v1/?z=12&ol=biz&oid=187227784297" width="100%" height="400" frameborder="0"></iframe>
       </section>
     </main>
   </div>
@@ -213,6 +214,10 @@ const handleFormSubmission = (isSuccess) => {
 
       h2 {
         color: #00c3f5;
+      }
+
+      p {
+        text-align: center;
       }
 
       // Общий стиль для обоих блоков

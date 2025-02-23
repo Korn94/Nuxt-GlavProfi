@@ -8,20 +8,22 @@
         <p>
           Консультация с экспертом поможет вам<br/> определиться со всеми важными аспектами будущего ремонта
         </p>
-        <p class="dop">Консультация бесплатна</p>
+        <p class="dop" @click="handleButtonClick">Консультация бесплатна</p>
       </div>
       <UIButtonsMainButton 
-        class="btn" 
-        text="Позвонить" 
-        color="#fff" 
-        textColor="#111" 
-        @click="handleButtonClick" 
+        class="btn"
+        text="Позвонить"
+        color="#fff"
+        textColor="#111"
+        @click="handleButtonClick"
       />
-      <UIFormsContactForm 
+      <teleport to="body">
+        <UIFormsContactForm 
         v-if="showModal" 
         @close="closeModal" 
         @formSubmitted="handleFormSubmitted" 
-      />
+        />
+      </teleport>
     </div>
   </div>
 </template>
@@ -107,6 +109,7 @@ const isMobileDevice = () => {
       }
 
       .dop {
+      cursor: pointer;
         color: #00c3f5;
       }
     }

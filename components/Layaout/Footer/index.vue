@@ -3,16 +3,18 @@
     <div class="footer-container">
       <!-- Левая часть: информация о компании -->
       <div class="footer-info">
-        <h3 class="footer-title">ИП Главацкий П.Е.</h3>
+        <!-- <h3 class="footer-title">ИП Главацкий П.Е.</h3> -->
+        <h3 class="footer-title">ГлавПрофи - Рязань и область</h3>
         <p class="footer-text">
+          <!-- <span>Рязань и область</span><br> -->
           Отделка и ремонт помещений любой сложности<br>
           От косметического ремонта до полной реконструкции
         </p>
         <ul class="footer-details">
           <li @click="copyToClipboard('622907683792')"><strong>ИНН:</strong> <span>622907683792</span></li>
-          <li @click="copyToClipboard('321623400019751')"><strong>ОГРН:</strong> <span>321623400019751</span></li>
-          <li><strong>Юридический адрес:</strong> 391480, Рязанская обл. <br>Путятинский р-н, п. Агрокультура ул. Сасыкинская д.8</li>
-          <li @click="openEmail"><strong>Электронная почта:</strong> <span>glavlider@yandex.ru</span></li>
+          <!-- <li @click="copyToClipboard('321623400019751')"><strong>ОГРН:</strong> <span>321623400019751</span></li> -->
+          <!-- <li><strong>Юридический адрес:</strong> 391480, Рязанская обл. <br>Путятинский р-н, п. Агрокультура ул. Сасыкинская д.8</li> -->
+          <li @click="openEmail"><strong>Электронная почта:</strong> <span>glavprofi@yandex.ru</span></li>
           <li @click="handlePhoneClick('+7 (910) 909-69-47')"><strong>Телефон:</strong> <span>+7 (910) 909-69-47</span></li>
         </ul>
       </div>
@@ -105,7 +107,7 @@ export default {
       });
     },
     openEmail() {
-      window.location.href = 'mailto:glavlider@yandex.ru';
+      window.location.href = 'mailto:glavprofi@yandex.ru';
     },
     handlePhoneClick(phoneNumber) {
       if (/Mobi|Android/i.test(navigator.userAgent)) {
@@ -209,9 +211,13 @@ $subtext-color: #bdc3c7;
       margin-bottom: 8px;
       color: $subtext-color;
     }
-
-    span {
+    
+    strong {
       color: $text-color;
+    }
+    
+    span {
+      color: $subtext-color;
       cursor: pointer;
 
       &:hover {

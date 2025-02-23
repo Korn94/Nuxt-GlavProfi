@@ -4,7 +4,7 @@
       <p class="title">За <span>17 лет</span> выполнено<br> более <span>250+</span> проектов по<br> ремонту <span>коммерческих</span> объектов.</p>
       <p class="brands">Среди них — помещения известных и премиальных брендов.</p>
     </div>
-    <hr class="line" style="max-width: 1200px; margin-top: 2em;">
+    <!-- <hr class="line" style="max-width: 1200px; margin-top: 2em;">
     <div class="imgbox">
       <img src="/public/brands/logo-sber.png" alt="ремонт сбербанка">
       <img src="/public/brands/ddx.png" alt="ремонт сбербанка">
@@ -12,7 +12,7 @@
       <img src="/public/brands/ddx.png" alt="ремонт сбербанка">
       <img src="/public/brands/logo-sber.png" alt="ремонт сбербанка">
       <img src="/public/brands/ddx.png" alt="ремонт сбербанка">
-    </div>
+    </div> -->
   </div>
 </template>
 
