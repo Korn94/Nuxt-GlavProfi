@@ -29,6 +29,7 @@
           <li><NuxtLink href="/contacts">Контакты</NuxtLink></li>
           <li><NuxtLink href="/privacy-policy">Политика конфиденциальности</NuxtLink></li>
           <li><NuxtLink href="/terms-of-service">Условия использования</NuxtLink></li>
+          <li><NuxtLink href="/cabinet/login">Вход</NuxtLink></li>
         </ul>
       </div>
 
@@ -70,7 +71,7 @@
     <!-- Нижняя часть: копирайт -->
     <div class="footer-bottom">
       <p class="footer-copyright">
-        &copy; 2008–{{ currentYear }} <span>Глав Профи.</span> Все права защищены.
+        &copy; 2014–{{ currentYear }} <span>Глав Профи.</span> Все права защищены.
       </p>
     </div>
 

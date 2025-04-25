@@ -3,36 +3,9 @@ import { defineNuxtConfig } from 'nuxt/config';
 export default defineNuxtConfig({
   // Включаем SSR
   ssr: true,
-  target: 'server', // Указываем цель как сервер
 
-  // Настройка Nitro для SSR
-  nitro: {
-    preset: 'node-server', // Используем Node.js сервер для SSR
-    prerender: {
-      crawlLinks: true, // Автоматически находит ссылки для предварительной генерации
-      routes: [
-        '/',
-        '/prices/floor',
-        '/prices/walls',
-        '/prices/ceiling',
-        '/prices/plumbing',
-        '/prices/electricity',
-        '/prices/other',
-        '/projects/1',
-        '/projects/2',
-        '/projects/3',
-        '/projects/4',
-        '/projects/5',
-        '/projects/6',
-        '/projects/7',
-        '/projects/8',
-        '/projects/9',
-        '/projects/10',
-        '/projects/11',
-        '/projects/12',
-      ],
-    },
-  },
+  // Указываем цель как сервер
+  target: 'server',
 
   // Настройка маршрутизации
   router: {
@@ -52,6 +25,10 @@ export default defineNuxtConfig({
     '@nuxt/icon', // Иконки
     '@nuxtjs/sitemap', // Карта сайта
   ],
+
+  chartjs: {
+    autoImport: true,
+  },
 
   // Настройка карты сайта
   sitemap: {
@@ -83,12 +60,19 @@ export default defineNuxtConfig({
         { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' }, // Фавикон
         { rel: 'canonical', href: 'https://glavprofi.ru/' }, // Канонический URL
       ],
+      // script: [
+      //   {
+      //     src: 'https://telegram.org/js/telegram-web-app.js', // Подключение Telegram Web App SDK
+      //     defer: true,
+      //   },
+      // ],
     },
   },
 
   // Настройка плагинов
   plugins: [
     '~/plugins/yandexMetrica.js', // Подключение Яндекс.Метрики
+    '~/plugins/axios.js', // Плагин для axios
   ],
 
   // Настройка переменных окружения
@@ -100,4 +84,10 @@ export default defineNuxtConfig({
 
   // Дата совместимости
   compatibilityDate: '2025-02-12',
+
+  devtools: {
+    timeline: {
+      enabled: true,
+    },
+  },
 });

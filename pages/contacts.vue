@@ -2,7 +2,7 @@
   <PagesContacts />
 </template>
 
-<script>
+<script setup>
 useHead({
   title: 'Контакты',
   meta: [

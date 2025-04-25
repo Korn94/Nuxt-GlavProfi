@@ -3,53 +3,25 @@
     <slot></slot>
 
     <div class="toggle-buttons" v-if="shouldShowToggleButtons">
-      <UIButtonsSecondButton
-        v-for="(tab, index) in tabsWithLabels"
-        :key="index"
-        :text="tab.label"
-        :class="{ active: activeTab === tab.key }"
-        :reverseEffect="activeTab !== tab.key"
-        @click="setActiveTab(tab.key)"
-      />
+      <UIButtonsSecondButton v-for="(tab, index) in tabsWithLabels" :key="index" :text="tab.label" :class="{ active: activeTab === tab.key }" :reverseEffect="activeTab !== tab.key" @click="setActiveTab(tab.key)"/>
     </div>
 
     <!-- <hr class="line" /> -->
 
     <div class="navigation" v-if="activeCategories.length > 0">
       <div class="inner">
-        <button
-          v-for="(category, index) in activeCategories"
-          :key="index"
-          :text="category"
-          :class="{ active: activeCategory === category }"
-          :reverseEffect="activeCategory !== category"
-          @click="setActiveCategory(category)"
-        >{{ category }}</button>
+        <button v-for="(category, index) in activeCategories" :key="index" :text="category" :class="{ active: activeCategory === category }" :reverseEffect="activeCategory !== category" @click="setActiveCategory(category)">{{ category }}</button>
       </div>
     </div>
-    <transition-group
-      name="fade-slide"
-      tag="div"
-      class="image-grid"
-      :style="{ height: containerHeight }"
-    >
-      <div
-        class="image"
-        v-for="(image, index) in visibleImages"
-        :key="index"
-        :style="{ backgroundImage: `url(${image.src})` }"
-        @click="navigateToProject(image)"
-      >
+    <transition-group name="fade-slide" tag="div" class="image-grid" :style="{ height: containerHeight }">
+      <div class="image" v-for="(image, index) in visibleImages" :key="index" :style="{ backgroundImage: `url(${image.src})` }" @click="navigateToProject(image)">
+        <Icon name="ion:arrow-redo" class="icon" />
         <div class="info-overlay">{{ image.info }}</div>
+        <div class="content"></div>
       </div>
     </transition-group>
 
-    <UIButtonsMainButton
-      class="openbtn"
-      text="Показать еще"
-      v-if="filteredImages.length > 9 && !showAll"
-      @click="showAllImages"
-    ></UIButtonsMainButton>
+    <UIButtonsMainButton class="openbtn" text="Показать еще" v-if="filteredImages.length > 9 && !showAll" @click="showAllImages"></UIButtonsMainButton>
   </div>
 </template>
 
@@ -257,6 +229,23 @@ export default {
       padding: 10px;
       opacity: 0;
       transition: opacity 0.3s ease;
+    }
+
+    .icon {
+      position: absolute;
+      color: #fff;
+      width: 24px;
+      height: 24px;
+      right: 2%;
+      top: 2%;
+    }
+
+    .content {
+      background: linear-gradient(to bottom left, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 20%), #00000000;
+      // padding-top: 2em;
+      width: 100%;
+      height: 100%;
+      // margin: auto auto 2em;
     }
   }
 

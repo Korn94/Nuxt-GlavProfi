@@ -7,14 +7,17 @@
     "dev": "nuxt dev --host=0.0.0.0",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
+    "start": "nuxt start",
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
     "@nuxtjs/sitemap": "^7.2.4",
     "animate.css": "^4.1.1",
     "axios": "^1.7.9",
+    "lru-cache": "^11.0.2",
     "nuxt": "^3.15.0",
     "vue": "latest",
+    "vue-chartjs": "^5.3.2",
     "vue-router": "latest",
     "vue-the-mask": "^0.11.1"
   },

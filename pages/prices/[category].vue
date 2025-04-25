@@ -1,6 +1,17 @@
 <template>
   <div>
     <PagesPrices />
+
+    <section class="price-list">
+      <h3>Делимся своими оптовыми скидками на материал</h3>
+      <p>Наши клиенты получают лучшие цены на строительные материалы для своего объекта. Так же помогаем в организации закупок и логистики.</p>
+      <NuxtLink to="/prices/floor">
+        <button class="gradient-button large-button">
+          Связаться
+        </button>
+      </NuxtLink>
+    </section>
+
     <PagesHomePageCall />
     <PagesHomePageCalc />
   </div>
@@ -82,3 +93,30 @@ useHead({
   ],
 });
 </script>
+
+<style lang="scss" scoped>
+button {
+    padding: 10px 20px;
+    min-width: 150px;
+    margin-top: 1.5em;
+    background: linear-gradient(to right, #00c3f5, #00a3d3);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+
+    &:hover {
+      background: #00a3d3;
+    }
+  }
+
+.price-list {
+  text-align: center;
+  max-width: 800px;
+  margin: 0 auto 2em;
+  padding: 20px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+</style>

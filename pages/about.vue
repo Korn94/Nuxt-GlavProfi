@@ -2,7 +2,7 @@
   <PagesAbout />
 </template>
 
-<script>
+<script setup>
 useHead({
   title: 'О компании',
   meta: [

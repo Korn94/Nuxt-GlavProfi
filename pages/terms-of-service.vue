@@ -2,7 +2,7 @@
   <PagesTerms />
 </template>
 
-<script>
+<script setup>
 useHead({
   title: 'Условия использования',
   meta: [

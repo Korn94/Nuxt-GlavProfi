@@ -2,7 +2,7 @@
   <PagesPrivacyPolicy />
 </template>
 
-<script>
+<script setup>
 useHead({
   title: 'Политика конфиденциальности',
   meta: [

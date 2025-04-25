@@ -5,7 +5,7 @@
       <ul>
         <li :class="{ active: !isMenuActive && currentRoute === 'index' }">
           <nuxt-link to="/" @click.native="closeMenus">
-            <Icon name="solar:home-angle-broken" size="28px" />
+            <Icon name="solar:home-angle-broken" size="22px" />
             <span class="label">Главная</span>
           </nuxt-link>
         </li>
@@ -13,20 +13,20 @@
           <Icon name="solar:clipboard-text-outline" size="28px" />
           <span class="label">Услуги</span>
         </li> -->
-        <li :class="{ active: !isMenuActive && currentRoute === 'prices/floor' }">
+        <li :class="{ active: !isMenuActive && isPriceRoute }">
           <nuxt-link to="/prices/floor" @click.native="closeMenus">
-            <Icon name="solar:tag-price-broken" size="28px" />
+            <Icon name="solar:tag-price-broken" size="22px" />
             <span class="label">Прайс-лист</span>
           </nuxt-link>
         </li>
         <li :class="{ active: !isMenuActive && currentRoute === 'contacts' }">
           <a href="tel:+79109096947" @click="closeMenus">
-            <Icon name="solar:phone-line-duotone" size="28px" />
+            <Icon name="solar:phone-line-duotone" size="22px" />
             <span class="label">Позвонить</span>
           </a>
         </li>
         <li :class="{ active: isMenuActive }" @click="toggleMenu">
-          <Icon name="stash:burger-classic" size="28px" />
+          <Icon name="stash:burger-classic" size="22px" />
           <span class="label">Меню</span>
         </li>
       </ul>
@@ -114,6 +114,11 @@ const isMenuActive = computed(() => {
   return isMenuOpen.value;
 });
 
+// Проверка, является ли текущий маршрут частью /prices/
+const isPriceRoute = computed(() => {
+  return route.path.startsWith('/prices/');
+});
+
 // Отслеживание изменения маршрута
 watch(
   () => route.name,
@@ -164,7 +169,7 @@ const closeMenus = () => {
 
   nav {
     border-top: 1px solid #ddd;
-    background: #fff;
+    background: #18191b;
     
     ul {
       display: flex;
@@ -182,7 +187,8 @@ const closeMenus = () => {
         padding: 10px 0;
         cursor: pointer;
         transition: color 0.3s ease;
-
+        color: #fff;
+        
         &.active {
           color: #00c3f5;
         }

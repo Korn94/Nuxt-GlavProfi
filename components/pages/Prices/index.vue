@@ -5,7 +5,7 @@
     
     <!-- Динамический подзаголовок -->
     <h2>Цены на <span>{{ activeCategoryTitle }}</span></h2>
-    <p style="text-align: center; margin-bottom: 1em;">Идет расчет цен, ожидаемая дата утверждения - <span style="text-decoration: underline; color: unset;">01.03.25</span></p>
+    <!-- <p style="text-align: center; margin-bottom: 1em;">Идет расчет цен, ожидаемая дата утверждения - <span style="text-decoration: underline; color: unset;">25.03.25</span></p> -->
 
     <!-- Навигация -->
     <div class="navigation">
@@ -23,11 +23,23 @@
 
     <!-- Поиск -->
     <div class="search-bar">
-      <input
-        type="text"
-        v-model="searchQuery"
-        placeholder="Поиск по работам..."
-      />
+      <div style="position: relative; width: 100%;">
+        <input
+          type="text"
+          v-model="searchQuery"
+          placeholder="Поиск по работам..."
+          style="padding-right: 30px;"
+        />
+        <Icon 
+          v-if="searchQuery"
+          name="material-symbols:close" 
+          class="ico"
+          width="24" 
+          height="24"
+          @click="clearSearch"
+          style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer;"
+        />
+      </div>
     </div>
 
     <!-- Таблица -->
@@ -64,12 +76,18 @@
           <h2>{{ category.title }}</h2>
           <div v-for="work in category.items" :key="work.id" class="work-category">
             <!-- Заголовок работы -->
-            <h3 @click="toggleCategory(work.id)">
+            <h3 @click="toggleWork(work.id)">
               {{ work.name }}
+              <Icon 
+                :name="isOpenWork(work.id) ? 'iconamoon:arrow-up-2' : 'iconamoon:arrow-down-2'" 
+                class="ico"
+                width="24" 
+                height="24" 
+              />
             </h3>
 
             <!-- Список работ, только если категория открыта -->
-            <ul v-if="isCategoryOpen(work.id)">
+            <ul v-if="isOpenWork(work.id)">
               <li v-for="item in work.subItems" :key="item.id" class="work-item">
                 <div class="work-main">
                   <Icon 
@@ -104,7 +122,6 @@
                     <p class="work-unit">{{ typeWork.unit }}</p>
                     <p class="work-price">{{ typeWork.price }} ₽</p>
                   </li>
-
                   <!-- Дополнительные работы -->
                   <template v-if="item.dopworks && item.dopworks.length">
                     <p class="additional-works-label">Доп. работы</p>
@@ -162,6 +179,7 @@ const works = ref([]); // Работы текущей категории
 const searchQuery = ref("");
 const openCategories = ref([]); // Открытые категории
 const openSubItems = ref({}); // Открытые вложенные элементы
+const openWorks = ref({}); // Открытые работы - стрелочки
 const isLoading = ref(false);
 const errorMessage = ref("");
 const notificationVisible = ref(false); // Состояние для показа уведомления
@@ -178,20 +196,16 @@ const loadCategoryData = async (categoryId) => {
   try {
     isLoading.value = true;
     errorMessage.value = "";
-
     // Очистка текущих данных
     works.value = [];
     openCategories.value = [];
     openSubItems.value = {};
-
     // Загрузка основного файла категории
     const mainResponse = await fetch(`/data/${categoryId}.json`);
     if (!mainResponse.ok) {
       throw new Error(`Файл данных для категории ${categoryId} не найден.`);
     }
-
     const mainData = await mainResponse.json();
-
     // Загрузка вложенных файлов
     const loadedCategories = await Promise.all(
       mainData.categories.map(async (category) => {
@@ -207,8 +221,14 @@ const loadCategoryData = async (categoryId) => {
         return category; // Если нет вложенного файла, возвращаем категорию как есть
       })
     );
-
     works.value = loadedCategories;
+
+    // Открываем первую работу по умолчанию
+    const firstCategory = loadedCategories.find(cat => cat.items && cat.items.length > 0);
+    if (firstCategory && firstCategory.items.length > 0) {
+      const firstWorkId = firstCategory.items[0].id;
+      openWorks.value[firstWorkId] = true; // Открываем первую работу
+    }
   } catch (error) {
     errorMessage.value = error.message;
     works.value = [];
@@ -249,6 +269,10 @@ const filteredWorks = computed(() => {
   return filtered;
 });
 
+const clearSearch = () => {
+  searchQuery.value = ""; // Очищаем поле поиска
+};
+
 // Установка активной категории
 const setActiveWork = (categoryId) => {
   activeWork.value = categoryId;
@@ -270,12 +294,22 @@ const toggleCategory = (id) => {
 
 // Проверка, открыты ли вложенные элементы
 const isSubItemsOpen = (id) => {
-  return searchQuery.value.trim() ? false : !!openSubItems.value[id];
+  return !!openSubItems.value[id]; // Убираем зависимость от searchQuery
 };
 
 // Открыть/закрыть вложенные элементы
 const toggleSubItems = (id) => {
   openSubItems.value[id] = !openSubItems.value[id];
+};
+
+// Проверка, открыта ли работа
+const isOpenWork = (id) => {
+  return searchQuery.value.trim() ? true : !!openWorks.value[id];
+};
+
+// Открыть/закрыть работу
+const toggleWork = (id) => {
+  openWorks.value[id] = !openWorks.value[id];
 };
 
 // Подсветка текста
@@ -356,7 +390,7 @@ $shadow-color: rgba(0, 0, 0, 0.05);
   cursor: pointer;
 }
 
-h1, h2 {
+h1 {
   text-align: center;
 }
 
@@ -700,6 +734,10 @@ h1, h2 {
 }
 
 @media (max-width: 768px) {
+  .container {
+    margin: 5em 5px;
+  }
+
   h1 {
     font-size: 1.5em;
     margin-bottom: .5em;

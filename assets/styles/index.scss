@@ -1,5 +1,10 @@
 @use 'variables';
 
+$primary-color: #00c3f5;
+$background-color: #18191b;
+$text-color: #ffffff;
+$subtext-color: #bdc3c7;
+
 * {
   margin: 0;
   padding: 0;
@@ -24,6 +29,19 @@ textarea {
 }
 
 input {
+  flex: 1;
+  padding: 5px 10px;
+  border: 1px solid $subtext-color;
+  border-radius: 5px;
+  font-size: 0.9rem;
+  outline: none;
+  color: $text-color;
+  background-color: $background-color;
+
+  &::placeholder {
+    color: $subtext-color;
+  }
+
   &:focus {
     border-color: #00c3f5;
     box-shadow: 0 0 5px rgba(0, 195, 245, 0.5);

@@ -2,13 +2,13 @@
   <div class="container">
     <div class="background" v-if="isDesktop">
       <div class="dark-overlay"></div>
-      <video v-if="isDesktop" class="background-video" autoplay muted loop playsinline>
+      <video v-if="isDesktop" class="background-video" autoplay muted loop playsinline preload="auto">
         <source src="/main/video/main-pk.mp4" type="video/mp4" />
       </video>
     </div>
     <div class="background" v-if="!isDesktop">
       <div class="dark-overlay"></div>
-      <video v-if="!isDesktop" class="background-video" autoplay muted loop playsinline>
+      <video v-if="!isDesktop" class="background-video" autoplay muted loop playsinline preload="auto">
         <source src="/main/video/main-pk.mp4" type="video/mp4" />
       </video>
     </div>
@@ -21,12 +21,13 @@
           под <span>любые</span> задачи и масштабы
         </h1>
         <div class="buttons">
-          <UIButtonsMainButton text="Консультация" color="#fff" textColor="#111" @click="openModal" />
+          <UIButtonsMainButton text="Связаться" color="#fff" textColor="#111" @click="openModal" />
           <NuxtLink to="/prices/floor"><UIButtonsMainButton text="Прайс-лист" color="#fff" textColor="#111" :reverseEffect="true" /></NuxtLink>
         </div>
         <UIFormsContactForm v-if="showModal" @close="closeModal" @formSubmitted="handleFormSubmitted" />
         <div class="exp">
-          <p style="color: #fff;">Ремонтируем коммерческую <br class="mobile-only">недвижимость<br class="desktop-only"> в <span class="bold">Рязани и области с 2008 г.</span></p>
+          <!-- <p style="color: #fff;">Ремонтируем коммерческую <br class="mobile-only">недвижимость<br class="desktop-only"> в <span class="bold">Рязани и области с 2008 г.</span></p> -->
+          <p style="color: #fff;"><span class="bold">Рязань</span> и <span class="bold">Область</span></p>
         </div>
         <!-- <div class="items">
           <div class="item">
@@ -221,7 +222,7 @@ export default {
 
     @media (max-width: 768px) {
     .dark-overlay {
-      background: rgba(0, 0, 0, 0.7); // Убираем градиент и делаем однородный цвет
+      background: rgba(0, 0, 0, 0.5); // Убираем градиент и делаем однородный цвет
       clip-path: none; // Убираем clip-path
     }
 
@@ -234,7 +235,7 @@ export default {
         justify-content: center;
         text-align: center;
         left: 0;
-        bottom: 3em;
+        top: 3em;
       }
       
       h1 {
