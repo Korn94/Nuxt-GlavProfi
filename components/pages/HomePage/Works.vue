@@ -13,7 +13,6 @@
           class="category-card"
         >
           <h3>{{ category.name }}</h3>
-          <p>От {{ category.priceFrom }} ₽</p>
           <button @click="navigateToCategory(category.id)">Прайс {{ category.type }}</button>
         </div>
       </div>
@@ -23,11 +22,14 @@
     <section class="price-list">
       <h3>Узнайте стоимость ремонта</h3>
       <p>Ознакомьтесь с нашим полным прайс-листом для точного расчета.</p>
-      <NuxtLink to="/prices/floor">
+      <!-- <NuxtLink to="/prices/floor">
         <button class="gradient-button large-button">
           Перейти к прайс-листу
         </button>
-      </NuxtLink>
+      </NuxtLink> -->
+      <NuxtLink to="/about">
+          <UIButtonsMainButton text="Перейти" />
+        </NuxtLink>
     </section>
   </div>
 </template>
@@ -37,11 +39,11 @@ import { useRouter } from 'vue-router';
 
 // Данные категорий (можно загрузить из JSON)
 const categories = [
-  { id: "prices/floor", name: "Ремонт пола", priceFrom: 500, type: "пола" },
-  { id: "prices/walls", name: "Ремонт стен", priceFrom: 700, type: "стен" },
-  { id: "prices/ceiling", name: "Ремонт потолка", priceFrom: 600, type: "потолка" },
-  { id: "prices/plumbing", name: "Сантехника", priceFrom: 1000, type: "Сантехники" },
-  { id: "prices/electricity", name: "Электрика", priceFrom: 900, type: "Электрики" },
+  { id: "prices/floor", name: "Ремонт пола", type: "пола" },
+  { id: "prices/walls", name: "Ремонт стен", type: "стен" },
+  { id: "prices/ceiling", name: "Ремонт потолка", type: "потолка" },
+  { id: "prices/plumbing", name: "Сантехника", type: "Сантехники" },
+  { id: "prices/electricity", name: "Электрика", type: "Электрики" },
 ];
 
 // Роутер для навигации
@@ -130,11 +132,19 @@ const navigateToCategory = (categoryId) => {
 }
 
 .price-list {
-  text-align: center;
+  // text-align: center;
   max-width: 800px;
   margin: 0 auto;
   padding: 20px;
   border: 1px solid #ccc;
   border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: #f7f7f7;
+
+  a {
+    margin-top: 1em;
+  }
 }
 </style>

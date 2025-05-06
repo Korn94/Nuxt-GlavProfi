@@ -1,77 +1,108 @@
 <template>
   <div class="container">
-    <h1>{{ master.name }} (Мастер)</h1>
+    <h1>Мастер: {{ master.name }}</h1>
 
-    <!-- Блок информации о мастере -->
-    <div class="master-info" v-if="!editingMaster">
-      <p><strong>Баланс:</strong> {{ master.balance }} ₽</p>
-      <p><strong>Телефон:</strong> {{ master.phone }}</p>
-      <p><strong>Комментарий:</strong> {{ master.comment }}</p>
-      <button @click="toggleEdit">Редактировать</button>
-    </div>
-
-    <!-- Форма редактирования -->
-    <div v-else class="form">
-      <input
-        v-model="master.name"
-        placeholder="Имя"
-        :class="{ error: formErrors.name }"
-      />
-      <span v-if="formErrors.name" class="error-message">{{ formErrors.name }}</span>
-      <input
-        v-model="master.phone"
-        placeholder="Телефон"
-        type="tel"
-      />
-      <textarea
-        v-model="master.comment"
-        placeholder="Комментарий"
-      />
-      <button @click="saveMaster">Сохранить</button>
-      <button @click="cancelEdit">Отмена</button>
-    </div>
-
-    <!-- Блок операций -->
+    <!-- Информация -->
     <div class="block">
-      <h2>Операции</h2>
-      <div class="form">
-        <select v-model="newOperation.type" :class="{ error: formErrors.type }">
-          <option value="deposit">Оплата</option>
-          <option value="withdrawal">Выполнил</option>
-        </select>
-        <input
-          v-model.number="newOperation.amount"
-          placeholder="Сумма"
-          type="number"
-          step="0.01"
-          :class="{ error: formErrors.amount }"
-        />
-        <textarea
-          v-model="newOperation.description"
-          placeholder="Описание"
-        />
-        <button @click="addOperation" :disabled="isFormInvalid">Добавить операцию</button>
-      </div>
-      <table>
-        <thead>
-          <tr>
-            <th>Дата</th>
-            <th>Тип</th>
-            <th>Сумма</th>
-            <th>Описание</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="operation in operations" :key="operation.id">
-            <td>{{ operation.date }}</td>
-            <td>{{ operation.type }}</td>
-            <td>{{ operation.amount }} ₽</td>
-            <td>{{ operation.description }}</td>
-          </tr>
-        </tbody>
-      </table>
+      <h3>Данные мастера:</h3>
+      <p><strong>Имя:</strong> {{ master.name }}</p>
+      <p><strong>Телефон:</strong> {{ master.phone }}</p>
+      <p><strong>Баланс:</strong> {{ balance }} ₽</p>
+      <p><strong>Комментарий:</strong> {{ master.comment }}</p>
     </div>
 
+    <!-- Форма добавления работы -->
+    <div class="block">
+      <h3>Добавить работу</h3>
+      <input
+        type="number"
+        step="100.00"
+        v-model="newWork.amount"
+        placeholder="Сумма"
+        required
+      />
+      <select v-model="newWork.objectId">
+        <option value="">Выберите объект</option>
+        <option v-for="obj in objects" :key="obj.id" :value="obj.id">
+          {{ obj.name }}
+        </option>
+      </select>
+      <!-- <select v-model="newWork.worksList">
+        <option value="">Выберите вид работы</option>
+        <option v-for="work in worksTypes" :key="work.id" :value="work.id">
+          {{ work.name }}
+        </option>
+      </select> -->
+      <textarea v-model="newWork.comment" placeholder="Комментарий"></textarea>
+      <button @click="addWork">Добавить работу</button>
+    </div>
+
+    <!-- Форма добавления расхода -->
+    <div class="block">
+      <h3>Добавить Оплату</h3>
+      <input
+        type="number"
+        step="100.00"
+        v-model="newExpense.amount"
+        placeholder="Сумма"
+        required
+      />
+      <select v-model="newExpense.objectId">
+        <option value="">Выберите объект</option>
+        <option v-for="obj in objects" :key="obj.id" :value="obj.id">
+          {{ obj.name }}
+        </option>
+      </select>
+      <!-- <select v-model="newExpense.works">
+        <option value="">Выберите вид работы</option>
+        <option v-for="work in worksTypes" :key="work.id" :value="work.id">
+          {{ work.name }}
+        </option>
+      </select> -->
+      <textarea v-model="newExpense.comment" placeholder="Комментарий"></textarea>
+      <button @click="addExpense">Добавить расход</button>
+    </div>
+
+    <!-- Список работ -->
+    <div class="block">
+      <h3>Работы</h3>
+      <div class="pending">
+        <h4>Ожидает оплаты:</h4>
+        <ul v-if="pendingWorks.length > 0">
+          <li v-for="work in pendingWorks" :key="work.id">
+            {{ work.amount }} ₽ — {{ work.comment }} 
+            {{ (objects.find(obj => obj.id === work.objectId) || {}).name || 'Объект не найден' }}
+            <button @click="payWork(work.id)">Оплатить</button>
+          </li>
+        </ul>
+        <p v-else>Нет работ, ожидающих оплаты.</p>
+      </div>
+      <div class="paid">
+        <h4>Оплачено:</h4>
+        <ul v-if="paidWorks.length > 0">
+          <li v-for="work in paidWorks" :key="work.id">
+            {{ work.amount }} ₽ — {{ work.comment }} 
+            ({{ new Date(work.paymentDate).toLocaleDateString() }}) <!-- Форматируем дату -->
+          </li>
+        </ul>
+        <p v-else>Нет оплаченных работ.</p>
+      </div>
+    </div>
+
+    <div class="block">
+      <h3>Расходы</h3>
+      <div class="pending">
+        <h4>Все расходы:</h4>
+        <ul v-if="expenses.length > 0">
+          <li v-for="expense in expenses" :key="expense.id">
+            <b>{{ new Date(expense.paymentDate).toLocaleDateString() }}</b> -
+            {{ expense.amount }} ₽ — {{ expense.comment }} 
+          </li>
+        </ul>
+        <p v-else>Нет расходов.</p>
+      </div>
+    </div>
+    
     <!-- Блок договоренностей -->
     <div class="block">
       <h2>Договоренности</h2>
@@ -96,32 +127,125 @@
       </ul>
     </div>
 
-    <!-- Системные сообщения -->
-    <div v-if="successMessage" class="success-message">
-      {{ successMessage }}
+    <!-- Форма редактирования мастера -->
+    <div class="block" v-if="editing">
+      <h3>Редактировать данные</h3>
+      <input
+        v-model="master.name"
+        placeholder="Имя"
+        required
+      />
+      <input
+        v-model="master.phone"
+        placeholder="Телефон"
+      />
+      <textarea v-model="master.comment" placeholder="Комментарий"></textarea>
+      <button @click="saveMaster">Сохранить</button>
+      <button @click="cancelEdit">Отмена</button>
     </div>
-    <div v-if="errorMessage" class="error-message">
-      {{ errorMessage }}
+    
+    <div v-else>
+      <button @click="toggleEdit">Редактировать</button>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useNuxtApp } from '#app';
 
 const route = useRoute();
+const router = useRouter();
+const masterId = route.params.id;
+const contractorType = 'master';
+
+// Данные
 const master = ref({});
-const operations = ref([]);
+const objects = ref([]);
+const works = ref([]);
+const expenses = ref([]);
+const newWork = ref({});
+const newExpense = ref({});
 const agreements = ref([]);
-const newOperation = ref({ type: 'deposit', amount: 0, description: '' });
-const newAgreement = ref({ text: '', status: 'active' });
-const formErrors = ref({});
 const formAgreementErrors = ref({});
-const editingMaster = ref(false);
-const successMessage = ref('');
-const errorMessage = ref('');
+const newAgreement = ref({ text: '', status: 'active' });
+// const worksTypes = ref([]);
+
+// Режим редактирования
+const editing = ref(false);
+
+// Вычисляемые свойства
+const pendingWorks = computed(() => 
+  works.value.filter(w => w.paid !== true)
+);
+const paidWorks = computed(() => 
+  works.value.filter(w => w.paid === true)
+);
+
+// Новая формула баланса: сумма всех работ - сумма расходов
+const totalWorks = computed(() => 
+  works.value.reduce((sum, w) => sum + Number(w.amount), 0)
+);
+const totalExpenses = computed(() => 
+  expenses.value.reduce((sum, e) => sum + Number(e.amount), 0)
+);
+const balance = computed(() => 
+  (totalExpenses.value - totalWorks.value).toFixed(2)
+);
+
+// Загрузка данных
+async function fetchMaster() {
+  try {
+    const response = await useNuxtApp().$axios.get(
+      `/contractors/masters/${masterId}`
+    );
+    master.value = response.data;
+  } catch (error) {
+    console.error('Ошибка при получении мастера:', error);
+    router.push('/cabinet/admin/contractors/masters');
+  }
+}
+
+async function fetchObjects() {
+  try {
+    const response = await useNuxtApp().$axios.get('/objects');
+    objects.value = response.data;
+  } catch (error) {
+    console.error('Ошибка при получении объектов:', error);
+  }
+}
+
+async function fetchWorks() {
+  try {
+    const response = await useNuxtApp().$axios.get(
+      `/works/${contractorType}/${masterId}`
+    );
+    works.value = response.data;
+  } catch (error) {
+    console.error('Ошибка при получении работ:', error);
+  }
+}
+
+async function fetchExpenses() {
+  try {
+    const response = await useNuxtApp().$axios.get(
+      `/expenses/contractor/${contractorType}/${masterId}`
+    );
+    expenses.value = response.data;
+  } catch (error) {
+    console.error('Ошибка при получении расходов:', error);
+  }
+}
+
+// async function fetchWorksTypes() {
+//   try {
+//     const response = await useNuxtApp().$axios.get('/works/types');
+//     worksTypes.value = response.data;
+//   } catch (error) {
+//     console.error('Ошибка при получении типов работ:', error);
+//   }
+// }
 
 definePageMeta({
   middleware: 'auth',
@@ -131,45 +255,83 @@ definePageMeta({
 
 onMounted(async () => {
   await fetchMaster();
-  await fetchOperations();
+  await fetchObjects();
+  await fetchWorks();
+  await fetchExpenses();
+  // await fetchWorksTypes();
   await fetchAgreements();
 });
 
-// Методы загрузки данных
-async function fetchMaster() {
+// Методы
+async function addWork() {
   try {
-    // Получаем основную информацию о мастере
-    const masterResponse = await useNuxtApp().$axios.get(`/contractors/masters/${route.params.id}`);
-    master.value = masterResponse.data;
-
-    // Получаем операции для этого мастера
-    const operationsResponse = await useNuxtApp().$axios.get(`/operations/master/${route.params.id}`);
-    const operations = operationsResponse.data;
-
-    // Вычисляем текущий баланс
-    let currentBalance = 0;
-    operations.forEach(operation => {
-      if (operation.type === 'deposit') {
-        currentBalance += parseFloat(operation.amount || 0);
-      } else if (operation.type === 'withdrawal') {
-        currentBalance -= parseFloat(operation.amount || 0);
-      }
-    });
-
-    // Обновляем баланс в мастере
-    master.value.balance = currentBalance;
-    console.log('Текущий баланс:', master.value.balance);
+    const payload = {
+      ...newWork.value,
+      contractorType,
+      contractorId: masterId,
+      paid: false,
+      paymentDate: null,
+      operationDate: new Date(),
+      modifiedAt: new Date(),
+    };
+    await useNuxtApp().$axios.post('/works', payload);
+    works.value.push(payload);
+    newWork.value = {};
   } catch (error) {
-    console.error('Ошибка при получении данных мастера:', error);
+    console.error('Ошибка добавления работы:', error);
   }
 }
 
-async function fetchOperations() {
+async function addExpense() {
   try {
-    const response = await useNuxtApp().$axios.get(`/operations/master/${route.params.id}`);
-    operations.value = response.data;
+    const payload = {
+      ...newExpense.value,
+      contractorType,
+      contractorId: masterId,
+      paid: true,
+      paymentDate: new Date(),
+      operationDate: new Date(),
+      modifiedAt: new Date(),
+    };
+    await useNuxtApp().$axios.post('/expenses', payload);
+    expenses.value.push(payload);
+    newExpense.value = {};
   } catch (error) {
-    console.error('Ошибка при получении операций:', error);
+    console.error('Ошибка добавления расхода:', error);
+  }
+}
+
+async function payWork(workId) {
+  try {
+    const response = await useNuxtApp().$axios.post(`/works/pay-work/${workId}`);
+    if (response.data.success) {
+      // Обновляем данные локально, чтобы не ждать повторной загрузки
+      const index = works.value.findIndex(w => w.id === workId);
+      if (index !== -1) {
+        works.value[index].paid = true;
+        works.value[index].paymentDate = response.data.work.paymentDate;
+      }
+      await fetchWorks(); // Повторная загрузка для синхронизации
+      await fetchExpenses();
+    }
+  } catch (error) {
+    console.error('Ошибка оплаты работы:', error);
+  }
+}
+
+function toggleEdit() {
+  editing.value = true;
+}
+
+async function saveMaster() {
+  try {
+    await useNuxtApp().$axios.put(
+      `/contractors/masters/${masterId}`,
+      master.value
+    );
+    editing.value = false;
+  } catch (error) {
+    console.error('Ошибка обновления мастера:', error);
   }
 }
 
@@ -179,81 +341,6 @@ async function fetchAgreements() {
     agreements.value = response.data;
   } catch (error) {
     console.error('Ошибка при получении договоренностей:', error);
-  }
-}
-
-// Редактирование мастера
-function toggleEdit() {
-  editingMaster.value = true;
-}
-
-async function saveMaster() {
-  formErrors.value = {};
-
-  // Валидация
-  if (!master.value.name) {
-    formErrors.value.name = 'Имя обязательно';
-  }
-  if (master.value.phone) {
-    if (!master.value.phone.match(/^[+]*[(]{0,1}[0-9]{1,4}[)]{0,1}[-\s\.\/0-9]*$/)) {
-      formErrors.value.phone = 'Введите корректный номер телефона';
-    }
-  }
-
-  if (Object.keys(formErrors.value).length > 0) return;
-
-  try {
-    // Игнорируем обновление баланса при сохранении мастера
-    const updatedMaster = { ...master.value };
-    delete updatedMaster.balance;
-
-    await useNuxtApp().$axios.put(`/contractors/masters/${route.params.id}`, updatedMaster);
-    editingMaster.value = false;
-    await fetchMaster(); // Обновляем данные
-    successMessage.value = 'Данные мастера обновлены';
-  } catch (error) {
-    console.error('Ошибка обновления мастера:', error);
-    errorMessage.value = 'Не удалось обновить данные';
-  }
-}
-
-function cancelEdit() {
-  editingMaster.value = false;
-  fetchMaster(); // Восстанавливаем исходные данные
-}
-
-// Добавление операции
-async function addOperation() {
-  formErrors.value = {};
-
-  if (!newOperation.value.amount) {
-    formErrors.value.amount = 'Укажите сумму';
-  }
-  if (!newOperation.value.type) {
-    formErrors.value.type = 'Выберите тип операции';
-  }
-  if (!newOperation.value.description) {
-    formErrors.value.description = 'Введите описание';
-  }
-
-  if (Object.keys(formErrors.value).length > 0) return;
-
-  console.log('Sending data to server:', newOperation.value); 
-
-  try {
-    const payload = {
-      contractorType: 'master',
-      contractorId: route.params.id,
-      ...newOperation.value,
-    };
-    await useNuxtApp().$axios.post('/operations', payload);
-    await fetchOperations(); // Обновляем список операций
-    await fetchMaster(); // Обновляем баланс
-    newOperation.value = { type: 'deposit', amount: 0, description: '' };
-    successMessage.value = 'Операция добавлена';
-  } catch (error) {
-    console.error('Ошибка:', error);
-    errorMessage.value = 'Не удалось добавить операцию';
   }
 }
 
@@ -283,97 +370,54 @@ async function addAgreement() {
   }
 }
 
-// Вычисляемые свойства
-const isFormInvalid = computed(() => {
-  return !newOperation.value.amount || !newOperation.value.type;
-});
-
-const isAgreementInvalid = computed(() => {
-  return !newAgreement.value.text;
-});
+function cancelEdit() {
+  editing.value = false;
+  fetchMaster();
+}
 </script>
 
 <style scoped>
 .container {
+  padding: 2rem;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 20px;
-}
-
-.master-info {
-  margin-bottom: 20px;
-  padding: 15px;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-}
-
-.form {
-  margin-bottom: 20px;
-  border: 1px solid #e0e0e0;
-  padding: 15px;
-  border-radius: 4px;
-}
-
-.form-group {
-  margin-bottom: 10px;
-}
-
-input.error, select.error, textarea.error {
-  border-color: red;
-}
-
-.error-message {
-  color: red;
-  margin-top: 5px;
-}
-
-.success-message {
-  color: green;
-  margin-top: 10px;
 }
 
 .block {
-  margin-bottom: 30px;
-  border: 1px solid #e0e0e0;
-  padding: 15px;
-  border-radius: 4px;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: #f8f8f8;
 }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 20px;
+.pending,
+.paid {
+  margin-top: 1rem;
 }
 
-th, td {
-  border: 1px solid #ddd;
-  padding: 8px;
-  text-align: left;
-}
-
-th {
-  background-color: #f0f0f0;
+.pending h4,
+.paid h4 {
+  margin-bottom: 0.5rem;
 }
 
 button {
-  margin: 5px;
-  padding: 8px 12px;
+  margin: 0.5rem 0;
+  padding: 0.5rem 1rem;
+  background: #0d6efd;
+  color: white;
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  background-color: #007bff;
-  color: white;
 }
 
 button:hover {
-  background-color: #0056b3;
+  background: #0b5ed7;
 }
 
-.delete-button {
-  background-color: #f44336;
-}
-
-.delete-button:hover {
-  background-color: #d32f1a;
+input,
+select,
+textarea {
+  width: 100%;
+  margin: 0.5rem 0;
+  padding: 0.5rem;
 }
 </style>

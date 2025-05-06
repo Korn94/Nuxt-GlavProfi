@@ -7,198 +7,200 @@
       </div>
     </header>
 
-    <!-- Баланс объекта -->
     <div class="balance-section">
-      <h2>Баланс</h2>
+      <h2>Балансы:</h2>
       <div class="balance-item">
-        <strong>Общий баланс:</strong> {{ object.profit }} ₽
+        <strong>Объект:</strong> {{ objectBalance }} ₽
+        <p>Приходы: {{ totalComings }} ₽</p>
+        <p>Расходы: {{ totalExpenses }} ₽</p>
       </div>
       <div class="balance-item">
-        <strong>Баланс материалов:</strong> {{ materialsTotal }} ₽
+        <strong>Материалы:</strong> {{ materialsTotal }} ₽
       </div>
     </div>
 
-    <!-- Навигация -->
+    <!-- Вкладки -->
     <div class="tabs">
-      <button 
-        v-for="tab in tabs" 
-        :key="tab" 
-        :class="{ active: currentTab === tab }" 
+      <button
+        v-for="tab in tabs"
+        :key="tab"
+        :class="{ active: currentTab === tab }"
         @click="currentTab = tab"
       >
         {{ tab }}
       </button>
     </div>
 
-    <!-- Вкладки -->
+    <!-- Содержимое вкладок -->
     <div class="content">
-      <PagesCabinetObjectsMaterials 
-        v-if="currentTab === 'Материалы'" 
-        :materials="materials" 
-        @add="handleAddMaterial" 
-        @update="handleUpdateMaterial" 
-        @toggle-check="handleToggleCheck"
-      />
+      <!-- Вкладка "Материалы" -->
+      <div v-if="currentTab === 'Материалы'">
+        <PagesCabinetObjectsMaterials
+          :materials="materials"
+          :objectId="objectId"
+          @add="handleMaterialAdded"
+          @update="handleMaterialUpdated"
+          @delete="handleMaterialDeleted"
+        />
+      </div>
 
-      <PagesCabinetObjectsPayments 
-        v-if="currentTab === 'Платежи'" 
-        :payments="payments" 
-        @add="handleAddPayment" 
-        @update="handleUpdatePayment"
-      />
-
-      <PagesCabinetObjectsTasks 
-        v-if="currentTab === 'Задачи'" 
-        :tasks="tasks" 
-        @add="handleAddTask" 
-        @update-status="handleUpdateTaskStatus"
-      />
+      <!-- Вкладка "Операции" -->
+      <div v-if="currentTab === 'Операции'">
+        <PagesCabinetObjectsOperations
+          :object-id="objectId"
+          :operations="operations"
+          @add-coming="handleComingAdded"
+          @add-expense="handleExpenseAdded"
+        />
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
-import { useRoute } from 'vue-router'
-import { useNuxtApp } from '#app'
+import { ref, computed, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { useNuxtApp } from '#app';
 
-const route = useRoute()
-const object = ref({})
-const materials = ref([])
-const payments = ref([])
-const tasks = ref([])
-const currentTab = ref('Материалы')
-const tabs = ['Материалы', 'Платежи', 'Задачи']
+const route = useRoute();
+const router = useRouter();
+const objectId = route.params.id;
 
-// Вычисляемые свойства
+const object = ref({});
+const materials = ref([]);
+const operations = ref([]);
+const currentTab = ref('Материалы');
+const tabs = ['Материалы', 'Операции'];
+
+// Вычисляемые свойства для балансов
+const objectBalance = computed(() => {
+  return (totalComings.value - totalExpenses.value).toFixed(2);
+});
+
+const totalComings = computed(() => {
+  return operations.value
+    .filter(op => op.type === 'coming')
+    .reduce((sum, op) => sum + (Number(op.amount) || 0), 0);
+});
+
+const totalExpenses = computed(() => {
+  return operations.value
+    .filter(op => op.type === 'expense')
+    .reduce((sum, op) => sum + (Number(op.amount) || 0), 0);
+});
+
 const materialsTotal = computed(() => {
-  return materials.value.reduce((sum, m) => sum + m.amount, 0)
-})
+  const incoming = materials.value
+    .filter(m => m.type === 'incoming')
+    .reduce((sum, m) => sum + (Number(m.amount) || 0), 0);
+  const outgoing = materials.value
+    .filter(m => m.type === 'outgoing')
+    .reduce((sum, m) => sum + (Number(m.amount) || 0), 0);
+  return (incoming - outgoing).toFixed(2);
+});
 
 definePageMeta({
-  middleware: 'auth',
-  allowedRoles: ['admin'],
   layout: 'cabinet',
 });
 
 // Загрузка данных
 onMounted(async () => {
-  await Promise.all([
-    fetchObject(),
-    fetchMaterials(),
-    fetchPayments(),
-    fetchTasks()
-  ])
-})
+  await fetchObject();
+  await fetchMaterials();
+  await fetchOperations();
+});
 
-// Загрузка объекта
 async function fetchObject() {
   try {
-    const response = await useNuxtApp().$axios.get(`/objects/${route.params.id}`)
-    object.value = response.data
+    const response = await useNuxtApp().$axios.get(`/objects/${objectId}`);
+    object.value = response.data;
   } catch (error) {
-    console.error('Ошибка загрузки объекта:', error)
+    console.error('Ошибка при получении объекта:', error);
+    router.push('/cabinet/objects');
   }
 }
 
-// Загрузка материалов
 async function fetchMaterials() {
   try {
     const response = await useNuxtApp().$axios.get(
-      `/materials/${route.params.id}`
+      `/materials/${objectId}`
     );
-    materials.value = response.data.map(material => ({
-      ...material,
-      amount: Number(material.amount) // Преобразуем в число
+    materials.value = response.data.map(m => ({
+      ...m,
+      amount: Number(m.amount) || 0 // Убедитесь, что amount преобразован в число
     }));
+    console.log('Преобразованные материалы:', materials.value); // Проверьте, что amount — число
   } catch (error) {
-    console.error('Ошибка загрузки материалов:', error);
+    console.error('Ошибка при получении материалов:', error);
   }
 }
 
-// Загрузка платежей
-async function fetchPayments() {
+// В файле pages/cabinet/objects/[id].vue
+async function fetchOperations() {
   try {
-    const response = await useNuxtApp().$axios.get(
-      `/payments/${route.params.id}`
-    )
-    payments.value = response.data
+    const response = await useNuxtApp().$axios.get(`/objects/${objectId}/operations`);
+    // Преобразование amount в число при маппинге
+    operations.value = [
+      ...response.data.comings.map(op => ({
+        ...op,
+        type: 'coming',
+        amount: Number(op.amount) || 0 // !Важно!
+      })),
+      ...response.data.expenses.map(op => ({
+        ...op,
+        type: 'expense',
+        amount: Number(op.amount) || 0 // !Важно!
+      })),
+    ];
   } catch (error) {
-    console.error('Ошибка загрузки платежей:', error)
+    console.error('Ошибка при получении операций:', error);
   }
 }
 
-// Загрузка задач
-async function fetchTasks() {
-  try {
-    const response = await useNuxtApp().$axios.get(
-      `/tasks/${route.params.id}`
-    )
-    tasks.value = response.data
-  } catch (error) {
-    console.error('Ошибка загрузки задач:', error)
+// Обработчики событий из компонентов
+function handleMaterialAdded(material) {
+  materials.value.push(material);
+}
+
+function handleMaterialUpdated(updatedMaterial) {
+  const index = materials.value.findIndex(m => m.id === updatedMaterial.id);
+  if (index !== -1) {
+    materials.value.splice(index, 1, updatedMaterial);
   }
 }
 
-// Сохранение объекта
-async function saveObject() {
-  try {
-    await useNuxtApp().$axios.put(`/objects/${route.params.id}`, object.value)
-    await fetchObject()
-  } catch (error) {
-    console.error('Ошибка обновления объекта:', error)
-  }
+function handleMaterialDeleted(id) {
+  materials.value = materials.value.filter(m => m.id !== id);
 }
 
-// Обработка событий из компонентов
-const handleAddMaterial = async (material) => {
-  materials.value.push(material)
+function handleComingAdded(coming) {
+  operations.value.push({ ...coming, type: 'coming' });
 }
 
-const handleUpdateMaterial = async (material) => {
-  const index = materials.value.findIndex(m => m.id === material.id)
-  if (index !== -1) materials.value.splice(index, 1, material)
-}
-
-const handleToggleCheck = async (material) => {
-  const index = materials.value.findIndex(m => m.id === material.id)
-  if (index !== -1) materials.value[index].has_receipt = material.has_receipt
-}
-
-const handleAddPayment = async (payment) => {
-  payments.value.push(payment)
-}
-
-const handleUpdatePayment = async (payment) => {
-  const index = payments.value.findIndex(p => p.id === payment.id)
-  if (index !== -1) payments.value.splice(index, 1, payment)
-}
-
-const handleAddTask = async (task) => {
-  tasks.value.push(task)
-}
-
-const handleUpdateTaskStatus = async (id, status) => {
-  const task = tasks.value.find(t => t.id === id)
-  if (task) task.status = status
+function handleExpenseAdded(expense) {
+  operations.value.push({ ...expense, type: 'expense' });
 }
 </script>
 
 <style scoped>
 .object-detail {
-  max-width: 1200px;
-  margin: 20px auto;
-  padding: 20px;
+  padding: 1rem;
 }
 
-.tabs {
+.object-header {
   display: flex;
-  gap: 15px;
-  margin: 20px 0;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.balance-section {
+  margin-bottom: 1.5rem;
 }
 
 .tabs button {
-  padding: 8px 12px;
+  margin-right: 1rem;
+  padding: 0.5rem 1rem;
   border: 1px solid #ccc;
   background: #f0f0f0;
   cursor: pointer;
@@ -209,25 +211,12 @@ const handleUpdateTaskStatus = async (id, status) => {
   color: white;
 }
 
-.balance-section {
-  margin: 20px 0;
-  padding: 15px;
-  border: 1px solid #e0e0e0;
-}
-
-.balance-item {
-  margin: 8px 0;
-}
-
 .content {
-  margin-top: 30px;
+  margin-top: 1rem;
 }
 
-.save-btn {
-  background: #007bff;
-  color: white;
-  border: none;
-  padding: 6px 12px;
-  cursor: pointer;
+.balance-item strong {
+  font-weight: bold;
+  color: #28a745;
 }
 </style>

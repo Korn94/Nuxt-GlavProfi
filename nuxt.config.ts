@@ -42,7 +42,7 @@ export default defineNuxtConfig({
       htmlAttrs: {
         lang: 'ru', // Язык сайта
       },
-      titleTemplate: '%s - Рязань и область | Главпрофи', // Шаблон заголовка
+      titleTemplate: '%s - Рязань и область | ГлавПрофи', // Шаблон заголовка
       meta: [
         { charset: 'utf-8' }, // Кодировка
         { name: 'viewport', content: 'width=device-width, initial-scale=1' }, // Адаптивность

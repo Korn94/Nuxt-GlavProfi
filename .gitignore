@@ -24,6 +24,6 @@ logs
 !.env.example
 
 # Папка с приватными данными
-/config
-/plugins/yandexMetrica.js
-/utils
+config
+plugins/yandexMetrica.js
+utils

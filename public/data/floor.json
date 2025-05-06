@@ -3,32 +3,32 @@
   "categories": [
     {
       "id": 1,
-      "title": "Подготовка основания",
+      "title": "1. Подготовка основания",
       "file": "floor/preparation.json"
     },
     {
       "id": 2,
-      "title": "Монтаж напольных покрытий",
+      "title": "2. Монтаж напольных покрытий",
       "file": "floor/coverings.json"
     },
     {
       "id": 3,
-      "title": "Укладка керамической плитки на пол",
+      "title": "3. Укладка керамической плитки на пол",
       "file": "floor/tiling.json"
     },
     {
       "id": 5,
-      "title": "Финишная отделка",
+      "title": "4. Финишная отделка",
       "file": "floor/finishing.json"
     },
     {
       "id": 6,
-      "title": "Ремонт и восстановление пола",
+      "title": "5. Ремонт и восстановление пола",
       "file": "floor/repair.json"
     },
     {
       "id": 7,
-      "title": "Специальные покрытия",
+      "title": "6. Специальные покрытия",
       "file": "floor/special_coatings.json"
     }
   ]

@@ -3,37 +3,37 @@
   "categories": [
     {
       "id": 1,
-      "title": "Подготовка потолка",
+      "title": "1. Подготовка потолка",
       "file": "ceiling/preparation.json"
     },
     {
       "id": 2,
-      "title": "Отделка потолка",
+      "title": "2. Отделка потолка",
       "file": "ceiling/finishing.json"
     },
     {
       "id": 3,
-      "title": "Укладка керамической плитки на потолок",
+      "title": "3. Укладка керамической плитки на потолок",
       "file": "ceiling/tiling_ceramic.json"
     },
     {
       "id": 4,
-      "title": "Устройство многоуровневых потолков",
+      "title": "4. Устройство многоуровневых потолков",
       "file": "ceiling/multilevel.json"
     },
     {
       "id": 5,
-      "title": "Монтаж потолочных плинтусов и декоративных элементов",
+      "title": "5. Монтаж потолочных плинтусов и декоративных элементов",
       "file": "ceiling/moldings_decor.json"
     },
     {
       "id": 6,
-      "title": "Ремонт и восстановление потолка",
+      "title": "6. Ремонт и восстановление потолка",
       "file": "ceiling/repair.json"
     },
     {
       "id": 7,
-      "title": "Специальные покрытия",
+      "title": "7. Специальные покрытия",
       "file": "ceiling/special_coatings.json"
     }
   ]

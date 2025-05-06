@@ -17,16 +17,16 @@ $subtext-color: #bdc3c7;
   // font-family: "Comfortaa", sans-serif;
 }
 
-input,
-textarea {
-  margin: 0;
-  padding: 0;
-  border: none;
-  background: transparent;
-  -webkit-appearance: none;
-     -moz-appearance: none;
-          appearance: none;
-}
+// input,
+// textarea {
+//   margin: 0;
+//   padding: 0;
+//   border: none;
+//   background: transparent;
+//   -webkit-appearance: none;
+//      -moz-appearance: none;
+//           appearance: none;
+// }
 
 input {
   flex: 1;
@@ -36,7 +36,7 @@ input {
   font-size: 0.9rem;
   outline: none;
   color: $text-color;
-  background-color: $background-color;
+  // background-color: $background-color;
 
   &::placeholder {
     color: $subtext-color;

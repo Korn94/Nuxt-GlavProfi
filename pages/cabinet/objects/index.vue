@@ -4,9 +4,9 @@
 
     <!-- Вкладки -->
     <div class="tabs">
-      <button 
-        v-for="tab in tabs" 
-        :key="tab.value" 
+      <button
+        v-for="tab in tabs"
+        :key="tab.value"
         :class="{ active: currentTab === tab.value }"
         @click="currentTab = tab.value"
       >
@@ -16,36 +16,31 @@
 
     <!-- Форма добавления объекта -->
     <div v-if="['admin', 'manager'].includes(user?.role)">
-      <input 
-        v-model="newObjectName" 
-        placeholder="Название объекта" 
+      <input
+        v-model="newObjectName"
+        placeholder="Название объекта"
         :class="{ error: !newObjectName }"
-      >
-      <button 
-        @click="addObject" 
-        :disabled="!newObjectName"
-      >
-        Добавить объект
-      </button>
+      />
+      <button @click="addObject" :disabled="!newObjectName">Добавить объект</button>
     </div>
 
     <!-- Список объектов -->
     <ul>
-      <li 
-        v-for="object in filteredObjects" 
-        :key="object.id"
-      >
+      <li v-for="object in filteredObjects" :key="object.id">
         <router-link :to="`/cabinet/objects/${object.id}`">
           {{ object.name }} ({{ object.status }})
         </router-link>
         <div class="actions">
-          <button 
+          <div class="balance">
+            Баланс: <strong>{{ object.balance }} ₽</strong>
+          </div>
+          <button
             v-if="user?.role === 'admin'"
             @click="toggleStatus(object.id)"
           >
             Изменить статус
           </button>
-          <button 
+          <button
             v-if="user?.role === 'admin'"
             @click="deleteObject(object.id)"
           >
@@ -60,38 +55,65 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useNuxtApp } from '#app';
+import { useRoute, useRouter } from 'vue-router';
 
+const route = useRoute();
+const router = useRouter();
+const user = ref(null);
 const objects = ref([]);
 const newObjectName = ref('');
 const currentTab = ref('active');
-const user = ref(null);
 const tabs = [
   { label: 'В работе', value: 'active' },
-  { label: 'Завершенные', value: 'completed' }
+  { label: 'Завершенные', value: 'completed' },
 ];
+
+// Загрузка данных пользователя
+if (process.client) {
+  const userData = localStorage.getItem('user');
+  user.value = userData ? JSON.parse(userData) : null;
+}
 
 definePageMeta({
   layout: 'cabinet',
-  middleware: 'auth',
-});
-
-onMounted(async () => {
-  if (process.client) {
-    const userData = localStorage.getItem('user');
-    user.value = userData ? JSON.parse(userData) : null;
-  }
-  await fetchObjects();
 });
 
 // Загрузка объектов
+onMounted(async () => {
+  await fetchObjects();
+});
+
 async function fetchObjects() {
   try {
     const response = await useNuxtApp().$axios.get('/objects', {
-      params: { status: currentTab.value }
+      params: { status: currentTab.value },
     });
-    objects.value = response.data;
+    objects.value = response.data.map((obj) => ({
+      ...obj,
+      balance: 0, // Инициализация
+    }));
+    await updateObjectBalances(); // Обновите балансы после загрузки объектов
   } catch (error) {
     console.error('Ошибка загрузки объектов:', error);
+  }
+}
+
+// Обновление баланса каждого объекта
+async function updateObjectBalances() {
+  try {
+    const promises = objects.value.map(async (obj) => {
+      const balanceResponse = await useNuxtApp().$axios.get(
+        `/objects/${obj.id}/balance`
+      );
+      return {
+        ...obj,
+        balance: balanceResponse.data.balance, // <<-- Исправление здесь
+      };
+    });
+    const updatedObjects = await Promise.all(promises);
+    objects.value = updatedObjects;
+  } catch (error) {
+    console.error('Ошибка обновления балансов:', error);
   }
 }
 
@@ -101,7 +123,7 @@ async function addObject() {
   try {
     await useNuxtApp().$axios.post('/objects', {
       name: newObjectName.value,
-      status: currentTab.value
+      status: currentTab.value,
     });
     await fetchObjects();
     newObjectName.value = '';
@@ -114,7 +136,7 @@ async function addObject() {
 async function deleteObject(id) {
   try {
     await useNuxtApp().$axios.delete(`/objects/${id}`);
-    objects.value = objects.value.filter(obj => obj.id !== id);
+    objects.value = objects.value.filter((obj) => obj.id !== id);
     newObjectName.value = '';
   } catch (error) {
     console.error('Ошибка удаления объекта:', error);
@@ -123,38 +145,36 @@ async function deleteObject(id) {
 
 // Изменение статуса объекта
 async function toggleStatus(id) {
-  const object = objects.value.find(obj => obj.id === id);
-  if (object) {
-    const newStatus = object.status === 'active' ? 'completed' : 'active';
-    try {
-      await useNuxtApp().$axios.put(`/objects/${id}`, { status: newStatus });
-      object.status = newStatus;
-    } catch (error) {
-      console.error('Ошибка обновления статуса:', error);
-    }
+  const object = objects.value.find((obj) => obj.id === id);
+  if (!object) return;
+
+  const newStatus =
+    object.status === 'active' ? 'completed' : 'active';
+  try {
+    await useNuxtApp().$axios.put(`/objects/${id}`, { status: newStatus });
+    object.status = newStatus;
+  } catch (error) {
+    console.error('Ошибка обновления статуса:', error);
   }
 }
 
 // Фильтрация объектов по текущей вкладке
 const filteredObjects = computed(() => {
-  return objects.value.filter(obj => obj.status === currentTab.value);
+  // Если currentTab.value может быть 'completed', а в объектах 'completed' — используйте строгое сравнение
+  return objects.value.filter(obj => 
+    obj.status === currentTab.value
+  );
 });
 </script>
 
 <style scoped>
 .container {
-  max-width: 800px;
-  margin: 20px auto;
-}
-
-.tabs {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 20px;
+  margin: 2rem;
 }
 
 .tabs button {
-  padding: 8px 12px;
+  margin-right: 1rem;
+  padding: 0.5rem 1rem;
   border: 1px solid #ccc;
   background: #f0f0f0;
   cursor: pointer;
@@ -163,7 +183,6 @@ const filteredObjects = computed(() => {
 .tabs button.active {
   background: #007bff;
   color: white;
-  border-color: #007bff;
 }
 
 ul {
@@ -172,23 +191,37 @@ ul {
 }
 
 li {
-  border: 1px solid #e0e0e0;
-  margin: 10px 0;
-  padding: 15px;
-  border-radius: 4px;
+  margin: 1rem 0;
+  padding: 1rem;
+  background: #f8f8f8;
+  border-radius: 5px;
 }
 
 .actions {
   display: flex;
-  gap: 10px;
-  margin-top: 10px;
+  gap: 1rem;
+  margin-top: 0.5rem;
 }
 
-.error {
-  border: 1px solid red;
+.balance strong {
+  font-weight: bold;
+  color: #28a745;
 }
 
-input.error {
-  border-color: red;
+button {
+  padding: 0.5rem 1rem;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #0056b3;
+}
+
+button.delete {
+  background: #dc3545;
 }
 </style>

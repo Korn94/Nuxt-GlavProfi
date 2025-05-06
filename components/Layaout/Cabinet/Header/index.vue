@@ -38,7 +38,7 @@ definePageMeta({
           <li><NuxtLink to="/cabinet/admin/contractors">Рабочие</NuxtLink></li>
           <li><NuxtLink to="/cabinet/admin/users">Пользователи</NuxtLink></li>
           <li><NuxtLink to="/cabinet/objects">Объекты</NuxtLink></li>
-          <li><NuxtLink to="/cabinet/tasks">Выполнение работ</NuxtLink></li>
+          <!-- <li><NuxtLink to="/cabinet/tasks">Выполнение работ</NuxtLink></li> -->
           <li><NuxtLink to="/cabinet/payments">Платежи</NuxtLink></li>
           <li><NuxtLink to="/cabinet/balance">Баланс</NuxtLink></li>
           <li><NuxtLink to="/cabinet/analytics">Аналитика</NuxtLink></li>
@@ -53,12 +53,13 @@ definePageMeta({
 .admin-layout {
   display: flex;
   min-height: 100vh;
-
+  background-color: #bdc3c7;
+  width: 250px;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+  
   .sidebar {
-    width: 250px;
-    background-color: #bdc3c7;
+    position: fixed;
     padding: 20px;
-    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
 
     .sidebar-header {
       margin-bottom: 20px;

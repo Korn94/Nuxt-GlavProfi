@@ -6,17 +6,15 @@
       <UIButtonsSecondButton v-for="(tab, index) in tabsWithLabels" :key="index" :text="tab.label" :class="{ active: activeTab === tab.key }" :reverseEffect="activeTab !== tab.key" @click="setActiveTab(tab.key)"/>
     </div>
 
-    <!-- <hr class="line" /> -->
-
     <div class="navigation" v-if="activeCategories.length > 0">
       <div class="inner">
         <button v-for="(category, index) in activeCategories" :key="index" :text="category" :class="{ active: activeCategory === category }" :reverseEffect="activeCategory !== category" @click="setActiveCategory(category)">{{ category }}</button>
       </div>
     </div>
-    <transition-group name="fade-slide" tag="div" class="image-grid" :style="{ height: containerHeight }">
+    <transition-group name="fade-slide" tag="div" class="image-grid" :style="{ height: containerHeight }" v-if="isMounted">
       <div class="image" v-for="(image, index) in visibleImages" :key="index" :style="{ backgroundImage: `url(${image.src})` }" @click="navigateToProject(image)">
-        <Icon name="ion:arrow-redo" class="icon" />
-        <div class="info-overlay">{{ image.info }}</div>
+        <Icon name="weui:arrow-filled" class="icon" />
+        <div class="info-overlay"><p>{{ image.info }}</p></div>
         <div class="content"></div>
       </div>
     </transition-group>
@@ -37,6 +35,7 @@ export default {
       activeTab: "projects",
       activeCategory: "Все проекты",
       showAll: false,
+      isMounted: false,
     };
   },
   computed: {
@@ -65,9 +64,8 @@ export default {
       return images.filter((img) => img.category === this.activeCategory);
     },
     visibleImages() {
-      return this.showAll
-        ? this.filteredImages
-        : this.filteredImages.slice(0, 9);
+      const limit = window.innerWidth < 768 ? 3 : 9; // Новое условие
+      return this.showAll ? this.filteredImages : this.filteredImages.slice(0, limit);
     },
     containerHeight() {
       if (process.client) {
@@ -106,6 +104,7 @@ export default {
     if (firstTab) {
       this.setActiveTab(firstTab.key);
     }
+    this.isMounted = true;
   },
 };
 </script>
@@ -120,11 +119,11 @@ export default {
   .toggle-buttons,
   .navigation {
     width: 100%;
-  overflow-x: auto; // Включаем горизонтальную прокрутку
-  -webkit-overflow-scrolling: touch; // Плавная прокрутка на мобильных устройствах
-  margin-bottom: 20px;
-  white-space: nowrap; // Запрещаем перенос строк
-  position: relative;
+    overflow-x: auto; // Включаем горизонтальную прокрутку
+    -webkit-overflow-scrolling: touch; // Плавная прокрутка на мобильных устройствах
+    margin-bottom: 20px;
+    white-space: nowrap; // Запрещаем перенос строк
+    position: relative;
 
   /* Стилизация для WebKit (Chrome, Safari) */
   &::-webkit-scrollbar {
@@ -219,33 +218,30 @@ export default {
 
     .info-overlay {
       position: absolute;
-      bottom: 0;
+      top: 0;
       left: 0;
       right: 0;
-      background: rgba(0, 0, 0, 0.5);
-      border-bottom-right-radius: 10px;
-      border-bottom-left-radius: 10px;
+      background: linear-gradient(to bottom, rgba(0, 0, 0, 0.7) 40%, rgba(0, 0, 0, 0) 100%), #00000000;
+      border-top-left-radius: 10px;
+      border-top-right-radius: 10px;
       color: white;
       padding: 10px;
-      opacity: 0;
-      transition: opacity 0.3s ease;
+      height: 60px;
+      text-align: center;
+
+      p {
+        color: white;
+        font-weight: 600;
+      }
     }
 
     .icon {
       position: absolute;
-      color: #fff;
+      z-index: 1;
       width: 24px;
       height: 24px;
       right: 2%;
-      top: 2%;
-    }
-
-    .content {
-      background: linear-gradient(to bottom left, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 20%), #00000000;
-      // padding-top: 2em;
-      width: 100%;
-      height: 100%;
-      // margin: auto auto 2em;
+      top: 4%;
     }
   }
 

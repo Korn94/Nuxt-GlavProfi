@@ -2,15 +2,11 @@
   <div>
     <PagesPrices />
 
-    <section class="price-list">
-      <h3>Делимся своими оптовыми скидками на материал</h3>
-      <p>Наши клиенты получают лучшие цены на строительные материалы для своего объекта. Так же помогаем в организации закупок и логистики.</p>
-      <NuxtLink to="/prices/floor">
-        <button class="gradient-button large-button">
-          Связаться
-        </button>
-      </NuxtLink>
-    </section>
+    <UIElementsOffer 
+      title="Делимся своими оптовыми скидками на материал" 
+      description="Наши клиенты получают лучшие цены на строительные материалы для своего объекта. Так же помогаем в организации закупок и логистики" 
+      buttonText="Связаться" 
+    />
 
     <PagesHomePageCall />
     <PagesHomePageCalc />
@@ -110,13 +106,4 @@ button {
       background: #00a3d3;
     }
   }
-
-.price-list {
-  text-align: center;
-  max-width: 800px;
-  margin: 0 auto 2em;
-  padding: 20px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-}
 </style>

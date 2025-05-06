@@ -1,3 +1,11 @@
+<template>
+  <div class="container">
+    <h1>Главная страница</h1>
+    <p v-if="user">Добро пожаловать, {{ user.role }}!</p>
+    <p v-else>Пожалуйста, войдите в систему.</p>
+  </div>
+</template>
+
 <script setup>
 import { ref, onMounted } from 'vue';
 
@@ -17,14 +25,6 @@ definePageMeta({
   middleware: 'auth',
 });
 </script>
-
-<template>
-  <div class="container">
-    <h1>Главная страница</h1>
-    <p v-if="user">Добро пожаловать, {{ user.role }}!</p>
-    <p v-else>Пожалуйста, войдите в систему.</p>
-  </div>
-</template>
 
 <style lang="scss" scoped>
 .container {

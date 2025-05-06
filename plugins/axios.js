@@ -2,8 +2,8 @@ import axios from 'axios';
 
 export default defineNuxtPlugin((nuxtApp) => {
   const apiClient = axios.create({
-    baseURL: 'http://192.168.31.244:3001/api', // URL вашего сервера
-    // baseURL: 'http://192.168.1.62:3001/api', // URL вашего сервера
+    // baseURL: 'http://192.168.31.244:3001/api', // URL вашего сервера
+    baseURL: 'http://192.168.1.62:3001/api', // URL вашего сервера
   });
 
   // Перехватчик запросов

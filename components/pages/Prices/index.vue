@@ -2,24 +2,31 @@
   <div class="container" :key="activeCategory">
     <!-- Заголовок -->
     <h1>Цены на ремонт помещений - <span>2025</span></h1>
-    
+        
+    <UIElementsOffer 
+    title="Не тратите время на изучение прайс-листа!" 
+    description="Отправьте запрос — и через 5 минут получите расчет стоимости! Быстро и бесплатно." 
+    buttonText="Написать" 
+    />
+
     <!-- Динамический подзаголовок -->
-    <h2>Цены на <span>{{ activeCategoryTitle }}</span></h2>
+    <h2>Цены на <span>{{ activeCategoryTitle }}</span> - 2025</h2>
     <!-- <p style="text-align: center; margin-bottom: 1em;">Идет расчет цен, ожидаемая дата утверждения - <span style="text-decoration: underline; color: unset;">25.03.25</span></p> -->
 
     <!-- Навигация -->
     <div class="navigation">
       <div class="inner">
         <button
-        v-for="category in categories"
-        :key="category.id"
-        :class="{ active: activeCategory === category.id }"
-        @click="setCategory(category.id)"
-        >
-        {{ category.name }}
-      </button>
+          v-for="category in categories"
+          :key="category.id"
+          :class="{ active: activeCategory === category.id }"
+          @click="setCategory(category.id)"
+          >
+          {{ category.name }}
+        </button>
+      </div>
     </div>
-    </div>
+
 
     <!-- Поиск -->
     <div class="search-bar">
@@ -81,8 +88,6 @@
               <Icon 
                 :name="isOpenWork(work.id) ? 'iconamoon:arrow-up-2' : 'iconamoon:arrow-down-2'" 
                 class="ico"
-                width="24" 
-                height="24" 
               />
             </h3>
 
@@ -92,8 +97,6 @@
                 <div class="work-main">
                   <Icon 
                     :name="item.isCopied ? 'fluent:copy-16-filled' : 'fluent:copy-16-regular'" 
-                    width="16" 
-                    height="16" 
                     class="pointer ico" 
                     @click="handleCopyClick(item)"
                   />
@@ -106,8 +109,6 @@
                       v-if="item.typeWorks && item.typeWorks.length"
                       :name="isSubItemsOpen(item.id) ? 'iconamoon:arrow-up-2' : 'iconamoon:arrow-down-2'" 
                       class="ico"
-                      width="24" 
-                      height="24" 
                     />
                   </div>
                   <p class="work-unit">{{ item.unit }}</p>
@@ -376,7 +377,7 @@ $shadow-color: rgba(0, 0, 0, 0.05);
 
 .container {
   max-width: 1200px;
-  margin: 5em auto;
+  margin: auto;
   padding: 40px 10px 0;
   border-radius: 5px;
 
@@ -390,8 +391,14 @@ $shadow-color: rgba(0, 0, 0, 0.05);
   cursor: pointer;
 }
 
-h1 {
+h1, h2 {
   text-align: center;
+}
+
+@media (max-width: 768px) {
+  h1 {
+    display: none;
+  }
 }
 
 // Навигация
@@ -430,16 +437,17 @@ h1 {
         padding: 10px;
       }
 
-    
     button {
-      padding: 10px 15px;
+      padding: 10px 15px 8px;
       cursor: pointer;
       border: none;
-      background: $sub-item-bg;
+      background: $background-light;
       // color: $sub-item-bg;
       border-radius: 5px;
       font-weight: 600;
       transition: all 0.3s ease;
+      border-bottom: 2px solid $primary-color;
+      // background: linear-gradient(135deg, #FFFFFF 0%, #00c3f5 100%);
       
       &.active {
         color: $sub-item-bg;
@@ -466,6 +474,7 @@ h1 {
   input {
     width: 100%;
     padding: 10px 15px;
+    color: $text-color;
     border: 1px solid $border-color;
     border-radius: 5px;
     outline: none;
@@ -515,9 +524,9 @@ h1 {
 
 .work-navigation button {
   flex-shrink: 0; // Запрещаем уменьшение размера кнопок
-  padding: 10px 15px;
+  padding: 10px 15px 8px;
   cursor: pointer;
-  border: 1px solid $border-color;
+  border-bottom: 2px solid $primary-color;
   background: #fff;
   color: $text-color;
   border-radius: 5px;
@@ -576,7 +585,6 @@ h1 {
     h3 {
       cursor: pointer;
       display: flex;
-      justify-content: space-between;
       align-items: center;
       font-size: 1rem;
       background: linear-gradient(to bottom, #ffffff, #f7f7f7);
@@ -586,12 +594,30 @@ h1 {
       border-radius: 5px;
       transition: all 1.3s ease;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+      
+      @media (max-width: 768px) {
+        justify-content: space-between;
+      }
 
       &:hover {
         background: linear-gradient(to right, #00c3f5, #00a3d3);
         // background: linear-gradient(to right, #f7f7f7, #00c3f5);
         box-shadow: 0 4px 10px rgba(0, 195, 245, 0.3);
       }
+
+      .ico {
+          margin-left: 1em;
+          // margin: 0 5px;
+          transition: transform 0.3s ease;
+          width: 22px;
+          height: 22px;
+          
+
+          &:hover {
+            transform: scale(1.2);
+            color: #fff;
+          }
+        }
       
       @media (max-width: 768px) {
         font-size: .9em;

@@ -3,32 +3,32 @@
   "categories": [
     {
       "id": 1,
-      "title": "Демонтажные работы",
+      "title": "1. Демонтажные работы",
       "file": "plumbing/dismantling.json"
     },
     {
       "id": 2,
-      "title": "Монтажные работы",
+      "title": "2. Монтажные работы",
       "file": "plumbing/installation.json"
     },
     {
       "id": 3,
-      "title": "Гидроизоляция",
+      "title": "3. Гидроизоляция",
       "file": "plumbing/waterproofing.json"
     },
     {
       "id": 4,
-      "title": "Пуско-наладочные работы",
+      "title": "4. Пуско-наладочные работы",
       "file": "plumbing/commissioning.json"
     },
     {
       "id": 5,
-      "title": "Ремонт и обслуживание",
+      "title": "5. Ремонт и обслуживание",
       "file": "plumbing/repair.json"
     },
     {
       "id": 6,
-      "title": "Специальные системы",
+      "title": "6. Специальные системы",
       "file": "plumbing/special_systems.json"
     }
   ]

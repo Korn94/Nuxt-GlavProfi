@@ -2,10 +2,10 @@
   <main>
     <PagesHomePage />
     <UIElementsBlockAnimator>
-      <PagesHomePageInsert />
+      <PagesHomePageInsert id="portfolio" />
     </UIElementsBlockAnimator>
     <UIElementsBlockAnimator>
-      <PagesHomePageServices id="portfolio" />
+      <PagesHomePageServices />
     </UIElementsBlockAnimator>
     <UIElementsBlockAnimator>
       <PagesHomePageBrands />

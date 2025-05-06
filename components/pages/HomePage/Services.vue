@@ -1,9 +1,7 @@
 <template>
   <div>
-    <!-- <UIElementsImgBlock :tabs="tabs" title="Наши услуги - всё, что нужно" subtitle="в одном месте" /> -->
     <UIElementsImgBlock :tabs="tabs">
       <h3>Проекты и работы</h3>
-      <!-- <h2>Все обещают качественно и в срок? <br> <span>Мы это делаем,</span> посмотрите объекты которые реализовали.</h2> -->
     </UIElementsImgBlock>  
   </div>
 </template>

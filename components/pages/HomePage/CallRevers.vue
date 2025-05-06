@@ -121,6 +121,7 @@ export default {
         color: #fff;
         transition: all 0.3s ease;
         box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.05);
+        background-color: #18191b;
         // max-width: 400px;
 
         &:focus {

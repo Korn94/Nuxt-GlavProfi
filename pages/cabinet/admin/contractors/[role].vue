@@ -8,16 +8,15 @@
         <tr>
           <th>Имя</th>
           <th>Телефон</th>
-          <th>Роль</th>
           <th>Специальность</th>
           <th>Комментарий</th>
+          <th>Действия</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="contractor in contractors" :key="contractor.id">
           <td>{{ contractor.name }}</td>
           <td>{{ contractor.phone }}</td>
-          <td>{{ contractor.role }}</td>
           <td>{{ contractor.works }}</td>
           <td>{{ contractor.comment }}</td>
           <!-- Добавляем ссылку на детальную страницу -->
