@@ -31,7 +31,7 @@ export default {
       if (newVal) {
         setTimeout(() => {
           this.$emit('update:visible', false);
-        }, 2000); // Скрываем уведомление через 2 секунды
+        }, 6000); // Скрываем уведомление через 6 секунды
       }
     },
   },

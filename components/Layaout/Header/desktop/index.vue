@@ -60,22 +60,22 @@
           </li>
           <li>
             <nuxt-link
-              to="/#calculator"
-              :class="{ active: route.path === '/#calculator' }"
-              @click.prevent="navigateTo('/#calculator')"
+            to="/about"
+            :class="{ active: route.path === '/about' }"
+            @click.prevent="navigateTo('/about')"
             >
-              Калькулятор
-            </nuxt-link>
-          </li>
-          <li>
-            <nuxt-link
-              to="/about"
-              :class="{ active: route.path === '/about' }"
-              @click.prevent="navigateTo('/about')"
-            >
-              О нас
-            </nuxt-link>
-          </li>
+            О нас
+          </nuxt-link>
+        </li>
+        <li>
+          <nuxt-link
+            to="/#feedback"
+            :class="{ active: route.path === '/#feedback' }"
+            @click.prevent="navigateTo('/#feedback')"
+          >
+            Отзывы
+          </nuxt-link>
+        </li>
           <li>
             <nuxt-link
               to="/contacts"

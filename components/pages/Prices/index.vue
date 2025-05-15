@@ -4,9 +4,9 @@
     <h1>Цены на ремонт помещений - <span>2025</span></h1>
         
     <UIElementsOffer 
-    title="Не тратите время на изучение прайс-листа!" 
-    description="Отправьте запрос — и через 5 минут получите расчет стоимости! Быстро и бесплатно." 
-    buttonText="Написать" 
+      title="Не тратьте время на изучение прайс-листа!"
+      description="Отправьте запрос — мы сами всё посчитаем быстро и бесплатно"
+      buttonText="Заказать расчет"
     />
 
     <!-- Динамический подзаголовок -->
@@ -14,18 +14,11 @@
     <!-- <p style="text-align: center; margin-bottom: 1em;">Идет расчет цен, ожидаемая дата утверждения - <span style="text-decoration: underline; color: unset;">25.03.25</span></p> -->
 
     <!-- Навигация -->
-    <div class="navigation">
-      <div class="inner">
-        <button
-          v-for="category in categories"
-          :key="category.id"
-          :class="{ active: activeCategory === category.id }"
-          @click="setCategory(category.id)"
-          >
-          {{ category.name }}
-        </button>
-      </div>
-    </div>
+    <PagesPricesNavigation
+      :categories="categories"
+      :active-category="activeCategory"
+      @update:active-category="setCategory"
+    />
 
 
     <!-- Поиск -->
@@ -398,68 +391,6 @@ h1, h2 {
 @media (max-width: 768px) {
   h1 {
     display: none;
-  }
-}
-
-// Навигация
-.navigation {
-  width: 100%;
-  overflow-x: auto; // Включаем горизонтальную прокрутку
-  -webkit-overflow-scrolling: touch; // Плавная прокрутка на мобильных устройствах
-  margin-bottom: 10px;
-  white-space: nowrap; // Запрещаем перенос строк
-  position: relative;
-
-  /* Стилизация для WebKit (Chrome, Safari) */
-  &::-webkit-scrollbar {
-    height: 6px; // Высота полосы прокрутки
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: #ccc; // Цвет ползунка
-    border-radius: 3px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent; // Фон полосы прокрутки
-  }
-
-  /* Стилизация для Firefox */
-  scrollbar-width: thin; // Устанавливаем тонкую полосу прокрутки
-  scrollbar-color: #ccc transparent; // Цвет ползунка и фона
-
-  .inner {
-    display: inline-flex; // Размещаем кнопки в одну линию
-    gap: 10px; // Расстояние между кнопками
-    // padding: 0; // Отступы внутри контейнера
-
-    @media (max-width: 768px) {
-        padding: 10px;
-      }
-
-    button {
-      padding: 10px 15px 8px;
-      cursor: pointer;
-      border: none;
-      background: $background-light;
-      // color: $sub-item-bg;
-      border-radius: 5px;
-      font-weight: 600;
-      transition: all 0.3s ease;
-      border-bottom: 2px solid $primary-color;
-      // background: linear-gradient(135deg, #FFFFFF 0%, #00c3f5 100%);
-      
-      &.active {
-        color: $sub-item-bg;
-        background: linear-gradient(to right, #00c3f5, #00a3d3);
-        box-shadow: 0 4px 10px rgba(0, 195, 245, 0.3);
-      }
-      
-      &:hover {
-        background: linear-gradient(to right, #00c3f5, #00a3d3);
-        box-shadow: 0 4px 10px rgba(0, 195, 245, 0.3);
-      }
-    }
   }
 }
 

@@ -1,34 +1,32 @@
 <template>
+<div>
   <form @submit.prevent="submitForm">
     <!-- Блок с именем и телефоном на одной строке -->
     <div class="input-group">
-      <input 
-        type="text" 
-        v-model="name" 
-        v-on:input="textFilter" 
-        required 
-        placeholder="Имя" 
-        class="inline-input"
-      />
-      <input 
-        type="text" 
-        v-phone-format 
-        id="phone" 
-        v-model="phoneNumber" 
-        required 
-        placeholder="Телефон" 
-        class="inline-input"
-      />
+      <input type="text" v-model="name" v-on:input="textFilter" required placeholder="Имя" class="inline-input"/>
+      <input type="text" v-phone-format id="phone" v-model="phoneNumber" required placeholder="Телефон" class="inline-input" :class="{ 'error-border': phoneError }"/>
     </div>
     <div>
-      <textarea 
-        id="comment" 
-        v-model="comment" 
-        placeholder="Комментарий (не обязательно)"
-      ></textarea>
+      <textarea id="comment" v-model="comment" placeholder="Комментарий (не обязательно)"></textarea>
     </div>
     <button buttonText="Отправить" width="100%" type="submit">Отправить</button>
+    <div class="consent">
+      <input type="checkbox" id="agree" v-model="agreed" required />
+      <label for="agree">
+        Я соглашаюсь на обработку персональных данных в соответствии с 
+        <NuxtLink to="/privacy-policy">политикой конфиденциальности</NuxtLink>
+      </label>
+    </div>
   </form>
+
+  <!-- Компонент уведомления -->
+  <UIPopupsNotification
+    :visible="isNotificationVisible"
+    :message="notificationMessage"
+    :color="notificationColor"
+    @update:visible="isNotificationVisible = false"
+  />
+</div>
 </template>
 
 <script>
@@ -41,6 +39,11 @@ export default {
       name: "",
       phoneNumber: "+7 ",
       comment: "",
+      agreed: false,
+      phoneError: false,
+      isNotificationVisible: false,
+      notificationMessage: '',
+      notificationColor: 'green'
     };
   },
   methods: {
@@ -53,6 +56,19 @@ export default {
       }
     },
     submitForm() {
+      const phoneCleaned = this.phoneNumber.replace(/\D/g, '');
+
+      // Проверка длины номера
+      if (phoneCleaned.length < 11) {
+        this.phoneError = true;
+        this.notificationMessage = 'Введите корректный номер телефона';
+        this.notificationColor = 'red';
+        this.isNotificationVisible = true;
+        return;
+      }
+
+      this.phoneError = false;
+
       const token = telegramToken;
       const url = `https://api.telegram.org/bot${token}/sendMessage`;
       const message = `
@@ -66,18 +82,38 @@ export default {
         text: message,
       })
       .then(() => {
-        // Успешная отправка формы
         this.$emit('formSubmitted', true);
-
-        // Отправка цели в Яндекс.Метрику
-        this.$ym('reachGoal', 'FORM_SUBMITTED'); // "FORM_SUBMITTED" — название цели
+        this.notificationMessage = 'Форма успешно отправлена!';
+        this.notificationColor = 'green';
+        this.isNotificationVisible = true;
+        
+        // Безопасный вызов $ym — только если он определён
+        if (typeof this.$ym === 'function') {
+          this.$ym('reachGoal', 'FORM_SUBMITTED');
+        }
       })
-      .catch(() => {
-        // Неудачная отправка формы
-        this.$emit('formSubmitted', false);
+      .catch((error) => {
+        console.error("Ошибка при отправке формы:", error);
 
-        // Отправка цели в Яндекс.Метрику для ошибок
-        this.$ym('reachGoal', 'FORM_ERROR');
+        // Более точное сообщение об ошибке
+        let errorMessage = 'Ошибка при отправке формы';
+        if (error.response && error.response.status === 401) {
+          errorMessage = 'Неверный токен Telegram';
+        } else if (error.response && error.response.status === 403) {
+          errorMessage = 'Бот заблокирован или недоступен';
+        } else if (error.request) {
+          errorMessage = 'Нет ответа от сервера Telegram';
+        }
+
+        this.$emit('formSubmitted', false);
+        this.notificationMessage = errorMessage;
+        this.notificationColor = 'red';
+        this.isNotificationVisible = true;
+        
+        // Также безопасно вызываем $ym в случае ошибки
+        if (typeof this.$ym === 'function') {
+          this.$ym('reachGoal', 'FORM_ERROR');
+        }
       });
     },
   },
@@ -127,6 +163,10 @@ form {
         box-shadow: 0 0 5px rgba(0, 195, 245, 0.5);
       }
     }
+  }
+  
+  .error-border {
+    border-color: red !important;
   }
 
   textarea {
@@ -189,6 +229,19 @@ form {
     margin-top: -10px;
     margin-bottom: 10px;
     text-align: center;
+  }
+
+  .consent {
+    font-size: 14px;
+
+    input[type="checkbox"] {
+      margin-right: 8px;
+    }
+
+    a {
+      color: #00c3f5;
+      text-decoration: underline;
+    }
   }
 }
 </style>

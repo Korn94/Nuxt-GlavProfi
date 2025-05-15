@@ -73,8 +73,8 @@
           <li :class="{ active: currentRoute === 'prices' }">
             <nuxt-link to="/prices/floor" @click.native="closeMenus">Цены</nuxt-link>
           </li>
-          <li :class="{ active: currentRoute === 'calculator' }">
-            <nuxt-link to="/#calculator" @click.native="closeMenus">Калькулятор</nuxt-link>
+          <li :class="{ active: currentRoute === 'feedback' }">
+            <nuxt-link to="/#feedback" @click.native="closeMenus">Отзывы</nuxt-link>
           </li>
           <li :class="{ active: currentRoute === 'about' }">
             <nuxt-link to="/about" @click.native="closeMenus">О нас</nuxt-link>
@@ -168,8 +168,13 @@ const closeMenus = () => {
   }
 
   nav {
-    border-top: 1px solid #ddd;
-    background: #18191b;
+    border-top: 1px solid #555555;
+    background: linear-gradient(135deg, rgba(54, 54, 54, 0.8) 0%, rgba(54, 54, 54, 0.9) 50%, rgba(0, 0, 0, 0.9) 100%);
+    backdrop-filter: blur(5px);
+
+    // border-top: 1px solid;
+    // border-image: linear-gradient(to right, #18191b, #18191b, #18191b);
+    // border-image-slice: 1;
     
     ul {
       display: flex;
@@ -305,11 +310,12 @@ const closeMenus = () => {
   .menu {
     position: relative;
     z-index: 2;
-    background-color: #fff;
+    background: #242424cb;
+    backdrop-filter: blur(5px);
     width: 100%;
     max-height: 50%;
     overflow-y: auto;
-    border-top: 1px solid #ddd;
+    // border-top: 1px solid #555555;
     border-top-left-radius: 16px;
     border-top-right-radius: 16px;
     padding: 20px 20px 100px;
@@ -322,6 +328,7 @@ const closeMenus = () => {
       li {
         padding: 10px;
         cursor: pointer;
+        color: #fff;
         transition: background-color 0.3s ease;
 
         &.active {

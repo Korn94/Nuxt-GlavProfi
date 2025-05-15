@@ -27,7 +27,7 @@
           Перейти к прайс-листу
         </button>
       </NuxtLink> -->
-      <NuxtLink to="/about">
+      <NuxtLink to="/prices/floor">
           <UIButtonsMainButton text="Перейти" />
         </NuxtLink>
     </section>

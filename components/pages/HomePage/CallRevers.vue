@@ -10,12 +10,23 @@
         </p>
         <p class="dop">Консультация и замер - бесплатно</p>
       </div>
-      <form class="form" @submit.prevent="submitForm">
+      <form class="form" @submit.prevent="openConsentModal">
         <input type="text" class="input" placeholder="Имя" v-model="name" v-on:input="textFilter" required />
-        <input type="tel" class="input" placeholder="Телефон" v-phone-format v-model="phoneNumber" required />
+        <input type="tel" class="input" placeholder="Телефон" v-phone-format v-model="phoneNumber" required :class="{ 'error-border': phoneError }"/>
         <button type="submit" class="btn">Отправить</button>
       </form>
     </div>
+
+    <!-- Компонент уведомления -->
+    <UIPopupsNotification
+      :visible="isNotificationVisible"
+      :message="notificationMessage"
+      :color="notificationColor"
+      @update:visible="isNotificationVisible = false"
+    />
+
+    <!-- Модальное окно согласия -->
+    <UIFormsConsentModal v-model="showConsentModal" @accept="acceptConsent" />
   </div>
 </template>
 
@@ -28,6 +39,11 @@ export default {
     return {
       name: "",
       phoneNumber: "+7 ",
+      notificationMessage: '',
+      isNotificationVisible: false,
+      phoneError: false,
+      notificationColor: 'green',
+      showConsentModal: false,
     };
   },
   methods: {
@@ -39,7 +55,27 @@ export default {
         this.name = this.name.slice(0, 40);
       }
     },
-    submitForm() {
+    openConsentModal() {
+      const phoneCleaned = this.phoneNumber.replace(/\D/g, '');
+      this.phoneError = phoneCleaned.length < 11;
+
+      if (this.phoneError) {
+        this.notificationMessage = 'Введите корректный номер телефона';
+        this.notificationColor = 'red'; // Красный цвет при ошибке
+        this.isNotificationVisible = true;
+        return;
+      }
+
+      // Открываем модальное окно
+      this.showConsentModal = true;
+    },
+    acceptConsent() {
+      this.showConsentModal = false;
+      this.$nextTick(() => {
+        this.sendForm();
+      });
+    },
+    sendForm() {
       const token = telegramToken;
       const url = `https://api.telegram.org/bot${token}/sendMessage`;
       const message = `
@@ -52,9 +88,16 @@ export default {
         text: message,
       })
       .then(() => {
+        this.notificationMessage = 'Форма успешно отправлена!';
+        this.notificationColor = 'green';
+        this.isNotificationVisible = true;
         this.$emit('formSubmitted', true); // Сообщаем об успешной отправке формы
       })
-      .catch(() => {
+      .catch((error) => {
+        console.error("Ошибка при отправке формы:", error);
+        this.notificationMessage = 'Ошибка при отправке формы.';
+        this.notificationColor = 'red';
+        this.isNotificationVisible = true;
         this.$emit('formSubmitted', false); // Сообщаем о неудачной отправке формы
       });
     },
@@ -63,6 +106,10 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+.error-border {
+  border-color: red !important;
+}
+
 .container {
   padding: 3em 1em;
   background: #18191b;
@@ -87,8 +134,6 @@ export default {
     align-items: center;
 
     .textbox {
-      // text-align: center;
-      // margin-bottom: 2em;
       flex: 1;
 
       .title {
@@ -109,7 +154,7 @@ export default {
     .form {
       display: flex;
       flex-direction: column;
-      align-items: center;
+      align-items: stretch;
       gap: 1em;
 
       .input {
@@ -122,7 +167,6 @@ export default {
         transition: all 0.3s ease;
         box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.05);
         background-color: #18191b;
-        // max-width: 400px;
 
         &:focus {
           border-color: #00c3f5;

@@ -40,20 +40,21 @@
           <NuxtLink href="tg://resolve?domain=glavprofii" target="_blank">
             <Icon name="bxl:telegram" class="ico" size="28px" />
           </NuxtLink>
-          <NuxtLink href="https://api.whatsapp.com/send?phone=79109096947" target="_blank">
+          <NuxtLink href="https://api.whatsapp.com/send?phone=79109096947 " target="_blank">
             <Icon name="bxl:whatsapp" class="ico" size="28px" />
           </NuxtLink>
-          <NuxtLink href="https://vk.com/glavprofi" target="_blank">
+          <NuxtLink href="https://vk.com/glavprofi " target="_blank">
             <Icon name="bxl:vk" class="ico" size="28px" />
           </NuxtLink>
-          <NuxtLink href="https://instagram.com/glavprofi" target="_blank">
+          <NuxtLink href="https://instagram.com/glavprofi " target="_blank">
             <Icon name="bxl:instagram" class="ico" size="28px" />
           </NuxtLink>
-          <NuxtLink href="https://youtube.com/@glavstroy62" target="_blank">
+          <NuxtLink href="https://youtube.com/ @glavstroy62" target="_blank">
             <Icon name="bxl:youtube" class="ico" size="28px" />
           </NuxtLink>
         </div>
-
+        
+        <h3 class="footer-title">Обратный звонок</h3>
         <!-- Форма связи -->
         <form class="footer-contact-form" @submit.prevent="submitForm">
           <input
@@ -62,8 +63,9 @@
             v-phone-format 
             placeholder="Обратный звонок"
             required
+            :class="{ 'error-border': phoneError }"
           />
-          <button type="submit">Связаться</button>
+          <button type="button" @click="openConsentModal">Отправить</button>
         </form>
       </div>
     </div>
@@ -75,10 +77,13 @@
       </p>
     </div>
 
+    <UIFormsConsentModal v-model="showConsentModal" @accept="acceptConsent"/>
+
     <!-- Компонент уведомлений -->
     <UIPopupsNotification
       :visible="isNotificationVisible"
       :message="notificationMessage"
+      :color="notificationColor"
       @update:visible="isNotificationVisible = false"
     />
   </footer>
@@ -95,6 +100,9 @@ export default {
       isNotificationVisible: false,
       notificationMessage: '',
       phoneNumber: "+7 ",
+      showConsentModal: false,
+      phoneError: false,
+      notificationColor: 'green',
     };
   },
   methods: {
@@ -128,6 +136,27 @@ export default {
         this.name = this.name.slice(0, 40);
       }
     },
+    openConsentModal() {
+      const phoneCleaned = this.phoneNumber.replace(/\D/g, '');
+      this.phoneError = phoneCleaned.length < 11;
+
+      // Проверяем длину номера
+      if (this.phoneError) {
+        this.notificationMessage = 'Введите корректный номер телефона';
+        this.notificationColor = 'red'; // Красный цвет при ошибке
+        this.isNotificationVisible = true;
+        return;
+      }
+
+      // Если всё в порядке — открываем модальное окно
+      this.showConsentModal = true;
+    },
+    acceptConsent() {
+      this.showConsentModal = false;
+      this.$nextTick(() => {
+        this.submitForm();
+      });
+    },
     submitForm() {
       const token = telegramToken;
       const url = `https://api.telegram.org/bot${token}/sendMessage`;
@@ -143,10 +172,11 @@ export default {
         this.$emit('formSubmitted', true); // Сообщаем об успешной отправке формы
       })
       .catch(() => {
+        console.error("Ошибка при отправке формы:", error);
         this.$emit('formSubmitted', false); // Сообщаем о неудачной отправке формы
       });
     },
-  },
+  }
 };
 </script>
 
@@ -319,6 +349,10 @@ $subtext-color: #bdc3c7;
       &:active {
         transform: scale(0.98);
       }
+    }
+
+    .error-border {
+      border-color: red !important;
     }
 
     // Адаптация формы на маленьких экранах

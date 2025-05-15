@@ -24,7 +24,7 @@
       <PagesHomePageCallRevers />
     </UIElementsBlockAnimator>
     <UIElementsBlockAnimator>
-      <PagesHomePageCalc id="calculator" />
+      <PagesHomePageFeedback id="feedback" />
     </UIElementsBlockAnimator>
   </main>
 </template>

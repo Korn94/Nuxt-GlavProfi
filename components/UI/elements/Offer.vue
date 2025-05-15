@@ -80,9 +80,9 @@ button {
   max-width: 800px;
   margin: 3em auto;
   padding: 20px;
-  border: 1px solid #ccc;
+  border: 1px solid #00c3f5;
   border-radius: 8px;
-  background-color: #f7f7f7;
+  background: linear-gradient(135deg, #f0fdff, #b8f3ff);
 
   .title {
     font-size: 20px;
