@@ -3,7 +3,7 @@
     <h1>Контрагенты</h1>
     <!-- Меню навигации должно быть в родительской странице -->
     <nav>
-      <router-link 
+      <router-link
         v-for="tab in tabs" 
         :key="tab.path" 
         :to="`/cabinet/admin/contractors/${tab.path}`"
@@ -22,6 +22,7 @@ const tabs = [
   { path: 'master', title: 'Мастера' },
   { path: 'worker', title: 'Разнорабочие' },
   { path: 'foreman', title: 'Прорабы' },
+  { path: 'office', title: 'Офис' },
   { path: 'add', title: 'Добавить' }
 ];
 </script>

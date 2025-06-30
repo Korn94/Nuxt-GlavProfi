@@ -2,18 +2,18 @@
   <div class="navigation-wrapper">
     <!-- Placeholder -->
     <div v-if="isFixed" class="placeholder"></div>
-
     <div 
       class="navigation" 
       :class="{ 'fixed': isFixed }"
       ref="nav"
     >
       <div class="inner">
+        <!-- Отображаем динамические категории -->
         <button
           v-for="category in categories"
           :key="category.id"
-          :class="{ active: activeCategory === category.id }"
-          @click="setCategory(category.id)"
+          :class="{ active: activeCategory === category.slug }"
+          @click="setCategory(category.slug)"
         >
           {{ category.name }}
         </button>
@@ -23,52 +23,76 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, onMounted, onUnmounted, watchEffect } from 'vue'
+import { useRoute } from 'vue-router'
 
+const route = useRoute()
+const categories = ref([])
+const activeCategory = ref('floor') // Дефолтное значение
+const isFixed = ref(false)
+const nav = ref(null)
+
+// Обработчик скролла
+let scrollHandler = () => {}
+
+// Получение данных с сервера
+const loadPages = async () => {
+  try {
+    const data = await $fetch('/api/price/pages')
+    categories.value = data.map(page => ({
+      id: page.id,
+      name: page.title,
+      slug: page.slug
+    }))
+  } catch (error) {
+    console.error('Ошибка загрузки страниц:', error)
+  }
+}
+
+// Установка активной категории
+const setCategory = (categoryId) => {
+  activeCategory.value = categoryId
+  emit('update:active-category', categoryId)
+}
+
+// Пропсы и эмит
 const props = defineProps({
-  categories: {
-    type: Array,
-    required: true,
-  },
   activeCategory: {
     type: String,
-    required: true,
+    required: true
   }
-});
+})
+const emit = defineEmits(['update:active-category'])
 
-const emit = defineEmits(['update:active-category']);
-const setCategory = (categoryId) => {
-  emit('update:active-category', categoryId);
-};
+// Реактивное обновление activeCategory при изменении маршрута
+watchEffect(() => {
+  if (route.params.category) {
+    activeCategory.value = route.params.category
+  }
+})
 
-// Фиксация при скролле
-const nav = ref(null);
-const isFixed = ref(false);
-const initialOffsetTop = ref(0); // <-- Здесь будем хранить начальную позицию
-
+// Регистрация обработчика скролла и других хуков до асинхронных вызовов
 onMounted(() => {
   if (nav.value) {
-    const headerHeight = document.querySelector('header')?.offsetHeight || 0;
-    initialOffsetTop.value = nav.value.getBoundingClientRect().top + window.scrollY;
+    const headerHeight = document.querySelector('header')?.offsetHeight || 0
+    const initialOffsetTop = nav.value.getBoundingClientRect().top + window.scrollY
 
-    const handleScroll = () => {
-      if (!nav.value) return;
+    scrollHandler = () => {
+      isFixed.value = window.scrollY >= initialOffsetTop - headerHeight - 10
+    }
 
-      if (window.scrollY >= initialOffsetTop.value - headerHeight - 10) {
-        isFixed.value = true;
-      } else {
-        isFixed.value = false;
-      }
-    };
+    window.addEventListener('scroll', scrollHandler)
+    scrollHandler()
 
-    window.addEventListener('scroll', handleScroll);
-    handleScroll(); // вызов для инициализации
-
+    // Регистрация onUnmounted внутри onMounted — безопасно!
     onUnmounted(() => {
-      window.removeEventListener('scroll', handleScroll);
-    });
+      window.removeEventListener('scroll', scrollHandler)
+    })
   }
-});
+
+  // Загрузка данных после регистрации хуков
+  loadPages()
+})
 </script>
 
 <style lang="scss" scoped>

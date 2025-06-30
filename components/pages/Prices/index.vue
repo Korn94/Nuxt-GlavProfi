@@ -1,17 +1,9 @@
 <template>
-  <div class="container" :key="activeCategory">
+  <div class="container" :key="activeCategory" >
     <!-- Заголовок -->
-    <h1>Цены на ремонт помещений - <span>2025</span></h1>
-        
-    <UIElementsOffer 
-      title="Не тратьте время на изучение прайс-листа!"
-      description="Отправьте запрос — мы сами всё посчитаем быстро и бесплатно"
-      buttonText="Заказать расчет"
-    />
 
     <!-- Динамический подзаголовок -->
     <h2>Цены на <span>{{ activeCategoryTitle }}</span> - 2025</h2>
-    <!-- <p style="text-align: center; margin-bottom: 1em;">Идет расчет цен, ожидаемая дата утверждения - <span style="text-decoration: underline; color: unset;">25.03.25</span></p> -->
 
     <!-- Навигация -->
     <PagesPricesNavigation
@@ -19,7 +11,6 @@
       :active-category="activeCategory"
       @update:active-category="setCategory"
     />
-
 
     <!-- Поиск -->
     <div class="search-bar">
@@ -45,10 +36,14 @@
     <!-- Таблица -->
     <div class="price-list">
       <!-- Условие загрузки -->
-      <div v-if="isLoading" class="loader">Загрузка...</div>
+      <!-- Индикатор загрузки -->
+      <div v-if="isLoading" class="loading-indicator">
+        <Icon name="eos-icons:bubble-loading" size="34px" />
+        <span>Загрузка данных...</span>
+      </div>
       <!-- Условие ошибки -->
       <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
-
+      <div v-if="filteredWorks.length">
       <!-- Меню навигации для заголовков работ -->
       <div class="work-navigation">
         <div class="work-navigation-inner">
@@ -66,78 +61,211 @@
           >
             {{ category.title }}
           </button>
-        </div>
-      </div>
-
-      <!-- Категории, условие если есть работы -->
-      <div v-if="filteredWorks.length">
-        <!-- Добавляем заголовки категорий и списки работ -->
-        <div v-for="category in filteredWorks" :key="category.id" class="category-block">
-          <h2>{{ category.title }}</h2>
-          <div v-for="work in category.items" :key="work.id" class="work-category">
-            <!-- Заголовок работы -->
-            <h3 @click="toggleWork(work.id)">
-              {{ work.name }}
-              <Icon 
-                :name="isOpenWork(work.id) ? 'iconamoon:arrow-up-2' : 'iconamoon:arrow-down-2'" 
-                class="ico"
-              />
-            </h3>
-
-            <!-- Список работ, только если категория открыта -->
-            <ul v-if="isOpenWork(work.id)">
-              <li v-for="item in work.subItems" :key="item.id" class="work-item">
-                <div class="work-main">
-                  <Icon 
-                    :name="item.isCopied ? 'fluent:copy-16-filled' : 'fluent:copy-16-regular'" 
-                    class="pointer ico" 
-                    @click="handleCopyClick(item)"
-                  />
-                  <div class="work-title pointer" @click="toggleSubItems(item.id)">
-                    <p>
-                      <strong v-html="highlightText(item.type)"></strong>
-                    </p>
-                    <!-- Отображение иконки -->
-                    <Icon 
-                      v-if="item.typeWorks && item.typeWorks.length"
-                      :name="isSubItemsOpen(item.id) ? 'iconamoon:arrow-up-2' : 'iconamoon:arrow-down-2'" 
-                      class="ico"
-                    />
-                  </div>
-                  <p class="work-unit">{{ item.unit }}</p>
-                  <p class="work-price">{{ item.price }} ₽</p>
-                </div>
-
-                <!-- Вложенные элементы, если они есть -->
-                <ul v-if="item.typeWorks && isSubItemsOpen(item.id)" class="sub-items">
-                  <!-- Основные работы -->
-                  <li v-for="typeWork in item.typeWorks" :key="typeWork.id" class="sub-work-item">
-                    <p class="work-title" v-html="highlightText(typeWork.nameWork)"></p>
-                    <p class="work-unit">{{ typeWork.unit }}</p>
-                    <p class="work-price">{{ typeWork.price }} ₽</p>
-                  </li>
-                  <!-- Дополнительные работы -->
-                  <template v-if="item.dopworks && item.dopworks.length">
-                    <p class="additional-works-label">Доп. работы</p>
-                    <li v-for="dopworkGroup in item.dopworks" :key="dopworkGroup.label">
-                      <ul>
-                        <li v-for="dopwork in dopworkGroup.works" :key="dopwork.id" class="sub-work-item">
-                          <p class="work-title" v-html="highlightText(dopwork.dopwork)"></p>
-                          <p class="work-unit">{{ dopwork.unit }}</p>
-                          <p class="work-price">{{ dopwork.price }} ₽</p>
-                        </li>
-                      </ul>
-                    </li>
-                  </template>
-                </ul>
-              </li>
-            </ul>
+          <!-- Кнопка добавления новой категории (только для админа) -->
+          <div v-if="isAdmin" class="add-category-button">
+            <button @click="showCategoryForm = true">+ Добавить категорию</button>
+            <div v-if="showCategoryForm" class="form">
+              <input v-model="newCategory.name" placeholder="Название категории" />
+              <button @click="addNewCategory">Сохранить</button>
+              <button @click="handleCancel('category')">Отмена</button>
+            </div>
           </div>
         </div>
       </div>
+      <!-- Категории, условие если есть работы -->
+        <div v-for="category in filteredWorks" :key="category.id" class="category-block">
+          <div class="category-header">
+            <!-- Заголовок категории -->
+            <div>
+              <input v-if="editingCategoryId === category.id" v-model="editingCategoryData.name" style="width: 80%" />
+              <h2 v-else>{{ category.title }}</h2>
+            </div>
+            <!-- Кнопки только для админа -->
+            <div v-if="isAdmin" class="category-actions">
+              <Icon v-if="editingCategoryId !== category.id" name="bx:edit" size="16" @click.stop="startEditingCategory(category)" style="cursor: pointer; margin-right: 10px;" />
+              <Icon v-else name="material-symbols-light:save-outline" size="16" @click.stop="saveEditCategory(category.id)" style="cursor: pointer; margin-right: 10px;" />
+              <Icon name="material-symbols:delete-outline" size="16" @click.stop="deleteCategory(category.id)" style="cursor: pointer;" />
+            </div>
+          </div>
+          <!-- Отображение подкатегорий -->
+          <div v-for="subcategory in category.subcategories" :key="subcategory.id" class="subcategory-block">
+            <div class="subcategory-header">
+              <h3 @click="toggleSubcategory(subcategory.id)">
+                {{ subcategory.name }}
+                <Icon :name="isSubcategoryOpen(subcategory.id) ? 'iconamoon:arrow-up-2' : 'iconamoon:arrow-down-2'" />
+              </h3>
+              <div v-if="isAdmin" class="subcategory-actions">
+                <Icon name="bx:edit" size="16" @click.stop="startEditingSubCategory(subcategory)" style="cursor: pointer; margin-right: 10px;" />
+                <Icon name="material-symbols:delete-outline" size="16" @click.stop="deleteSubCategory(subcategory.id)" style="cursor: pointer;" />
+              </div>
+            </div>
+            <!-- Форма редактирования подкатегории -->
+            <div v-if="editingSubCategoryId === subcategory.id" class="form">
+              <input v-model="editingSubCategoryData.name" placeholder="Название подкатегории" />
+              <button @click="saveEditSubCategory(subcategory.id)">Сохранить</button>
+              <button @click="handleCancel('subcategory')">Отмена</button>
+            </div>
+            <!-- Список работ внутри подкатегории -->
+            <ul v-if="isSubcategoryOpen(subcategory.id)">
+              <li v-for="item in subcategory.items" :key="item.id" class="work-item">
+                <!-- Основная работа -->
+                <div class="work-main">
+                  <!-- Иконка копирования -->
+                  <Icon :name="item.isCopied ? 'fluent:copy-16-filled' : 'fluent:copy-16-regular'" 
+                        class="pointer ico" 
+                        @click="handleCopyClick(item)" />
+                  <!-- Поле для редактирования или отображения -->
+                  <div class="work-title pointer" @click="toggleSubItems(item.id)">
+                      <p v-if="editingItem !== item.id">
+                        <span v-for="(part, index) in splitText(item.name)" :key="index" 
+                              :class="{ highlight: part.isMatch }">
+                          {{ part.text }}
+                        </span>
+                      </p>
+                    <input v-else v-model="editingItemData.name" style="width: 80%" />
+                  </div>
+                  <p v-if="editingItem !== item.id" class="work-unit">{{ item.unit }}</p>
+                  <input v-else v-model="editingItemData.unit" style="width: 50px;" />
+                  <p v-if="editingItem !== item.id" class="work-price">{{ Math.round(item.price) }} ₽</p>
+                  <input v-else v-model.number="editingItemData.price" style="width: 70px;" />
+                  <!-- Кнопки сохранения и отмены -->
+                  <div v-if="editingItem === item.id" class="edit-buttons">
+                    <button @click="saveEditSubItem(editingItem.value)">Сохранить</button>
+                    <button @click="handleCancel('editWork')">Отмена</button>
+                  </div>
+                  <!-- Кнопки редактирования и удаления -->
+                  <div class="actions" v-if="isAdmin">
+                    <Icon name="bx:edit" size="16" @click.stop="startEditingSubItem(item)" />
+                    <Icon name="material-symbols:delete-outline" size="16" @click.stop="deleteSubItem(item)" />
+                  </div>
+                </div>
 
+                <!-- Формы добавления деталей и допработ -->
+                <div v-if="isAdmin" class="add-detail-button">
+                  <button @click="showDetailFormFor = item.id">+ Добавить деталь</button>
+                  <div v-if="showDetailFormFor === item.id" class="form">
+                    <input v-model="newDetail.name" placeholder="Название" />
+                    <!-- <input v-model="newDetail.unit" placeholder="Ед. изм." /> -->
+                    <UIFormsSelectOrInput v-model="newDetail.unit" />
+                    <input v-model.number="newDetail.price" placeholder="Цена" />
+                    <button @click="addNewDetail(item.id)">Сохранить</button>
+                    <button @click="handleCancel('detail')">Отмена</button>
+                  </div>
+                </div>
+
+                <div v-if="isAdmin" class="add-dopwork-button">
+                  <button @click="showDopworkFormFor = item.id">+ Добавить доп. работу</button>
+                  <div v-if="showDopworkFormFor === item.id" class="form">
+                    <input v-model="newDopwork.label" placeholder="Метка" />
+                    <input v-model="newDopwork.dopwork" placeholder="Название работы" />
+                    <!-- <input v-model="newDopwork.unit" placeholder="Ед. изм." /> -->
+                    <UIFormsSelectOrInput v-model="newDopwork.unit" />
+                    <input v-model.number="newDopwork.price" placeholder="Цена" />
+                    <button @click="addNewDopwork(item.id)">Сохранить</button>
+                    <button @click="handleCancel('dopwork')">Отмена</button>
+                  </div>
+                </div>
+
+                <!-- Вложенные элементы (детали и допработы) -->
+                <!-- Для деталей -->
+                <ul v-if="item.details.length > 0 && isSubItemsOpen(item.id)" class="sub-items">
+                  <li v-for="detail in item.details" :key="detail.id" class="sub-work-item">
+                    <div class="work-main">
+                      <!-- Иконка копирования -->
+                      <Icon :name="detail.isCopied ? 'fluent:copy-16-filled' : 'fluent:copy-16-regular'" 
+                            class="pointer ico" 
+                            @click="handleCopyClick(detail)" />
+                      <!-- Поле для редактирования или отображения -->
+                      <div class="work-title pointer" @click="toggleSubItems(detail.id)">
+                        <p v-if="editingDetailId !== detail.id">{{ detail.name }}</p>
+                        <input v-else v-model="editingDetailData.name" style="width: 80%" />
+                      </div>
+                      <p v-if="editingDetailId !== detail.id" class="work-unit">{{ detail.unit }}</p>
+                      <input v-else v-model="editingDetailData.unit" style="width: 50px;" />
+                      <p v-if="editingDetailId !== detail.id" class="work-price">{{ Math.round(detail.price) }} ₽</p>
+                      <input v-else v-model.number="editingDetailData.price" style="width: 70px;" />
+                      <!-- Кнопки сохранения и отмены -->
+                      <div v-if="editingDetailId === detail.id" class="edit-buttons">
+                        <button @click="saveEditDetail(detail.id)">Сохранить</button>
+                        <button @click="handleCancel('editDetail')">Отмена</button>
+                      </div>
+                      <!-- Кнопки редактирования и удаления -->
+                      <div class="actions" v-if="isAdmin">
+                        <Icon name="bx:edit" size="16" @click.stop="startEditingDetail(detail)" />
+                        <Icon name="material-symbols:delete-outline" size="16" @click.stop="deleteDetail(detail.id)" />
+                      </div>
+                    </div>
+                  </li>
+                </ul>
+
+                <!-- Для допработ -->
+                <ul v-if="item.dopworks.length > 0 && isSubItemsOpen(item.id)" class="sub-items">
+                  <p class="dop-work-title">Доп. работы</p>
+                  <li v-for="dopwork in item.dopworks" :key="dopwork.id" class="sub-work-item">
+                    <div class="work-main">
+                      <!-- Иконка копирования -->
+                      <Icon :name="dopwork.isCopied ? 'fluent:copy-16-filled' : 'fluent:copy-16-regular'" 
+                            class="pointer ico" 
+                            @click="handleCopyClick(dopwork)" />
+                      <!-- Поле для редактирования или отображения -->
+                      <div class="work-title pointer" @click="toggleSubItems(dopwork.id)">
+                        <p v-if="editingDopworkId !== dopwork.id">
+                          {{ dopwork.label }} {{ dopwork.dopwork }}
+                        </p>
+                        <div v-else>
+                          <input v-model="editingDopworkData.label" style="width: 40%" />
+                          <input v-model="editingDopworkData.dopwork" style="width: 40%" />
+                        </div>
+                      </div>
+                      <p v-if="editingDopworkId !== dopwork.id" class="work-unit">{{ dopwork.unit }}</p>
+                      <input v-else v-model="editingDopworkData.unit" style="width: 50px;" />
+                      <p v-if="editingDopworkId !== dopwork.id" class="work-price">{{ Math.round(dopwork.price) }} ₽</p>
+                      <input v-else v-model.number="editingDopworkData.price" style="width: 70px;" />
+                      <!-- Кнопки сохранения и отмены -->
+                      <div v-if="editingDopworkId === dopwork.id" class="edit-buttons">
+                        <button @click="saveEditDopwork(dopwork.id)">Сохранить</button>
+                        <button @click="handleCancel('editDopwork')">Отмена</button>
+                      </div>
+                      <!-- Кнопки редактирования и удаления -->
+                      <div class="actions" v-if="isAdmin">
+                        <Icon name="bx:edit" size="16" @click.stop="startEditingDopwork(dopwork)" />
+                        <Icon name="material-symbols:delete-outline" size="16" @click.stop="deleteDopwork(dopwork.id)" />
+                      </div>
+                    </div>
+                  </li>
+                </ul>
+              </li>
+              <!-- Кнопка добавления новой работы (внутри подкатегории) -->
+              <div v-if="isAdmin" class="add-work-button">
+                <button @click="showWorkFormFor = subcategory.id; newWorkForSubcategory[subcategory.id] = { name: '', unit: 'м²', price: '', subCategoryId: subcategory.id }">
+                  + Добавить работу
+                </button>
+                <div v-if="showWorkFormFor === subcategory.id" class="form add-form">
+                  <input v-model="newWorkForSubcategory[subcategory.id].name" placeholder="Название" />
+                  <!-- <input v-model="newWorkForSubcategory[subcategory.id].unit" placeholder="Ед. изм." /> -->
+                    <UIFormsSelectOrInput v-model="newWorkForSubcategory[subcategory.id].unit" />
+                  <input v-model.number="newWorkForSubcategory[subcategory.id].price" placeholder="Цена" />
+                  <button @click="addNewWork(subcategory.id)">Сохранить</button>
+                  <button @click="handleCancel('work')">Отмена</button>
+                </div>
+              </div>
+            </ul>
+          </div>
+          <!-- Форма добавления новой подкатегории -->
+          <div v-if="isAdmin">
+            <button @click="openSubItemForms[category.id] = true">+ Добавить подкатегорию</button>
+          </div>
+          <div v-if="openSubItemForms[category.id]" class="form">
+            <input v-model="newSubItem.name" placeholder="Название" />
+            <button @click="addNewSubItem(category.id)">Сохранить</button>
+            <button @click="handleCancel('subitem')">Отмена</button>
+          </div>
+        </div>
+      </div>
       <!-- Если ничего не найдено -->
-      <div v-else class="no-results">Работы не найдены</div>
+      <div v-else-if="!isLoading && filteredWorks.length === 0" class="no-results">
+        Подождите
+      </div>
     </div>
 
     <!-- Всплывающее окно для уведомления -->
@@ -150,13 +278,25 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, nextTick } from "vue";
-import { useRouter, useRoute } from 'vue-router';
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { useCookie } from '#app'
 
-const router = useRouter();
-const route = useRoute();
+const props = defineProps({
+  activeCategory: {
+    type: String,
+    required: true
+  },
+    modelValue: {
+    type: String,
+    default: 'м²'
+  },
+})
 
-// Данные категорий
+const router = useRouter()
+const route = useRoute()
+
+// Статические категории (временно)
 const categories = [
   { id: "floor", name: "Пол", title: "ремонт пола" },
   { id: "walls", name: "Стены", title: "ремонт стен" },
@@ -164,67 +304,170 @@ const categories = [
   { id: "plumbing", name: "Сантехника", title: "ремонт сантехники" },
   { id: "electricity", name: "Электрика", title: "ремонт электрики" },
   { id: "other", name: "Дополнительные услуги", title: "дополнительные услуги" },
-];
+]
 
 // Состояния
-const activeCategory = ref(route.params.category || "floor"); // Начальное значение
-const activeWork = ref("all"); // Активная работа (по умолчанию "Все работы")
-const works = ref([]); // Работы текущей категории
-const searchQuery = ref("");
-const openCategories = ref([]); // Открытые категории
-const openSubItems = ref({}); // Открытые вложенные элементы
-const openWorks = ref({}); // Открытые работы - стрелочки
-const isLoading = ref(false);
-const errorMessage = ref("");
-const notificationVisible = ref(false); // Состояние для показа уведомления
-const copiedItems = ref({}); // Новое состояние для отслеживания активных иконок
+const activeCategory = ref(route.params.category || 'floor')
+const activeWork = ref('all')
+const works = ref([])
+const searchQuery = ref('')
+const openCategories = ref([])
+const openSubItems = ref({})
+const openWorks = ref({})
+const isLoading = ref(false)
+const errorMessage = ref('')
+const notificationVisible = ref(false)
+const isAdmin = ref(false)
+const openSubcategories = ref({})
+const currentSubcategoryId = ref(null)
+const showDetailFormFor = ref(null)
+const showDopworkFormFor = ref(null)
+
+// Для редактирования
+const editingItemId = ref(null)
+const editingItem = ref(null)
+const editingItemData = ref({})
+const editingDetailId = ref(null)
+const editingDetailData = ref({})
+const editingDopworkId = ref(null)
+const editingDopworkData = ref({})
+const editingCategoryId = ref(null)
+const editingCategoryData = ref({})
+const editingSubCategoryId = ref(null)
+const editingSubCategoryData = ref({})
+const editingSubItemId = ref(null)
+const editingSubItemData = ref({})
+
+// Для форм добавления
+const openSubItemForms = ref({})
+const newSubItem = ref({
+  name: '',       // это будет поле `name`
+  categoryId: null // необходимо передавать ID категории
+})
+const toggleSubcategory = (id) => {
+  openSubcategories.value[id] = !openSubcategories.value[id]
+  if (searchQuery.value.trim()) {
+    openSubcategories.value[id] = true
+  }
+}
+const isSubcategoryOpen = (id) => {
+  return !!openSubcategories.value[id]
+}
+const newWorkForSubcategory = ref({})
+const showWorkFormFor = ref(null)
+
+const showDetailForm = ref(false)
+const newDetail = ref({
+  name: '',
+  unit: 'м²',
+  price: '',
+  itemId: null
+})
+
+const showDopworkForm = ref(false)
+const newDopwork = ref({
+  label: '',
+  dopwork: '',
+  unit: 'м²',
+  price: '',
+  itemId: null
+})
+
+onMounted(async () => {
+  const token = useCookie('token')
+
+  if (token.value) {
+    try {
+      const me = await $fetch('/api/me')
+      isAdmin.value = me?.user?.role === 'admin' || false
+    } catch (error) {
+      console.error('Ошибка получения данных пользователя:', error)
+      isAdmin.value = false
+    }
+  } else {
+    isAdmin.value = false
+  }
+
+  await loadCategoryData(activeCategory.value)
+})
 
 // Вычисляемое свойство для динамического заголовка
 const activeCategoryTitle = computed(() => {
-  const category = categories.find(cat => cat.id === activeCategory.value);
-  return category ? category.title : "Выберите категорию";
-});
+  const category = categories.find(cat => cat.id === activeCategory.value)
+  return category ? category.title : 'Выберите категорию'
+})
 
 // Загрузка данных для категории
 const loadCategoryData = async (categoryId) => {
   try {
     isLoading.value = true;
-    errorMessage.value = "";
-    // Очистка текущих данных
-    works.value = [];
-    openCategories.value = [];
-    openSubItems.value = {};
-    // Загрузка основного файла категории
-    const mainResponse = await fetch(`/data/${categoryId}.json`);
-    if (!mainResponse.ok) {
-      throw new Error(`Файл данных для категории ${categoryId} не найден.`);
+    errorMessage.value = '';
+    
+    // ✅ Запрашиваем только нужную категорию через /api/price/list/[slug]
+    const pageData = await $fetch(`/api/price/list/${categoryId}`).catch((err) => {
+      console.error('Ошибка загрузки данных:', err);
+      return null;
+    });
+
+    if (!pageData) {
+      errorMessage.value = 'Не удалось загрузить данные';
+      works.value = [];
+      return;
     }
-    const mainData = await mainResponse.json();
-    // Загрузка вложенных файлов
-    const loadedCategories = await Promise.all(
-      mainData.categories.map(async (category) => {
-        if (category.file) {
-          const subResponse = await fetch(`/data/${category.file}`);
-          if (!subResponse.ok) {
-            console.warn(`Файл ${category.file} для категории ${categoryId} не найден.`);
-            return { ...category, items: [] }; // Возвращаем пустой список, если файл не найден
-          }
-          const subData = await subResponse.json();
-          return { ...category, items: subData.items || [] };
-        }
-        return category; // Если нет вложенного файла, возвращаем категорию как есть
-      })
-    );
+
+    // ✅ Преобразуем данные из API в структуру, подходящую для UI
+    const loadedCategories = pageData.categories.map(category => ({
+      id: category.id,
+      title: category.name,
+      subcategories: category.subcategories.map(subcategory => ({
+        id: subcategory.id,
+        name: subcategory.name,
+        items: (subcategory.items || []).map(item => {
+          // Подгружаем детали и допработы
+          const details = (item.details || []).map(detail => ({
+            id: detail.id,
+            name: detail.name,
+            unit: detail.unit,
+            price: detail.price,
+            isCopied: false,
+            type: 'detail'
+          }));
+          const dopworks = (item.dopworks || []).map(dopworkGroup => ({
+            id: dopworkGroup.id,
+            label: dopworkGroup.label,
+            dopwork: dopworkGroup.dopwork,
+            unit: dopworkGroup.unit,
+            price: dopworkGroup.price,
+            isCopied: false,
+            type: 'dopwork'
+          }));
+          return {
+            id: item.id,
+            name: item.name,
+            unit: item.unit,
+            price: item.price,
+            isCopied: false,
+            type: 'item',
+            details, // Отдельный массив деталей
+            dopworks // Отдельный массив допработ
+          };
+        })
+      }))
+    }));
+
     works.value = loadedCategories;
 
-    // Открываем первую работу по умолчанию
-    const firstCategory = loadedCategories.find(cat => cat.items && cat.items.length > 0);
-    if (firstCategory && firstCategory.items.length > 0) {
-      const firstWorkId = firstCategory.items[0].id;
-      openWorks.value[firstWorkId] = true; // Открываем первую работу
+    // ✅ Открываем первую работу по умолчанию
+    const firstCategory = loadedCategories.find(cat => cat.subcategories.length > 0);
+    if (firstCategory) {
+      // Открываем первую категорию
+      openSubcategories.value[firstCategory.subcategories[0].id] = true;
+
+      // Если нужно, можно открыть также все категории или только первую
+      openCategories.value = [firstCategory.id]; // сохраняем ID первой категории как открытую
     }
   } catch (error) {
-    errorMessage.value = error.message;
+    errorMessage.value = error.message || 'Не удалось загрузить данные';
     works.value = [];
   } finally {
     isLoading.value = false;
@@ -236,135 +479,640 @@ const allWorks = computed(() => {
   return works.value.map(category => ({
     id: category.id,
     title: category.title,
-  }));
-});
+  }))
+})
 
 // Фильтрация работ
 const filteredWorks = computed(() => {
-  const query = searchQuery.value.trim().toLowerCase();
-  let filtered = works.value;
+  const query = searchQuery.value.trim().toLowerCase()
+  let filtered = works.value
 
-  // Фильтрация по активной категории
-  if (activeWork.value !== "all") {
-    filtered = filtered.filter(category => category.id === activeWork.value);
+  if (activeWork.value !== 'all') {
+    filtered = filtered.filter(category => category.id === activeWork.value)
   }
 
-  // Фильтрация по строке поиска
-  if (query) {
-    filtered = filtered.map(category => ({
-      ...category,
-      items: category.items.filter(item =>
-        item.name.toLowerCase().includes(query) ||
-        item.subItems.some(subItem => subItem.type.toLowerCase().includes(query))
-      ),
-    })).filter(category => category.items.length > 0);
-  }
+  if (!query) return filtered
 
-  return filtered;
-});
+  const openSubcategoriesTemp = {}
+  const openCategoriesTemp = {}
+
+  const result = filtered
+    .map(category => {
+      const filteredSubcategories = category.subcategories
+        .map(subcategory => {
+          const filteredItems = subcategory.items.filter(item => {
+            return item.name.toLowerCase().includes(query)
+          })
+
+          // Если есть совпадения в работах, открываем подкатегорию
+          if (filteredItems.length > 0) {
+            openSubcategoriesTemp[subcategory.id] = true
+            openCategoriesTemp[category.id] = true
+          }
+
+          return {
+            ...subcategory,
+            items: filteredItems
+          }
+        })
+        .filter(subcategory => subcategory.items.length > 0)
+
+      if (filteredSubcategories.length > 0) {
+        return {
+          ...category,
+          subcategories: filteredSubcategories
+        }
+      }
+      return null
+    })
+    .filter(Boolean)
+
+  // Обновляем состояния открытия
+  openSubcategories.value = { ...openSubcategoriesTemp }
+  openCategories.value = Object.keys(openCategoriesTemp)
+
+  return result
+})
 
 const clearSearch = () => {
-  searchQuery.value = ""; // Очищаем поле поиска
-};
+  searchQuery.value = ''
+}
 
 // Установка активной категории
 const setActiveWork = (categoryId) => {
-  activeWork.value = categoryId;
-};
-
-// Проверка, открыта ли категория
-const isCategoryOpen = (id) => {
-  return searchQuery.value.trim() ? true : openCategories.value.includes(id);
-};
-
-// Открыть/закрыть категорию
-const toggleCategory = (id) => {
-  if (isCategoryOpen(id)) {
-    openCategories.value = openCategories.value.filter(catId => catId !== id);
-  } else {
-    openCategories.value.push(id);
-  }
-};
-
-// Проверка, открыты ли вложенные элементы
-const isSubItemsOpen = (id) => {
-  return !!openSubItems.value[id]; // Убираем зависимость от searchQuery
-};
-
-// Открыть/закрыть вложенные элементы
-const toggleSubItems = (id) => {
-  openSubItems.value[id] = !openSubItems.value[id];
-};
+  activeWork.value = categoryId
+}
 
 // Проверка, открыта ли работа
 const isOpenWork = (id) => {
-  return searchQuery.value.trim() ? true : !!openWorks.value[id];
-};
+  return searchQuery.value.trim() ? true : !!openWorks.value[id]
+}
 
 // Открыть/закрыть работу
 const toggleWork = (id) => {
-  openWorks.value[id] = !openWorks.value[id];
-};
+  openWorks.value[id] = !openWorks.value[id]
+}
+
+// Проверка, открыты ли вложенные элементы
+const isSubItemsOpen = (id) => {
+  return !!(openSubItems.value && openSubItems.value[id])
+}
+
+// Открыть/закрыть вложенные элементы
+const toggleSubItems = (id) => {
+  if (openSubItems.value[id]) {
+    delete openSubItems.value[id]
+  } else {
+    openSubItems.value[id] = true
+  }
+}
 
 // Подсветка текста
-const highlightText = (text) => {
-  if (!text) return "";
-  const query = searchQuery.value.trim();
-  if (!query) return text;
-
-  const regExp = new RegExp(`(${query})`, "gi");
-  return text.replace(regExp, `<span class="highlight">$1</span>`);
-};
+// Метод splitText для подсветки
+const splitText = (text) => {
+  if (!text || !searchQuery.value.trim()) return [{ text, isMatch: false }]
+  
+  const query = searchQuery.value.trim().toLowerCase()
+  const parts = []
+  let lastIndex = 0
+  
+  while (lastIndex < text.length) {
+    const index = text.toLowerCase().indexOf(query, lastIndex)
+    if (index === -1) {
+      parts.push({ text: text.slice(lastIndex), isMatch: false })
+      break
+    }
+    
+    if (index > lastIndex) {
+      parts.push({ text: text.slice(lastIndex, index), isMatch: false })
+    }
+    
+    parts.push({ text: text.slice(index, index + query.length), isMatch: true })
+    lastIndex = index + query.length
+  }
+  
+  return parts
+}
 
 // Скопировать в буфер
-// Метод для обработки клика по иконке копирования
 const handleCopyClick = (item) => {
-  navigator.clipboard.writeText(item.type)
-    .then(() => {
-      item.isCopied = true; // Устанавливаем флаг
-      notificationVisible.value = true;
+  let textToCopy = ''
 
+  // Определяем, какой текст копировать, в зависимости от типа
+  if (item.type === 'item' && item.name) {
+    textToCopy = item.name
+  } else if (item.type === 'detail' && item.name) {
+    textToCopy = item.name
+  } else if (item.type === 'dopwork') {
+    // Для допработ используем либо label, либо саму работу
+    textToCopy = [item.label, item.dopwork].filter(Boolean).join(' ')
+  }
+
+  if (!textToCopy) {
+    alert('Нет текста для копирования')
+    return
+  }
+
+  navigator.clipboard
+    .writeText(textToCopy)
+    .then(() => {
+      item.isCopied = true
+      notificationVisible.value = true
       setTimeout(() => {
-        item.isCopied = false; // Сбрасываем флаг через 5 секунд
-      }, 5000);
+        item.isCopied = false
+      }, 5000)
     })
     .catch((err) => {
-      console.error("Ошибка копирования текста:", err);
-    });
-};
-
-// Метод для определения текущей иконки
-const getCopyIcon = (type) => {
-  return copiedItems.value[type] ? "fluent:copy-16-filled" : "fluent:copy-16-regular";
-};
+      console.error('Ошибка копирования текста:', err)
+    })
+}
 
 // Смена активной категории
 const setCategory = async (categoryId) => {
-  console.log(`Setting category to ${categoryId}`);
-  await router.push({ params: { category: categoryId } });
-  activeCategory.value = categoryId;
-  loadCategoryData(categoryId);
-};
+  await router.push({ params: { category: categoryId } })
+}
 
-// Отслеживание изменений параметров маршрута
-watch(() => route.params.category, (newCategoryId) => {
-  console.log(`Route changed to category ${newCategoryId}`);
-  activeCategory.value = newCategoryId;
-  loadCategoryData(newCategoryId);
-});
+// watch на props.activeCategory
+watch(() => props.activeCategory, async (newCategory) => {
+  if (newCategory) {
+    await loadCategoryData(newCategory)
+  }
+})
 
-// Загрузка данных при монтировании компонента
-onMounted(() => {
-  loadCategoryData(activeCategory.value);
-});
+// Редактирование
+const editors = {
+  item: {
+    id: editingItemId,
+    data: editingItemData
+  },
+  detail: {
+    id: editingDetailId,
+    data: editingDetailData
+  },
+  dopwork: {
+    id: editingDopworkId,
+    data: editingDopworkData
+  },
+  category: {
+    id: editingCategoryId,
+    data: editingCategoryData
+  }
+}
+
+const startEditing = (type, item) => {
+  const editor = editors[type]
+  
+  if (!editor) {
+    console.warn(`Неизвестный тип редактирования: ${type}`)
+    return
+  }
+
+  editor.id.value = item.id
+  editor.data.value = { ...item }
+}
+
+// Сохранение изменений
+const saveEdit = async (type, itemId) => {
+  try {
+    let endpoint = ''
+    let payload = {}
+
+    if (type === 'item') {
+      endpoint = `/api/price/items/${itemId}`
+      payload = editingItemData.value
+    } else if (type === 'detail') {
+      endpoint = `/api/price/details/${itemId}`
+      payload = editingDetailData.value
+    } else if (type === 'dopwork') {
+      endpoint = `/api/price/dopworks/${itemId}`
+      payload = editingDopworkData.value
+    }
+
+    await $fetch(endpoint, {
+      method: 'PUT',
+      body: payload
+    })
+
+    editingItemId.value = null
+    editingDetailId.value = null
+    editingDopworkId.value = null
+
+    await loadCategoryData(activeCategory.value)
+  } catch (error) {
+    alert(`Ошибка при сохранении: ${error.message}`)
+    console.error(error)
+  }
+}
+
+// Удаление элемента
+const deleteItem = async (type, itemId) => {
+  if (!confirm('Вы уверены, что хотите удалить этот элемент?')) return
+  try {
+    await $fetch(`/api/price/${type}/${itemId}`, {
+      method: 'DELETE'
+    })
+    await loadCategoryData(activeCategory.value)
+  } catch (error) {
+    alert('Ошибка при удалении')
+    console.error(error)
+  }
+}
+
+// Для формы добавления категории
+const showCategoryForm = ref(false)
+const newCategory = ref({
+  name: '',
+  pageId: null // ID текущей страницы, например, из `data.id`
+})
+
+// Метод добавления новой категории
+const addNewCategory = async () => {
+  const categoryToPageMap = {
+    floor: 1,
+    walls: 2,
+    ceiling: 3,
+    plumbing: 4,
+    electricity: 5,
+    other: 6
+    // Добавьте другие категории при необходимости
+  }
+
+  const pageId = categoryToPageMap[activeCategory.value] || null
+
+  newCategory.value.pageId = pageId
+
+  try {
+    await $fetch('/api/price/categories', {
+      method: 'POST',
+      body: newCategory.value
+    })
+    showCategoryForm.value = false
+    newCategory.value = { name: '', pageId: null }
+    // Перезагружаем данные
+    await loadCategoryData(activeCategory.value)
+  } catch (error) {
+    alert('Ошибка при добавлении категории')
+    console.error(error)
+  }
+}
+
+// Начать редактирование категории
+const startEditingCategory = (category) => {
+  editingCategoryId.value = category.id
+  editingCategoryData.value = { ...category }
+}
+
+// Сохранить изменения категории
+const saveEditCategory = async (categoryId) => {
+  try {
+    await $fetch(`/api/price/categories/${categoryId}`, {
+      method: 'PUT',
+      body: editingCategoryData.value
+    })
+
+    editingCategoryId.value = null
+    editingCategoryData.value = {}
+
+    await loadCategoryData(activeCategory.value)
+  } catch (error) {
+    alert('Ошибка при сохранении категории')
+    console.error(error)
+  }
+}
+
+// Удалить категорию
+const deleteCategory = async (categoryId) => {
+  if (!confirm('Вы уверены, что хотите удалить эту категорию?')) return
+  try {
+    await $fetch(`/api/price/categories/${categoryId}`, {
+      method: 'DELETE'
+    })
+    await loadCategoryData(activeCategory.value)
+  } catch (error) {
+    alert('Ошибка при удалении категории')
+    console.error(error)
+  }
+}
+
+const startEditingSubCategory = (subcategory) => {
+  editingSubCategoryId.value = subcategory.id
+  editingSubCategoryData.value = { ...subcategory }
+}
+
+const saveEditSubCategory = async (subcategoryId) => {
+  try {
+    await $fetch(`/api/price/subcategories/${subcategoryId}`, {
+      method: 'PUT',
+      body: editingSubCategoryData.value
+    })
+    editingSubCategoryId.value = null
+    editingSubCategoryData.value = {}
+    await loadCategoryData(activeCategory.value)
+  } catch (error) {
+    alert('Ошибка при сохранении подкатегории')
+    console.error(error)
+  }
+}
+
+const deleteSubCategory = async (subcategoryId) => {
+  if (!confirm('Вы уверены, что хотите удалить эту подкатегорию?')) return
+  try {
+    await $fetch(`/api/price/subcategories/${subcategoryId}`, {
+      method: 'DELETE'
+    })
+    await loadCategoryData(activeCategory.value)
+  } catch (error) {
+    alert('Ошибка при удалении подкатегории')
+    console.error(error)
+  }
+}
+
+// Добавление подкатегории
+const startEditingSubItem = (item) => {
+  editingItem.value = item.id
+  editingItemData.value = { ...item }
+}
+
+const saveEditSubItem = async () => {
+  if (!editingItem.value) return
+  try {
+    const updatedItem = await $fetch(`/api/price/items/${editingItem.value}`, {
+      method: 'PUT',
+      body: editingItemData.value
+    })
+
+    // Найдём индексы для обновления
+    const categoryIndex = works.value.findIndex(category =>
+      category.subcategories.some(subcat => subcat.items.some(i => i.id === updatedItem.id))
+    )
+
+    if (categoryIndex !== -1) {
+      const subcategoryIndex = works.value[categoryIndex].subcategories.findIndex(
+        subcat => subcat.items.some(i => i.id === updatedItem.id)
+      )
+      const itemIndex = works.value[categoryIndex].subcategories[subcategoryIndex].items.findIndex(
+        i => i.id === updatedItem.id
+      )
+
+      // Обновляем реактивно
+      const newItems = [...works.value[categoryIndex].subcategories[subcategoryIndex].items]
+      newItems[itemIndex] = updatedItem
+      works.value[categoryIndex].subcategories[subcategoryIndex].items = newItems
+    }
+
+    // Сброс состояния
+    editingItem.value = null
+    editingItemData.value = {}
+
+    await loadCategoryData(activeCategory.value)
+  } catch (error) {
+    alert('Ошибка при сохранении')
+    console.error(error)
+  }
+}
+
+const deleteSubItem = async (item) => {
+  if (!confirm(`Вы уверены, что хотите удалить "${item.name}"?`)) return
+  try {
+    await $fetch(`/api/price/items/${item.id}`, {
+      method: 'DELETE'
+    })
+    alert('Работа успешно удалена')
+    loadCategoryData(activeCategory.value) // Обновляем список
+  } catch (error) {
+    alert('Ошибка при удалении работы')
+    console.error(error)
+  }
+}
+
+const addNewSubItem = async (categoryId) => {
+  if (!newSubItem.value.name || !categoryId) {
+    alert("Заполните все поля")
+    return
+  }
+  try {
+    await $fetch('/api/price/subcategories', {
+      method: 'POST',
+      body: {
+        categoryId: categoryId,
+        name: newSubItem.value.name
+      }
+    })
+
+    // Закрываем форму только этой категории
+    openSubItemForms.value[categoryId] = false
+
+    // Очищаем поле
+    newSubItem.value.name = ''
+
+    await loadCategoryData(activeCategory.value)
+  } catch (error) {
+    alert('Ошибка при добавлении подкатегории')
+    console.error(error)
+  }
+}
+
+// Добавление работы
+const addNewWork = async (subcategoryId) => {
+  const work = newWorkForSubcategory.value[subcategoryId]
+
+  if (!work.name || !work.unit || !work.price === null) {
+    alert('Заполните все поля!')
+    return
+  }
+
+  try {
+    await $fetch('/api/price/items', {
+      method: 'POST',
+      body: {
+        name: work.name,
+        unit: work.unit,
+        price: parseFloat(work.price).toString(),
+        subCategoryId: work.subCategoryId
+      }
+    })
+
+    showWorkFormFor.value = null
+    await loadCategoryData(activeCategory.value)
+  } catch (error) {
+    alert('Ошибка при добавлении работы')
+    console.error(error)
+  }
+}
+
+// Начать редактирование детали
+const startEditingDetail = (detail) => {
+  editingDetailId.value = detail.id
+  editingDetailData.value = { ...detail }
+}
+
+// Сохранить изменения детали
+const saveEditDetail = async () => {
+  try {
+    await $fetch(`/api/price/details/${editingDetailId.value}`, {
+      method: 'PUT',
+      body: editingDetailData.value
+    })
+    
+    editingDetailId.value = null
+    editingDetailData.value = {}
+    
+    // Перезагружаем данные после обновления
+    await loadCategoryData(activeCategory.value)
+  } catch (error) {
+    alert('Ошибка при сохранении детали')
+    console.error(error)
+  }
+}
+
+// Удалить деталь
+const deleteDetail = async (detailId) => {
+  if (!confirm('Вы уверены, что хотите удалить эту деталь?')) return
+  
+  try {
+    await $fetch(`/api/price/details/${detailId}`, {
+      method: 'DELETE'
+    })
+    
+    // Перезагружаем данные после удаления
+    await loadCategoryData(activeCategory.value)
+  } catch (error) {
+    alert('Ошибка при удалении детали')
+    console.error(error)
+  }
+}
+
+// Добавление деталей
+// Метод добавления новой детали
+const addNewDetail = async (itemId) => {
+  if (!newDetail.value.name || !newDetail.value.unit || !newDetail.value.price) {
+    alert('Заполните все поля!')
+    return
+  }
+  
+  newDetail.value.itemId = itemId
+
+  try {
+    await $fetch('/api/price/details', {
+      method: 'POST',
+      body: newDetail.value
+    })
+    
+    showDetailFormFor.value = null
+    newDetail.value = { name: '', unit: 'м²', price: '', itemId: null }
+    
+    // Перезагружаем данные после добавления
+    await loadCategoryData(activeCategory.value)
+  } catch (error) {
+    alert('Ошибка при добавлении детали')
+    console.error(error)
+  }
+}
+
+// Добавление доп.работы
+const addNewDopwork = async (itemId) => {
+  newDopwork.value.itemId = itemId
+  try {
+    await $fetch('/api/price/dopworks', {
+      method: 'POST',
+      body: newDopwork.value
+    })
+    showDopworkFormFor.value = null
+    newDopwork.value = { label: '', dopwork: '', unit: 'м²', price: '', itemId: null }
+    await loadCategoryData(activeCategory.value)
+  } catch (error) {
+    alert('Ошибка при добавлении доп.работы')
+    console.error(error)
+  }
+}
+
+// Начать редактирование доп. работы
+const startEditingDopwork = (dopwork) => {
+  editingDopworkId.value = dopwork.id
+  editingDopworkData.value = { ...dopwork }
+}
+
+// Сохранить изменения доп. работы
+const saveEditDopwork = async () => {
+  try {
+    await $fetch(`/api/price/dopworks/${editingDopworkId.value}`, {
+      method: 'PUT',
+      body: editingDopworkData.value
+    })
+    editingDopworkId.value = null
+    editingDopworkData.value = {}
+    await loadCategoryData(activeCategory.value)
+  } catch (error) {
+    alert('Ошибка сохранения допработы')
+    console.error(error)
+  }
+}
+
+// Удалить доп. работу
+const deleteDopwork = async (id) => {
+  if (!confirm('Вы уверены?')) return
+  try {
+    await $fetch(`/api/price/dopworks/${id}`, {
+      method: 'DELETE'
+    })
+    await loadCategoryData(activeCategory.value)
+  } catch (error) {
+    alert('Ошибка удаления допработы')
+    console.error(error)
+  }
+}
+
+// Общая логика для кнопок отмены
+const handleCancel = (type) => {
+  switch (type) {
+    case 'category':
+      showCategoryForm.value = false
+      newCategory.value = { name: '', pageId: null }
+      break
+    case 'subcategory':
+      editingSubCategoryId.value = null
+      editingSubCategoryData.value = {}
+      break
+    case 'work':
+      showWorkFormFor.value = null
+      newWorkForSubcategory.value = {}
+      break
+    case 'detail':
+      showDetailFormFor.value = null
+      newDetail.value = { name: '', unit: '', price: '', itemId: null }
+      break
+    case 'dopwork':
+      showDopworkFormFor.value = null
+      newDopwork.value = { label: '', dopwork: '', unit: '', price: '', itemId: null }
+      break
+    case 'subitem':
+      openSubItemForms.value = {}
+      newSubItem.value = { name: '' }
+      break
+    case 'editWork': // Редактирование работы
+      editingItem.value = null
+      editingItemData.value = {}
+      break
+    case 'editDetail': // Редактирование детали
+      editingDetailId.value = null
+      editingDetailData.value = {}
+      break
+    case 'editDopwork': // Редактирование допработы
+      editingDopworkId.value = null
+      editingDopworkData.value = {}
+      break
+    default:
+      console.warn('Неизвестный тип отмены:', type)
+  }
+}
 </script>
 
 <style lang="scss" scoped>
 $primary-color: #00c3f5;
-$highlight-color: #ff9800;  // Цвет подсветки
+$highlight-color: #00c3f5;
 $border-color: #ddd;
 $background-light: #f7f7f7;
-$sub-item-bg: #f0f0f0; // Цвет фона для расшифровок
+$sub-item-bg: #f0f0f0;
 $text-color: #18191b;
 $shadow-color: rgba(0, 0, 0, 0.05);
 
@@ -373,7 +1121,6 @@ $shadow-color: rgba(0, 0, 0, 0.05);
   margin: auto;
   padding: 40px 10px 0;
   border-radius: 5px;
-
   @media (max-width: 768px) {
     margin-top: 2em;
     padding: 0;
@@ -386,22 +1133,76 @@ $shadow-color: rgba(0, 0, 0, 0.05);
 
 h1, h2 {
   text-align: center;
+  color: $text-color;
 }
-
 @media (max-width: 768px) {
   h1 {
     display: none;
   }
+  h2 {
+    font-size: 1.2rem;
+  }
 }
 
-// Поиск
+/* Навигация по работам */
+.work-navigation {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 20px;
+  white-space: nowrap;
+  position: relative;
+  
+  &::-webkit-scrollbar {
+    height: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 3px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  scrollbar-width: thin;
+  scrollbar-color: #ccc transparent;
+}
+
+.work-navigation-inner {
+  display: inline-flex;
+  gap: 10px;
+  padding: 10px 0;
+}
+
+.work-navigation button {
+  flex-shrink: 0;
+  padding: 10px 15px 8px;
+  cursor: pointer;
+  border-bottom: 2px solid $primary-color;
+  background: #fff;
+  color: $text-color;
+  border-radius: 5px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  
+  &.active {
+    color: $sub-item-bg;
+    background: linear-gradient(to right, #00c3f5, #00a3d3);
+    box-shadow: 0 4px 10px rgba(0, 195, 245, 0.3);
+  }
+  
+  &:hover {
+    background: linear-gradient(to right, #00c3f5, #00a3d3);
+    box-shadow: 0 4px 10px rgba(0, 195, 245, 0.3);
+  }
+}
+
+/* Поиск */
 .search-bar {
   margin-bottom: 15px;
-
   @media (max-width: 768px) {
     padding: 0 10px;
   }
-
+  
   input {
     width: 100%;
     padding: 10px 15px;
@@ -411,7 +1212,7 @@ h1, h2 {
     outline: none;
     transition: all 0.3s ease;
     box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.05);
-
+    
     &:focus {
       border-color: $primary-color;
       box-shadow: 0 0 5px rgba(0, 195, 245, 0.5);
@@ -419,298 +1220,349 @@ h1, h2 {
   }
 }
 
-// Меню навигации для заголовков работ
-.work-navigation {
-  width: 100%;
-  overflow-x: auto; // Включаем горизонтальную прокрутку
-  -webkit-overflow-scrolling: touch; // Плавная прокрутка на мобильных устройствах
-  margin-bottom: 20px;
-  white-space: nowrap; // Запрещаем перенос строк
-  position: relative;
-
-  /* Стилизация для WebKit (Chrome, Safari) */
-  &::-webkit-scrollbar {
-    height: 6px; // Высота полосы прокрутки
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: #ccc; // Цвет ползунка
-    border-radius: 3px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent; // Фон полосы прокрутки
-  }
-
-  /* Стилизация для Firefox */
-  scrollbar-width: thin; // Устанавливаем тонкую полосу прокрутки
-  scrollbar-color: #ccc transparent; // Цвет ползунка и фона
-}
-
-.work-navigation-inner {
-  display: inline-flex; // Размещаем кнопки в одну линию
-  gap: 10px; // Расстояние между кнопками
-  padding: 10px 0; // Отступы внутри контейнера
-}
-
-.work-navigation button {
-  flex-shrink: 0; // Запрещаем уменьшение размера кнопок
-  padding: 10px 15px 8px;
-  cursor: pointer;
-  border-bottom: 2px solid $primary-color;
-  background: #fff;
-  color: $text-color;
-  border-radius: 5px;
-  font-weight: 600;
-  transition: all 0.3s ease;
-
-  &.active {
-    color: $sub-item-bg;
-    background: linear-gradient(to right, #00c3f5, #00a3d3);
-    box-shadow: 0 4px 10px rgba(0, 195, 245, 0.3);
-  }
-
-  &:hover {
-    background: linear-gradient(to right, #00c3f5, #00a3d3);
-    box-shadow: 0 4px 10px rgba(0, 195, 245, 0.3);
-  }
-}
-
-// Таблица
+/* Таблица цен */
 .price-list {
   border: 1px solid $border-color;
   border-radius: 5px;
   padding: 20px;
   background: $background-light;
   box-shadow: 0 4px 10px $shadow-color;
-
   @media (max-width: 768px) {
     padding: 10px;
   }
-
-
+  
+  .loading-indicator {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 2em;
+    gap: 2em;
+  }
+  
+  .loader, .error-message {
+    text-align: center;
+    padding: 20px;
+    font-weight: bold;
+  }
+  
+  .no-results {
+    text-align: center;
+    padding: 40px;
+    color: #888;
+    font-style: italic;
+  }
+  
   .category-block {
     margin-bottom: 20px;
     border-bottom: 1px solid #ddd;
-
-      &:last-child {
-        border-bottom: none;
-      }
-
-    h2 {
-      font-size: 1.5rem;
-      color: $text-color;
-      margin-bottom: 10px;
-      position: relative;
-      text-align: center;
-      
-      @media (max-width: 768px) {
-        font-size: 1.2rem;
-      }
+    &:last-child {
+      border-bottom: none;
     }
-  }
-
-  .work-category {
-    margin-bottom: 15px;
-
-    h3 {
-      cursor: pointer;
+    
+    .category-header {
+      margin-bottom: 10px;
       display: flex;
-      align-items: center;
-      font-size: 1rem;
-      background: linear-gradient(to bottom, #ffffff, #f7f7f7);
-      padding: 10px 15px;
-      margin: 0;
-      border: 1px solid $border-color;
-      border-radius: 5px;
-      transition: all 1.3s ease;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+      justify-content: center;
+      gap: 1em;
       
-      @media (max-width: 768px) {
-        justify-content: space-between;
+      h2 {
+        font-size: 1.5rem;
+        color: $text-color;
+        @media (max-width: 768px) {
+          font-size: 1.2rem;
+        }
       }
-
-      &:hover {
-        background: linear-gradient(to right, #00c3f5, #00a3d3);
-        // background: linear-gradient(to right, #f7f7f7, #00c3f5);
-        box-shadow: 0 4px 10px rgba(0, 195, 245, 0.3);
-      }
-
-      .ico {
-          margin-left: 1em;
-          // margin: 0 5px;
+      
+      .category-actions {
+        display: flex;
+        margin-top: .5em;
+        gap: 10px;
+        .ico {
+          cursor: pointer;
           transition: transform 0.3s ease;
-          width: 22px;
-          height: 22px;
           
-
           &:hover {
             transform: scale(1.2);
-            color: #fff;
           }
         }
+      }
+    }
+    
+    .subcategory-block {
+      margin-bottom: 15px;
       
-      @media (max-width: 768px) {
-        font-size: .9em;
+      .subcategory-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 5px;
+        background: linear-gradient(to bottom, #ffffff, #f7f7f7);
+        transition: border 1.3s ease, box-shadow 1.3s ease;
+        border-radius: 5px;
+        border: 1px solid $border-color;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+
+          &:hover {
+            background: linear-gradient(to right, #00c3f5, #00a3d3);
+            // background: linear-gradient(to right, #56d8f8, #f7f7f7);
+            border: 1px solid #00c3f5;
+            box-shadow: 0 4px 10px rgba(0, 195, 245, 0.3);
+            transition: border 0.3s ease, box-shadow 0.3s ease;
+          }
+        
+        h3 {
+          cursor: pointer;
+          font-size: 1rem;
+          width: 100%;
+          padding: 10px 15px;
+          margin: 0;
+
+            &:hover {
+              transform: translate(10px, 0px);
+              // color: #fff;
+            }
+
+          
+          .ico {
+            margin-left: 1em;
+            width: 22px;
+            height: 22px;
+            transition: transform 0.3s ease;
+            
+            &:hover {
+              transform: scale(1.2);
+              color: #fff;
+            }
+          }
+        }
+
+        .subcategory-actions {
+          display: flex;
+          margin-right: 1em;
+        }
       }
     }
 
-    ul {
-      margin: 0;
-      padding: 0;
-      list-style: none;
-      transition: all 0.3s ease;
-    }
+    .add-work-button {
+      margin-top: 1em;
+      text-align: center;
 
+      .add-form {
+        display: flex;
+        gap: 1em;
+        margin-top: 1em;
+      }
+    }
+    
     .work-item {
       display: flex;
       flex-direction: column;
       padding: 10px;
       border-bottom: 1px solid $border-color;
       transition: all 0.3s ease;
-
+      
       &:hover {
         background: $sub-item-bg;
       }
-
+      
       .work-main {
         display: flex;
         justify-content: space-between;
         align-items: center;
-
+        flex-wrap: wrap;
+        
         .ico {
           margin-right: 1em;
           transition: transform 0.3s ease;
+          
+          &:hover {
+            transform: scale(1.2);
+          }
+        }
+        
+        .work-title {
+          flex: 1;
+          white-space: pre-wrap;
+          font-size: 1rem;
+          color: $text-color;
+          display: flex;
+          align-items: center;
+          gap: 8px;
 
+          span {
+            color: unset;
+          }
+          
+          .highlight {
+            background-color: $highlight-color;
+            color: white;
+            font-weight: bold;
+            padding: 2px 5px;
+            border-radius: 3px;
+          }
+          
+          @media (max-width: 768px) {
+            font-size: 0.8rem;
+          }
+        }
+        
+        .work-unit, .work-price {
+          display: inline-flex;
+          align-items: center;
+          width: auto;
+          margin: 0 .5em;
+          font-size: 0.9rem;
+          color: #555;
+        }
+      }
+      
+      .actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 5px;
+        
+        .ico {
+          cursor: pointer;
+          transition: transform 0.3s ease;
+          
           &:hover {
             transform: scale(1.2);
           }
         }
       }
-
-      // Стили для заголовка "Дополнительные работы"
-      .additional-works-label {
-        font-size: .8rem;
-        font-weight: 600;
-        margin-top: 10px;
-        color: #333;
-        // padding-left: 20px;
-        font-style: normal;
-        border-bottom: 1px solid $border-color;
-        // width: 150px;
-        text-align: center;
-        // border: 1px solid red;
-        // background: $background-light;
-      }
-
-      .work-title {
-        flex: 1;
-        white-space: pre-wrap;
-        font-size: 1rem;
-        color: $text-color;
-        transition: color 0.3s ease;
-        display: flex;
-        align-items: center;
-        gap: 8px; // Расстояние между текстом и иконкой
-        // border: 1px solid red;
-        
-        .highlight {
-          background-color: $highlight-color;
-          color: white;
-          font-weight: bold;
-          padding: 2px 5px;
-          border-radius: 3px;
-        }
-        
-        .ico {
-          width: 18px;
-          height: 18px;
-        }
-        
-        @media (max-width: 768px) {
-          font-size: .8rem;
-        }
-
-        // &:hover {
-        //   color: $primary-color;
-        // }
-      }
-
-      .highlight {
-        background-color: $highlight-color;
-        color: white;
-        font-weight: bold;
-        padding: 2px 5px;
-        border-radius: 3px;
-      }
-
-      .work-unit, .work-price {
-        display: inline-flex;
-        align-items: center;
-        width: 50px;
-        font-size: 0.9rem;
-        color: #555;
-      }
-
+      
       .sub-items {
-        width: 100%;
+        // width: 100%;
         padding-left: 20px;
         background: $sub-item-bg;
-        font-style: italic;
         margin-top: 1em;
         border-radius: 5px;
 
+        .dop-work-title {
+          text-align: center;
+          // padding-top: 10px;
+        }
+        
         .sub-work-item {
           display: flex;
-          justify-content: space-between;
+          flex-direction: column;
           padding: 5px 0;
           border-bottom: 1px solid $border-color;
-
-          .work-title {
-            font-weight: normal;
-            color: #555;
-            font-size: 0.9rem;
+          
+          .work-main {
+            // flex-direction: row;
+            // align-items: flex-start;
             
-            
-            @media (max-width: 768px) {
-              font-size: 0.8rem;
+            .work-title {
+              font-weight: normal;
+              color: #555;
+              font-size: 0.9rem;
+              @media (max-width: 768px) {
+                font-size: 0.8rem;
+              }
             }
           }
+        }
+      }
+      
+      /* Формы добавления */
+      .form {
+        margin-top: 10px;
+        display: flex;
+        gap: 10px;
+        
+        input {
+          padding: 8px;
+          margin-bottom: 5px;
+          border: 1px solid $border-color;
+          border-radius: 4px;
+        }
+        
+        button {
+          padding: 8px 12px;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+          
+          &:first-child {
+            background: $primary-color;
+            color: white;
+          }
+          
+          &:last-child {
+            background: #ddd;
+            color: #333;
+          }
+        }
+      }
+      
+      .edit-buttons {
+        display: flex;
+        gap: 10px;
+        margin-top: 5px;
+        
+        button {
+          padding: 6px 12px;
+          font-size: 0.8rem;
+          border-radius: 4px;
+          cursor: pointer;
         }
       }
     }
   }
 }
 
+/* Админские кнопки */
+.add-category-button,
+.add-detail-button,
+.add-dopwork-button {
+  margin-top: 10px;
+  
+  button {
+    padding: 8px 12px;
+    background: $primary-color;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    
+    &:hover {
+      background: rgb(139, 139, 139);
+    }
+  }
+}
+
+/* Модальные окна */
 .fade-animation {
   transition: opacity 0.3s ease-in-out;
-
   &.hidden {
     opacity: 0;
   }
 }
 
+/* Адаптивность */
 @media (max-width: 768px) {
   .container {
     margin: 5em 5px;
   }
-
+  
   h1 {
     font-size: 1.5em;
     margin-bottom: .5em;
   }
   
-  h2 {
-    font-size: 1.3em;
-  }
-
-  .navigation {
+  .work-navigation-inner {
     flex-direction: column;
     gap: 5px;
   }
-
+  
   .search-bar input {
     width: 100%;
+  }
+  
+  .price-list {
+    font-size: 0.9rem;
   }
 }
 </style>

@@ -29,7 +29,7 @@
           <li><NuxtLink href="/contacts">Контакты</NuxtLink></li>
           <li><NuxtLink href="/privacy-policy">Политика конфиденциальности</NuxtLink></li>
           <li><NuxtLink href="/terms-of-service">Условия использования</NuxtLink></li>
-          <li><NuxtLink href="/cabinet/login">Вход</NuxtLink></li>
+          <li><NuxtLink href="/login">Вход</NuxtLink></li>
         </ul>
       </div>
 

@@ -7,8 +7,6 @@
 
 <script setup>
 definePageMeta({
-  middleware: 'auth',
-  allowedRoles: ['foreman'], // Только прорабы могут получить доступ
   layout: 'cabinet',
 });
 </script>

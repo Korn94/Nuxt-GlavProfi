@@ -1,0 +1,1 @@
+ALTER TABLE `price_items` MODIFY COLUMN `price` decimal(10,2);

@@ -1,75 +1,115 @@
 <template>
-<div>
-  <LayaoutCabinetHeaderWorkersMenu />
-  <div class="list">
-    <h2>{{ title }}</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Имя</th>
-          <th>Телефон</th>
-          <th>Специальность</th>
-          <th>Комментарий</th>
-          <th>Действия</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="contractor in contractors" :key="contractor.id">
-          <td>{{ contractor.name }}</td>
-          <td>{{ contractor.phone }}</td>
-          <td>{{ contractor.works }}</td>
-          <td>{{ contractor.comment }}</td>
-          <!-- Добавляем ссылку на детальную страницу -->
-          <td>
-            <router-link 
-              :to="`/cabinet/admin/contractors/${route.params.role}/${contractor.id}`"
-              class="button"
-            >
-              Просмотреть
-            </router-link>
-            <button 
-              @click="deleteContractor(contractor.id)" 
-              class="button delete"
-            >
-              Удалить
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+  <div>
+    <LayaoutCabinetHeaderWorkersMenu />
+    <div class="list">
+      <h2>{{ title }}</h2>
+
+      <!-- Сообщение об ошибке -->
+      <div v-if="errorMessage" class="error">{{ errorMessage }}</div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Имя</th>
+            <th>Баланс</th>
+            <th>Комментарий</th>
+            <th>Действия</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="contractor in contractors" :key="contractor.id">
+            <td>{{ contractor.id }}</td>
+            <td>{{ contractor.name }}</td>
+            <td>{{ contractor.balance }}</td>
+            <td>{{ contractor.comment }}</td>
+            <td>
+              <router-link 
+                :to="`/cabinet/admin/contractors/${route.params.role}/${contractor.id}`"
+                class="button"
+              >
+                Просмотреть
+              </router-link>
+              <button 
+                @click="deleteContractor(contractor.id)" 
+                class="button delete"
+              >
+                Удалить
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
-</div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
-import { useNuxtApp } from '#app';
-
-const route = useRoute();
-const contractors = ref([]);
-const title = computed(() => {
-  return route.params.role === 'master'
-    ? 'Мастера'
-    : route.params.role === 'foreman'
-    ? 'Прорабы'
-    : 'Рабочие';
-});
+import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useNuxtApp } from '#app'
+import { definePageMeta } from '#imports'
 
 definePageMeta({
-  middleware: 'auth',
-  allowedRoles: ['admin'],
   layout: 'cabinet',
-});
+})
+
+const route = useRoute()
+const router = useRouter()
+
+// Заголовок страницы
+const title = computed(() => {
+  switch (route.params.role) {
+    case 'master': return 'Мастера'
+    case 'foreman': return 'Прорабы'
+    case 'worker': return 'Рабочие'
+    case 'office': return 'Офис'
+    default: return 'Рабочие'
+  }
+})
+
+const contractors = ref([])
+const errorMessage = ref(null)
 
 onMounted(async () => {
   try {
-    const response = await useNuxtApp().$axios.get(`/contractors/${route.params.role}`);
-    contractors.value = response.data;
-  } catch (error) {
-    console.error('Ошибка:', error);
+    const data = await $fetch('/api/contractors', {
+      method: 'GET',
+      params: { type: route.params.role },
+      credentials: 'include'
+    })
+
+    // Убедитесь, что данные — массив
+    if (Array.isArray(data)) {
+      contractors.value = data
+    } else {
+      console.warn('Неожиданный формат данных:', data)
+      contractors.value = []
+      errorMessage.value = 'Получены некорректные данные'
+    }
+
+  } catch (err) {
+    console.error('Ошибка при загрузке контрагентов:', err)
+    errorMessage.value = 'Не удалось загрузить список контрагентов.'
   }
-});
+})
+
+async function deleteContractor(id) {
+  if (!confirm('Вы уверены, что хотите удалить этого контрагента?')) return
+
+  try {
+    const res = await $fetch(`/api/contractors/${id}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    })
+
+    contractors.value = contractors.value.filter(c => c.id !== id)
+    alert(res.message || 'Успешно удалено')
+  } catch (err) {
+    console.error('Ошибка удаления:', err)
+    alert('Ошибка при удалении контрагента')
+  }
+}
 </script>
 
 <style lang="scss" scoped>

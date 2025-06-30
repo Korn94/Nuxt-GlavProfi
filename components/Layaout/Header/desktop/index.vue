@@ -93,11 +93,11 @@
       </div>
     </div>
     <!-- Попап уведомления -->
-    <Notification
+    <UIPopupsNotification
       :visible="data.isNotificationVisible"
       message="Номер скопирован!"
       color="green"
-      @update:visible="isNotificationVisible = false"
+      @update:visible="data.isNotificationVisible = false"
     />
   </header>
 </template>
@@ -105,7 +105,6 @@
 <script setup>
 import { useRoute, useRouter } from "vue-router";
 import { ref, computed, reactive, onMounted, onBeforeUnmount } from "vue";
-import Notification from "@/components/UI/popups/Notification.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -162,7 +161,7 @@ const data = reactive({
 
 // Копирование номера телефона
 const copyPhoneNumber = () => {
-  const phoneNumber = "+7 910 909 69 47";
+  const phoneNumber = "+79109096947";
   navigator.clipboard.writeText(phoneNumber).then(() => {
     data.isNotificationVisible = true;
   });

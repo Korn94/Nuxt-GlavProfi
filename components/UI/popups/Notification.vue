@@ -47,11 +47,13 @@ export default {
   padding: 10px 20px;
   border-radius: 5px;
   z-index: 1000;
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px); // Для Safari
   text-align: center;
 
   &--green {
-    background-color: rgba(0, 128, 0, 0.7);
+    background-color: #00800033;
+    border: 1px solid #008000;
 
     p {
       color: white;
@@ -59,7 +61,8 @@ export default {
   }
 
   &--red {
-    background-color: rgba(255, 0, 0, 0.7);
+    background-color: #ff000033;
+    border: 1px solid #ff0000;
 
     p {
       color: white;
@@ -67,7 +70,8 @@ export default {
   }
 
   &--yellow {
-    background-color: rgba(255, 255, 0, 0.7);
+    background-color: #ffff0033;
+    border: 1px solid #ffff00;
 
     p {
       color: black;

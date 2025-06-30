@@ -1,19 +1,18 @@
 <template>
     <div class="modal" @click="closeModal">
       <div class="content">
-        <span class="close" @click.stop="closeModal">&times;</span>
-        <h2>Отправить сообщение</h2>
-        <UIForms @formSubmitted="handleFormSubmitted" />
-        <hr class="line">
-        <!-- <h3>Мы в мессенджерах и соцсетях:</h3> -->
-        <p class="text">Отправь фото - получи быстрый расчет</p>
-        <Icon name="foundation:arrow-down" width="100" height="100" class="ico" />
+        <div class="block_form">
+          <span class="close" @click.stop="closeModal">&times;</span>
+          <h2>Отправить сообщение</h2>
+          <UIForms @formSubmitted="handleFormSubmitted" />
+        </div>
         <div class="block">
+          <div>
+            <p class="text">Отправь фото - получи быстрый расчет</p>
+            <UIElementsArrow />
+          </div>
           <NuxtLink href="https://api.whatsapp.com/send?phone=79109096947" target="_blank"><Icon name="bxl:whatsapp" size="28px" class="whatsapp" /></NuxtLink>
           <NuxtLink href="tg://resolve?domain=glavprofii" target="_blank"><Icon name="bxl:telegram" size="28px" class="tg" /></NuxtLink>
-          <NuxtLink href="https://vk.com/glavprofi" target="_blank"><Icon name="bxl:vk" size="28px" class="vk" /></NuxtLink>
-          <!-- <NuxtLink href="https://instagram.com/glavprofi" target="_blank"><Icon name="bxl:instagram" size="28px" /></NuxtLink> -->
-          <!-- <NuxtLink href="https://youtube.com/@glavstroy62" target="_blank"><Icon name="bxl:youtube" size="28px" /></NuxtLink> -->
         </div>
       </div>
     </div>
@@ -59,25 +58,30 @@ $shadow-color: rgba(0, 0, 0, 0.05);
   align-items: center;
 
   .content {
-    background: $background-light;
-    border-radius: 10px;
-    padding: 20px;
-    margin: 0 10px;
     width: 100%;
     max-width: 500px;
-    box-shadow: 0 4px 10px $shadow-color;
-    position: relative;
+    // box-shadow: 0 4px 10px $shadow-color;
     text-align: center;
+    
+    .block_form {
+      position: relative;
+      background: $background-light;
+      border-radius: 10px;
+      padding: 20px;
+      margin: 10px;
+    }
 
     .text {
+      color: $sub-item-bg;
       font-weight: 600;
-      text-align: center;
+      // text-align: center;
+      margin-bottom: 1em;
     }
 
     .ico {
       width: 25px;
       height: 25px;
-      margin: .5em 0;
+      // margin: .5em 0;
       color: #444;
     }
 
@@ -113,25 +117,17 @@ $shadow-color: rgba(0, 0, 0, 0.05);
       }
     }
 
-    hr.line {
-      border: none;
-      border-top: 1px solid $border-color;
-      margin: 20px 0;
-    }
-
-    h3 {
-      color: $text-color;
-      margin-bottom: 10px;
-      text-align: center;
-    }
-
     .block {
-      display: flex;
+      background: $text-color;
+      border-radius: 10px;
+      padding: 20px;
+      margin: 0 10px;
       justify-content: center;
       gap: 15px;
-      // margin-top: 10px;
+      border: 1px solid #444;
 
       a {
+        margin: 0 5px;
         color: $text-color;
         transition: color 0.3s ease;
 

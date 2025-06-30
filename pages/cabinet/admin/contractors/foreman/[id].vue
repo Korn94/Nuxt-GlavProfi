@@ -157,8 +157,6 @@ const newAgreement = ref({
 const user = ref(null);
 
 definePageMeta({
-  middleware: 'auth',
-  allowedRoles: ['admin'],
   layout: 'cabinet',
 });
 

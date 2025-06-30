@@ -1,27 +1,32 @@
 <template>
   <div class="container">
-    <h1>Контрагенты</h1>
+    <h1>Добавить контрагента</h1>
     <div class="form">
-      <h2>Добавить контрагента</h2>
       <!-- Имя -->
       <input v-model="formData.name" placeholder="Имя" required />
+
       <!-- Телефон -->
       <input v-model="formData.phone" placeholder="Телефон" />
-      <!-- Выбор роли -->
+
+      <!-- Роль (тип контрагента) -->
       <select v-model="formData.role" required>
         <option value="master">Мастер</option>
         <option value="foreman">Прораб</option>
         <option value="worker">Рабочий</option>
+        <option value="office">Офис</option>
       </select>
+
       <!-- Привязка к пользователю -->
       <div v-if="showUserSelect">
+        <label>Привязать к пользователю:</label>
         <select v-model="formData.userId">
           <option value="">Без привязки</option>
-          <option v-for="user in users" :key="user.id" :value="user.id">
+          <option v-for="user in availableUsers" :key="user.id" :value="user.id">
             {{ user.name }} ({{ user.role }})
           </option>
         </select>
       </div>
+
       <!-- Выполняемые работы (только для мастеров) -->
       <div v-if="formData.role === 'master'">
         <h3>Работы:</h3>
@@ -35,130 +40,193 @@
           <label :for="work">{{ work }}</label>
         </div>
       </div>
+
       <!-- Комментарий -->
-      <textarea v-model="formData.comment" placeholder="Комментарий" />
+      <textarea v-model="formData.comment" placeholder="Комментарий"></textarea>
+
       <!-- Кнопка отправки -->
       <button @click="submitForm">Создать</button>
     </div>
-    <router-view />
+
+    <!-- Сообщения -->
+    <div v-if="successMessage" class="success-message">{{ successMessage }}</div>
+    <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
   </div>
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useNuxtApp } from "#app";
 
+// Список возможных работ для мастеров
 const works = ["Малярка", "Сантехника", "Электрика", "Другое"];
+
+// Список пользователей
 const users = ref([]);
 
+// Форма данных
 const formData = ref({
   name: "",
   phone: "",
   role: "master",
   userId: "",
   works: [],
-  comment: "",
+  comment: ""
 });
 
-const showUserSelect = computed(() => formData.value.role !== "");
+// Сообщения
+const successMessage = ref("");
+const errorMessage = ref("");
+
+// Отображать ли выпадающий список пользователей
+const showUserSelect = computed(() => {
+  return formData.value.role !== "";
+});
 
 definePageMeta({
-  middleware: 'auth',
-  allowedRoles: ['admin'],
-  layout: 'cabinet',
+  layout: "cabinet",
 });
 
 // Загрузка пользователей
 onMounted(async () => {
   try {
-    const response = await useNuxtApp().$axios.get("/api/users");
-    users.value = response.data;
+    const data = await $fetch("/api/users", {
+      method: "GET",
+      credentials: "include"
+    });
+    users.value = data.users
   } catch (error) {
-    console.error("Ошибка при получении пользователей:", error);
+    console.error("Ошибка при загрузке пользователей:", error);
   }
 });
 
+// Отправка формы
 const submitForm = async () => {
+  // Проверка имени
+  if (!formData.value.name.trim()) {
+    errorMessage.value = "Имя обязательно";
+    return;
+  }
+
+  // Проверка пользователя
+  if (formData.value.userId) {
+    const user = users.value.find(u => u.id === formData.value.userId);
+
+    if (user && user.contractorId && user.contractorType) {
+      const confirmChange = confirm(
+        `Этот пользователь уже привязан к ${user.contractorType} #${user.contractorId}. Хотите изменить привязку?`
+      );
+      if (!confirmChange) return;
+    }
+  }
+
   try {
-    await useNuxtApp().$axios.post("/contractors", formData.value);
-    // Очистить форму
+    const body = {
+      type: formData.value.role,
+      data: {
+        name: formData.value.name,
+        phone: formData.value.phone,
+        comment: formData.value.comment,
+        works: Array.isArray(formData.value.works)
+          ? formData.value.works.join(", ")
+          : formData.value.works || "",
+        userId: formData.value.userId || null
+      }
+    };
+
+    await $fetch("/api/contractors", {
+      method: "POST",
+      body,
+      credentials: "include"
+    });
+
+    // Сброс формы
     formData.value = {
       name: "",
       phone: "",
       role: "master",
       userId: "",
       works: [],
-      comment: "",
+      comment: ""
     };
+
+    successMessage.value = "Контрагент успешно создан!";
+    errorMessage.value = "";
   } catch (error) {
-    console.error("Ошибка:", error);
+    console.error("Ошибка при создании контрагента:", error);
+    errorMessage.value = "Не удалось создать контрагента";
+    successMessage.value = "";
   }
 };
+
+const availableUsers = computed(() => {
+  return users.value.filter(user => {
+    // Показываем только пользователей без привязки или с той же ролью, что и контрагент
+    return !user.contractorId || user.contractorType === formData.value.role
+  })
+})
 </script>
 
 <style lang="scss" scoped>
 .container {
-  max-width: 1200px;
+  max-width: 800px;
   margin: 0 auto;
   padding: 20px;
 }
 
-.tabs {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-
-.tabs a {
-  padding: 10px 20px;
-  background-color: #f5f5f5;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  text-decoration: none;
-  color: #333;
-}
-
-.tabs a.active {
-  background-color: #fff;
-  border-bottom: 2px solid #00c3f5;
-}
-
 .form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
   border: 1px solid #e0e0e0;
-  padding: 15px;
-  border-radius: 4px;
-  margin-bottom: 20px;
+  padding: 20px;
+  border-radius: 6px;
+  background-color: #f9f9f9;
 }
 
-.form input,
-.form select,
-.form textarea {
-  width: 100%;
+input,
+select,
+textarea {
   padding: 10px;
-  margin-bottom: 10px;
-  border: 1px solid #e0e0e0;
+  font-size: 16px;
+  border: 1px solid #ccc;
   border-radius: 4px;
+  width: 100%;
 }
 
-.form button {
-  padding: 10px 20px;
-  background-color: #00c3f5;
-  color: #fff;
-  border: none;
-  border-radius: 4px;
+select {
   cursor: pointer;
 }
 
-.form button:hover {
+textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+button {
+  padding: 12px 20px;
   background-color: #00c3f5;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
 }
 
-.works-list {
-  margin-bottom: 20px;
+button:hover {
+  background-color: #00a8cc;
 }
 
-.works-list label {
-  display: inline-block;
-  margin-right: 10px;
+.success-message {
+  margin-top: 20px;
+  color: green;
+  font-weight: bold;
+}
+
+.error-message {
+  margin-top: 20px;
+  color: red;
+  font-weight: bold;
 }
 </style>

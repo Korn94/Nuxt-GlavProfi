@@ -47,7 +47,6 @@ const user = ref(null);
 
 definePageMeta({
   layout: 'cabinet',
-  middleware: 'auth',
 });
 
 onMounted(async () => {
