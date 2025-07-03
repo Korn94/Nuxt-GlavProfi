@@ -22,6 +22,20 @@
       "when": 1750759895992,
       "tag": "0002_confused_sleepwalker",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1751357525471,
+      "tag": "0003_volatile_hulk",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1751525374604,
+      "tag": "0004_red_nocturne",
+      "breakpoints": true
     }
   ]
 }

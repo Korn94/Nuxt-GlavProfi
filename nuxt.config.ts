@@ -16,7 +16,7 @@ export default defineNuxtConfig({
   },
 
   typescript: {
-    typeCheck: true,
+    typeCheck: false,
     strict: true,
   },
 
@@ -59,7 +59,6 @@ export default defineNuxtConfig({
     typescript: {
       // Можно указать другие настройки, если нужно
       strict: true,
-      tsconfigPath: './tsconfig.json'
     },
     routeRules: {
       '/api/**': {

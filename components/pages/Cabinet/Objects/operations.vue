@@ -75,7 +75,8 @@
           <thead>
             <tr>
               <th>Дата</th>
-              <th>Сумма</th>
+              <th>Смета</th>
+              <th>Работы</th>
               <th>Контрагент</th>
               <th>Прораб</th>
               <th>Вид работы</th>
@@ -89,7 +90,8 @@
           <tbody>
             <tr v-for="work in works" :key="work.id" :class="{ 'odd-row': works.indexOf(work) % 2 === 0 }">
               <td>{{ formatDate(work.createdAt) }}</td>
-              <td>{{ work.amount }} ₽</td>
+              <td>{{ work.customerAmount }} ₽</td>
+              <td>{{ work.workerAmount }} ₽</td>
               <td>
                 {{ contractors.find(c => c.id === work.contractorId && c.type === work.contractorType)?.name || '-' }}
               </td>
@@ -730,14 +732,14 @@ function resetFormErrors() {
   justify-content: center;
 }
 
-.table-section {
+// .table-section {
   // margin-bottom: 2rem;
   // background: #ffffff;
   // border-radius: 10px;
   // box-shadow: 0 2px 8px rgba(0,0,0,0.05);
   // padding: 1rem;
   // transition: all 0.3s ease;
-}
+// }
 
 .table-wrapper {
   max-height: 600px;
@@ -764,8 +766,7 @@ table {
 
 th {
   background-color: #f8f9fa;
-  padding: 10px 1em;
-  text-align: left;
+  padding: 5px 2em;
   font-weight: 600;
   color: #34495e;
   border-bottom: 2px solid #e0e0e0;

@@ -4,7 +4,7 @@ import { db } from '../../db'
 import { users } from '../../db/schema'
 import { eq } from 'drizzle-orm'
 import { generateToken } from '~/server/utils/jwt'
-import bcrypt from 'bcrypt'
+import bcryptjs from 'bcryptjs'
 import { eventHandler, readBody, createError } from 'h3'
 
 interface LoginBody {
@@ -21,7 +21,7 @@ export default eventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Invalid credentials' })
   }
 
-  const isPasswordValid = await bcrypt.compare(body.password, user.password)
+  const isPasswordValid = await bcryptjs.compare(body.password, user.password)
 
   if (!isPasswordValid) {
     throw createError({ statusCode: 401, statusMessage: 'Invalid credentials' })

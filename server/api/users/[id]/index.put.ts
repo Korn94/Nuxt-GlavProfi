@@ -9,7 +9,7 @@ import {
   offices
 } from '../../../db/schema'
 import { eq } from 'drizzle-orm'
-import bcrypt from 'bcrypt'
+import bcryptjs from 'bcryptjs'
 
 // Допустимые типы контрагентов
 type ContractorType = 'master' | 'worker' | 'foreman' | 'office'
@@ -48,7 +48,7 @@ export default defineEventHandler(async (event) => {
     if (name) updates.name = name
     if (login) updates.login = login
     if (role) updates.role = role
-    if (password) updates.password = await bcrypt.hash(password, 10)
+    if (password) updates.password = await bcryptjs.hash(password, 10)
 
     // Получаем текущего пользователя
     const [oldUser] = await db.select().from(users).where(eq(users.id, parseInt(id)))

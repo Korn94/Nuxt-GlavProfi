@@ -17,6 +17,15 @@
         <p><strong>Комментарий:</strong> {{ master.comment }}</p>
       </div>
 
+      <!-- Встраивание компонента зарплаты -->
+      <PagesCabinetContractorsSalarySettings 
+        :contractor-type="contractorType" 
+        :contractor-id="master.id"
+        :initial-is-on-salary="master.isOnSalary"
+        :initial-salary-amount="master.salaryAmount"
+        :initial-salary-day="master.salaryDay"
+      />
+
       <!-- Кнопки для открытия модальных окон -->
       <div class="add-buttons">
         <button @click="openWorkModal" class="btn primary">Добавить работу</button>
@@ -260,6 +269,9 @@ const workTypes = [
   'Демонтаж', 'Мусор', 'Прочее'
 ]
 
+const contractorType = 'master' // 'master' или 'worker'
+const contractorId = parseInt(route.params.id)
+
 // Формы
 const newWork = ref({
   amount: null, // workerAmount
@@ -372,13 +384,17 @@ async function fetchWorks() {
 
 async function fetchExpenses() {
   try {
-    expenses.value = await $fetch(`/api/expenses`, {
+    const data = await $fetch(`/api/expenses`, {
       method: 'GET',
-      params: { contractorType: 'master', contractorId: route.params.id },
+      params: {
+        contractorType: 'master', // Тип контрагента
+        contractorId: route.params.id // ID текущего мастера
+      },
       credentials: 'include'
-    })
+    });
+    expenses.value = data;
   } catch (err) {
-    console.error('Ошибка загрузки расходов:', err)
+    console.error('Ошибка загрузки расходов:', err);
   }
 }
 

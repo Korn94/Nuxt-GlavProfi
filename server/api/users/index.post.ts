@@ -3,7 +3,7 @@ import { defineEventHandler, readBody, createError } from 'h3'
 import { db } from '../../db'
 import { users } from '../../db/schema'
 import { eq } from 'drizzle-orm'
-import bcrypt from 'bcrypt'
+import bcryptjs from 'bcryptjs'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Хэширование пароля
-    const hashedPassword = await bcrypt.hash(password, 10)
+    const hashedPassword = await bcryptjs.hash(password, 10)
 
     // Вставка нового пользователя
     await db.insert(users).values({

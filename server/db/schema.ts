@@ -72,11 +72,15 @@ export const expenses = mysqlTable('expenses', {
   id: serial('id').primaryKey(),
   amount: decimal('amount', { precision: 10, scale: 2 }).default('0.00').notNull(),
   comment: text('comment'),
-  contractorId: int('contractor_id').notNull(),
+  contractorId: int('contractor_id'),
   contractorType: varchar('contractor_type', {
     length: 50,
-    enum: ['master', 'worker']
-  }).notNull(),
+    enum: ['master', 'worker', 'foreman', 'office']
+  }),
+  expenseType: varchar('expense_type', {
+    length: 50,
+    enum: ['Работа', 'Налог', 'Зарплата', 'Реклама', 'Кредит', 'Топливо', 'ГлавПрофи']
+  }).default('Работа'),
   paymentDate: datetime('payment_date').default(sql`CURRENT_TIMESTAMP`),
   operationDate: datetime('operation_date').default(sql`CURRENT_TIMESTAMP`),
   objectId: int('object_id'),
@@ -150,6 +154,9 @@ export const masters = mysqlTable('masters', {
   comment: text('comment'),
   balance: decimal('balance', { precision: 10, scale: 2 }).default('0.00').notNull(),
   userId: bigint('userId', { mode: 'number', unsigned: true }).references(() => users.id),
+  isOnSalary: boolean('is_on_salary').default(false), // Участвует ли в автоматической зарплате
+  salaryAmount: decimal('salary_amount', { precision: 10, scale: 2 }).default('0.00'), // Сумма зарплаты
+  salaryDay: int('salary_day').default(10), // День месяца для списания
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
   updatedAt: datetime('updated_at') .default(sql`CURRENT_TIMESTAMP`) .notNull() .$type<Date>()
 })
@@ -164,6 +171,9 @@ export const workers = mysqlTable('workers', {
   isNoName: boolean('is_no_name').default(false),
   works: text('works'),
   userId: bigint('userId', { mode: 'number', unsigned: true }).references(() => users.id),
+  isOnSalary: boolean('is_on_salary').default(false), // Участвует ли в автоматической зарплате
+  salaryAmount: decimal('salary_amount', { precision: 10, scale: 2 }).default('0.00'), // Сумма зарплаты
+  salaryDay: int('salary_day').default(10), // День месяца для списания
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
   updatedAt: datetime('updated_at') .default(sql`CURRENT_TIMESTAMP`) .notNull() .$type<Date>()
 })
@@ -176,6 +186,9 @@ export const foremans = mysqlTable('foremans', {
   comment: text('comment'),
   balance: decimal('balance', { precision: 10, scale: 2 }).default('0.00').notNull(),
   userId: bigint('userId', { mode: 'number', unsigned: true }).references(() => users.id),
+  isOnSalary: boolean('is_on_salary').default(false), // Участвует ли в автоматической зарплате
+  salaryAmount: decimal('salary_amount', { precision: 10, scale: 2 }).default('0.00'), // Сумма зарплаты
+  salaryDay: int('salary_day').default(10), // День месяца для списания
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
   updatedAt: datetime('updated_at') .default(sql`CURRENT_TIMESTAMP`) .notNull() .$type<Date>()
 })
@@ -187,9 +200,31 @@ export const offices = mysqlTable('offices', {
   comment: text('comment'),
   balance: decimal('balance', { precision: 10, scale: 2 }).default('0.00').notNull(),
   userId: bigint('userId', { mode: 'number', unsigned: true }).references(() => users.id),
+  isOnSalary: boolean('is_on_salary').default(false), // Участвует ли в автоматической зарплате
+  salaryAmount: decimal('salary_amount', { precision: 10, scale: 2 }).default('0.00'), // Сумма зарплаты
+  salaryDay: int('salary_day').default(10), // День месяца для списания
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
   updatedAt: datetime('updated_at') .default(sql`CURRENT_TIMESTAMP`) .notNull() .$type<Date>()
 })
+
+// Истории списаний по зарплате
+export const salaryDeductions = mysqlTable('salary_deductions', {
+  id: serial('id').primaryKey(),
+  contractorId: int('contractor_id').notNull(), // ID контрагента
+  contractorType: varchar('contractor_type', { // Тип контрагента
+    length: 50,
+    enum: ['master', 'worker', 'foreman', 'office']
+  }).notNull(),
+  amount: decimal('amount', { precision: 10, scale: 2 }).notNull(), // Сумма списания
+  deductionDate: datetime('deduction_date').default(sql`CURRENT_TIMESTAMP`), // Дата списания
+  status: varchar('status', { // Статус: 'completed', 'failed', 'skipped'
+    length: 20,
+    enum: ['pending', 'completed', 'failed', 'skipped']
+  }).default('pending'),
+  month: int('month').notNull(), // Месяц списания (1-12)
+  year: int('year').notNull(), // Год списания
+  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`)
+});
 
 // Прайс лист
 // 1. Страницы (Пол, Стены, Потолок)

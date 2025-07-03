@@ -1,36 +1,50 @@
 // server/api/contractors/masters/[id].put.ts
-import { defineEventHandler, readBody, getRouterParam } from 'h3'
+import { defineEventHandler, readBody, getRouterParam, createError } from 'h3'
 import { db } from '../../../../db'
 import { masters } from '../../../../db/schema'
 import { eq } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
-  if (!id) throw new Error('ID мастера обязателен')
+  if (!id) throw createError({ statusCode: 400, message: 'ID мастера обязателен' })
 
   try {
-    const { name, phone, comment, balance, objectId, userId } = await readBody(event)
-
-    if (!name && !phone && !comment && balance === undefined && objectId === undefined && userId === undefined) {
-      throw new Error('Нет данных для обновления')
+    const body = await readBody(event)
+    
+    // Проверка обязательных полей
+    const updateFields = ['name', 'phone', 'comment', 'balance', 'userId', 'isOnSalary', 'salaryAmount', 'salaryDay']
+    const hasUpdateData = updateFields.some(field => body[field] !== undefined)
+    if (!hasUpdateData) {
+      throw createError({ statusCode: 400, message: 'Не передано ни одно поле для обновления' })
     }
 
+    // Подготовка обновлений
     const updates: any = {}
-    if (name) updates.name = name
-    if (phone) updates.phone = phone
-    if (comment) updates.comment = comment
-    if (balance !== undefined) updates.balance = balance
-    if (objectId !== undefined) updates.objectId = objectId
-    if (userId !== undefined) updates.userId = userId
+    if (body.name) updates.name = body.name
+    if (body.phone) updates.phone = body.phone
+    if (body.comment) updates.comment = body.comment
+    if (body.balance !== undefined) updates.balance = body.balance
+    if (body.userId !== undefined) updates.userId = body.userId
+    if (body.isOnSalary !== undefined) updates.isOnSalary = body.isOnSalary
+    if (body.salaryAmount !== undefined) updates.salaryAmount = body.salaryAmount
+    if (body.salaryDay !== undefined) updates.salaryDay = body.salaryDay
 
+    // Обновление мастера
     await db.update(masters).set(updates).where(eq(masters.id, parseInt(id)))
 
+    // Возврат обновленного мастера
     const [updatedMaster] = await db.select().from(masters).where(eq(masters.id, parseInt(id)))
-    if (!updatedMaster) throw new Error('Мастер не найден')
+    if (!updatedMaster) {
+      throw createError({ statusCode: 404, message: 'Мастер не найден' })
+    }
 
     return updatedMaster
   } catch (error) {
     console.error('Ошибка обновления мастера:', error)
-    throw new Error('Ошибка сервера при обновлении мастера')
+    if (error instanceof Error) {
+      throw createError({ statusCode: 500, message: `Ошибка сервера: ${error.message}` })
+    } else {
+      throw createError({ statusCode: 500, message: 'Неизвестная ошибка' })
+    }
   }
 })

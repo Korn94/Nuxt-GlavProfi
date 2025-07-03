@@ -54,7 +54,7 @@ onMounted(() => {
 });
 </script>
 
-<style>
+<style scoped>
 .animate__animated {
   visibility: visible !important;
 }

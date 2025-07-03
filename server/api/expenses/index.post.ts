@@ -1,60 +1,92 @@
 // server/api/expenses/index.post.ts
 import { defineEventHandler, readBody, createError } from 'h3'
 import { db } from '../../db'
-import { expenses, masters, workers, objects } from '../../db/schema'
+import { expenses, masters, workers, foremans, offices, objects } from '../../db/schema'
 import { eq } from 'drizzle-orm'
+
+// Типы расходов (литеральный тип)
+type ExpenseType = 'Работа' | 'Налог' | 'Зарплата' | 'Реклама' | 'Кредит' | 'Топливо' | 'ГлавПрофи'
 
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event)
-    const { amount, comment, contractorId, contractorType, objectId } = body
+    const { amount, comment, contractorId, contractorType, objectId, expenseType } = body
 
-    // contractorId и contractorType обязательны, objectId — необязательный
-    if (!amount || !contractorId || !contractorType) {
+    // Список допустимых типов
+    const validExpenseTypes = ['Работа', 'Налог', 'Зарплата', 'Реклама', 'Кредит', 'Топливо', 'ГлавПрофи'] as const
+    if (!validExpenseTypes.includes(expenseType as ExpenseType)) {
       throw createError({ 
-        statusCode: 400,
-        message: 'Сумма, тип и ID контрагента обязательны' 
+        statusCode: 400, 
+        message: `Неверный тип расхода. Допустимые значения: ${validExpenseTypes.join(', ')}` 
       })
     }
 
-    let object = null
-    if (objectId) {
-      const [found] = await db.select()
-        .from(objects)
-        .where(eq(objects.id, parseInt(objectId)))
+    // Типизация expenseType явно
+    const typedExpenseType = expenseType as ExpenseType
 
-      if (!found) {
-        throw createError({ statusCode: 404, message: 'Объект не найден' })
-      }
-      object = found
+    // Объект с обязательными полями
+    const requiredFields: Record<ExpenseType, (keyof typeof body)[]> = {
+      'Работа': ['amount', 'contractorId', 'contractorType'],
+      'Налог': ['amount'],
+      'Зарплата': ['amount', 'contractorId', 'contractorType'],
+      'Реклама': ['amount'],
+      'Кредит': ['amount'],
+      'Топливо': ['amount', 'contractorId', 'contractorType'],
+      'ГлавПрофи': ['amount']
     }
 
-    // Обновляем баланс контрагента (мастера или рабочего)
-    const ContractorModel = 
-      contractorType === 'master' ? masters : 
-      contractorType === 'worker' ? workers : null
+    // Проверка обязательных полей
+    const missingFields = requiredFields[typedExpenseType].filter((field: keyof typeof body) => !body[field])
+    if (missingFields.length > 0) {
+      throw createError({ 
+        statusCode: 400,
+        message: `Отсутствуют обязательные поля: ${missingFields.join(', ')}` 
+      })
+    }
 
-    if (ContractorModel) {
-      const [contractor] = await db.select()
-        .from(ContractorModel)
-        .where(eq(ContractorModel.id, parseInt(contractorId)))
+    // Проверка объекта (только для типов "Работа", "Топливо")
+    const requiresObject = ['Работа', 'Топливо'].includes(typedExpenseType)
+    if (objectId && requiresObject) {
+      const [foundObject] = await db.select().from(objects).where(eq(objects.id, parseInt(objectId)))
+      if (!foundObject) {
+        throw createError({ statusCode: 404, message: 'Объект не найден' })
+      }
+    }
 
-      if (contractor) {
-        const updatedContractorBalance = Number(contractor.balance) + Number(amount)
+    // Проверка контрагента (только для типов "Работа", "Зарплата", "Топливо")
+    let ContractorModel = null
+    if (['Работа', 'Зарплата', 'Топливо'].includes(typedExpenseType)) {
+      switch (contractorType) {
+        case 'worker': ContractorModel = workers; break
+        case 'master': ContractorModel = masters; break
+        case 'foreman': ContractorModel = foremans; break
+        case 'office': ContractorModel = offices; break
+        default:
+          throw createError({ statusCode: 400, message: 'Неверный тип контрагента' })
+      }
 
+      const [contractor] = await db.select().from(ContractorModel).where(eq(ContractorModel.id, parseInt(contractorId)))
+      if (!contractor) {
+        throw createError({ statusCode: 404, message: 'Контрагент не найден' })
+      }
+
+      // Обновление баланса контрагента (только для "Работа", "Зарплата")
+      if (['Работа', 'Зарплата'].includes(typedExpenseType)) {
+        const updatedBalance = Number(contractor.balance) + Number(amount)
         await db.update(ContractorModel)
-          .set({ balance: updatedContractorBalance.toFixed(2) })
+          .set({ balance: updatedBalance.toFixed(2) })
           .where(eq(ContractorModel.id, parseInt(contractorId)))
       }
     }
 
-    // Добавляем запись о расходе
+    // Добавление расхода
     const [newExpense] = await db.insert(expenses).values({
       amount: amount.toString(),
       comment,
-      contractorId: parseInt(contractorId),
+      contractorId: contractorId ? parseInt(contractorId) : null,
       contractorType,
       objectId: objectId ? parseInt(objectId) : null,
+      expenseType: typedExpenseType,
       paymentDate: new Date(),
       operationDate: new Date()
     }).$returningId()
