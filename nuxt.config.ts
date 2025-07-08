@@ -86,6 +86,8 @@ export default defineNuxtConfig({
     public: {
       yandexMetricaId: process.env.YANDEX_METRICA_ID, // ID Яндекс.Метрики
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || "http://localhost:3000",
+      telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
+      telegramChatId: process.env.TELEGRAM_CHAT_ID
     },
     private: {
       dbHost: process.env.DB_HOST,
@@ -101,6 +103,7 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-02-12',
 
   devtools: {
+    enabled: true,
     timeline: {
       enabled: true,
     },

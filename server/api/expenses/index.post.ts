@@ -10,7 +10,7 @@ type ExpenseType = 'Работа' | 'Налог' | 'Зарплата' | 'Рек�
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event)
-    const { amount, comment, contractorId, contractorType, objectId, expenseType } = body
+    const { amount, comment, contractorId, contractorType, objectId, expenseType, operationDate } = body
 
     // Список допустимых типов
     const validExpenseTypes = ['Работа', 'Налог', 'Зарплата', 'Реклама', 'Кредит', 'Топливо', 'ГлавПрофи'] as const
@@ -23,6 +23,20 @@ export default defineEventHandler(async (event) => {
 
     // Типизация expenseType явно
     const typedExpenseType = expenseType as ExpenseType
+
+    // Проверка даты операции
+    let parsedDate: Date
+    if (operationDate) {
+      parsedDate = new Date(operationDate)
+      if (isNaN(parsedDate.getTime())) {
+        throw createError({ 
+          statusCode: 400, 
+          message: 'Некорректный формат даты операции' 
+        })
+      }
+    } else {
+      parsedDate = new Date() // По умолчанию - текущая дата
+    }
 
     // Объект с обязательными полями
     const requiredFields: Record<ExpenseType, (keyof typeof body)[]> = {
@@ -87,8 +101,8 @@ export default defineEventHandler(async (event) => {
       contractorType,
       objectId: objectId ? parseInt(objectId) : null,
       expenseType: typedExpenseType,
-      paymentDate: new Date(),
-      operationDate: new Date()
+      paymentDate: new Date(), // Текущая дата оплаты
+      operationDate: parsedDate // Используем переданную дату
     }).$returningId()
 
     return newExpense

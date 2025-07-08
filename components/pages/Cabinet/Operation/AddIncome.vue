@@ -20,6 +20,15 @@
             <span v-if="errors.amount" class="error-message">{{ errors.amount }}</span>
           </div>
 
+          <div class="form-group">
+            <label>Дата операции <span class="required">*</span></label>
+            <input 
+              type="date" 
+              v-model="form.operationDate"
+            />
+            <span v-if="errors.operationDate" class="error-message">{{ errors.operationDate }}</span>
+          </div>
+
           <!-- Объект -->
           <div class="form-group">
             <label>Объект <span class="required">*</span></label>
@@ -73,12 +82,15 @@ const emit = defineEmits(['close', 'income-added'])
 const form = ref({
   amount: null,
   objectId: '',
-  comment: ''
+  comment: '',
+  operationDate: new Date().toISOString().split('T')[0]
 })
 
 const loading = ref(false)
 const errors = ref({})
 const objects = ref([])
+const errorMessage = ref('')
+const successMessage = ref('')
 
 // Загрузка данных
 async function loadData() {
@@ -105,6 +117,17 @@ function validateForm() {
     isValid = false
   }
 
+  if (!form.value.operationDate) {
+    errors.value.operationDate = 'Дата операции обязательна'
+    isValid = false
+  } else {
+    const date = new Date(form.value.operationDate)
+    if (isNaN(date.getTime())) {
+      errors.value.operationDate = 'Некорректный формат даты'
+      isValid = false
+    }
+  }
+
   return isValid
 }
 
@@ -116,8 +139,7 @@ async function submitIncome() {
   try {
     const payload = {
       ...form.value,
-      paymentDate: new Date().toISOString(),
-      operationDate: new Date().toISOString()
+      operationDate: form.value.operationDate || new Date().toISOString()
     }
 
     const result = await $fetch('/api/comings', {

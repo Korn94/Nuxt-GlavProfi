@@ -126,7 +126,9 @@ a:hover {
 
 hr {
   margin: 0 1em;
-  color: #2f2f2f80;
+  border: unset;
+  color: unset;
+  border-bottom: 1px solid #2f2f2f80;
 }
 
 .line {

@@ -2,7 +2,7 @@
 import { defineEventHandler, getQuery, createError } from 'h3'
 import { db } from '../../db'
 import { expenses, workers, masters, objects, foremans, offices } from '../../db/schema'
-import { and, eq, gte, lte, asc } from 'drizzle-orm'
+import { and, eq, gte, lte, desc } from 'drizzle-orm'
 
 // Допустимые типы контрагентов (должны совпадать с enum в базе данных)
 const allowedTypes = ['master', 'worker', 'foreman', 'office'] as const
@@ -57,7 +57,7 @@ export default defineEventHandler(async (event) => {
       .leftJoin(offices, eq(expenses.contractorId, offices.id))
       .leftJoin(objects, eq(expenses.objectId, objects.id))
       .where(filters.length > 0 ? and(...filters) : undefined)
-      .orderBy(asc(expenses.operationDate))
+      .orderBy(desc(expenses.operationDate))
 
     // Формируем результат с именами контрагентов
     return result.map(({ expense, worker, master, foreman, office, object }) => ({

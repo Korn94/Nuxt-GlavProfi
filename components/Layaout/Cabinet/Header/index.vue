@@ -43,11 +43,11 @@ const menuItems = [
   { title: 'Объекты', path: '/cabinet/objects', roles: ['admin', 'foreman', 'master', 'worker'] },
   // { title: 'Платежи', path: '/cabinet/payments', roles: ['admin', 'manager', 'foreman'] },
   // { title: 'Прайс', path: '/cabinet/price', roles: ['admin', 'manager'] },
-  { title: 'Прайс', path: '/cabinet/price/list', roles: ['admin', 'manager'] },
   { title: 'Баланс', path: '/cabinet/balance', roles: ['admin'] },
   { title: 'Аналитика', path: '/cabinet/analytics', roles: ['admin'] },
   { title: 'Операции', path: '/cabinet/operation', roles: ['admin'] },
-  { title: 'На сайт', path: '/', roles: ['admin', 'manager', 'foreman', 'master', 'worker'] }
+  { title: 'На сайт', path: '/', roles: ['admin', 'manager', 'foreman', 'master', 'worker'] },
+  { title: 'Прайс', path: '/prices/floor', roles: ['admin', 'manager'] }
 ]
 
 // Фильтрация меню по роли пользователя

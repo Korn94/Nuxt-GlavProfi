@@ -24,18 +24,18 @@ export default defineEventHandler(async (event) => {
       acceptedDate: new Date()
     }).where(eq(works.id, parseInt(id)))
 
-    // Обновляем баланс прораба
-    await db.update(foremans)
-      .set({ balance: sql`${foremans.balance} + ${foremanProfit}` })
-      .where(eq(foremans.id, work.foremanId))
+    // === Временно отключено: обновление баланса прораба ===
+    // await db.update(foremans)
+    //   .set({ balance: sql`${foremans.balance} + ${foremanProfit}` })
+    //   .where(eq(foremans.id, work.foremanId))
 
-    // Логируем начисление
-    await db.insert(foremanProfitHistory).values({
-      workId: work.id,
-      objectId: work.objectId,
-      foremanId: work.foremanId,
-      amount: foremanProfit.toFixed(2)
-    });
+    // === Временно отключено: логирование начисления ===
+    // await db.insert(foremanProfitHistory).values({
+    //   workId: work.id,
+    //   objectId: work.objectId,
+    //   foremanId: work.foremanId,
+    //   amount: foremanProfit.toFixed(2)
+    // });
 
     return { success: true }
   } catch (error) {

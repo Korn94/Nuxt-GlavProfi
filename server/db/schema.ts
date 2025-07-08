@@ -131,21 +131,6 @@ export const foremanProfitHistory = mysqlTable('foreman_profit_history', {
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`)                              // Дата начисления
 });
 
-// Таблица договоренностей
-export const agreements = mysqlTable('agreements', {
-  id: serial('id').primaryKey(),
-  text: text('text').notNull(),
-  date: datetime('date').default(sql`CURRENT_TIMESTAMP`),
-  status: varchar('status', {
-    length: 50,
-    enum: ['active', 'completed']
-  }).default('active').notNull(),
-  masterId: int('master_id'),
-  workerId: int('worker_id'),
-  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: datetime('updated_at') .default(sql`CURRENT_TIMESTAMP`) .notNull() .$type<Date>()
-})
-
 // Таблица мастеров
 export const masters = mysqlTable('masters', {
   id: serial('id').primaryKey(),

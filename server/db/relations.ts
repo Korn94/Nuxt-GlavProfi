@@ -7,7 +7,6 @@ import {
   comings,
   expenses,
   works,
-  agreements,
   masters,
   workers,
   foremans,
@@ -52,33 +51,6 @@ export const worksRelations = relations(works, ({ one }) => ({
     fields: [works.objectId],
     references: [objects.id],
   }),
-}))
-
-export const agreementsRelations = relations(agreements, ({ one }) => ({
-  master: one(masters, {
-    fields: [agreements.masterId],
-    references: [masters.id],
-  }),
-  worker: one(workers, {
-    fields: [agreements.workerId],
-    references: [workers.id],
-  }),
-}))
-
-export const mastersRelations = relations(masters, ({ one, many }) => ({
-  user: one(users, {
-    fields: [masters.userId],
-    references: [users.id],
-  }),
-  agreements: many(agreements),
-}))
-
-export const workersRelations = relations(workers, ({ one, many }) => ({
-  user: one(users, {
-    fields: [workers.userId],
-    references: [users.id],
-  }),
-  agreements: many(agreements),
 }))
 
 export const foremansRelations = relations(foremans, ({ one }) => ({

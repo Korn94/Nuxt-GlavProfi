@@ -29,95 +29,98 @@
 </div>
 </template>
 
-<script>
-import axios from "axios";
-import { telegramToken, telegramChatId } from "~/config/config.js";
+<script setup>
+import { ref } from 'vue'
+import { useRuntimeConfig } from '#imports'
 
-export default {
-  data() {
-    return {
-      name: "",
-      phoneNumber: "+7 ",
-      comment: "",
-      agreed: false,
-      phoneError: false,
-      isNotificationVisible: false,
-      notificationMessage: '',
-      notificationColor: 'green'
-    };
-  },
-  methods: {
-    textFilter() {
-      // Разделяем строку на слова и преобразуем первую букву каждого слова в верхний регистр
-      this.name = this.name.replace(/\d/g, "").split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-      // Ограничение количества символов до 40
-      if (this.name.length > 40) {
-        this.name = this.name.slice(0, 40);
-      }
-    },
-    submitForm() {
-      const phoneCleaned = this.phoneNumber.replace(/\D/g, '');
+// Получаем конфиг с токеном и ID чата
+const config = useRuntimeConfig()
 
-      // Проверка длины номера
-      if (phoneCleaned.length < 11) {
-        this.phoneError = true;
-        this.notificationMessage = 'Введите корректный номер телефона';
-        this.notificationColor = 'red';
-        this.isNotificationVisible = true;
-        return;
-      }
+// Реактивные данные
+const name = ref('')
+const phoneNumber = ref('+7 ')
+const comment = ref('')
+const agreed = ref(false)
+const phoneError = ref(false)
+const isNotificationVisible = ref(false)
+const notificationMessage = ref('')
+const notificationColor = ref('green')
 
-      this.phoneError = false;
+// Форматирование имени
+function textFilter() {
+  name.value = name.value
+    .replace(/\d/g, '')
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+    .slice(0, 40)
+}
 
-      const token = telegramToken;
-      const url = `https://api.telegram.org/bot${token}/sendMessage`;
-      const message = `
-        Сообщение с формы:
-        ФИО: ${this.name}
-        Номер телефона: ${this.phoneNumber}
-        Комментарий: ${this.comment}`;
+// Отправка формы через API
+async function submitForm() {
+  const phoneCleaned = phoneNumber.value.replace(/\D/g, '')
+  // Проверка телефона
+  if (phoneCleaned.length < 11) {
+    phoneError.value = true
+    showNotification('Введите корректный номер телефона', 'red')
+    return
+  }
+  phoneError.value = false
 
-      axios.post(url, {
-        chat_id: telegramChatId,
-        text: message,
-      })
-      .then(() => {
-        this.$emit('formSubmitted', true);
-        this.notificationMessage = 'Форма успешно отправлена!';
-        this.notificationColor = 'green';
-        this.isNotificationVisible = true;
-        
-        // Безопасный вызов $ym — только если он определён
-        if (typeof this.$ym === 'function') {
-          this.$ym('reachGoal', 'FORM_SUBMITTED');
-        }
-      })
-      .catch((error) => {
-        console.error("Ошибка при отправке формы:", error);
+  // Формирование сообщения
+  const message = `
+    Сообщение с формы:
+    ФИО: ${name.value}
+    Номер телефона: ${phoneNumber.value}
+    Комментарий: ${comment.value}
+  `
 
-        // Более точное сообщение об ошибке
-        let errorMessage = 'Ошибка при отправке формы';
-        if (error.response && error.response.status === 401) {
-          errorMessage = 'Неверный токен Telegram';
-        } else if (error.response && error.response.status === 403) {
-          errorMessage = 'Бот заблокирован или недоступен';
-        } else if (error.request) {
-          errorMessage = 'Нет ответа от сервера Telegram';
-        }
+  try {
+    // Отправляем через API (без暴露 токена)
+    const response = await fetch('/api/send-message', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ message })
+    })
 
-        this.$emit('formSubmitted', false);
-        this.notificationMessage = errorMessage;
-        this.notificationColor = 'red';
-        this.isNotificationVisible = true;
-        
-        // Также безопасно вызываем $ym в случае ошибки
-        if (typeof this.$ym === 'function') {
-          this.$ym('reachGoal', 'FORM_ERROR');
-        }
-      });
-    },
-  },
-};
+    const result = await response.json()
+
+    if (!response.ok) {
+      throw new Error(result.description || 'Ошибка отправки формы')
+    }
+
+    // Успех
+    showNotification('Форма успешно отправлена!', 'green')
+    triggerYandexGoal('FORM_SUBMITTED')
+  } catch (error) {
+    console.error('Ошибка при отправке формы:', error)
+    let errorMessage = 'Ошибка при отправке формы'
+    if (error.response?.status === 401) {
+      errorMessage = 'Неверный токен Telegram'
+    } else if (error.response?.status === 403) {
+      errorMessage = 'Бот заблокирован или недоступен'
+    } else if (error.request) {
+      errorMessage = 'Нет ответа от сервера Telegram'
+    }
+    showNotification(errorMessage, 'red')
+    triggerYandexGoal('FORM_ERROR')
+  }
+}
+
+// Вспомогательные функции
+function showNotification(message, color) {
+  notificationMessage.value = message
+  notificationColor.value = color
+  isNotificationVisible.value = true
+}
+
+function triggerYandexGoal(goal) {
+  if (typeof window.$ym === 'function') {
+    window.$ym('reachGoal', goal)
+  }
+}
 </script>
 
 <style lang="scss" scoped>

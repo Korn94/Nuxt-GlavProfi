@@ -64,7 +64,6 @@
       @close="showExpenseModal = false"
       @expense-added="(expense) => {
         successMessage = 'Расход успешно добавлен'
-        setTimeout(() => successMessage = '', 3000)
       }"
     />
 
@@ -77,11 +76,6 @@
       @close="showIncomeModal = false"
       @income-added="(income) => {
         successMessage = 'Приход успешно добавлен'
-        setTimeout(() => successMessage = '', 3000)
-      }"
-      @error="(msg) => {
-        errorMessage = msg
-        setTimeout(() => errorMessage = '', 5000)
       }"
     />
 
@@ -114,10 +108,12 @@
                 <!-- Ссылка на мастера или рабочего -->
                 <div class="contractor-type">
                   <NuxtLink 
+                    v-if="expense.contractorType && expense.contractorId"
                     :to="`/cabinet/admin/contractors/${expense.contractorType}/${expense.contractorId}`"
                   >
                     {{ expense.contractorType === 'master' ? 'Мастер ' : 'Рабочий ' }} - {{ expense.contractorName }}
                   </NuxtLink>
+                  <p v-else>Контрагент не указан</p>
                 </div>
 
                 <!-- Ссылка на объект -->

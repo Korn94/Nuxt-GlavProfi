@@ -30,79 +30,80 @@
   </div>
 </template>
 
-<script>
-import axios from "axios";
-import { telegramToken, telegramChatId } from "~/config/config.js";
+<script setup>
+import { ref } from 'vue'
+import { useRuntimeConfig } from '#imports'
 
-export default {
-  data() {
-    return {
-      name: "",
-      phoneNumber: "+7 ",
-      notificationMessage: '',
-      isNotificationVisible: false,
-      phoneError: false,
-      notificationColor: 'green',
-      showConsentModal: false,
-    };
-  },
-  methods: {
-    textFilter() {
-      // Разделяем строку на слова и преобразуем первую букву каждого слова в верхний регистр
-      this.name = this.name.replace(/\d/g, "").split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-      // Ограничение количества символов до 40
-      if (this.name.length > 40) {
-        this.name = this.name.slice(0, 40);
-      }
-    },
-    openConsentModal() {
-      const phoneCleaned = this.phoneNumber.replace(/\D/g, '');
-      this.phoneError = phoneCleaned.length < 11;
+// Получаем конфиг с токеном и ID чата
+const config = useRuntimeConfig()
 
-      if (this.phoneError) {
-        this.notificationMessage = 'Введите корректный номер телефона';
-        this.notificationColor = 'red'; // Красный цвет при ошибке
-        this.isNotificationVisible = true;
-        return;
-      }
+// Данные формы
+const name = ref('')
+const phoneNumber = ref('+7 ')
+const notificationMessage = ref('')
+const isNotificationVisible = ref(false)
+const phoneError = ref(false)
+const notificationColor = ref('green')
+const showConsentModal = ref(false)
 
-      // Открываем модальное окно
-      this.showConsentModal = true;
-    },
-    acceptConsent() {
-      this.showConsentModal = false;
-      this.$nextTick(() => {
-        this.sendForm();
-      });
-    },
-    sendForm() {
-      const token = telegramToken;
-      const url = `https://api.telegram.org/bot${token}/sendMessage`;
-      const message = `
-        Сообщение с Главной (центр):
-        ФИО: ${this.name}
-        Номер телефона: ${this.phoneNumber}`;
+function textFilter() {
+  name.value = name.value
+    .replace(/\d/g, '')
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+    .slice(0, 40)
+}
 
-      axios.post(url, {
-        chat_id: telegramChatId,
-        text: message,
-      })
-      .then(() => {
-        this.notificationMessage = 'Форма успешно отправлена!';
-        this.notificationColor = 'green';
-        this.isNotificationVisible = true;
-        this.$emit('formSubmitted', true); // Сообщаем об успешной отправке формы
-      })
-      .catch((error) => {
-        console.error("Ошибка при отправке формы:", error);
-        this.notificationMessage = 'Ошибка при отправке формы.';
-        this.notificationColor = 'red';
-        this.isNotificationVisible = true;
-        this.$emit('formSubmitted', false); // Сообщаем о неудачной отправке формы
-      });
-    },
-  },
-};
+// Открытие модального окна после валидации
+function openConsentModal() {
+  const phoneCleaned = phoneNumber.value.replace(/\D/g, '')
+  phoneError.value = phoneCleaned.length < 11
+  if (phoneError.value) {
+    notificationMessage.value = 'Введите корректный номер телефона'
+    notificationColor.value = 'red'
+    isNotificationVisible.value = true
+    return
+  }
+  showConsentModal.value = true
+}
+
+// Отправка формы через безопасный API-эндпоинт
+async function acceptConsent() {
+  showConsentModal.value = false
+
+  const message = `
+    Сообщение с Главной (центр):
+    ФИО: ${name.value}
+    Номер телефона: ${phoneNumber.value}
+  `
+
+  try {
+    const response = await fetch('/api/send-message', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ message })
+    })
+
+    const result = await response.json()
+
+    if (!response.ok) {
+      throw new Error(result.description || 'Ошибка отправки формы')
+    }
+
+    // Успех
+    notificationMessage.value = 'Форма успешно отправлена!'
+    notificationColor.value = 'green'
+    isNotificationVisible.value = true
+  } catch (error) {
+    console.error('Ошибка при отправке формы:', error)
+    notificationMessage.value = 'Ошибка при отправке формы'
+    notificationColor.value = 'red'
+    isNotificationVisible.value = true
+  }
+}
 </script>
 
 <style lang="scss" scoped>

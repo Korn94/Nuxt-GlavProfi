@@ -1552,10 +1552,10 @@ h1, h2 {
     margin-bottom: .5em;
   }
   
-  .work-navigation-inner {
-    flex-direction: column;
-    gap: 5px;
-  }
+  // .work-navigation-inner {
+  //   flex-direction: column;
+  //   gap: 5px;
+  // }
   
   .search-bar input {
     width: 100%;

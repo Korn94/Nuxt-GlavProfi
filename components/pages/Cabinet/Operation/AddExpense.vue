@@ -36,6 +36,16 @@
             <span v-if="errors.amount" class="error-message">{{ errors.amount }}</span>
           </div>
 
+          <!-- Дата операции -->
+          <div class="form-group">
+            <label>Дата операции <span class="required">*</span></label>
+            <input 
+              type="date" 
+              v-model="form.operationDate"
+            />
+            <span v-if="errors.operationDate" class="error-message">{{ errors.operationDate }}</span>
+          </div>
+
           <!-- Поля для типа "Работа" -->
           <div v-if="selectedType === 'Работа'" class="nested-form">
             <div class="form-group">
@@ -158,12 +168,15 @@ const form = ref({
   contractorId: '',
   objectId: '',
   comment: '',
-  expenseType: ''
+  expenseType: '',
+  operationDate: new Date().toISOString().split('T')[0]
 })
 
 const selectedType = ref('')
 const loading = ref(false)
 const errors = ref({})
+const errorMessage = ref('')
+const successMessage = ref('')
 const contractors = ref([])
 const objects = ref([])
 const contractorsByType = computed(() => {
@@ -199,6 +212,8 @@ async function loadData() {
     objects.value = await $fetch('/api/objects')
   } catch (error) {
     console.error('Ошибка загрузки данных:', error)
+    console.error('Critical error loading data:', error);
+    errorMessage.value = 'Не удалось загрузить данные для формы. Попробуйте позже.';
   }
 }
 
@@ -237,6 +252,18 @@ function validateForm() {
     }
   }
 
+  // Проверка даты операции
+  if (!form.value.operationDate) {
+    errors.value.operationDate = 'Дата операции обязательна'
+    isValid = false
+  } else {
+    const date = new Date(form.value.operationDate)
+    if (isNaN(date.getTime())) {
+      errors.value.operationDate = 'Некорректный формат даты'
+      isValid = false
+    }
+  }
+
   return isValid
 }
 
@@ -248,8 +275,7 @@ async function submitExpense() {
   try {
     const payload = {
       ...form.value,
-      paymentDate: new Date().toISOString(),
-      operationDate: new Date().toISOString()
+      operationDate: form.value.operationDate || new Date().toISOString()
     }
 
     // Для типов "Топливо" и "ГлавПрофи" не обновляем баланс контрагента
@@ -287,7 +313,8 @@ function resetForm() {
     contractorId: '',
     objectId: '',
     comment: '',
-    expenseType: ''
+    expenseType: '',
+    operationDate: ''
   }
   selectedType.value = ''
   errors.value = {}
@@ -302,9 +329,10 @@ function close() {
 // Автоматическая загрузка данных при открытии
 watch(() => props.isOpen, async (newVal) => {
   if (newVal) {
-    await loadData()
+    await loadData();
+    if (!props.isOpen) return; // Прервать, если окно закрыто
   }
-})
+});
 </script>
 
 <style scoped>

@@ -3,19 +3,24 @@
     <div class="footer-container">
       <!-- Левая часть: информация о компании -->
       <div class="footer-info">
-        <!-- <h3 class="footer-title">ИП Главацкий П.Е.</h3> -->
         <h3 class="footer-title">ГлавПрофи - Рязань и область</h3>
         <p class="footer-text">
-          <!-- <span>Рязань и область</span><br> -->
           Отделка и ремонт помещений любой сложности<br>
           От косметического ремонта до полной реконструкции
         </p>
         <ul class="footer-details">
-          <li @click="copyToClipboard('622907683792')"><strong>ИНН:</strong> <span>622907683792</span></li>
-          <!-- <li @click="copyToClipboard('321623400019751')"><strong>ОГРН:</strong> <span>321623400019751</span></li> -->
-          <!-- <li><strong>Юридический адрес:</strong> 391480, Рязанская обл. <br>Путятинский р-н, п. Агрокультура ул. Сасыкинская д.8</li> -->
-          <li @click="openEmail"><strong>Электронная почта:</strong> <span>glavprofi@yandex.ru</span></li>
-          <li @click="handlePhoneClick('+7 (910) 909-69-47')"><strong>Телефон:</strong> <span>+7 (910) 909-69-47</span></li>
+          <li @click="copyToClipboard('622907683792')">
+            <strong>ИНН: </strong> 
+            <span>622907683792</span>
+          </li>
+          <li @click="openEmail">
+            <strong>Электронная почта: </strong> 
+            <span>glavprofi@yandex.ru</span>
+          </li>
+          <li @click="handlePhoneClick('+7 (910) 909-69-47')">
+            <strong>Телефон: </strong> 
+            <span>+7 (910) 909-69-47</span>
+          </li>
         </ul>
       </div>
 
@@ -24,7 +29,6 @@
         <h3 class="footer-title">Полезные ссылки</h3>
         <ul class="footer-nav">
           <li><NuxtLink href="/about">О компании</NuxtLink></li>
-          <!-- <li><NuxtLink href="/services">Услуги</NuxtLink></li> -->
           <li><NuxtLink href="#portfolio">Портфолио</NuxtLink></li>
           <li><NuxtLink href="/contacts">Контакты</NuxtLink></li>
           <li><NuxtLink href="/privacy-policy">Политика конфиденциальности</NuxtLink></li>
@@ -40,10 +44,10 @@
           <NuxtLink href="tg://resolve?domain=glavprofii" target="_blank">
             <Icon name="bxl:telegram" class="ico" size="28px" />
           </NuxtLink>
-          <NuxtLink href="https://api.whatsapp.com/send?phone=79109096947 " target="_blank">
+          <NuxtLink href="https://api.whatsapp.com/send?phone=79109096947" target="_blank">
             <Icon name="bxl:whatsapp" class="ico" size="28px" />
           </NuxtLink>
-          <NuxtLink href="https://vk.com/glavprofi " target="_blank">
+          <NuxtLink href=" https://vk.com/glavprofi " target="_blank">
             <Icon name="bxl:vk" class="ico" size="28px" />
           </NuxtLink>
           <NuxtLink href="https://instagram.com/glavprofi " target="_blank">
@@ -89,95 +93,94 @@
   </footer>
 </template>
 
-<script>
-import axios from "axios";
-import { telegramToken, telegramChatId } from "~/config/config.js";
+<script setup>
+import { ref } from 'vue'
+import { useRuntimeConfig } from '#imports'
 
-export default {
-  data() {
-    return {
-      currentYear: new Date().getFullYear(),
-      isNotificationVisible: false,
-      notificationMessage: '',
-      phoneNumber: "+7 ",
-      showConsentModal: false,
-      phoneError: false,
-      notificationColor: 'green',
-    };
-  },
-  methods: {
-    copyToClipboard(text) {
-      navigator.clipboard.writeText(text).then(() => {
-        this.notificationMessage = 'Скопировано';
-        this.isNotificationVisible = true;
-      }).catch(() => {
-        this.notificationMessage = 'Ошибка при копировании';
-        this.isNotificationVisible = true;
-      });
-    },
-    openEmail() {
-      window.location.href = 'mailto:glavprofi@yandex.ru';
-    },
-    handlePhoneClick(phoneNumber) {
-      if (/Mobi|Android/i.test(navigator.userAgent)) {
-        // Для мобильных устройств — звонок
-        window.location.href = `tel:${phoneNumber.replace(/\D/g, '')}`;
-      } else {
-        // Для ПК — копирование номера
-        this.copyToClipboard(phoneNumber);
-      }
-    },
+// Получаем конфиг с токеном и ID чата
+const config = useRuntimeConfig()
 
-    textFilter() {
-      // Разделяем строку на слова и преобразуем первую букву каждого слова в верхний регистр
-      this.name = this.name.replace(/\d/g, "").split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-      // Ограничение количества символов до 40
-      if (this.name.length > 40) {
-        this.name = this.name.slice(0, 40);
-      }
-    },
-    openConsentModal() {
-      const phoneCleaned = this.phoneNumber.replace(/\D/g, '');
-      this.phoneError = phoneCleaned.length < 11;
+// Данные
+const currentYear = new Date().getFullYear()
+const isNotificationVisible = ref(false)
+const notificationMessage = ref('')
+const phoneNumber = ref('+7 ')
+const showConsentModal = ref(false)
+const phoneError = ref(false)
+const notificationColor = ref('green')
 
-      // Проверяем длину номера
-      if (this.phoneError) {
-        this.notificationMessage = 'Введите корректный номер телефона';
-        this.notificationColor = 'red'; // Красный цвет при ошибке
-        this.isNotificationVisible = true;
-        return;
-      }
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    notificationMessage.value = 'Скопировано'
+    isNotificationVisible.value = true
+  }).catch(() => {
+    notificationMessage.value = 'Ошибка при копировании'
+    isNotificationVisible.value = true
+  })
+}
 
-      // Если всё в порядке — открываем модальное окно
-      this.showConsentModal = true;
-    },
-    acceptConsent() {
-      this.showConsentModal = false;
-      this.$nextTick(() => {
-        this.submitForm();
-      });
-    },
-    submitForm() {
-      const token = telegramToken;
-      const url = `https://api.telegram.org/bot${token}/sendMessage`;
-      const message = `
-        Сообщение с футера:
-        Номер телефона: ${this.phoneNumber}`;
+function openEmail() {
+  window.location.href = 'mailto:glavprofi@yandex.ru'
+}
 
-      axios.post(url, {
-        chat_id: telegramChatId,
-        text: message,
-      })
-      .then(() => {
-        this.$emit('formSubmitted', true); // Сообщаем об успешной отправке формы
-      })
-      .catch(() => {
-        console.error("Ошибка при отправке формы:", error);
-        this.$emit('formSubmitted', false); // Сообщаем о неудачной отправке формы
-      });
-    },
+function handlePhoneClick(phoneNumber) {
+  if (/Mobi|Android/i.test(navigator.userAgent)) {
+    window.location.href = `tel:${phoneNumber.replace(/\D/g, '')}`
+  } else {
+    copyToClipboard(phoneNumber)
   }
-};
+}
+
+function openConsentModal() {
+  const phoneCleaned = phoneNumber.value.replace(/\D/g, '')
+  phoneError.value = phoneCleaned.length < 11
+
+  if (phoneError.value) {
+    notificationMessage.value = 'Введите корректный номер телефона'
+    notificationColor.value = 'red'
+    isNotificationVisible.value = true
+    return
+  }
+
+  showConsentModal.value = true
+}
+
+function acceptConsent() {
+  showConsentModal.value = false
+  submitForm()
+}
+
+async function submitForm() {
+  const message = `
+    Сообщение с футера:
+    Номер телефона: ${phoneNumber.value}
+  `
+
+  try {
+    const response = await fetch('/api/send-message', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ message })
+    })
+
+    const result = await response.json()
+
+    if (!response.ok) {
+      throw new Error(result.description || 'Ошибка отправки формы')
+    }
+
+    notificationMessage.value = 'Форма успешно отправлена!'
+    notificationColor.value = 'green'
+    isNotificationVisible.value = true
+  } catch (error) {
+    console.error('Ошибка при отправке формы:', error)
+    notificationMessage.value = 'Ошибка при отправке формы'
+    notificationColor.value = 'red'
+    isNotificationVisible.value = true
+  }
+}
 </script>
 
 <style lang="scss" scoped>

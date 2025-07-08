@@ -7,13 +7,26 @@ import { eq } from 'drizzle-orm'
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event)
-    const { amount, comment, objectId } = body
+    const { amount, comment, objectId, operationDate } = body
 
+    // Валидация обязательных полей
     if (!amount || !objectId) {
       throw createError({ 
         statusCode: 400,
         message: 'Сумма и ID объекта обязательны' 
       })
+    }
+
+    // Проверка формата даты операции
+    let parsedDate = new Date()
+    if (operationDate) {
+      parsedDate = new Date(operationDate)
+      if (isNaN(parsedDate.getTime())) {
+        throw createError({ 
+          statusCode: 400, 
+          message: 'Некорректный формат даты операции' 
+        })
+      }
     }
 
     // Получаем текущий объект
@@ -26,13 +39,13 @@ export default defineEventHandler(async (event) => {
     const updatedIncome = Number(object.totalIncome) + Number(amount)
     const updatedBalance = updatedIncome - Number(object.totalWorks)
 
-    // Вставляем новый приход
+    // Вставляем новый приход с указанной датой
     const [newComing] = await db.insert(comings).values({
       amount: amount.toString(),
       comment,
       objectId: parseInt(objectId),
-      paymentDate: new Date(),
-      operationDate: new Date()
+      paymentDate: new Date(), // Текущая дата оплаты
+      operationDate: parsedDate // Используем переданную дату
     }).$returningId()
 
     // Обновляем объект

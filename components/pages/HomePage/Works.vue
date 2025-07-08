@@ -7,13 +7,11 @@
     <section class="key-categories">
       <!-- <h3>Наши услуги</h3> -->
       <div class="categories-grid">
-        <div
-          v-for="category in categories"
-          :key="category.id"
-          class="category-card"
-        >
+        <div v-for="category in categories" :key="category.id" class="category-card">
+        <Icon :name="category.icon" size="24px" />
           <h3>{{ category.name }}</h3>
-          <button @click="navigateToCategory(category.id)">Прайс {{ category.type }}</button>
+          <p>{{ category.text }}</p>
+          <button @click="navigateToCategory(category.id)">Прайс {{ category.type }}...</button>
         </div>
       </div>
     </section>
@@ -22,11 +20,6 @@
     <section class="price-list">
       <h3>Узнайте стоимость ремонта</h3>
       <p>Ознакомьтесь с нашим полным прайс-листом для точного расчета.</p>
-      <!-- <NuxtLink to="/prices/floor">
-        <button class="gradient-button large-button">
-          Перейти к прайс-листу
-        </button>
-      </NuxtLink> -->
       <NuxtLink to="/prices/floor">
           <UIButtonsMainButton text="Перейти" />
         </NuxtLink>
@@ -39,11 +32,11 @@ import { useRouter } from 'vue-router';
 
 // Данные категорий (можно загрузить из JSON)
 const categories = [
-  { id: "prices/floor", name: "Ремонт пола", type: "пола" },
-  { id: "prices/walls", name: "Ремонт стен", type: "стен" },
-  { id: "prices/ceiling", name: "Ремонт потолка", type: "потолка" },
-  { id: "prices/plumbing", name: "Сантехника", type: "Сантехники" },
-  { id: "prices/electricity", name: "Электрика", type: "Электрики" },
+  { id: "prices/floor", name: "Отделка полов", type: "пола", text: "Укладка ламината, паркета, линолеума, заливка стяжки, шлифовка, плитка", icon: "icon-park-outline:floor-tile" },
+  { id: "prices/walls", name: "Отделка стен", type: "стен", text: "Шпаклевка, покраска, оклейка обоями, монтаж панелей и гипсокартона", icon: "tabler:wall" },
+  { id: "prices/ceiling", name: "Отделка потолка", type: "потолка", text: "Монтаж гипсокартона, покраска, оклейка обоями", icon: "cbi:ceiling-aurelle" },
+  { id: "prices/plumbing", name: "Сантехника", type: "Сантехники", text: "Монтаж труб, установка санфаянса, ремонт коммуникаций", icon: "material-symbols:plumbing" },
+  { id: "prices/electricity", name: "Электрика", type: "Электрики", text: "Прокладка проводки, замена розеток, светильников, щитков", icon: "mdi:electricity" },
 ];
 
 // Роутер для навигации
@@ -101,7 +94,7 @@ const navigateToCategory = (categoryId) => {
 .key-categories {
   .categories-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(300px, 2fr));
     gap: 20px;
   }
 
@@ -110,7 +103,7 @@ const navigateToCategory = (categoryId) => {
     border: 1px solid #ddd;
     border-radius: 5px;
     padding: 20px;
-    text-align: center;
+    // text-align: center;
     transition: transform 0.3s ease;
 
     &:hover {

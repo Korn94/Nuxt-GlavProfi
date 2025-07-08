@@ -2,13 +2,14 @@
 import { defineEventHandler, getQuery, createError } from 'h3'
 import { db } from '../../db'
 import { comings } from '../../db/schema'
-import { and, gte, lte } from 'drizzle-orm'
+import { and, gte, lte, desc } from 'drizzle-orm' // Добавлен desc для сортировки
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
   const filters = []
 
   try {
+    // Фильтрация по дате
     if (query.startDate) {
       const startDate = new Date(query.startDate as string)
       if (isNaN(startDate.getTime())) throw new Error('Неверный формат даты startDate')
@@ -21,7 +22,13 @@ export default defineEventHandler(async (event) => {
       filters.push(lte(comings.operationDate, endDate))
     }
 
-    return await db.select().from(comings).where(and(...filters))
+    // Выборка с фильтрацией и сортировкой по убыванию даты
+    const result = await db.select()
+      .from(comings)
+      .where(and(...filters))
+      .orderBy(desc(comings.operationDate)) // Сортировка от новых к старым
+
+    return result
   } catch (error) {
     throw createError({
       statusCode: 400,
