@@ -13,18 +13,18 @@ export default defineEventHandler(async (event) => {
     if (!deleted) throw createError({ statusCode: 404, message: 'Материал не найден' })
 
     // Обновление баланса объекта
-    if (deleted.objectId) {
-      const [object] = await db.select().from(objects).where(eq(objects.id, deleted.objectId))
-      if (object) {
-        const currentBalance = Number(object.totalBalance)
-        const materialAmount = Number(deleted.amount)
-        const updatedBalance = currentBalance - materialAmount
+    // if (deleted.objectId) {
+    //   const [object] = await db.select().from(objects).where(eq(objects.id, deleted.objectId))
+    //   if (object) {
+    //     const currentBalance = Number(object.totalBalance)
+    //     const materialAmount = Number(deleted.amount)
+    //     const updatedBalance = currentBalance - materialAmount
 
-        await db.update(objects)
-          .set({ totalBalance: updatedBalance.toString() })
-          .where(eq(objects.id, deleted.objectId))
-      }
-    }
+    //     await db.update(objects)
+    //       .set({ totalBalance: updatedBalance.toString() })
+    //       .where(eq(objects.id, deleted.objectId))
+    //   }
+    // }
 
     // Удаление
     await db.delete(materials).where(eq(materials.id, parseInt(id)))

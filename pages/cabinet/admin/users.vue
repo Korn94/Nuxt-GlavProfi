@@ -140,6 +140,8 @@ const contractorsByType = computed(() => {
 
 definePageMeta({
   layout: "cabinet",
+  middleware: 'role',
+  allowedRoles: ['admin']
 })
 
 onMounted(async () => {
@@ -327,165 +329,287 @@ function clearMessages() {
 </script>
 
 <style lang="scss" scoped>
+// Переменные
+$primary-color: #4361ee;
+$danger-color: #f72585;
+$success-color: #4cc9f0;
+$warning-color: #ff9e00;
+$gray-light: #f8f9fa;
+$gray: #adb5bd;
+$gray-dark: #343a40;
+$text-color: #212529;
+$border-color: #dee2e6;
+$box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+$border-radius: 8px;
+$transition: all 0.3s ease;
+
 .container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
-  font-family: Arial, sans-serif;
-  
+  padding: 2rem 1rem;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: $text-color;
+
   h1 {
     text-align: center;
-    color: #333;
     margin-bottom: 2rem;
+    color: $text-color;
+    font-size: 1.8rem;
+    font-weight: 600;
   }
 
+  // Таблица пользователей
   table {
     width: 100%;
     border-collapse: collapse;
-    background-color: white;
-    border-radius: 10px;
-    box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
-    
-    th, td {
-      padding: 12px;
-      text-align: left;
-      border-bottom: 1px solid #ddd;
-      
-      &:first-child {
-        width: 70px;
+    margin-bottom: 2rem;
+    background-color: #fff;
+    border-radius: $border-radius;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+
+    thead {
+      background-color: $gray;
+      color: white;
+
+      th {
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.95rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
       }
     }
-    
-    thead {
-      background-color: #fafafa;
-      font-weight: bold;
-    }
-    
-    tbody tr:nth-child(even) {
-      background-color: #f9f9f9;
-    }
-    
-    button {
-      display: inline-block;
-      padding: 0.5em 1em;
-      margin-right: 0.5em;
-      cursor: pointer;
-      transition: all 0.3s ease-in-out;
-      border-radius: 4px;
-      background-color: #2c7be5;
-      color: white;
-      border: none;
-      
-      &:hover {
-        background-color: #1e5aa8;
+
+    tbody {
+      tr {
+        border-bottom: 1px solid $border-color;
+        transition: background-color 0.2s;
+
+        &:nth-child(even) {
+          background-color: $gray-light;
+        }
+
+        &:hover {
+          background-color: $border-color;
+        }
+
+        td {
+          padding: 1rem;
+          vertical-align: middle;
+
+          .nuxt-link {
+            color: $blue;
+            text-decoration: none;
+            font-weight: 500;
+
+            &:hover {
+              text-decoration: underline;
+            }
+          }
+        }
       }
     }
   }
 
-  /* Модальное окно */
+  // Кнопки
+  button {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: $border-radius;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: $transition;
+
+    &:focus {
+      outline: 2px solid $blue;
+      outline-offset: 2px;
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  .btn-add {
+    background-color: $blue;
+    color: white;
+
+    &:hover:not(:disabled) {
+      background-color: #333;
+      transform: translateY(-1px);
+    }
+  }
+
+  .btn-cancel {
+    background-color: $gray;
+    color: white;
+    margin-left: 0.5rem;
+
+    &:hover {
+      background-color: $gray-light;
+    }
+  }
+
+  // Модальное окно
   .modal {
     position: fixed;
     top: 0;
-    right: 0;
-    bottom: 0;
     left: 0;
-    z-index: 1000;
-    overflow-x: hidden;
-    overflow-y: auto;
-    outline: 0;
-    backdrop-filter: blur(5px); /* Эффект размытия фона */
+    width: 100%;
+    height: 100%;
     background-color: rgba(0, 0, 0, 0.5);
-    
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    animation: fadeIn 0.3s ease;
+
     .modal-content {
-      position: relative;
-      background-color: #fff;
-      margin: 15% auto;
+      background: white;
       padding: 2rem;
-      border-radius: 8px;
-      max-width: 600px;
-      animation-name: modal-open;
-      animation-duration: 0.3s;
-      
-      input[type=text], select {
+      border-radius: $border-radius;
+      width: 100%;
+      max-width: 500px;
+      box-shadow: $box-shadow;
+      animation: slideUp 0.3s ease;
+      max-height: 90vh;
+      overflow-y: auto;
+
+      h2 {
+        margin-top: 0;
+        margin-bottom: 1.5rem;
+        color: $blue;
+        font-size: 1.4rem;
+        font-weight: 600;
+      }
+
+      input,
+      select {
         width: 100%;
-        height: 40px;
-        padding: 0.5em;
-        margin-top: 0.5em;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        
+        padding: 0.75rem;
+        margin: 0.5rem 0 0.25rem;
+        border: 1px solid $border-color;
+        border-radius: $border-radius;
+        font-size: 1rem;
+        transition: border-color $transition;
+
+        &:focus {
+          outline: none;
+          border-color: $blue;
+          box-shadow: 0 0 0 3px rgba($blue, 0.2);
+        }
+
         &.error {
-          border-color: red;
+          border-color: $danger-color;
+          background-color: rgba($danger-color, 0.05);
         }
       }
-      
+
+      select {
+        cursor: pointer;
+      }
+
       label {
         display: block;
-        margin-top: 1em;
-        font-size: 1.1em;
-        color: #333;
+        margin-top: 1rem;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: $gray-dark;
       }
-      
-      span.error-message {
-        color: red;
-        font-size: 0.9em;
-        margin-top: 0.5em;
-      }
-      
-      button.btn-cancel {
-        background-color: #e63757;
-        color: white;
-        float: right;
-        margin-left: 1em;
-        
-        &:hover {
-          background-color: #a12e2e;
-        }
-      }
-      
-      div.success-message, div.error-message {
-        padding: 1em;
-        border-radius: 4px;
-        color: white;
-        margin-top: 1em;
-        
-        &.success-message {
-          background-color: green;
-        }
-        
-        &.error-message {
-          background-color: red;
+
+      button {
+        margin-top: 1.5rem;
+        padding: 0.75rem 1.5rem;
+        font-size: 1rem;
+
+        &:first-of-type {
+          background-color: $blue;
+          color: white;
+
+          &:hover:not(:disabled) {
+            background-color: #333;
+          }
         }
       }
     }
   }
 
-  /* Анимация появления модального окна */
-  @keyframes modal-open {
+  // Сообщения
+  .success-message {
+    padding: 1rem;
+    margin: 1rem 0;
+    background-color: rgba($success-color, 0.15);
+    color: $success-color;
+    border: 1px solid rgba($success-color, 0.3);
+    border-radius: $border-radius;
+    text-align: center;
+    font-weight: 500;
+  }
+
+  .error-message {
+    color: $danger-color;
+    font-size: 0.85rem;
+    margin-top: 0.25rem;
+    font-weight: 500;
+
+    // Для общей ошибки формы
+    &.form-error {
+      background-color: rgba($danger-color, 0.1);
+      padding: 0.75rem;
+      border-radius: $border-radius;
+      margin-top: 1rem;
+      border: 1px solid rgba($danger-color, 0.2);
+    }
+  }
+
+  // Анимации
+  @keyframes fadeIn {
     from {
       opacity: 0;
-      transform: translateY(-50px);
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
     }
     to {
       opacity: 1;
       transform: translateY(0);
     }
   }
+}
 
-  /* Кнопка добавления */
-  .btn-add {
-    display: block;
-    margin: 2rem auto;
-    padding: 1em 2em;
-    background-color: #2c7be5;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.3s ease-in-out;
-    
-    &:hover {
-      background-color: #1e5aa8;
+// Адаптивность
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+
+    table {
+      font-size: 0.9rem;
+
+      th,
+      td {
+        padding: 0.75rem;
+      }
+
+      th:nth-child(5),
+      td:nth-child(5) {
+        display: none; // Скрыть баланс на малых экранах
+      }
+    }
+
+    .modal .modal-content {
+      margin: 1rem;
+      max-height: calc(100vh - 2rem);
     }
   }
 }

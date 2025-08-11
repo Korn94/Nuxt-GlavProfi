@@ -39,7 +39,21 @@
 
       <!-- Правая часть: социальные сети и форма связи -->
       <div class="footer-social">
-        <h3 class="footer-title">Свяжитесь с нами</h3>
+        <h3 class="footer-title">Обратный звонок</h3>
+        <!-- Форма связи -->
+        <form class="footer-contact-form" @submit.prevent="submitForm">
+          <input
+            type="tel"
+            v-model="phoneNumber"
+            v-phone-format 
+            placeholder="Обратный звонок"
+            required
+            :class="{ 'error-border': phoneError }"
+          />
+          <button type="button" @click="openConsentModal">Отправить</button>
+        </form>
+
+        <!-- <h3 class="footer-title">Свяжитесь с нами</h3> -->
         <div class="social-icons">
           <NuxtLink href="tg://resolve?domain=glavprofii" target="_blank">
             <Icon name="bxl:telegram" class="ico" size="28px" />
@@ -58,19 +72,6 @@
           </NuxtLink>
         </div>
         
-        <h3 class="footer-title">Обратный звонок</h3>
-        <!-- Форма связи -->
-        <form class="footer-contact-form" @submit.prevent="submitForm">
-          <input
-            type="tel"
-            v-model="phoneNumber"
-            v-phone-format 
-            placeholder="Обратный звонок"
-            required
-            :class="{ 'error-border': phoneError }"
-          />
-          <button type="button" @click="openConsentModal">Отправить</button>
-        </form>
       </div>
     </div>
 
@@ -290,8 +291,8 @@ $subtext-color: #bdc3c7;
 
   .social-icons {
     display: flex;
-    gap: 15px;
-    margin-bottom: 15px;
+    gap: 1em;
+    margin-top: 2em;
 
     .ico {
       color: $text-color;

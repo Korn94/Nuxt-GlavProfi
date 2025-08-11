@@ -6,25 +6,28 @@
       <div class="balance-card">
         <div class="card-header">
           <span>Баланс объекта</span>
-          <i class="fas fa-coins"></i>
+          <Icon name="fa6-solid:coins" width="24" height="24" />
         </div>
         <div class="card-body">
           <p>{{ objectBalance }} ₽</p>
+          <small class="balance-description">Приходы - Вып. работы</small>
         </div>
       </div>
       <div class="balance-card">
         <div class="card-header">
           <span>Остаток от заказчика</span>
-          <i class="fas fa-clock"></i>
+          <Icon name="fa6-solid:clock" width="24" height="24" />
         </div>
         <div class="card-body">
           <p>{{ remainingFromClient }} ₽</p>
+          <small class="balance-description">Смета - Приход</small>
         </div>
       </div>
       <div class="balance-card">
         <div class="card-header">
           <span>Общая сумма по смете</span>
-          <i class="fas fa-list-alt"></i>
+          <!-- <small class="balance-description">Сумма всех смет по работам</small> -->
+          <Icon name="fa6-solid:list" width="24" height="24" />
         </div>
         <div class="card-body">
           <p>{{ expectedTotal }} ₽</p>
@@ -33,10 +36,11 @@
       <div class="balance-card">
         <div class="card-header">
           <span>Сумма работ в работе</span>
-          <i class="fas fa-clock"></i>
+          <Icon name="fa6-solid:clock" width="24" height="24" />
         </div>
         <div class="card-body">
           <p>{{ pendingWorksTotal }} ₽</p>
+          <small class="balance-description">Сумма не принятых работ</small>
         </div>
       </div>
     </div>
@@ -47,7 +51,7 @@
     </div>
     <!-- Таблица приходов -->
     <div class="table-section">
-      <h3>Приходы <i class="fas fa-arrow-down"></i></h3>
+      <h3>Приходы <Icon name="fa6-solid:arrow-down" width="24" height="24" /></h3>
       <div class="table-wrapper">
         <table>
           <thead>
@@ -59,7 +63,7 @@
           </thead>
           <tbody>
             <tr v-for="coming in comings" :key="coming.id" :class="{ 'odd-row': comings.indexOf(coming) % 2 === 0 }">
-              <td>{{ formatDate(coming.createdAt) }}</td>
+              <td>{{ formatDate(coming.operationDate) }}</td>
               <td>{{ coming.amount }} ₽</td>
               <td>{{ coming.comment }}</td>
             </tr>
@@ -69,7 +73,7 @@
     </div>
     <!-- Таблица работ -->
     <div class="table-section">
-      <h3>Работы <i class="fas fa-tools"></i></h3>
+      <h3>Работы <Icon name="fa6-solid:toolbox" width="24" height="24" /></h3>
       <div class="table-wrapper">
         <table>
           <thead>
@@ -89,7 +93,7 @@
           </thead>
           <tbody>
             <tr v-for="work in works" :key="work.id" :class="{ 'odd-row': works.indexOf(work) % 2 === 0 }">
-              <td>{{ formatDate(work.createdAt) }}</td>
+              <td>{{ formatDate(work.operationDate) }}</td>
               <td>{{ work.customerAmount }} ₽</td>
               <td>{{ work.workerAmount }} ₽</td>
               <td>
@@ -125,11 +129,11 @@
     </div>
     <!-- Сообщения -->
     <div v-if="successMessage" class="notification success">
-      <i class="fas fa-check-circle"></i>
+      <Icon name="fa6-solid:check-circle" width="24" height="24" />
       {{ successMessage }}
     </div>
     <div v-if="errorMessage" class="notification error">
-      <i class="fas fa-exclamation-circle"></i>
+      <Icon name="fa6-solid:exclamation-circle" width="24" height="24" />
       {{ errorMessage }}
     </div>
     <!-- Модальное окно для прихода -->
@@ -676,31 +680,92 @@ function resetFormErrors() {
 </script>
 
 <style lang="scss" scoped>
-.block {
-  margin-bottom: 2rem;
-  position: relative;
+// ========================================
+// Переменные
+// ========================================
+$color-primary: #007bff;
+$color-success: #27ae60;
+$color-warning: #f39c12;
+$color-danger: #dc3545;
+$color-muted: #6c757d;
+$color-bg: #f8f9fa;
+$color-text: #2c3e50;
+$color-border: #e0e0e0;
+$color-bg-card: #ffffff;
+
+$shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+$shadow-md: 0 4px 16px rgba(0, 0, 0, 0.1);
+$shadow-hover: 0 4px 20px rgba(0, 0, 0, 0.15);
+
+$border-radius: 10px;
+$border-radius-sm: 6px;
+
+$spacing-xs: 0.25rem;
+$spacing-sm: 0.5rem;
+$spacing-md: 1rem;
+$spacing-lg: 1.5rem;
+$spacing-xl: 2rem;
+
+$font-size-sm: 0.85rem;
+$font-size-base: 1rem;
+$font-size-lg: 1.25rem;
+$font-size-xl: 1.5rem;
+
+// ========================================
+// Миксины
+// ========================================
+@mixin button-reset() {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  outline: none;
+  font: inherit;
 }
 
+@mixin transition($props...) {
+  transition: $props;
+}
+
+@mixin card-shadow() {
+  box-shadow: $shadow-sm;
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: $shadow-md;
+  }
+}
+
+// ========================================
+// Основной блок
+// ========================================
+.block {
+  margin-bottom: $spacing-xl;
+  position: relative;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+// ========================================
+// Баланс — карточки
+// ========================================
 .balance-summary {
   display: flex;
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+  gap: $spacing-lg;
+  margin-bottom: $spacing-xl;
   flex-wrap: wrap;
 }
 
 .balance-card {
   flex: 1 1 calc(50% - 1rem);
   min-width: 250px;
-  background: #ffffff;
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-  transition: all 0.3s ease;
+  background: $color-bg-card;
+  border-radius: $border-radius;
   overflow: hidden;
-  cursor: default;
-  
+  @include card-shadow();
+
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
   }
 }
 
@@ -708,54 +773,86 @@ function resetFormErrors() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem;
-  // background: #f0f8ff;
+  padding: $spacing-md;
   background: linear-gradient(to right, #f0f8ff, #fff);
   font-weight: 600;
-  color: #2c3e50;
-  font-size: 0.95rem;
+  color: $color-text;
+  font-size: $font-size-sm;
+  letter-spacing: 0.3px;
 }
 
 .card-body {
-  padding: 0 1rem 1rem;
+  padding: 0 $spacing-md $spacing-md;
   text-align: right;
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: #27ae60;
+
+  p {
+    margin: 0;
+    font-size: $font-size-xl;
+    font-weight: bold;
+    color: $color-text;
+  }
 }
 
+.balance-description {
+  display: block;
+  font-size: $font-size-sm;
+  color: #666;
+  margin-top: $spacing-xs;
+}
+
+// ========================================
+// Кнопки добавления
+// ========================================
 .add-buttons {
   display: flex;
-  gap: 1rem;
-  margin-bottom: 2rem;
-  flex-wrap: wrap;
+  gap: $spacing-lg;
+  margin-bottom: $spacing-xl;
   justify-content: center;
+  flex-wrap: wrap;
+
+  .btn {
+    @include transition(transform 0.2s ease, box-shadow 0.2s ease);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+  }
 }
 
-// .table-section {
-  // margin-bottom: 2rem;
-  // background: #ffffff;
-  // border-radius: 10px;
-  // box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-  // padding: 1rem;
-  // transition: all 0.3s ease;
-// }
-
-.table-wrapper {
-  max-height: 600px;
-  overflow-y: auto;
-  margin-top: 1rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+// ========================================
+// Таблицы
+// ========================================
+.table-section {
+  margin-bottom: $spacing-xl;
+  background: $color-bg-card;
+  border-radius: $border-radius;
+  box-shadow: $shadow-sm;
+  overflow: hidden;
 }
 
 .table-section h3 {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-  font-size: 1.25rem;
-  color: #2c3e50;
+  gap: $spacing-sm;
+  margin: 0;
+  padding: $spacing-md;
+  font-size: $font-size-lg;
+  color: $color-text;
+  border-bottom: 1px solid $color-border;
+  background: $color-bg;
+}
+
+.table-wrapper {
+  max-height: 600px;
+  overflow-y: auto;
+  margin-top: $spacing-md;
+  border-top: 1px solid $color-border;
 }
 
 table {
@@ -765,81 +862,147 @@ table {
 }
 
 th {
+  padding: $spacing-sm $spacing-md;
   background-color: #f8f9fa;
-  padding: 5px 2em;
   font-weight: 600;
   color: #34495e;
-  border-bottom: 2px solid #e0e0e0;
+  text-transform: uppercase;
+  font-size: $font-size-sm;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid $color-border;
 }
 
 td {
-  // padding: 1em;
-  // margin: 0 10px;
+  padding: $spacing-sm $spacing-md;
   text-align: center;
-  border-bottom: 1px solid #f0f0f0;
   vertical-align: middle;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: $font-size-base;
+  white-space: nowrap;
 }
 
-tr:hover {
-  background-color: #f9f9f9;
-  transition: background-color 0.3s ease;
+tr {
+  @include transition(background-color 0.2s ease);
+
+  &:hover {
+    background-color: #f9f9f9;
+  }
+
+  &.odd-row {
+    background-color: #fafafa;
+  }
 }
 
-.odd-row {
-  background-color: #fafafa;
-}
-
+// Статусы работ
 .status-paid {
-  color: #27ae60;
-  font-weight: bold;
+  color: $color-success;
+  font-weight: 600;
 }
 
 .status-pending {
-  color: #f39c12;
-  font-weight: bold;
+  color: $color-warning;
+  font-weight: 600;
 }
 
+// Действия в таблице
+.action-buttons {
+  display: flex;
+  gap: $spacing-sm;
+  justify-content: center;
+  flex-wrap: wrap;
+
+  button {
+    padding: $spacing-xs $spacing-sm;
+    font-size: $font-size-sm;
+    border-radius: $border-radius-sm;
+    border: 1px solid $color-muted;
+    background: #fff;
+    color: $color-muted;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: $color-muted;
+      color: #fff;
+    }
+
+    &:first-child {
+      background: $color-success;
+      color: #fff;
+      border: none;
+
+      &:hover {
+        background: #333;
+      }
+    }
+
+    &:nth-child(2) {
+      background: $color-warning;
+      color: #fff;
+      border: none;
+
+      &:hover {
+        background: #333
+      }
+    }
+
+    &:last-child {
+      background: $color-primary;
+      color: #fff;
+      border: none;
+
+      &:hover {
+        background: #333;
+      }
+    }
+  }
+}
+
+// ========================================
+// Уведомления
+// ========================================
 .notification {
-  padding: 1rem 1.5rem;
-  border-radius: 6px;
-  margin-bottom: 1rem;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: $spacing-sm;
+  padding: $spacing-md;
+  margin-bottom: $spacing-md;
+  border-radius: $border-radius-sm;
   font-weight: 500;
+  font-size: $font-size-base;
+
+  svg {
+    flex-shrink: 0;
+  }
 }
 
 .success {
   background: #d4edda;
   color: #155724;
+  border: 1px solid #c3e6cb;
 }
 
 .error {
   background: #f8d7da;
   color: #721c24;
+  border: 1px solid #f5c6cb;
 }
 
+// ========================================
+// Модальные окна
+// ========================================
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0,0,0,0.5);
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 999;
-  backdrop-filter: blur(2px);
-}
-
-.modal {
-  background: white;
-  border-radius: 10px;
-  width: 90%;
-  max-width: 600px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-  overflow: hidden;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
   animation: fadeIn 0.3s ease-out;
 }
 
@@ -848,121 +1011,200 @@ tr:hover {
   to { opacity: 1; transform: translateY(0); }
 }
 
+.modal {
+  background: #fff;
+  border-radius: $border-radius;
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow: hidden;
+  box-shadow: $shadow-hover;
+  display: flex;
+  flex-direction: column;
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem;
-  background: #f8f9fa;
-  border-bottom: 1px solid #ddd;
+  padding: $spacing-lg;
+  background: $color-bg;
+  border-bottom: 1px solid $color-border;
 }
 
 .modal-header h3 {
   margin: 0;
-  font-size: 1.25rem;
-  color: #2c3e50;
+  font-size: $font-size-lg;
+  color: $color-text;
 }
 
 .close-btn {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
+  @include button-reset();
+  font-size: 1.8rem;
   color: #666;
-  transition: color 0.3s ease;
-}
+  line-height: 1;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.2s ease, color 0.2s ease;
 
-.close-btn:hover {
-  color: #34495e;
+  &:hover {
+    background: #e9ecef;
+    color: #333;
+  }
 }
 
 .modal-body {
-  padding: 1.5rem;
+  padding: $spacing-lg;
+  flex-grow: 1;
+  overflow-y: auto;
 }
 
 .form-group {
-  margin-bottom: 1.5rem;
+  margin-bottom: $spacing-lg;
+
+  label {
+    display: block;
+    margin-bottom: $spacing-xs;
+    font-weight: 500;
+    color: #495057;
+    font-size: $font-size-base;
+  }
+
+  input,
+  select,
+  textarea {
+    width: 100%;
+    padding: $spacing-sm;
+    border: 1px solid #ccc;
+    border-radius: $border-radius-sm;
+    font-size: $font-size-base;
+    @include transition(border-color);
+
+    &:focus {
+      outline: none;
+      border-color: $color-primary;
+      box-shadow: 0 0 0 3px rgba($color-primary, 0.1);
+    }
+
+    &.error {
+      border-color: $color-danger;
+      box-shadow: 0 0 0 3px rgba($color-danger, 0.1);
+    }
+  }
+
+  textarea {
+    resize: vertical;
+    min-height: 80px;
+  }
 }
 
-input, select, textarea {
-  width: 100%;
-  padding: 0.5rem;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  font-size: 1rem;
-  transition: border-color 0.3s ease;
-  margin-top: 0.5rem;
-}
-
-input:focus, select:focus, textarea:focus {
-  border-color: #007bff;
-  outline: none;
-}
-
-textarea {
-  resize: vertical;
-  min-height: 80px;
+.error-message {
+  display: block;
+  margin-top: $spacing-xs;
+  color: $color-danger;
+  font-size: $font-size-sm;
 }
 
 .modal-footer {
   display: flex;
   justify-content: flex-end;
-  padding: 1rem 1.5rem;
-  border-top: 1px solid #ddd;
-  gap: 1rem;
+  padding: $spacing-md $spacing-lg;
+  gap: $spacing-md;
+  border-top: 1px solid $color-border;
+  background: $color-bg;
 }
 
 .btn {
-  padding: 0.5rem 1.2rem;
+  padding: $spacing-sm $spacing-md;
   border: none;
-  border-radius: 6px;
+  border-radius: $border-radius-sm;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 1rem;
+  @include transition(all 0.2s ease);
+  font-size: $font-size-base;
+
+  &.primary {
+    background: $color-primary;
+    color: #fff;
+
+    &:hover:not(:disabled) {
+      background: #333;
+    }
+
+    &:disabled {
+      background: #aaa;
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+  }
+
+  &.secondary {
+    background: $color-muted;
+    color: #fff;
+
+    &:hover {
+      background: #333;
+    }
+  }
 }
 
-.primary {
-  background-color: #007bff;
-  color: white;
-}
-
-.secondary {
-  background-color: #6c757d;
-  color: white;
-}
-
-.btn:hover {
-  transform: translateY(-1px);
-}
-
-.btn:active {
-  transform: translateY(0);
-}
-
-.small {
-  padding: 0.3rem 0.7rem;
-  font-size: 0.9rem;
-}
-
-.error {
-  border-color: #dc3545 !important;
-}
-
-.error-message {
-  color: #dc3545;
-  font-size: 0.85em;
-  margin-top: 0.25rem;
-  display: block;
-}
-
+// ========================================
+// Адаптивность
+// ========================================
 @media (max-width: 768px) {
+  .balance-summary {
+    gap: $spacing-md;
+  }
+
+  .balance-card {
+    flex: 1 1 100%;
+    min-width: auto;
+  }
+
+  .add-buttons {
+    flex-direction: column;
+    align-items: center;
+  }
+
   .table-wrapper {
     max-height: 400px;
   }
-  
-  .balance-card {
-    flex: 1 1 100%;
+
+  .modal {
+    width: 95%;
+    max-width: 100%;
+    padding: 0 $spacing-sm;
+  }
+
+  .modal-body,
+  .modal-footer {
+    padding: $spacing-md;
+  }
+
+  th, td {
+    padding: $spacing-xs;
+    font-size: $font-size-sm;
+  }
+
+  .action-buttons button {
+    font-size: $font-size-sm;
+    padding: $spacing-xs $spacing-sm;
+  }
+}
+
+@media (max-width: 480px) {
+  .table-section h3 {
+    font-size: 1.1rem;
+    padding: $spacing-md;
+  }
+
+  .btn {
+    font-size: $font-size-sm;
+    padding: $spacing-xs $spacing-sm;
   }
 }
 </style>

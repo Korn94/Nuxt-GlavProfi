@@ -85,6 +85,8 @@ const showUserSelect = computed(() => {
 
 definePageMeta({
   layout: "cabinet",
+  middleware: 'role',
+  allowedRoles: ['admin']
 });
 
 // Загрузка пользователей

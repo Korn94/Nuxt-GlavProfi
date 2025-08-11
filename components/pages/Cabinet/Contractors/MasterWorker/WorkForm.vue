@@ -166,69 +166,191 @@ function resetForm() {
 }
 </script>
 
-<style scoped>
-.add-work-form {
-  margin-top: 2rem;
-  padding: 1.5rem;
-  background: #f8f9fa;
-  border-radius: 8px;
+<style lang="scss" scoped>
+// ========================================
+// Переменные
+// ========================================
+$color-primary: #007bff;
+$color-success: #27ae60;
+$color-danger: #dc3545;
+$color-muted: #6c757d;
+$color-bg: #f8f9fa;
+$color-border: #ced4da;
+$color-text: #2c3e50;
+
+$shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+$shadow-md: 0 4px 16px rgba(0, 0, 0, 0.1);
+
+$border-radius: 8px;
+$border-radius-sm: 4px;
+
+$spacing-xs: 0.25rem;
+$spacing-sm: 0.5rem;
+$spacing-md: 1rem;
+$spacing-lg: 1.5rem;
+
+$font-size-sm: 0.85rem;
+$font-size-base: 0.95rem;
+$font-size-lg: 1rem;
+
+// ========================================
+// Миксины
+// ========================================
+@mixin transition($props...) {
+  transition: $props;
 }
 
-.form-group {
-  margin-bottom: 1.5rem;
+@mixin input-focus($color) {
+  &:focus {
+    outline: none;
+    border-color: $color;
+    box-shadow: 0 0 0 3px rgba($color, 0.15);
+  }
 }
 
-.form-group label {
-  display: block;
-  margin-bottom: 0.5rem;
+@mixin button-primary() {
+  background: $color-primary;
+  color: #fff;
+  border: none;
+  padding: $spacing-sm $spacing-md;
+  border-radius: $border-radius-sm;
   font-weight: 500;
+  cursor: pointer;
+  @include transition(all 0.2s ease);
+
+  &:hover:not(:disabled) {
+    background: #333;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 }
 
-.form-group .required {
-  color: #dc3545;
-  margin-left: 4px;
+// ========================================
+// Основной блок формы
+// ========================================
+.add-work-form {
+  margin-top: $spacing-lg;
+  padding: $spacing-lg;
+  background: #fff;
+  border: 1px solid $color-border;
+  border-radius: $border-radius;
+  box-shadow: $shadow-sm;
+  max-width: 600px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  h3 {
+    margin-top: 0;
+    margin-bottom: $spacing-lg;
+    color: $color-text;
+    font-size: $font-size-lg;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
+
+    svg {
+      color: #666;
+    }
+  }
 }
 
-input, select, textarea {
+// ========================================
+// Группы полей
+// ========================================
+.form-group {
+  margin-bottom: $spacing-lg;
+
+  label {
+    display: block;
+    margin-bottom: $spacing-xs;
+    font-weight: 500;
+    color: $color-text;
+    font-size: $font-size-base;
+  }
+
+  .required {
+    color: $color-danger;
+    font-weight: 600;
+    margin-left: $spacing-xs;
+  }
+}
+
+// ========================================
+// Поля ввода
+// ========================================
+input,
+select,
+textarea {
   width: 100%;
-  padding: 0.6rem 0.8rem;
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  font-size: 0.95rem;
-  transition: border-color 0.2s ease;
-}
+  padding: $spacing-sm;
+  border: 1px solid $color-border;
+  border-radius: $border-radius-sm;
+  font-size: $font-size-base;
+  @include transition(border-color, box-shadow);
 
-input.error, select.error {
-  border-color: #dc3545;
+  @include input-focus($color-primary);
+
+  &.error {
+    border-color: $color-danger;
+    @include input-focus($color-danger);
+  }
 }
 
 textarea {
   resize: vertical;
   min-height: 80px;
+  line-height: 1.5;
 }
 
+// ========================================
+// Сообщения об ошибках
+// ========================================
 .error-message {
-  color: #dc3545;
-  font-size: 0.85rem;
-  margin-top: 0.25rem;
   display: block;
-}
-
-.btn {
-  padding: 0.6rem 1.2rem;
-  border-radius: 4px;
+  margin-top: $spacing-xs;
+  color: $color-danger;
+  font-size: $font-size-sm;
   font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  line-height: 1.3;
 }
 
-.btn.primary {
-  background: #007bff;
-  color: white;
-  border: none;
+// ========================================
+// Кнопка
+// ========================================
+.btn {
+  &.primary {
+    @include button-primary();
+  }
 }
 
-.btn.primary:hover {
-  background: #0069d9;
+// ========================================
+// Адаптивность
+// ========================================
+@media (max-width: 576px) {
+  .add-work-form {
+    padding: $spacing-md;
+    margin-top: $spacing-md;
+    border-radius: $border-radius-sm;
+  }
+
+  .form-group {
+    margin-bottom: $spacing-md;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: $font-size-base;
+    padding: $spacing-sm;
+  }
+
+  .btn.primary {
+    padding: $spacing-sm $spacing-md;
+    font-size: $font-size-base;
+    width: 100%;
+  }
 }
 </style>

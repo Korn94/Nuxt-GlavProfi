@@ -193,112 +193,308 @@ async function deleteWork(work) {
 }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+// ========================================
+// Переменные
+// ========================================
+$color-primary: #007bff;
+$color-success: #28a745;
+$color-muted: #6c757d;
+$color-danger: #dc3545;
+$color-bg: #f8f9fa;
+$color-border: #dee2e6;
+$color-text: #2c3e50;
+
+$shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+$shadow-md: 0 4px 16px rgba(0, 0, 0, 0.1);
+$shadow-modal: 0 8px 32px rgba(0, 0, 0, 0.15);
+
+$border-radius: 8px;
+$border-radius-sm: 6px;
+
+$spacing-xs: 0.25rem;
+$spacing-sm: 0.5rem;
+$spacing-md: 1rem;
+$spacing-lg: 1.5rem;
+
+$font-size-sm: 0.85rem;
+$font-size-base: 0.95rem;
+$font-size-lg: 1.25rem;
+
+// ========================================
+// Миксины
+// ========================================
+@mixin transition($props...) {
+  transition: $props;
+}
+
+@mixin button-reset() {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  outline: none;
+}
+
+@mixin input-style() {
+  width: 100%;
+  padding: $spacing-sm;
+  border: 1px solid $color-border;
+  border-radius: $border-radius-sm;
+  font-size: $font-size-base;
+  @include transition(border-color, box-shadow);
+
+  &:focus {
+    outline: none;
+    border-color: $color-primary;
+    box-shadow: 0 0 0 3px rgba($color-primary, 0.15);
+  }
+}
+
+@mixin btn($bg, $color: white) {
+  background: $bg;
+  color: $color;
+  border: none;
+  padding: $spacing-sm $spacing-md;
+  border-radius: $border-radius-sm;
+  font-weight: 500;
+  cursor: pointer;
+  @include transition(all 0.2s ease);
+
+  &:hover:not(:disabled) {
+    background: #333;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+// ========================================
+// Основной блок
+// ========================================
+.block {
+  margin-bottom: $spacing-lg;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+h3 {
+  margin-bottom: $spacing-md;
+  color: $color-text;
+  font-size: $font-size-lg;
+  font-weight: 600;
+}
+
+// ========================================
+// Таблица работ
+// ========================================
 .work-table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 1rem;
+  margin-top: $spacing-md;
+  background: #fff;
+  border-radius: $border-radius;
+  overflow: hidden;
+  box-shadow: $shadow-sm;
+
+  thead {
+    background: $color-bg;
+    text-align: left;
+  }
+
+  th,
+  td {
+    padding: $spacing-sm $spacing-md;
+    border-bottom: 1px solid $color-border;
+    text-align: center;
+    vertical-align: middle;
+    font-size: $font-size-base;
+  }
+
+  th {
+    font-weight: 600;
+    color: #34495e;
+    text-transform: uppercase;
+    font-size: $font-size-sm;
+    letter-spacing: 0.5px;
+  }
+
+  tbody tr {
+    @include transition(background-color 0.2s ease);
+
+    &:hover {
+      background-color: #f9f9f9;
+    }
+
+    &:nth-child(even) {
+      background-color: #fafafa;
+    }
+  }
 }
 
-.work-table thead {
-  background: #f8f9fa;
-  text-align: left;
-}
-
-.work-table th,
-.work-table td {
-  padding: 0.8rem 1rem;
-  border-bottom: 1px solid #eee;
-}
-
+// Статусы
 .status-paid {
-  color: #28a745;
+  color: $color-success;
   font-weight: 500;
 }
 
 .status-pending {
-  color: #6c757d;
+  color: $color-muted;
   font-weight: 500;
 }
 
+// ========================================
+// Кнопки действий
+// ========================================
 .btn-icon {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0.4rem;
-  margin-right: 0.4rem;
+  @include button-reset();
+  padding: $spacing-xs;
+  border-radius: $border-radius-sm;
+  color: $color-muted;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  @include transition(color, background-color);
+
+  &:hover {
+    color: #495057;
+    background-color: #f1f3f5;
+  }
+
+  &.btn-delete {
+    color: $color-danger;
+
+    &:hover {
+      color: #fff;
+      background-color: $color-danger;
+    }
+  }
 }
 
-.btn-delete {
-  color: #dc3545;
-}
-
+// ========================================
+// Модальное окно
+// ========================================
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
+  width: 100%;
+  height: 100%;
   background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .modal {
-  background: white;
-  padding: 2rem;
-  border-radius: 8px;
+  background: #fff;
+  padding: $spacing-lg;
+  border-radius: $border-radius;
+  width: 90%;
   max-width: 500px;
-  width: 100%;
-  position: relative;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: $shadow-modal;
+  animation: scaleIn 0.3s ease-out;
 }
 
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+h4 {
+  margin-top: 0;
+  margin-bottom: $spacing-lg;
+  color: $color-text;
+  font-size: $font-size-lg;
+  font-weight: 600;
+}
+
+// ========================================
+// Форма внутри модального окна
+// ========================================
 .form-group {
-  margin-bottom: 1rem;
+  margin-bottom: $spacing-lg;
+
+  label {
+    display: block;
+    margin-bottom: $spacing-xs;
+    font-weight: 500;
+    color: #495057;
+    font-size: $font-size-base;
+  }
+
+  input,
+  select,
+  textarea {
+    @include input-style();
+  }
+
+  textarea {
+    resize: vertical;
+    min-height: 80px;
+    line-height: 1.5;
+  }
 }
 
-.form-group label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-}
-
-.form-group input,
-.form-group select,
-.form-group textarea {
-  width: 100%;
-  padding: 0.6rem 0.8rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 0.95rem;
-}
-
+// ========================================
+// Кнопки в модалке
+// ========================================
 .modal-actions {
   display: flex;
-  gap: 1rem;
+  gap: $spacing-md;
   justify-content: flex-end;
-  margin-top: 1.5rem;
+  margin-top: $spacing-lg;
+  flex-wrap: wrap;
+
+  .btn {
+    &.primary {
+      @include btn($color-primary);
+    }
+
+    &.secondary {
+      @include btn($color-muted);
+    }
+  }
 }
 
-.btn {
-  padding: 0.6rem 1.2rem;
-  border-radius: 4px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
+// ========================================
+// Адаптивность
+// ========================================
+@media (max-width: 768px) {
+  .work-table th,
+  .work-table td {
+    padding: $spacing-xs $spacing-sm;
+    font-size: $font-size-sm;
+  }
 
-.btn.primary {
-  background: #007bff;
-  color: white;
-  border: none;
-}
+  .modal {
+    width: 95%;
+    padding: $spacing-md;
+  }
 
-.btn.secondary {
-  background: #6c757d;
-  color: white;
-  border: none;
+  .modal-actions {
+    flex-direction: column;
+    align-items: stretch;
+
+    .btn {
+      width: 100%;
+    }
+  }
+
+  .btn-icon {
+    padding: $spacing-xs;
+    margin-right: $spacing-xs;
+  }
 }
 </style>

@@ -73,11 +73,12 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useNuxtApp } from '#app'
 import { useRoute, useRouter } from 'vue-router'
 
 definePageMeta({
   layout: 'cabinet',
+  middleware: 'role',
+  allowedRoles: ['admin']
 })
 
 const route = useRoute()

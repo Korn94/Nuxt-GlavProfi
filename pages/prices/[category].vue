@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="wrap">
     <h1>Цены на ремонт помещений - <span>2025</span></h1>
     <UIElementsOffer 
       title="Не тратьте время на изучение прайс-листа!"
@@ -84,18 +84,103 @@ useHead({
     { name: 'description', content: currentCategory.value.metaDescription },
     { property: 'og:title', content: currentCategory.value.metaTitle },
     { property: 'og:description', content: currentCategory.value.metaDescription },
-    { property: 'og:url', content: `https://yourdomain.com/prices/${route.params.category}`  },
-    { property: 'og:image', content: currentCategory.value.image || 'https://yourdomain.com/images/preview.jpg'  }
+    { property: 'og:url', content: `https://yourdomain.com/prices/${route.params.category}` },
+    { property: 'og:image', content: currentCategory.value.image || 'https://yourdomain.com/images/preview.jpg' }
+  ],
+  script: [
+    {
+      type: 'application/ld+json',
+      key: 'price-schema',
+      innerHTML: () => {
+        // Проверяем, есть ли данные
+        if (!data.value) return ''
+
+        // Находим текущую страницу (категорию)
+        const page = data.value.find(p => p.slug === route.params.category)
+        if (!page) return ''
+
+        const services = []
+
+        // Проходим по всем категориям, подкатегориям и работам
+        for (const category of page.categories || []) {
+          for (const subcategory of category.subcategories || []) {
+            for (const item of subcategory.items || []) {
+              // Основная работа
+              services.push({
+                '@type': 'Offer',
+                'itemOffered': {
+                  '@type': 'Service',
+                  'name': item.name
+                },
+                'price': parseFloat(item.price) || 0,
+                'priceCurrency': 'RUB',
+                'unitCode': 'MTR'
+              })
+
+              // Детали (например, "грунтовка", "шпаклёвка")
+              for (const detail of item.details || []) {
+                services.push({
+                  '@type': 'Offer',
+                  'itemOffered': {
+                    '@type': 'Service',
+                    'name': detail.name
+                  },
+                  'price': parseFloat(detail.price) || 0,
+                  'priceCurrency': 'RUB',
+                  'availability': 'https://schema.org/InStock'
+                })
+              }
+
+              // Дополнительные работы (например, "демонтаж")
+              for (const dopwork of item.dopworks || []) {
+                services.push({
+                  '@type': 'Offer',
+                  'itemOffered': {
+                    '@type': 'Service',
+                    'name': dopwork.dopwork
+                  },
+                  'price': parseFloat(dopwork.price) || 0,
+                  'priceCurrency': 'RUB',
+                  'availability': 'https://schema.org/InStock'
+                })
+              }
+            }
+          }
+        }
+
+        return JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'Service',
+          'serviceType': 'Ремонтные работы',
+          'name': currentCategory.value.metaTitle,
+          'description': currentCategory.value.metaDescription,
+          'provider': {
+            '@type': 'Organization',
+            'name': 'РемонтПрофи' // ← замените на имя вашей компании
+          },
+          'areaServed': 'Россия', // ← можно уточнить: Москва, СПб и т.д.
+          'hasOfferCatalog': {
+            '@type': 'OfferCatalog',
+            'name': `Прайс-лист на ${currentCategory.value.title}`,
+            'itemListElement': services
+          }
+        })
+      }
+    }
   ]
 })
 </script>
 
 <style lang="scss" scoped>
-h1 {
-  margin-bottom: 3em;
-}
+.wrap {
+  margin: 0 5px;
 
-button {
+  h1 {
+    margin-bottom: 3em;
+    text-align: center;
+  }
+  
+  button {
     padding: 10px 20px;
     min-width: 150px;
     margin-top: 1.5em;
@@ -105,9 +190,10 @@ button {
     border-radius: 5px;
     cursor: pointer;
     transition: background 0.3s ease;
-
+    
     &:hover {
       background: #00a3d3;
     }
   }
+}
 </style>

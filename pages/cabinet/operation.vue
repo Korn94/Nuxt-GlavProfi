@@ -4,6 +4,8 @@
 
 <script setup>
 definePageMeta({
-  layout: 'cabinet'
+  layout: 'cabinet',
+  middleware: 'role',
+  allowedRoles: ['admin']
 })
 </script>

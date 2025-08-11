@@ -36,6 +36,20 @@
       "when": 1751525374604,
       "tag": "0004_red_nocturne",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1752499783307,
+      "tag": "0005_familiar_blink",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1754296984400,
+      "tag": "0006_pink_zarda",
+      "breakpoints": true
     }
   ]
 }

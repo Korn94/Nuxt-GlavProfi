@@ -26,6 +26,16 @@ export default defineNuxtConfig({
     'animate.css/animate.min.css', // Анимации
   ],
 
+  vite: {
+    css: {
+      preprocessorOptions: {
+        scss: {
+          additionalData: '@use "@/assets/styles/variables.scss" as *;'
+        }
+      }
+    },
+  },
+
   // Модули
   modules: [
     '@nuxt/icon', // Иконки

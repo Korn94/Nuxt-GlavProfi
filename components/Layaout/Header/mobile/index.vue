@@ -67,8 +67,8 @@
           <!-- <li :class="{ active: isServiceActive }">
             <nuxt-link to="/services" @click.native="closeMenus">Услуги</nuxt-link>
           </li> -->
-          <li :class="{ active: currentRoute === 'portfolio' }">
-            <nuxt-link to="/#portfolio" @click.native="closeMenus">Портфолио</nuxt-link>
+          <li :class="{ active: currentRoute === 'projects' }">
+            <nuxt-link to="/projects" @click.native="closeMenus">Портфолио</nuxt-link>
           </li>
           <li :class="{ active: currentRoute === 'prices' }">
             <nuxt-link to="/prices/floor" @click.native="closeMenus">Цены</nuxt-link>

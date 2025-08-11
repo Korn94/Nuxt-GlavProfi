@@ -1,5 +1,5 @@
 // server/db/schema.ts
-import { mysqlTable, serial, varchar, text, decimal, datetime, int, boolean, bigint } from 'drizzle-orm/mysql-core'
+import { mysqlTable, serial, varchar, text, decimal, datetime, int, boolean, bigint, index } from 'drizzle-orm/mysql-core'
 import { sql } from 'drizzle-orm'
 
 // Таблица пользователей
@@ -51,6 +51,7 @@ export const materials = mysqlTable('materials', {
     length: 50,
     enum: ['incoming', 'outgoing']
   }).default('incoming').notNull(),
+  operationDate: datetime('operation_date').default(sql`CURRENT_TIMESTAMP`),
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
   updatedAt: datetime('updated_at') .default(sql`CURRENT_TIMESTAMP`) .notNull() .$type<Date>()
 })
@@ -281,3 +282,61 @@ export const priceAdditionalItems = mysqlTable('price_additional_items', {
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
   updatedAt: datetime('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull().$type<Date>()
 })
+
+// Данных о кейсах 
+export const portfolioCases = mysqlTable('portfolio_cases', {
+  id: serial('id').primaryKey(),
+  isPublished: boolean('is_published').default(true), // Опубликован ли кейс
+  title: varchar('title', { length: 255 }).notNull(), // Название кейса
+  slug: varchar('slug', { length: 255 }).unique().notNull(), // URL-friendly версия названия
+  category: varchar('category', {
+    length: 50,
+    enum: ['Кафе', 'Магазины', 'Клиники', 'Банки', 'Фитнес', 'Производственные',  'Фасады и Кровля', 'Прочее']
+  }).notNull(),
+  address: text('address').notNull(), // Краткое описание для объекта
+  objectDescription: text('object_description').notNull(), // Краткое описание для объекта
+  shortObject: text('short_object').notNull(), // Краткое описание для карточки
+  space: decimal('space', { precision: 10, scale: 0 }).notNull(), // Площадь в м²
+  duration: varchar('duration', { length: 50 }).notNull(), // Срок выполнения
+  people: varchar('people', { length: 50 }).notNull(), // Количество людей
+  shortDescription: text('short_description').notNull(), // Краткое описание для здания
+  fullDescription: text('full_description'), // Полное описание для страницы кейса
+  result: text('result'), // Описание результата
+  metaTitle: varchar('meta_title', { length: 255 }), // Заголовок для SEO
+  metaDescription: text('meta_description'), // Для SEO
+  metaKeywords: text('meta_keywords'), // Для SEO
+  order: int('order').default(0), // Порядок отображения
+  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: datetime('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull()
+}, (table) => ({
+  slugIndex: index('slug_index').on(table.slug),
+  categoryIndex: index('category_index').on(table.category)
+}))
+
+// Хранения изображений кейсов
+export const portfolioImages = mysqlTable('portfolio_images', {
+  id: serial('id').primaryKey(),
+  caseId: bigint('case_id', { mode: 'number', unsigned: true }).notNull().references(() => portfolioCases.id),
+  url: varchar('url', { length: 255 }).notNull(), // Путь к изображению (например, '/uploads/ddx.jpg')
+  type: varchar('type', { 
+    length: 50,
+    enum: ['main', 'thumbnail', 'gallery', 'before', 'after'] 
+  }).notNull(), // Тип изображения
+  pairGroup: varchar('pair_group', { length: 50 }), // Поле для группировки по парам фото "до" и "после"
+  caption: varchar('caption', { length: 255 }), // Подпись к изображению
+  alt: varchar('alt', { length: 255 }), // Альтернативный текст для изображения
+  order: int('order').default(0) // Порядок отображения
+}, (table) => ({
+  caseIdIndex: index('case_id_index').on(table.caseId)
+}))
+
+// Хранения данных о видах работ для объектов
+export const portfoCaseWorks = mysqlTable('portfolio_case_works', {
+  id: serial('id').primaryKey(),
+  caseId: bigint('case_id', { mode: 'number', unsigned: true }).notNull().references(() => portfolioCases.id),
+  workType: varchar('work_type', { length: 50 }).notNull(),
+  progress: int('progress').notNull(), // Процент выполных работ нами (0-100)
+  order: int('order').default(0) // Порядок отображения
+}, (table) => ({
+  caseIdIndex: index('case_id_index').on(table.caseId)
+}))

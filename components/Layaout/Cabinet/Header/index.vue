@@ -47,6 +47,7 @@ const menuItems = [
   { title: 'Аналитика', path: '/cabinet/analytics', roles: ['admin'] },
   { title: 'Операции', path: '/cabinet/operation', roles: ['admin'] },
   { title: 'На сайт', path: '/', roles: ['admin', 'manager', 'foreman', 'master', 'worker'] },
+  { title: 'Новый кейс', path: '/projects/create', roles: ['admin', 'manager'] },
   { title: 'Прайс', path: '/prices/floor', roles: ['admin', 'manager'] }
 ]
 

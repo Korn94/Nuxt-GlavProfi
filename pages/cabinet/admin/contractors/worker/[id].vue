@@ -42,6 +42,8 @@ const pendingTotal = computed(() => {
 
 definePageMeta({
   layout: 'cabinet',
+  middleware: 'role',
+  allowedRoles: ['admin']
 });
 
 // API

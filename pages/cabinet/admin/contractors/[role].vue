@@ -52,6 +52,8 @@ import { definePageMeta } from '#imports'
 
 definePageMeta({
   layout: 'cabinet',
+  middleware: 'role',
+  allowedRoles: ['admin']
 })
 
 const route = useRoute()

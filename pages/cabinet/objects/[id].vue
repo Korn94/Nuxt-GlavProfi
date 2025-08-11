@@ -129,6 +129,8 @@ const materialsTotal = computed(() => {
 
 definePageMeta({
   layout: 'cabinet',
+  middleware: 'role',
+  allowedRoles: ['admin']
 })
 
 onMounted(async () => {

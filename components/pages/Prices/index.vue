@@ -295,6 +295,7 @@ const props = defineProps({
 
 const router = useRouter()
 const route = useRoute()
+const token = useCookie('token')
 
 // Статические категории (временно)
 const categories = [
@@ -317,7 +318,7 @@ const openWorks = ref({})
 const isLoading = ref(false)
 const errorMessage = ref('')
 const notificationVisible = ref(false)
-const isAdmin = ref(false)
+// const isAdmin = ref(false)
 const openSubcategories = ref({})
 const currentSubcategoryId = ref(null)
 const showDetailFormFor = ref(null)
@@ -373,106 +374,55 @@ const newDopwork = ref({
   itemId: null
 })
 
-onMounted(async () => {
-  const token = useCookie('token')
-
-  if (token.value) {
-    try {
-      const me = await $fetch('/api/me')
-      isAdmin.value = me?.user?.role === 'admin' || false
-    } catch (error) {
-      console.error('Ошибка получения данных пользователя:', error)
-      isAdmin.value = false
+// Загрузка данных через useAsyncData — будет работать на сервере!
+const { data: pageData, refresh, pending, error } = await useAsyncData(
+  `price-${route.params.category}`,
+  async () => {
+    // Проверка роли (если нужна для рендера)
+    let isAdminUser = false
+    if (token.value) {
+      try {
+        const me = await $fetch('/api/me')
+        isAdminUser = me?.user?.role === 'admin'
+      } catch (err) {
+        console.error('Ошибка проверки роли:', err)
+      }
     }
-  } else {
-    isAdmin.value = false
-  }
 
-  await loadCategoryData(activeCategory.value)
-})
+    // Загружаем прайс по категории
+    const priceData = await $fetch(`/api/price/list/${route.params.category}`)
+
+    return {
+      priceData,
+      isAdminUser
+    }
+  },
+  {
+    server: true,
+    lazy: false,
+    default: () => ({
+      priceData: null,
+      isAdminUser: false
+    })
+  }
+)
+
+// Если ошибка — выбрасываем 404
+if (error.value || !pageData.value?.priceData) {
+  throw createError({ statusCode: 404, statusMessage: 'Страница прайса не найдена' })
+}
+
+// Данные из API
+const { priceData, isAdminUser } = pageData.value
+
+// Передаём isAdmin как реактивную переменную
+const isAdmin = ref(isAdminUser)
 
 // Вычисляемое свойство для динамического заголовка
 const activeCategoryTitle = computed(() => {
   const category = categories.find(cat => cat.id === activeCategory.value)
   return category ? category.title : 'Выберите категорию'
 })
-
-// Загрузка данных для категории
-const loadCategoryData = async (categoryId) => {
-  try {
-    isLoading.value = true;
-    errorMessage.value = '';
-    
-    // ✅ Запрашиваем только нужную категорию через /api/price/list/[slug]
-    const pageData = await $fetch(`/api/price/list/${categoryId}`).catch((err) => {
-      console.error('Ошибка загрузки данных:', err);
-      return null;
-    });
-
-    if (!pageData) {
-      errorMessage.value = 'Не удалось загрузить данные';
-      works.value = [];
-      return;
-    }
-
-    // ✅ Преобразуем данные из API в структуру, подходящую для UI
-    const loadedCategories = pageData.categories.map(category => ({
-      id: category.id,
-      title: category.name,
-      subcategories: category.subcategories.map(subcategory => ({
-        id: subcategory.id,
-        name: subcategory.name,
-        items: (subcategory.items || []).map(item => {
-          // Подгружаем детали и допработы
-          const details = (item.details || []).map(detail => ({
-            id: detail.id,
-            name: detail.name,
-            unit: detail.unit,
-            price: detail.price,
-            isCopied: false,
-            type: 'detail'
-          }));
-          const dopworks = (item.dopworks || []).map(dopworkGroup => ({
-            id: dopworkGroup.id,
-            label: dopworkGroup.label,
-            dopwork: dopworkGroup.dopwork,
-            unit: dopworkGroup.unit,
-            price: dopworkGroup.price,
-            isCopied: false,
-            type: 'dopwork'
-          }));
-          return {
-            id: item.id,
-            name: item.name,
-            unit: item.unit,
-            price: item.price,
-            isCopied: false,
-            type: 'item',
-            details, // Отдельный массив деталей
-            dopworks // Отдельный массив допработ
-          };
-        })
-      }))
-    }));
-
-    works.value = loadedCategories;
-
-    // ✅ Открываем первую работу по умолчанию
-    const firstCategory = loadedCategories.find(cat => cat.subcategories.length > 0);
-    if (firstCategory) {
-      // Открываем первую категорию
-      openSubcategories.value[firstCategory.subcategories[0].id] = true;
-
-      // Если нужно, можно открыть также все категории или только первую
-      openCategories.value = [firstCategory.id]; // сохраняем ID первой категории как открытую
-    }
-  } catch (error) {
-    errorMessage.value = error.message || 'Не удалось загрузить данные';
-    works.value = [];
-  } finally {
-    isLoading.value = false;
-  }
-};
 
 // Получение всех категорий из всех категорий
 const allWorks = computed(() => {
@@ -632,12 +582,44 @@ const setCategory = async (categoryId) => {
   await router.push({ params: { category: categoryId } })
 }
 
-// watch на props.activeCategory
-watch(() => props.activeCategory, async (newCategory) => {
-  if (newCategory) {
-    await loadCategoryData(newCategory)
+// Реактивное обновление works при изменении pageData
+watch(pageData, () => {
+  if (pageData.value?.priceData) {
+    works.value = pageData.value.priceData.categories.map(category => ({
+      id: category.id,
+      title: category.name,
+      subcategories: category.subcategories.map(subcategory => ({
+        id: subcategory.id,
+        name: subcategory.name,
+        items: (subcategory.items || []).map(item => ({
+          id: item.id,
+          name: item.name,
+          unit: item.unit,
+          price: item.price,
+          isCopied: false,
+          type: 'item',
+          details: (item.details || []).map(detail => ({
+            id: detail.id,
+            name: detail.name,
+            unit: detail.unit,
+            price: detail.price,
+            isCopied: false,
+            type: 'detail'
+          })),
+          dopworks: (item.dopworks || []).map(dopworkGroup => ({
+            id: dopworkGroup.id,
+            label: dopworkGroup.label,
+            dopwork: dopworkGroup.dopwork,
+            unit: dopworkGroup.unit,
+            price: dopworkGroup.price,
+            isCopied: false,
+            type: 'dopwork'
+          }))
+        }))
+      }))
+    }))
   }
-})
+}, { immediate: true })
 
 // Редактирование
 const editors = {
@@ -697,7 +679,7 @@ const saveEdit = async (type, itemId) => {
     editingDetailId.value = null
     editingDopworkId.value = null
 
-    await loadCategoryData(activeCategory.value)
+    await refresh()
   } catch (error) {
     alert(`Ошибка при сохранении: ${error.message}`)
     console.error(error)
@@ -711,7 +693,7 @@ const deleteItem = async (type, itemId) => {
     await $fetch(`/api/price/${type}/${itemId}`, {
       method: 'DELETE'
     })
-    await loadCategoryData(activeCategory.value)
+    await refresh()
   } catch (error) {
     alert('Ошибка при удалении')
     console.error(error)
@@ -749,7 +731,7 @@ const addNewCategory = async () => {
     showCategoryForm.value = false
     newCategory.value = { name: '', pageId: null }
     // Перезагружаем данные
-    await loadCategoryData(activeCategory.value)
+    await refresh()
   } catch (error) {
     alert('Ошибка при добавлении категории')
     console.error(error)
@@ -773,7 +755,7 @@ const saveEditCategory = async (categoryId) => {
     editingCategoryId.value = null
     editingCategoryData.value = {}
 
-    await loadCategoryData(activeCategory.value)
+    await refresh()
   } catch (error) {
     alert('Ошибка при сохранении категории')
     console.error(error)
@@ -787,7 +769,7 @@ const deleteCategory = async (categoryId) => {
     await $fetch(`/api/price/categories/${categoryId}`, {
       method: 'DELETE'
     })
-    await loadCategoryData(activeCategory.value)
+    await refresh()
   } catch (error) {
     alert('Ошибка при удалении категории')
     console.error(error)
@@ -807,7 +789,7 @@ const saveEditSubCategory = async (subcategoryId) => {
     })
     editingSubCategoryId.value = null
     editingSubCategoryData.value = {}
-    await loadCategoryData(activeCategory.value)
+    await refresh()
   } catch (error) {
     alert('Ошибка при сохранении подкатегории')
     console.error(error)
@@ -820,7 +802,7 @@ const deleteSubCategory = async (subcategoryId) => {
     await $fetch(`/api/price/subcategories/${subcategoryId}`, {
       method: 'DELETE'
     })
-    await loadCategoryData(activeCategory.value)
+    await refresh()
   } catch (error) {
     alert('Ошибка при удалении подкатегории')
     console.error(error)
@@ -864,7 +846,7 @@ const saveEditSubItem = async () => {
     editingItem.value = null
     editingItemData.value = {}
 
-    await loadCategoryData(activeCategory.value)
+    await refresh()
   } catch (error) {
     alert('Ошибка при сохранении')
     console.error(error)
@@ -905,7 +887,7 @@ const addNewSubItem = async (categoryId) => {
     // Очищаем поле
     newSubItem.value.name = ''
 
-    await loadCategoryData(activeCategory.value)
+    await refresh()
   } catch (error) {
     alert('Ошибка при добавлении подкатегории')
     console.error(error)
@@ -933,7 +915,7 @@ const addNewWork = async (subcategoryId) => {
     })
 
     showWorkFormFor.value = null
-    await loadCategoryData(activeCategory.value)
+    await refresh()
   } catch (error) {
     alert('Ошибка при добавлении работы')
     console.error(error)
@@ -958,7 +940,7 @@ const saveEditDetail = async () => {
     editingDetailData.value = {}
     
     // Перезагружаем данные после обновления
-    await loadCategoryData(activeCategory.value)
+    await refresh()
   } catch (error) {
     alert('Ошибка при сохранении детали')
     console.error(error)
@@ -975,7 +957,7 @@ const deleteDetail = async (detailId) => {
     })
     
     // Перезагружаем данные после удаления
-    await loadCategoryData(activeCategory.value)
+    await refresh()
   } catch (error) {
     alert('Ошибка при удалении детали')
     console.error(error)
@@ -1002,7 +984,7 @@ const addNewDetail = async (itemId) => {
     newDetail.value = { name: '', unit: 'м²', price: '', itemId: null }
     
     // Перезагружаем данные после добавления
-    await loadCategoryData(activeCategory.value)
+    await refresh()
   } catch (error) {
     alert('Ошибка при добавлении детали')
     console.error(error)
@@ -1019,7 +1001,7 @@ const addNewDopwork = async (itemId) => {
     })
     showDopworkFormFor.value = null
     newDopwork.value = { label: '', dopwork: '', unit: 'м²', price: '', itemId: null }
-    await loadCategoryData(activeCategory.value)
+    await refresh()
   } catch (error) {
     alert('Ошибка при добавлении доп.работы')
     console.error(error)
@@ -1041,7 +1023,7 @@ const saveEditDopwork = async () => {
     })
     editingDopworkId.value = null
     editingDopworkData.value = {}
-    await loadCategoryData(activeCategory.value)
+    await refresh()
   } catch (error) {
     alert('Ошибка сохранения допработы')
     console.error(error)
@@ -1055,7 +1037,7 @@ const deleteDopwork = async (id) => {
     await $fetch(`/api/price/dopworks/${id}`, {
       method: 'DELETE'
     })
-    await loadCategoryData(activeCategory.value)
+    await refresh()
   } catch (error) {
     alert('Ошибка удаления допработы')
     console.error(error)
@@ -1119,7 +1101,7 @@ $shadow-color: rgba(0, 0, 0, 0.05);
 .container {
   max-width: 1200px;
   margin: auto;
-  padding: 40px 10px 0;
+  // padding: 40px 10px 0;
   border-radius: 5px;
   @media (max-width: 768px) {
     margin-top: 2em;
@@ -1199,9 +1181,9 @@ h1, h2 {
 /* Поиск */
 .search-bar {
   margin-bottom: 15px;
-  @media (max-width: 768px) {
-    padding: 0 10px;
-  }
+  // @media (max-width: 768px) {
+  //   padding: 0 10px;
+  // }
   
   input {
     width: 100%;
@@ -1543,9 +1525,9 @@ h1, h2 {
 
 /* Адаптивность */
 @media (max-width: 768px) {
-  .container {
-    margin: 5em 5px;
-  }
+  // .container {
+  //   margin: 5em 5px;
+  // }
   
   h1 {
     font-size: 1.5em;

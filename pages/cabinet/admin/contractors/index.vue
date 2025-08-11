@@ -43,7 +43,11 @@ async function fetchContractors() {
 // Запуск загрузки данных при монтировании компонента
 onMounted(fetchContractors)
 
-definePageMeta({ layout: 'cabinet' })
+definePageMeta({ 
+  layout: 'cabinet',
+  middleware: 'role',
+  allowedRoles: ['admin']
+})
 </script>
 
 <style lang="scss" scoped>

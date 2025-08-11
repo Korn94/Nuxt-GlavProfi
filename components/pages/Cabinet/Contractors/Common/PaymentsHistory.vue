@@ -13,8 +13,8 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-for="payment in payments" :key="payment.id">
-          <td>{{ formatDate(payment.date || payment.createdAt) }}</td>
+        <tr v-for="payment in sortedPayments" :key="payment.id">
+          <td>{{ formatDate(payment.date || payment.operationDate) }}</td>
           <td :class="{
             'text-green': payment.type === 'salary',
             'text-red': payment.type === 'expense',
@@ -209,6 +209,15 @@ async function savePayment() {
   }
 }
 
+// Сортируем выплаты по operationDate или date (от новых к старым)
+const sortedPayments = computed(() => {
+  return [...props.payments].sort((a, b) => {
+    const dateA = new Date(a.operationDate || a.date || a.createdAt).getTime()
+    const dateB = new Date(b.operationDate || b.date || b.createdAt).getTime()
+    return dateB - dateA // по убыванию (новые — вверху)
+  })
+})
+
 async function deletePayment(payment) {
   if (!confirm('Вы уверены, что хотите удалить эту выплату?')) return
   try {
@@ -227,53 +236,332 @@ async function deletePayment(payment) {
 }
 </script>
 
-<style scoped>
-.text-green {
-  color: #28a745;
-  font-weight: 500;
-}
-.text-red {
-  color: #dc3545;
-  font-weight: 500;
-}
-.text-expense {
-  color: #6c757d;
-  font-weight: 500;
+<style lang="scss" scoped>
+// Переменные
+$color-success: #28a745;
+$color-danger: #dc3545;
+$color-muted: #6c757d;
+$color-warning: #ffc107;
+$color-info: #17a2b8;
+$color-primary: #6610f2;
+$color-pink: #e83e8c;
+$color-dark: #212529;
+$color-light: #f8f9fa;
+$text-light: #ffffff;
+
+$border-radius-sm: 4px;
+$font-size-sm: 0.8rem;
+$spacing-xs: 0.25rem;
+$spacing-sm: 0.5rem;
+$spacing-md: 1rem;
+$spacing-lg: 1.5rem;
+
+$shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+$shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+// Миксины
+@mixin button-reset() {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  outline: none;
 }
 
+@mixin tag($bg-color, $text-color: $text-light) {
+  background: $bg-color;
+  color: $text-color;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $border-radius-sm;
+  font-size: $font-size-sm;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+// Основной блок
+.block {
+  margin-bottom: $spacing-lg;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+h3 {
+  margin-bottom: $spacing-md;
+  color: #333;
+  font-size: 1.25rem;
+}
+
+// Таблица
+.work-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: $spacing-lg;
+  font-size: 0.95rem;
+  background: #fff;
+  box-shadow: $shadow-sm;
+  border-radius: 6px;
+  overflow: hidden;
+
+  th,
+  td {
+    padding: $spacing-sm $spacing-md;
+    text-align: left;
+    border-bottom: 1px solid #e9ecef;
+  }
+
+  th {
+    background-color: #f8f9fa;
+    color: #495057;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+  }
+
+  tbody tr {
+    transition: background-color 0.15s ease-in-out;
+
+    &:hover {
+      background-color: #f1f3f5;
+    }
+  }
+
+  .text-green {
+    color: $color-success;
+    font-weight: 500;
+  }
+
+  .text-red {
+    color: $color-danger;
+    font-weight: 500;
+  }
+
+  .text-expense {
+    color: $color-muted;
+    font-weight: 500;
+  }
+}
+
+// Теги типов
 .tag {
-  padding: 0.2rem 0.6rem;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  color: white;
+  display: inline-block;
+  @include tag($color-muted);
+
+  &-salary {
+    @include tag($color-success);
+  }
+
+  &-Работа {
+    @include tag($color-muted);
+  }
+
+  &-Налог {
+    @include tag($color-danger);
+  }
+
+  &-Зарплата {
+    @include tag($color-success);
+  }
+
+  &-Реклама {
+    @include tag($color-warning, $color-dark);
+  }
+
+  &-Кредит {
+    @include tag($color-info);
+  }
+
+  &-Топливо {
+    @include tag($color-primary);
+  }
+
+  &-ГлавПрофи {
+    @include tag($color-pink);
+  }
+
+  &-expense {
+    @include tag($color-muted);
+  }
 }
 
-.tag-salary {
-  background: #28a745;
+// Кнопки
+.btn-icon {
+  @include button-reset();
+  padding: $spacing-xs;
+  border-radius: $border-radius-sm;
+  color: #6c757d;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+
+  &:hover {
+    color: #495057;
+    background-color: #f1f3f5;
+  }
+
+  &.btn-delete:hover {
+    color: #fff;
+    background-color: $color-danger;
+  }
 }
-.tag-Работа {
-  background: #6c757d;
+
+// Модальное окно
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
 }
-.tag-Налог {
-  background: #dc3545;
+
+.modal {
+  background: #fff;
+  padding: $spacing-lg;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: $shadow-md;
+  animation: scaleIn 0.2s ease-out;
+  max-height: 90vh;
+  overflow-y: auto;
+
+  h4 {
+    margin-top: 0;
+    margin-bottom: $spacing-md;
+    color: #333;
+    font-size: 1.2rem;
+  }
 }
-.tag-Зарплата {
-  background: #28a745;
+
+.form-group {
+  margin-bottom: $spacing-md;
+
+  label {
+    display: block;
+    margin-bottom: $spacing-xs;
+    font-weight: 500;
+    color: #495057;
+  }
+
+  input[type="number"],
+  input[type="date"],
+  select,
+  textarea {
+    width: 100%;
+    padding: $spacing-sm;
+    border: 1px solid #ced4da;
+    border-radius: $border-radius-sm;
+    font-size: 1rem;
+    transition: border-color 0.2s ease;
+
+    &:focus {
+      outline: none;
+      border-color: $color-success;
+      box-shadow: 0 0 0 2px rgba($color-success, 0.2);
+    }
+
+    &.error {
+      border-color: $color-danger;
+      box-shadow: 0 0 0 2px rgba($color-danger, 0.2);
+    }
+  }
+
+  textarea {
+    resize: vertical;
+    min-height: 80px;
+  }
 }
-.tag-Реклама {
-  background: #ffc107;
-  color: #212529;
+
+.error-message {
+  font-size: 0.8rem;
+  color: $color-danger;
+  margin-top: $spacing-xs;
 }
-.tag-Кредит {
-  background: #17a2b8;
+
+.modal-actions {
+  display: flex;
+  gap: $spacing-md;
+  justify-content: flex-end;
+  margin-top: $spacing-lg;
+  flex-wrap: wrap;
+
+  .btn {
+    padding: $spacing-sm $spacing-md;
+    border: none;
+    border-radius: $border-radius-sm;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+
+    &.primary {
+      background: $color-success;
+      color: $text-light;
+
+      &:hover {
+        background: #333;
+      }
+    }
+
+    &.secondary {
+      background: #e9ecef;
+      color: #495057;
+
+      &:hover {
+        background: #ced4da;
+      }
+    }
+  }
 }
-.tag-Топливо {
-  background: #6610f2;
+
+// Анимации
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
-.tag-ГлавПрофи {
-  background: #e83e8c;
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
-.tag-expense {
-  background: #6c757d;
+
+// Адаптивность
+@media (max-width: 576px) {
+  .work-table {
+    font-size: 0.85rem;
+
+    th,
+    td {
+      padding: $spacing-xs $spacing-sm;
+    }
+  }
+
+  .modal {
+    width: 95%;
+    padding: $spacing-md;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+    align-items: stretch;
+
+    .btn {
+      width: 100%;
+    }
+  }
 }
 </style>

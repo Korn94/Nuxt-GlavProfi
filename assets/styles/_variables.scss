@@ -1,17 +1,22 @@
-$blue: #02feff;
+$blue: #00c3f5;
+// $blue: #02feff;
 $yellow: #FAB702;
 $blue20: #00c3f520;
 $blue50: #00c3f550;
 $green: #00A12A;
 $red: #A61300;
-$background: #ddd;
+$background-dark: #18191b;
+$background-gray: #222;
+$background-light: #fff;
 
 $blue-gradient: linear-gradient(120deg, #00c3f5, #71E0FA);
+$gray-gradient: linear-gradient(90deg, #fff, #ffffff80);
 
-$primary-color: #00c3f5;
-$highlight-color: #ff9800;  // Цвет подсветки
+// $primary-color: #00c3f5;
 $border-color: #ddd;
-$background-light: #f7f7f7;
+// $background-light: #f7f7f7;
 $sub-item-bg: #f0f0f0; // Цвет фона для расшифровок
-$text-color: #18191b;
+$text-dark: #333;
+$text-gray: #777;
+$text-light: #fff;
 $shadow-color: rgba(0, 0, 0, 0.05);

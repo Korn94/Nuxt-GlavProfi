@@ -1,0 +1,3 @@
+<template>
+  <PagesServices />
+</template>

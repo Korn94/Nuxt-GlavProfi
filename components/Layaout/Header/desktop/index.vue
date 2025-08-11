@@ -17,8 +17,17 @@
               Главная
             </nuxt-link>
           </li>
+          <li>
+            <nuxt-link
+              to="/projects"
+              :class="{ active: route.path === 'projects' }"
+              @click.prevent="navigateTo('/projects')"
+            >
+              Портфолио
+            </nuxt-link>
+          </li>
           <!-- <li class="dropdown">
-            <nuxt-link to="#" :class="{ active: isServiceActive }">Услуги</nuxt-link>
+            <nuxt-link to="/services" :class="{ active: isServiceActive }">Услуги</nuxt-link>
             <ul class="dropdown-menu">
               <li>
                 <nuxt-link
@@ -40,15 +49,6 @@
               </li>
             </ul>
           </li> -->
-          <li>
-            <nuxt-link
-              to="/#portfolio"
-              :class="{ active: route.path === 'portfolio' }"
-              @click.prevent="navigateTo('/#portfolio')"
-            >
-              Портфолио
-            </nuxt-link>
-          </li>
           <li>
             <nuxt-link
               to="/prices/floor"

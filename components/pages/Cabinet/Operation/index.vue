@@ -40,7 +40,16 @@
         </div>
         <div class="balance-item">
           <span class="label">Ожидают оплаты:</span>
-          <span class="value pending">- {{ formatCurrency(balance.pendingWorks) }}</span>
+          <span class="value pending">{{ formatCurrency(balance.pendingWorks) }}</span>
+        </div>
+        <div class="balance-item">
+          <span class="label">Итого с работами:</span>
+          <span class="value pending">{{ formatCurrency(
+              balance.totalComings 
+              - balance.totalExpenses 
+              - balance.pendingWorks 
+              + balance.materials.balance
+            ) }}</span>
         </div>
         <div class="balance-total">
           <span class="label">Итого:</span>
@@ -48,7 +57,6 @@
             {{ formatCurrency(
               balance.totalComings 
               - balance.totalExpenses 
-              - balance.pendingWorks 
               + balance.materials.balance
             ) }}
           </span>
@@ -93,10 +101,10 @@
         <h3>Расходы</h3>
         <div v-if="loadingExpenses" class="loading">Загрузка расходов...</div>
         <div v-else-if="errorExpenses" class="error">{{ errorExpenses }}</div>
-        <div v-else-if="filteredExpenses.length === 0" class="no-data">Нет расходов за выбранный период</div>
+        <div v-else-if="expenses.length === 0" class="no-data">Нет расходов за выбранный период</div>
         <ul v-else class="operations-list">
           <li 
-            v-for="expense in filteredExpenses" 
+            v-for="expense in expenses" 
             :key="expense.id" 
             class="operation-item expense-item"
           >
@@ -140,10 +148,10 @@
         <h3>Приходы</h3>
         <div v-if="loadingComings" class="loading">Загрузка приходов...</div>
         <div v-else-if="errorComings" class="error">{{ errorComings }}</div>
-        <div v-else-if="filteredComings.length === 0" class="no-data">Нет приходов за выбранный период</div>
+        <div v-else-if="comings.length === 0" class="no-data">Нет приходов за выбранный период</div>
         <ul v-else class="operations-list">
           <li 
-            v-for="coming in filteredComings" 
+            v-for="coming in comings" 
             :key="coming.id" 
             class="operation-item coming-item"
           >
@@ -200,9 +208,13 @@ const errorMessage = ref('')
 const loadBalance = async () => {
   loadingBalance.value = true
   errorBalance.value = null
-  
   try {
-    const data = await $fetch('/api/balance')
+    const params = {}
+    if (startDate.value && endDate.value) {
+      params.startDate = startDate.value
+      params.endDate = endDate.value
+    }
+    const data = await $fetch('/api/balance', { params }) // Передаем параметры дат
     balance.value = data
   } catch (error) {
     errorBalance.value = 'Ошибка загрузки баланса'
@@ -318,6 +330,7 @@ const applyFilter = () => {
   if (startDate.value && endDate.value) {
     loadExpenses()
     loadComings()
+    loadBalance()
   }
 }
 
@@ -327,6 +340,7 @@ const resetFilter = () => {
   endDate.value = ''
   loadExpenses()
   loadComings()
+  loadBalance()
 }
 
 // Форматирование даты

@@ -1,6 +1,6 @@
 @use 'variables';
 
-$primary-color: #00c3f5;
+$primary-color: $blue;
 $background-color: #18191b;
 $text-color: #ffffff;
 $subtext-color: #bdc3c7;
@@ -43,7 +43,7 @@ input {
   }
 
   &:focus {
-    border-color: #00c3f5;
+    border-color: $blue;
     box-shadow: 0 0 5px rgba(0, 195, 245, 0.5);
   }
 }
@@ -58,7 +58,7 @@ span, p {
 }
 
 span {
-  color: #00c3f5;
+  color: $blue;
 }
 
 body, button {
@@ -87,13 +87,13 @@ h3 {
 
 .endh {
   text-align: end;
-  color: #00c3f5;
+  color: $blue;
   font-weight: 700;
   margin-top: 1em;
 }
 
 ::selection {
-  background-color: #00c3f5; /* Цвет фона при выделении текста */
+  background-color: $blue; /* Цвет фона при выделении текста */
   color: #333; /* Цвет текста при выделении */
 }
 
@@ -117,7 +117,7 @@ a {
 }
 
 a:hover {
-  color: #00c3f5;
+  color: $blue;
 }
 
 :hover{
@@ -133,7 +133,7 @@ hr {
 
 .line {
   border-top: 1px solid #fff;
-  // border-image: linear-gradient(to right, #18191b, #fff, #18191b);
+  // border-image: $gray-gradient;
   border-image-slice: 1;
   margin: 1em auto;
   max-width: 600px;

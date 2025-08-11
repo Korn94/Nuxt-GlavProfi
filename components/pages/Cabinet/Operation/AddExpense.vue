@@ -278,12 +278,6 @@ async function submitExpense() {
       operationDate: form.value.operationDate || new Date().toISOString()
     }
 
-    // Для типов "Топливо" и "ГлавПрофи" не обновляем баланс контрагента
-    if (['Топливо', 'ГлавПрофи'].includes(selectedType.value)) {
-      payload.contractorType = null
-      payload.contractorId = null
-    }
-
     const result = await $fetch('/api/expenses', {
       method: 'POST',
       body: payload,
