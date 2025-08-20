@@ -47,10 +47,19 @@ export default defineNuxtConfig({
   // },
 
   // Настройка карты сайта
-  // sitemap: {
-  //   hostname: process.env.NUXT_PUBLIC_SITE_URL, // Базовый URL сайта
-  //   gzip: true, // Сжатие карты сайта
-  // },
+  sitemap: {
+    hostname: process.env.NUXT_PUBLIC_SITE_URL,
+    gzip: true,
+      exclude: [
+      '/cabinet',
+      '/cabinet/**',
+      '/login',
+      '/api',
+      '/api/**',
+      '/access-denied',
+      '/telegram'
+    ],
+  },
 
   // Настройка мета-тегов и SEO
   app: {
@@ -80,8 +89,23 @@ export default defineNuxtConfig({
           // 'Access-Control-Allow-Headers': 'Content-Type, Authorization'
         }
       },
-      '/cabinet': { cors: true },
-      '/login': { cors: true }
+      '/cabinet': {
+        cors: true,
+        headers: {
+          'X-Robots-Tag': 'noindex, nofollow',
+        }
+      },
+      '/login': {
+        cors: true,
+        headers: {
+          'X-Robots-Tag': 'noindex, nofollow',
+        }
+      },
+      '/cabinet/**': {
+        headers: {
+          'X-Robots-Tag': 'noindex, nofollow',
+        }
+      }
     }
   },
 

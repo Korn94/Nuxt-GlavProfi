@@ -1,4 +1,6 @@
 
 User-agent: *
-Disallow:
+Disallow: /cabinet
+Disallow: /login
+Disallow: /api
 Sitemap: https://glavprofi.ru/sitemap.xml

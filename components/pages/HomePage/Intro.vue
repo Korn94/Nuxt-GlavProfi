@@ -45,7 +45,7 @@
 
 <style lang="scss" scoped>
 .intro {
-  margin: 2em auto;
+  margin: 6em auto;
   max-width: 1200px;
   padding: 0 1em;
 

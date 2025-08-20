@@ -76,7 +76,7 @@ onMounted(() => {
 <style lang="scss" scoped>
 .featured-projects {
   max-width: 1200px;
-  margin: 3rem auto;
+  margin: 6em auto;
   padding: 0 5px;
 }
 

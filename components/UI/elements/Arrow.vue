@@ -10,7 +10,8 @@
   justify-content: center;
   align-items: center;
   height: 100%;
-  padding-bottom: .5em;
+  // padding-bottom: .5em;
+  // margin-top: 3em;
 }
 
 .arrow {

@@ -11,7 +11,7 @@
 .container {
   width: 100%;
   height: auto;
-  margin: 4em auto;
+  margin: 6em auto;
 
   .feedback {
     height: 800px;

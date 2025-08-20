@@ -116,7 +116,7 @@ $background-light: #f7f7f7;
   margin-bottom: 10px;
   white-space: nowrap;
   position: relative;
-  z-index: 999;
+  z-index: 1;
   text-align: center;
   background: transparent;
   transition: all 0.3s ease;

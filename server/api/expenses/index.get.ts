@@ -69,7 +69,7 @@ export default defineEventHandler(async (event) => {
           : expense.contractorType === 'foreman'
             ? foreman?.name || 'Неизвестный прораб'
             : office?.name || 'Неизвестный офис',
-      objectName: object?.name || 'Без объекта'
+      objectName: object?.name
     }))
   } catch (error) {
     throw createError({

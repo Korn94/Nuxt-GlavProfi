@@ -46,7 +46,11 @@ export default {
   cursor: pointer;
 
   @media (max-width: 460px) {
-    width: 150px;
+    width: 180px;
+  }
+
+  @media (max-width: 390px) {
+    width: 160px;
   }
 }
 

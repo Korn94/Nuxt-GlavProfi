@@ -112,7 +112,7 @@ async function acceptConsent() {
 }
 
 .container {
-  padding: 3em 1em;
+  padding: 6em 1em;
   background: #18191b;
   position: relative;
 

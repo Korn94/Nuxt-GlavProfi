@@ -8,7 +8,7 @@
 
 <style lang="scss" scoped>
 .container {
-  margin: 3em 1em;
+  margin: 6em 1em;
 
   h2, h3 {
     text-align: center;

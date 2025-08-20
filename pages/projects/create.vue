@@ -5,6 +5,6 @@
 <script setup>
 definePageMeta({
   middleware: 'role',
-  allowedRoles: ['admin', 'master']
+  allowedRoles: ['admin', 'manager']
 })
 </script>

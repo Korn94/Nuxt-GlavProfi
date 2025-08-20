@@ -19,7 +19,7 @@
 <style lang="scss" scoped>
 .container {
   background: #18191b;
-  padding: 3em 1em;
+  padding: 6em 1em;
 
   .imgbox {
     display: flex;

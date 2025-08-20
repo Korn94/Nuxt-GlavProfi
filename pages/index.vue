@@ -2,10 +2,13 @@
   <main>
     <PagesHomePage />
     <UIElementsBlockAnimator>
+      <PagesHomePageAdvantage />
+    </UIElementsBlockAnimator>
+    <UIElementsBlockAnimator>
       <PagesHomePageInsert id="portfolio" />
     </UIElementsBlockAnimator>
     <UIElementsBlockAnimator>
-      <PagesHomePageServices />
+      <PagesHomePageMiniProjects />
     </UIElementsBlockAnimator>
     <UIElementsBlockAnimator>
       <PagesHomePageBrands />
@@ -18,7 +21,7 @@
     </UIElementsBlockAnimator>
     <!-- <PagesHomePagePrice /> -->
     <UIElementsBlockAnimator>
-      <PagesHomePageWorks />
+      <PagesHomePageMiniPrice />
     </UIElementsBlockAnimator>
     <UIElementsBlockAnimator>
       <PagesHomePageCallRevers />

@@ -237,18 +237,6 @@ async function deletePayment(payment) {
 </script>
 
 <style lang="scss" scoped>
-// Переменные
-$color-success: #28a745;
-$color-danger: #dc3545;
-$color-muted: #6c757d;
-$color-warning: #ffc107;
-$color-info: #17a2b8;
-$color-primary: #6610f2;
-$color-pink: #e83e8c;
-$color-dark: #212529;
-$color-light: #f8f9fa;
-$text-light: #ffffff;
-
 $border-radius-sm: 4px;
 $font-size-sm: 0.8rem;
 $spacing-xs: 0.25rem;

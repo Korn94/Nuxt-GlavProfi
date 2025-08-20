@@ -3,7 +3,7 @@
     <!-- Заголовок -->
 
     <!-- Динамический подзаголовок -->
-    <h2>Цены на <span>{{ activeCategoryTitle }}</span> - 2025</h2>
+    <h1>Цены на <span>{{ activeCategoryTitle }}</span> - 2025</h1>
 
     <!-- Навигация -->
     <PagesPricesNavigation
@@ -374,26 +374,44 @@ const newDopwork = ref({
   itemId: null
 })
 
-// Загрузка данных через useAsyncData — будет работать на сервере!
+// Загрузка данных через useAsyncData
 const { data: pageData, refresh, pending, error } = await useAsyncData(
   `price-${route.params.category}`,
   async () => {
-    // Проверка роли (если нужна для рендера)
+    // --- ИСПРАВЛЕНИЕ 1: Передача токена на сервер ---
+    // Создаём заголовки для запросов
+    const headers = {}
+    if (token.value) {
+      headers.Authorization = `Bearer ${token.value}`
+    }
+
+    // Проверка роли (теперь с передачей токена)
     let isAdminUser = false
     if (token.value) {
       try {
-        const me = await $fetch('/api/me')
-        isAdminUser = me?.user?.role === 'admin'
+        const me = await $fetch('/api/me', {
+          headers: headers // Передаём токен
+        })
+        const userRole = me?.user?.role
+        isAdminUser = userRole === 'admin' || userRole === 'manager'
       } catch (err) {
         console.error('Ошибка проверки роли:', err)
+        // Не выбрасываем ошибку, продолжаем загрузку прайса
       }
     }
 
-    // Загружаем прайс по категории
-    const priceData = await $fetch(`/api/price/list/${route.params.category}`)
+    // Загружаем прайс по категории (с токеном, если есть)
+    const priceData = await $fetch(`/api/price/list/${route.params.category}`, {
+      headers: headers
+    })
+
+    // --- ИСПРАВЛЕНИЕ 2: Очистка данных для сериализации ---
+    // Преобразуем priceData в чистый POJO (Plain Old JavaScript Object)
+    // Это предотвращает ошибку DevalueError
+    const cleanPriceData = JSON.parse(JSON.stringify(priceData))
 
     return {
-      priceData,
+      priceData: cleanPriceData,
       isAdminUser
     }
   },
@@ -403,7 +421,13 @@ const { data: pageData, refresh, pending, error } = await useAsyncData(
     default: () => ({
       priceData: null,
       isAdminUser: false
-    })
+    }),
+    // --- ДОПОЛНЕНИЕ: Обработка ошибок ---
+    transform: (input) => input, // Можно использовать для преобразования
+    onResponseError: (ctx) => {
+      // Логируем ошибку, но не прерываем работу
+      console.error('Ошибка при загрузке данных:', ctx.error)
+    }
   }
 )
 
@@ -548,13 +572,11 @@ const splitText = (text) => {
 const handleCopyClick = (item) => {
   let textToCopy = ''
 
-  // Определяем, какой текст копировать, в зависимости от типа
   if (item.type === 'item' && item.name) {
     textToCopy = item.name
   } else if (item.type === 'detail' && item.name) {
     textToCopy = item.name
   } else if (item.type === 'dopwork') {
-    // Для допработ используем либо label, либо саму работу
     textToCopy = [item.label, item.dopwork].filter(Boolean).join(' ')
   }
 
@@ -563,18 +585,43 @@ const handleCopyClick = (item) => {
     return
   }
 
-  navigator.clipboard
-    .writeText(textToCopy)
-    .then(() => {
+  // Проверяем, существует ли navigator.clipboard
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    navigator.clipboard.writeText(textToCopy)
+      .then(() => {
+        item.isCopied = true
+        notificationVisible.value = true
+        setTimeout(() => {
+          item.isCopied = false
+        }, 5000)
+      })
+      .catch(err => {
+        console.error('Ошибка копирования:', err)
+        alert('Не удалось скопировать текст. Попробуйте вручную.')
+      })
+  } else {
+    // Резервный метод для небезопасных контекстов
+    const textArea = document.createElement('textarea')
+    textArea.value = textToCopy
+    textArea.style.position = 'fixed'
+    textArea.style.opacity = '0'
+    document.body.appendChild(textArea)
+    textArea.focus()
+    textArea.select()
+    try {
+      document.execCommand('copy')
       item.isCopied = true
       notificationVisible.value = true
       setTimeout(() => {
         item.isCopied = false
       }, 5000)
-    })
-    .catch((err) => {
-      console.error('Ошибка копирования текста:', err)
-    })
+    } catch (err) {
+      console.error('Ошибка резервного копирования:', err)
+      alert('Не удалось скопировать текст. Попробуйте вручную.')
+    } finally {
+      document.body.removeChild(textArea)
+    }
+  }
 }
 
 // Смена активной категории
@@ -1116,12 +1163,11 @@ $shadow-color: rgba(0, 0, 0, 0.05);
 h1, h2 {
   text-align: center;
   color: $text-color;
+  font-size: 1.8rem;
 }
+
 @media (max-width: 768px) {
   h1 {
-    display: none;
-  }
-  h2 {
     font-size: 1.2rem;
   }
 }
