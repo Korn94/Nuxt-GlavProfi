@@ -57,7 +57,8 @@ export default defineNuxtConfig({
       '/api',
       '/api/**',
       '/access-denied',
-      '/telegram'
+      '/telegram',
+      '/projects/create',
     ],
   },
 
