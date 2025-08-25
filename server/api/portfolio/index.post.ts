@@ -1,24 +1,24 @@
 // server/api/portfolio/index.post.ts
+
 import { eventHandler, createError, readMultipartFormData } from 'h3'
 import { db } from '../../db'
 import { portfolioCases, portfolioImages, portfoCaseWorks } from '../../db/schema'
-import { verifyAuth } from '~/server/utils/auth'
+import { verifyAuth } from '../../utils/auth'
 import { randomUUID } from 'crypto'
-import { writeFileSync, mkdirSync } from 'fs'
+import { mkdirSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { sql } from 'drizzle-orm'
-import { transliterate } from '~/server/utils/transliteration'
+import { transliterate } from '../../utils/transliteration'
 
 // Базовая директория для загрузки
 const UPLOAD_DIR_BASE = join(process.cwd(), 'public', 'uploads')
-mkdirSync(UPLOAD_DIR_BASE, { recursive: true }) // <-- Создаём uploads, если нет
+mkdirSync(UPLOAD_DIR_BASE, { recursive: true }) // Создаём uploads, если нет
 
 // Разрешённые типы изображений
 const validImageTypes = ['main', 'thumbnail', 'before', 'after'] as const
 type ImageType = typeof validImageTypes[number]
-function isValidImageType(type: string): type is ImageType {
-  return validImageTypes.includes(type as ImageType)
-}
+
+const allowedExt = ['jpg', 'jpeg', 'png', 'webp', 'avif']
 
 // Тип для вставки данных в таблицу `portfolio_cases`
 type PortfolioCaseInsert = {
@@ -74,17 +74,14 @@ export default eventHandler(async (event) => {
 
   // Автогенерация slug
   if (!fields.slug) {
-    // Сначала транслитерируем, затем обрабатываем дефисы
-    let transliterated = transliterate(fields.title)
+    let transliterated = transliterate(fields.title || '')
     fields.slug = transliterated
       .toLowerCase()
       .trim()
-      .replace(/[\s\W]+/g, '-') // Заменяем пробелы и не-слова на дефис
-      .replace(/^-+|-+$/g, '')  // Убираем дефисы в начале и конце
-      .replace(/-+/g, '-')      // Заменяем множественные дефисы на один
+      .replace(/[\s\W]+/g, '-') 
+      .replace(/^-+|-+$/g, '')  
+      .replace(/-+/g, '-')      
   }
-
-
 
   // Валидация обязательных полей
   const requiredFields: Array<keyof typeof fields> = [
@@ -102,21 +99,21 @@ export default eventHandler(async (event) => {
   try {
     // Вставка кейса
     const newCase = await db.insert(portfolioCases).values({
-      title: fields.title,
-      slug: fields.slug,
+      title: fields.title || '',
+      slug: fields.slug || '',
       category: sql<string>`${fields.category}`,
-      objectDescription: fields.objectDescription,
-      shortObject: fields.shortObject,
-      space: sql<number>`${parseFloat(fields.space)}`,
-      duration: fields.duration,
-      people: fields.people,
-      shortDescription: fields.shortDescription,
+      objectDescription: fields.objectDescription || '',
+      shortObject: fields.shortObject || '',
+      space: sql<number>`${parseFloat(fields.space || '0')}`,
+      duration: fields.duration || '',
+      people: fields.people || '',
+      shortDescription: fields.shortDescription || '',
       fullDescription: fields.fullDescription || null,
       result: fields.result || null,
       metaTitle: fields.metaTitle || null,
       metaDescription: fields.metaDescription || null,
       metaKeywords: fields.metaKeywords || null,
-      address: fields.address || 'Не указано',
+      address: String(fields.address || 'Не указано'),
       isPublished: true
     }).$returningId()
 
@@ -126,38 +123,37 @@ export default eventHandler(async (event) => {
 
     const caseId = newCase[0].id
 
-    // Если slug всё ещё пустой после обработки — используем ID как резерв
-    if (!fields.slug) {
-      fields.slug = newCase[0].id.toString() // <-- Используем ID кейса как slug
+    if (!fields.slug && newCase[0]?.id) {
+      fields.slug = newCase[0].id.toString()
     }
 
     // Функция сохранения изображений
-    const saveImage = async (file: any, type: ImageType, pairGroup?: string) => {
+    const saveImage = async (file: any, type: ImageType, pairGroup?: string, order: number = 0) => {
       try {
         if (!file || !file.data) {
           throw new Error(`Файл не передан для типа ${type}`)
         }
 
-        // Создаём подпапку для кейса
-        const caseDir = join(UPLOAD_DIR_BASE, `case-${caseId}`)
-        mkdirSync(caseDir, { recursive: true })
+        const ext = file.filename?.split('.').pop()?.toLowerCase() || 'jpg'
+        if (!allowedExt.includes(ext)) {
+          throw createError({ statusCode: 400, statusMessage: `Недопустимый формат файла: ${ext}` })
+        }
 
-        // Генерируем уникальное имя файла
-        const ext = file.filename?.split('.').pop() || 'jpg'
+        const caseDir = join(UPLOAD_DIR_BASE, `case-${caseId}`)
+        mkdirSync(caseDir, { recursive: true }) // ← синхронно
+
         const filename = `${randomUUID()}.${ext}`
         const filePath = join(caseDir, filename)
 
-        // Сохраняем файл
-        writeFileSync(filePath, Buffer.from(file.data))
+        writeFileSync(filePath, Buffer.from(file.data)) // ← синхронно
 
-        // Вставляем в БД
         await db.insert(portfolioImages).values({
           caseId,
           url: `/uploads/case-${caseId}/${filename}`,
           type,
           pairGroup: pairGroup || undefined,
           alt: `${type} фото с объекта ремонта и отделке помещения для кейса ${caseId}`,
-          order: 0
+          order
         })
       } catch (error) {
         console.error(`Ошибка при сохранении изображения (${type}):`, error)
@@ -165,77 +161,89 @@ export default eventHandler(async (event) => {
     }
 
     // Сохраняем основные изображения
-    await saveImage(files.mainImage, 'main')
-    await saveImage(files.thumbnail, 'thumbnail')
+    await saveImage(files.mainImage, 'main', undefined, 0)
+    await saveImage(files.thumbnail, 'thumbnail', undefined, 1)
 
     // Пары "до/после"
-    const beforeFiles = formData.filter(f => f.name === 'beforeImage' && f.filename)
-    const afterFiles = formData.filter(f => f.name === 'afterImage' && f.filename)
+    const beforeFiles = formData
+      .filter(f => f.name?.startsWith('beforeImage[') && f.filename)
+      .map(f => {
+        const index = parseInt(f.name!.match(/\d+/)?.[0] || '-1')
+        return { index, file: f }
+      })
+      .filter(item => item.index >= 0)
+      .sort((a, b) => a.index - b.index)
 
-    // Определяем группу
-    const pairGroup = fields.pairGroup || `Сравнение фото - ${Math.floor(Date.now() / 1000) % 10000}`
+    const afterFiles = formData
+      .filter(f => f.name?.startsWith('afterImage[') && f.filename)
+      .map(f => {
+        const index = parseInt(f.name!.match(/\d+/)?.[0] || '-1')
+        return { index, file: f }
+      })
+      .filter(item => item.index >= 0)
+      .sort((a, b) => a.index - b.index)
 
-    // Сохраняем пары
     const maxLen = Math.max(beforeFiles.length, afterFiles.length)
     for (let i = 0; i < maxLen; i++) {
-      if (beforeFiles[i]) {
-        await saveImage(beforeFiles[i], 'before', pairGroup)
+      const beforeFile = beforeFiles.find(f => f.index === i)
+      const afterFile = afterFiles.find(f => f.index === i)
+
+      const pairGroup = `pair-${i}` // уникальная группа для каждой пары
+
+      if (beforeFile) {
+        await saveImage(beforeFile.file, 'before', pairGroup, i)
       }
-      if (afterFiles[i]) {
-        await saveImage(afterFiles[i], 'after', pairGroup)
+      if (afterFile) {
+        await saveImage(afterFile.file, 'after', pairGroup, i)
       }
     }
 
-    // Получите типы фото из формы
+    // Галерея
     const galleryFiles = Object.entries(files)
       .filter(([key]) => key.startsWith('gallery['))
       .map(([, value]) => value)
 
-    const galleryTypes: Record<string, string> = {}
+    const galleryTypes: Record<number, string> = {}
     Object.entries(fields).forEach(([key, value]) => {
       if (key.startsWith('galleryType[')) {
-        galleryTypes[key] = value
+        const index = parseInt(key.match(/\d+/)?.[0] || '-1')
+        if (index >= 0) {
+          galleryTypes[index] = value
+        }
       }
     })
 
-    let galleryIndex = 0
-    for (const file of galleryFiles) {
-      const typeKey = `galleryType[${galleryIndex}]`
-      const type = galleryTypes[typeKey] || 'after'
-      await saveImage(file, type as ImageType)
-      galleryIndex++
+    for (let i = 0; i < galleryFiles.length; i++) {
+      const type = galleryTypes[i] ?? 'after'
+      await saveImage(galleryFiles[i], type as ImageType, undefined, i)
     }
 
-    // Получаем виды работ из формы
-    const workTypes = []
-    const progressValues: any[] = []
+    // Виды работ
+    const workTypes: string[] = []
+    const progressValues: number[] = []
 
     for (const key of Object.keys(fields)) {
       if (key.startsWith('workType[')) {
-        const match = key.match(/\d+/)
-        if (match) {
-          const idx = parseInt(match[0])
-          workTypes[idx] = fields[key]
-        }
+        const idx = parseInt(key.match(/\d+/)?.[0] ?? '-1', 10)
+        if (idx >= 0) workTypes[idx] = fields[key] ?? ''   // <- дефолтим
       }
       if (key.startsWith('progress[')) {
-        const match = key.match(/\d+/)
-        if (match) {
-          const idx = parseInt(match[0])
-          progressValues[idx] = parseInt(fields[key])
+        const idx = parseInt(key.match(/\d+/)?.[0] ?? '-1', 10)
+        if (idx >= 0) {
+          const raw = (fields[key] ?? '').trim()
+          const num = parseInt(raw || '0', 10)
+          progressValues[idx] = Number.isFinite(num) ? num : 0
         }
       }
     }
 
-    // Фильтруем и валидируем
     const worksToInsert = workTypes
       .map((type, i) => ({
-        workType: type?.trim(),
+        workType: type?.trim() ?? '',
         progress: progressValues[i] || 0
       }))
       .filter(w => w.workType)
 
-    // Вставляем работы
     if (worksToInsert.length > 0) {
       await db.insert(portfoCaseWorks).values(
         worksToInsert.map(({ workType, progress }) => ({
@@ -245,7 +253,6 @@ export default eventHandler(async (event) => {
         }))
       )
     } else {
-      // Если не указано — оставить хотя бы одну заглушку
       await db.insert(portfoCaseWorks).values({
         caseId,
         workType: 'Отделочные работы',

@@ -4,7 +4,7 @@ import { eventHandler, getCookie, getRequestHeader, createError } from 'h3'
 import { db } from '../db'
 import { users } from '../db/schema'
 import { eq } from 'drizzle-orm'
-import { verifyToken } from '~/server/utils/jwt'
+import { verifyToken } from '../utils/jwt'
 
 export default eventHandler(async (event) => {
   const token = getCookie(event, 'token') || getRequestHeader(event, 'Authorization')?.split(' ')[1]

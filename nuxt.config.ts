@@ -1,19 +1,15 @@
 import { defineNuxtConfig } from 'nuxt/config';
-import { metaTags, linkTags, scriptTags, siteMeta } from './config/meta.config';
 
 export default defineNuxtConfig({
   // Включаем SSR
   ssr: true,
 
-  // Указываем цель как сервер
-  // target: 'server',
-
   // Настройка маршрутизации
-  router: {
-    options: {
-      hashMode: false, // Использование history mode вместо hash mode
-    },
-  },
+  // router: {
+  //   options: {
+  //     hashMode: false, // Использование history mode вместо hash mode
+  //   },
+  // },
 
   typescript: {
     typeCheck: false,
@@ -22,7 +18,7 @@ export default defineNuxtConfig({
 
   // Глобальные стили
   css: [
-    '~/assets/styles/index.scss', // Основные стили
+    './app/assets/styles/index.scss', // Основные стили
     'animate.css/animate.min.css', // Анимации
   ],
 
@@ -60,19 +56,6 @@ export default defineNuxtConfig({
       '/telegram',
       '/projects/create',
     ],
-  },
-
-  // Настройка мета-тегов и SEO
-  app: {
-    head: {
-      htmlAttrs: {
-        lang: 'ru'
-      },
-      titleTemplate: siteMeta.titleTemplate,
-      meta: metaTags,
-      link: linkTags,
-      script: scriptTags
-    }
   },
 
   nitro: {
@@ -135,7 +118,7 @@ export default defineNuxtConfig({
   },
 
   // Дата совместимости
-  compatibilityDate: '2025-02-12',
+  compatibilityDate: '2025-08-22',
 
   devtools: {
     enabled: true,

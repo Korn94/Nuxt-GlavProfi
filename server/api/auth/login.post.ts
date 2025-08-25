@@ -3,7 +3,7 @@
 import { db } from '../../db'
 import { users } from '../../db/schema'
 import { eq } from 'drizzle-orm'
-import { generateToken } from '~/server/utils/jwt'
+import { generateToken } from '../../utils/jwt'
 import bcryptjs from 'bcryptjs'
 import { eventHandler, readBody, createError } from 'h3'
 

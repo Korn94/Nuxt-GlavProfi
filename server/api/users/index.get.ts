@@ -2,7 +2,7 @@
 import { eventHandler } from 'h3'
 import { db } from '../../db'
 import { users } from '../../db/schema'
-import { verifyToken } from '~/server/utils/jwt'
+import { verifyToken } from '../../utils/jwt'
 import { getCookie, getRequestHeader, createError } from 'h3'
 
 export default eventHandler(async (event) => {

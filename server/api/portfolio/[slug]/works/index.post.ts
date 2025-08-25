@@ -3,7 +3,7 @@ import { eventHandler, createError, readBody } from 'h3'
 import { db } from '../../../../db'
 import { portfoCaseWorks, portfolioCases } from '../../../../db/schema'
 import { eq } from 'drizzle-orm'
-import { verifyAuth } from '~/server/utils/auth'
+import { verifyAuth } from '../../../../utils/auth'
 
 export default eventHandler(async (event) => {
   const user = await verifyAuth(event)
