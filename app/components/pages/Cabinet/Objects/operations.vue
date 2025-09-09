@@ -79,12 +79,12 @@
           <thead>
             <tr>
               <th>Дата</th>
-              <th>Смета</th>
+              <!-- <th>Смета</th> -->
               <th>Работы</th>
               <th>Контрагент</th>
+              <th>Комментарий</th>
               <th>Прораб</th>
               <th>Вид работы</th>
-              <th>Комментарий</th>
               <th>Статус</th>
               <th>Принято заказчиком</th>
               <th>Комментарий</th>
@@ -94,16 +94,16 @@
           <tbody>
             <tr v-for="work in works" :key="work.id" :class="{ 'odd-row': works.indexOf(work) % 2 === 0 }">
               <td>{{ formatDate(work.operationDate) }}</td>
-              <td>{{ work.customerAmount }} ₽</td>
+              <!-- <td>{{ work.customerAmount }} ₽</td> -->
               <td>{{ work.workerAmount }} ₽</td>
               <td>
                 {{ contractors.find(c => c.id === work.contractorId && c.type === work.contractorType)?.name || '-' }}
               </td>
+              <td>{{ work.comment }}</td>
               <td>
                 {{ foremans.find(s => s.id === work.supervisorId)?.name || '-' }}
               </td>
               <td>{{ work.workType || '-' }}</td>
-              <td>{{ work.comment }}</td>
               <td :class="{'status-paid': work.paid, 'status-pending': !work.paid}">
                 {{ work.paid ? 'Принято' : 'В работе' }}
               </td>

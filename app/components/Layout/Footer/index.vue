@@ -3,7 +3,7 @@
     <div class="footer-container">
       <!-- Левая часть: информация о компании -->
       <div class="footer-info">
-        <h2 class="footer-title">ГлавПрофи - Рязань и область</h2>
+        <h2 class="footer-title">Рязань и область</h2>
         <p class="footer-text">
           Отделка и ремонт помещений любой сложности<br>
           От косметического ремонта до полной реконструкции
@@ -74,6 +74,7 @@
         
       </div>
     </div>
+    <LayoutFooterLabel />
 
     <!-- Нижняя часть: копирайт -->
     <div class="footer-bottom">
@@ -330,9 +331,9 @@ $subtext-color: #bdc3c7;
       }
 
       &:focus {
-          border-color: #00c3f5;
-          box-shadow: 0 0 5px rgba(0, 195, 245, 0.5);
-        }
+        border-color: #00c3f5;
+        box-shadow: 0 0 5px rgba(0, 195, 245, 0.5);
+      }
     }
 
     button {
@@ -366,6 +367,7 @@ $subtext-color: #bdc3c7;
 
       input {
         width: 100%;
+        padding: 8px;
       }
 
       button {
@@ -376,7 +378,7 @@ $subtext-color: #bdc3c7;
 
   .footer-bottom {
     text-align: center;
-    margin-top: 4em;
+    // margin-top: 4em;
     font-size: 0.8rem;
     color: $subtext-color;
 

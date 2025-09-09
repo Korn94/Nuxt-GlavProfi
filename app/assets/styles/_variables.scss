@@ -1,5 +1,5 @@
 $blue: #00c3f5;
-// $blue: #02feff;
+$blue-light: #02feff;
 $yellow: #FAB702;
 $blue20: #00c3f520;
 $blue50: #00c3f550;
@@ -12,10 +12,8 @@ $background-light: #fff;
 $blue-gradient: linear-gradient(120deg, #00c3f5, #71E0FA);
 $gray-gradient: linear-gradient(90deg, #fff, #ffffff80);
 
-// $primary-color: #00c3f5;
 $border-color: #ddd;
-// $background-light: #f7f7f7;
-$sub-item-bg: #f0f0f0; // Цвет фона для расшифровок
+$sub-item-bg: #f0f0f0;
 $text-dark: #333;
 $text-gray: #777;
 $text-light: #fff;
@@ -30,7 +28,6 @@ $color-primary: #6610f2;
 $color-pink: #e83e8c;
 $color-dark: #27282a;
 $color-light: #f8f9fa;
-$text-light: #ffffff;
 
 $border-radius: 12px;
 $box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);

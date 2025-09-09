@@ -27,9 +27,9 @@
       </router-link>
     </div>
 
-      <router-link to="/projects">
-        <UIButtonsMainButton class="openbtn" text="Показать еще"></UIButtonsMainButton>
-      </router-link>
+    <router-link to="/projects">
+      <UIButtonsMainButton class="openbtn" text="Показать еще"></UIButtonsMainButton>
+    </router-link>
   </div>
 </template>
 

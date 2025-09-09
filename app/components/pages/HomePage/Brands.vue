@@ -20,6 +20,7 @@
 .container {
   background: #18191b;
   padding: 6em 1em;
+  
 
   .imgbox {
     display: flex;

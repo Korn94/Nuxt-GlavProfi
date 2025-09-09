@@ -198,7 +198,7 @@ const getContractorLabel = (type) => {
     font-size: 0.95rem;
     font-weight: 500;
     color: #333;
-    white-space: nowrap;
+    $color-light-space: nowrap;
   }
 
   .type-filter {
@@ -306,17 +306,17 @@ const getContractorLabel = (type) => {
         margin-bottom: 1em;
         border-radius: 6px;
         text-align: center;
-        font-size: 0.8rem;
+        font-size: 0.7rem;
         font-weight: 500;
         background: #eef0f3;
         color: #333;
-        &-Работа { background: $color-muted; color: white; }
-        &-Налог { background: $color-danger; color: white; }
-        &-Зарплата { background: $color-success; color: white; }
+        &-Работа { background: $color-muted; color: $color-light; }
+        &-Налог { background: $color-danger; color: $color-light; }
+        &-Зарплата { background: $color-success; color: $color-light; }
         &-Реклама { background: $color-warning; color: $color-dark; }
-        &-Кредит { background: $color-info; color: white; }
-        &-Топливо { background: $color-primary; color: white; }
-        &-ГлавПрофи { background: $color-pink; color: white; }
+        &-Кредит { background: $color-pink; color: $color-light; }
+        &-Топливо { background: $color-primary; color: $color-light; }
+        &-ГлавПрофи { background: $blue; color: $color-light; }
       }
       .operation-details {
         display: flex;

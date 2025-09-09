@@ -56,6 +56,21 @@ export default defineNuxtConfig({
       '/telegram',
       '/projects/create',
     ],
+      routes: [
+    '/',
+    '/about',
+    '/services',
+    '/projects',
+    '/contacts',
+    '/privacy-policy',
+    '/terms-of-service',
+    // Страницы с ценами
+    '/prices/floor',
+    '/prices/ceiling',
+    '/prices/walls',
+    '/prices/plumbing',
+    '/prices/other'
+  ],
   },
 
   nitro: {
@@ -118,7 +133,7 @@ export default defineNuxtConfig({
   },
 
   // Дата совместимости
-  compatibilityDate: '2025-08-22',
+  compatibilityDate: '2025-08-27',
 
   devtools: {
     enabled: true,

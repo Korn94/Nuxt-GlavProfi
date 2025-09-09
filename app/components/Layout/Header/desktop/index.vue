@@ -20,31 +20,34 @@
           <li>
             <nuxt-link
               to="/projects"
-              :class="{ active: route.path === 'projects' }"
+              :class="{ active: route.path === '/projects' }"
               @click.prevent="navigateTo('/projects')"
             >
               Портфолио
             </nuxt-link>
           </li>
+          <li>
+            <nuxt-link
+              to="/remont-pomescheniy"
+              :class="{ active: route.path === '/remont-pomescheniy' }"
+              @click.prevent="navigateTo('/remont-pomescheniy')"
+            >
+              Услуги
+            </nuxt-link>
+          </li>
           <!-- <li class="dropdown">
-            <nuxt-link to="/services" :class="{ active: isServiceActive }">Услуги</nuxt-link>
+            <nuxt-link to="/remont-pomescheniy" :class="{ active: isServiceActive }">Услуги</nuxt-link>
             <ul class="dropdown-menu">
               <li>
-                <nuxt-link
-                  to="/services/repair"
-                  :class="{ active: route.path === '/services/repair' }"
-                  @click.prevent="navigateTo('/services/repair')"
-                >
-                  Ремонтные работы
+                <nuxt-link to="/remont-pomescheniy" :class="{ active: route.path === '/remont-pomescheniy' }" @click.prevent="navigateTo('/remont-pomescheniy')">
+                  <Icon name="mdi:home-edit-outline" size="24px" class="icon" />
+                  Ремонт помещений
                 </nuxt-link>
               </li>
               <li>
-                <nuxt-link
-                  to="/services/decoration"
-                  :class="{ active: route.path === '/services/decoration' }"
-                  @click.prevent="navigateTo('/services/decoration')"
-                >
-                  Отделочные работы
+                <nuxt-link to="/otdelochnye-i-stroitelnye-raboty" :class="{ active: route.path === '/otdelochnye-i-stroitelnye-raboty' }" @click.prevent="navigateTo('/otdelochnye-i-stroitelnye-raboty')">
+                  <Icon name="material-symbols-light:construction-rounded" size="24px" class="icon" />
+                  Отделочные и строительные работы
                 </nuxt-link>
               </li>
             </ul>
@@ -76,15 +79,15 @@
             Отзывы
           </nuxt-link>
         </li>
-          <li>
-            <nuxt-link
-              to="/contacts"
-              :class="{ active: route.path === '/contacts' }"
-              @click.prevent="navigateTo('/contacts')"
-            >
-              Контакты
-            </nuxt-link>
-          </li>
+        <li>
+          <nuxt-link
+            to="/contacts"
+            :class="{ active: route.path === '/contacts' }"
+            @click.prevent="navigateTo('/contacts')"
+          >
+            Контакты
+          </nuxt-link>
+        </li>
         </ul>
       </nav>
       <div class="phone-box">
@@ -193,25 +196,25 @@ header {
 
   // Начальный фон для всех остальных страниц
   &:not(.home) {
-    background-color: #18191b;
+    background-color: $background-dark;
   }
 
   // Цвет текста при прокрутке
   &.scrolled {
-    background-color: #fff;
+    background-color: $background-light;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 
     p,
     nav ul li a,
     .phone p {
-      color: #000;
+      color: $color-dark;
     }
   }
 
   p,
   nav ul li a,
   .phone p {
-    color: #fff;
+    color: $text-light;
   }
 
   nav ul {
@@ -226,7 +229,7 @@ header {
         font-family: "Comfortaa", sans-serif;
         font-size: 16px;
         font-weight: 900;
-        color: #fff;
+        color: $text-light;
         transition: color 0.3s;
 
         &:hover {
@@ -239,39 +242,103 @@ header {
       }
 
       &.dropdown {
+        position: relative;
+
+        > a {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-family: "Comfortaa", sans-serif;
+          font-weight: 900;
+          font-size: 16px;
+          /* color: #fff; */
+          transition: color 0.3s ease;
+
+          &:hover,
+          &.active {
+            color: $blue;
+          }
+
+          &::after {
+            content: '⮟';
+            font-size: 10px;
+            color: $color-dark;
+            transition: transform 0.3s ease;
+          }
+        }
+
+        &:hover > a::after {
+          transform: rotate(180deg);
+        }
+
         .dropdown-menu {
           display: none;
           position: absolute;
           top: 100%;
-          left: 0;
-          background-color: #fff;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-          border-radius: 4px;
-          padding: 10px 0;
-          z-index: 10;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 420px;
+          background: $background-light;
+          border-radius: 12px;
+          box-shadow: 0 10px 30px $shadow-color;
+          overflow: hidden;
+          opacity: 0;
+          visibility: hidden;
+          pointer-events: none;
+          transition: all 0.3s ease;
+
+          // Анимация появления
+          @keyframes dropdownSlideDown {
+            from {
+              opacity: 0;
+              transform: translateX(-50%) translateY(-10px);
+            }
+            to {
+              opacity: 1;
+              transform: translateX(-50%) translateY(0);
+            }
+          }
 
           li {
             list-style: none;
 
             a {
-              display: block;
-              padding: 8px 16px;
+              display: flex;
+              align-items: center;
+              gap: 12px;
+              padding: 14px 20px;
               color: #111;
               text-decoration: none;
+              font-size: 15px;
+              font-weight: 600;
+              transition: all 0.2s ease;
 
               &:hover {
-                background-color: #f0f0f0;
+                background: $border-color;
+                /* color: #00a8d9; */
+                transform: translateX(6px);
               }
 
               &.active {
-                color: #00c3f5;
+                background: linear-gradient(90deg, #fff, #d0f4fb);
+                font-weight: 700;
+                background-color: #f0f9fc;
               }
             }
+          }
+
+          // Граница между пунктами
+          li:not(:last-child) a {
+            border-bottom: 1px solid #eee;
           }
         }
 
         &:hover .dropdown-menu {
           display: block;
+          opacity: 1;
+          visibility: visible;
+          pointer-events: auto;
+          animation: dropdownSlideDown 0.3s ease forwards;
         }
       }
     }
@@ -296,7 +363,7 @@ header {
     }
     
     &:hover {
-      color: #00c3f5;
+      color: $blue;
     }
   }
 
@@ -307,7 +374,7 @@ header {
       cursor: pointer;
 
       &:hover {
-        color: #00c3f5;
+        color: $blue;
       }
     }
 

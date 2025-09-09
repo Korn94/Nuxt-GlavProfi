@@ -4,6 +4,7 @@
     <div ref="parallaxRef" class="parallax-background"></div>
 
     <h1>Ремонт и отделка коммерческих помещений</h1>
+
     <!-- Блюровый текстовый блок -->
     <div class="text-block">
       <div class="blur-container">
@@ -46,8 +47,14 @@
               <span class="bold">Готовы начать?</span> Выберите проект ниже или свяжитесь с нами.
             </p>
             <div class="contact-buttons">
-              <button class="btn primary">Связаться</button>
-              <button class="btn secondary">Рассчитать проект</button>
+              <!-- Кнопка "Связаться" -->
+              <button class="btn primary" @click.prevent="handleButtonClick">
+                Связаться
+              </button>
+              <!-- Кнопка "Рассчитать проект" -->
+              <button class="btn secondary" @click.prevent="handleButtonClick">
+                Рассчитать проект
+              </button>
             </div>
           </div>
         </div>
@@ -63,16 +70,23 @@
       :tabs="tabs" 
       @update:tab="setActiveTab"
     />
+
+    <!-- Модальное окно (телепорт в body) -->
+    <teleport to="body">
+      <UIFormsContactForm 
+        v-if="showModal" 
+        @close="closeModal" 
+        @formSubmitted="handleFormSubmitted" 
+      />
+    </teleport>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-
-// Компоненты
+import { ref } from 'vue'
 import PagesProjectsCards from './cards.vue'
 
-// Состояние
+// Состояние загрузки и данных
 const loading = ref(true)
 const error = ref(null)
 const cards = ref([])
@@ -91,13 +105,23 @@ const tabs = ref([
   'Прочее'
 ])
 
-// Данные
+// Фильтрация проектов
+const filteredCards = computed(() => {
+  if (activeTab.value === 'Все') return cards.value
+  return cards.value.filter(card => card.category === activeTab.value)
+})
+
+// Установка активной вкладки
+const setActiveTab = (tab) => {
+  activeTab.value = tab
+}
+
+// Загрузка данных
 const fetchData = async () => {
   try {
     const data = await $fetch('/api/portfolio').catch(err => {
       throw err
     })
-
     cards.value = data?.data || []
   } catch (err) {
     error.value = 'Не удалось загрузить проекты. Попробуйте позже.'
@@ -107,18 +131,41 @@ const fetchData = async () => {
   }
 }
 
-// Фильтрация по категории
-const filteredCards = computed(() => {
-  if (activeTab.value === 'Все') return cards.value
-  return cards.value.filter(card => card.category === activeTab.value)
-})
+// --- Функционал для кнопок "Связаться" и "Рассчитать проект" ---
 
-// Методы
-const setActiveTab = (tab) => {
-  activeTab.value = tab
+const showModal = ref(false)
+
+// Определение мобильного устройства
+const isMobileDevice = () => {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 }
 
-// Жизненный цикл
+// Обработка клика по любой из кнопок
+const handleButtonClick = () => {
+  if (isMobileDevice()) {
+    window.location.href = "tel:+79109096947"
+  } else {
+    openModal()
+  }
+}
+
+// Открытие модального окна
+const openModal = () => {
+  showModal.value = true
+}
+
+// Закрытие модального окна
+const closeModal = () => {
+  showModal.value = false
+}
+
+// Обработка отправки формы
+const handleFormSubmitted = (formData) => {
+  console.log("Форма отправлена:", formData)
+  closeModal()
+}
+
+// Загрузка данных при монтировании
 onMounted(() => {
   fetchData()
 })
@@ -171,7 +218,7 @@ export default {
     transition: transform 0.1s ease-out;
 
     @media (max-width: 768px) {
-    height: 120vh;
+      height: 120vh;
     }
   }
 
@@ -236,10 +283,6 @@ export default {
           @media (max-width: 768px) {
             flex-direction: column;
             align-items: center;
-
-            // span {
-            //   display: none;
-            // }
           }
 
           .content-item {
@@ -262,11 +305,6 @@ export default {
 
             @media (max-width: 768px) {
               flex: 1 1 100%;
-            }
-
-            .icon {
-              margin-right: 1.2rem;
-              flex-shrink: 0;
             }
 
             .text {

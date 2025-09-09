@@ -148,6 +148,31 @@ button {
   transition: all 0.3s ease;
 }
 
+.small {
+  color: #718096;
+  font-size: 0.9em;
+}
+
+.green {
+  color: $color-success;
+}
+
+.red {
+  color: $red;
+}
+
+.yellow {
+  color: $yellow;
+}
+
+// Статьи
+.article__subtitle { 
+  margin-bottom: 1rem;
+  border-bottom: 2px solid $border-color;
+  padding-bottom: 0.5rem;
+  color: $color-dark;
+}
+
 // @import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@300..700&family=LXGW+WenKai+TC&family=Mulish:ital,wght@0,200..1000;1,200..1000&family=Pacifico&family=Roboto+Condensed:ital,wght@0,100..900;1,100..900&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap" rel="stylesheet');
 // @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
 // @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&family=Nanum+Myeongjo&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&family=Rubik:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet');

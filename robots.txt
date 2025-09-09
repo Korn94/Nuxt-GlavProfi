@@ -3,4 +3,29 @@ User-agent: *
 Disallow: /cabinet
 Disallow: /login
 Disallow: /api
+Disallow: /uploads
+Disallow: /telegram
+Disallow: /services
+Disallow: /access-denied
+Disallow: /projects/create
+
+# Параметры
+Disallow: /*?utm_
+Disallow: /*?yabizcmpgn
+Disallow: /*?erid
+Disallow: /*?etext
+Disallow: /*?_ym_debug
+Disallow: /*?_ym_status-check
+Disallow: /*?_ytm_preview
+
+# Nuxt
+Disallow: /_nuxt/
+Disallow: /_nuxt/builds/
+
+# Декодированные параметры
+Disallow: /*?Общая
+Disallow: /*?Магазины
+Disallow: /*?Склады-и-ангары
+Disallow: /*?Офисы
+
 Sitemap: https://glavprofi.ru/sitemap.xml

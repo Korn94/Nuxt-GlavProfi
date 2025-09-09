@@ -22,11 +22,11 @@
     <div class="exp">
       <div class="box">
         <div class="ico"><Icon name="fluent:city-24-regular" class="icon" /></div>
-        <p>Работаем с 2014 года<br />в Рязани</p>
+        <p>11 лет на рынке<br />в Рязани и области</p>
       </div>
       <div class="box">
         <div class="ico"><Icon name="fluent:people-team-16-regular" class="icon" /></div>
-        <p>Специализированные бригады</p>
+        <p>5 специализированных бригад</p>
       </div>
       <div class="box">
         <div class="ico"><Icon name="meteor-icons:key" class="icon" /></div>
@@ -37,7 +37,7 @@
       </div>
       <div class="box">
         <div class="ico"><Icon name="solar:box-broken" class="icon" /></div>
-        <p>Оптовая закупка<br />материалов</p>
+        <p>Прямые контракты с<br />7 поставщиками — экономия 15-20%</p>
       </div>
     </div>
   </div>
