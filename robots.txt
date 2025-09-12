@@ -8,6 +8,15 @@ Disallow: /telegram
 Disallow: /services
 Disallow: /access-denied
 Disallow: /projects/create
+Disallow: /projects/1
+Disallow: /projects/2
+Disallow: /projects/3
+Disallow: /projects/4
+Disallow: /projects/5
+Disallow: /projects/6
+Disallow: /projects/7
+Disallow: /projects/8
+Disallow: /projects/9
 
 # Параметры
 Disallow: /*?utm_

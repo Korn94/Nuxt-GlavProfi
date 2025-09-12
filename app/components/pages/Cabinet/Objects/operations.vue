@@ -79,8 +79,7 @@
           <thead>
             <tr>
               <th>Дата</th>
-              <!-- <th>Смета</th> -->
-              <th>Работы</th>
+              <th>Сумма</th>
               <th>Контрагент</th>
               <th>Комментарий</th>
               <th>Прораб</th>
@@ -94,7 +93,6 @@
           <tbody>
             <tr v-for="work in works" :key="work.id" :class="{ 'odd-row': works.indexOf(work) % 2 === 0 }">
               <td>{{ formatDate(work.operationDate) }}</td>
-              <!-- <td>{{ work.customerAmount }} ₽</td> -->
               <td>{{ work.workerAmount }} ₽</td>
               <td>
                 {{ contractors.find(c => c.id === work.contractorId && c.type === work.contractorType)?.name || '-' }}
@@ -173,18 +171,6 @@
           <button @click="closeModals" class="close-btn">×</button>
         </div>
         <div class="modal-body">
-          <div class="form-group">
-            <label>Сумма сметы (заказчик)</label>
-            <input
-              type="number"
-              step="100.00"
-              v-model.number="newWork.clientAmount"
-              placeholder="Сумма сметы"
-              required
-              :class="{ error: formErrors.clientAmount }"
-            />
-            <span v-if="formErrors.clientAmount" class="error-message">{{ formErrors.clientAmount }}</span>
-          </div>
           <div class="form-group">
             <label>Сумма работ (мастеру)</label>
             <input
@@ -267,7 +253,7 @@ const works = ref([])
 // Справочник видов работ
 const workTypes = [
   'Отделка', 'Электрика', 'Плитка', 'Сантехника', 'Перегородки ГКЛ',
-  'Сварка', 'Бетонные работы', 'Кровля', 'Перегородки Камень',
+  'Сварка', 'Бетонные работы', 'Кровля', 'Фасад', 'Перегородки Камень',
   'Демонтаж', 'Мусор', 'Прочее'
 ]
 
@@ -275,7 +261,6 @@ const workTypes = [
 const newComing = ref({ amount: 0, comment: '', objectId })
 const newWork = ref({
   amount: 0, // Сумма работ (мастеру)
-  clientAmount: 0, // Сумма сметы (заказчик)
   contractorId: null,
   comment: '',
   paid: false,
@@ -315,7 +300,6 @@ function resetForm() {
   newComing.value = { amount: 0, comment: '', objectId }
   newWork.value = {
     amount: 0,
-    clientAmount: 0,
     contractorId: null,
     comment: '',
     paid: false,
@@ -334,7 +318,6 @@ const isComingValid = computed(() => Number(newComing.value.amount) > 0)
 const isWorkValid = computed(() => {
   const valid = (
     Number(newWork.value.amount) > 0 &&
-    Number(newWork.value.clientAmount) > 0 &&
     newWork.value.contractorId !== null &&
     newWork.value.workType !== '' &&
     newWork.value.supervisorId !== null
@@ -374,22 +357,6 @@ const pendingWorksTotal = computed(() => {
   return formatCurrency(total)
 })
 
-// Cколько ещё осталось получить от заказчика
-const remainingFromClient = computed(() => {
-  const totalExpected = works.value
-    .reduce((sum, work) => sum + Number(work.clientAmount), 0)
-  const totalReceived = comings.value
-    .reduce((sum, op) => sum + Number(op.amount), 0)
-  return formatCurrency(totalExpected - totalReceived)
-})
-
-// Общая сумма по смете
-const expectedTotal = computed(() => {
-  const total = works.value
-    .reduce((sum, work) => sum + Number(work.clientAmount), 0)
-  return formatCurrency(total)
-})
-
 // Форматирование даты
 function formatDate(dateString) {
   if (!dateString) return ''
@@ -397,9 +364,7 @@ function formatDate(dateString) {
   return date.toLocaleDateString('ru-RU', {
     day: '2-digit',
     month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
+    year: '2-digit',
   })
 }
 
@@ -427,8 +392,6 @@ async function fetchOperations() {
       ...op,
       // workerAmount → amount
       amount: Number(op.workerAmount || 0),
-      // customerAmount → clientAmount
-      clientAmount: Number(op.customerAmount || 0),
       paid: Boolean(op.paid),
       // accepted → acceptedByClient
       acceptedByClient: Boolean(op.accepted),
@@ -522,7 +485,6 @@ async function addWork() {
   if (!isWorkValid.value) {
     formErrors.value = {
       workAmount: 'Сумма работ обязательна',
-      clientAmount: 'Сумма сметы обязательна',
       contractor: 'Контрагент обязателен',
       workType: 'Выберите вид работы',
       supervisor: 'Выберите прораба'
@@ -534,8 +496,6 @@ async function addWork() {
     const payload = {
       // workerAmount → amount
       workerAmount: Number(newWork.value.amount),
-      // customerAmount → clientAmount
-      customerAmount: Number(newWork.value.clientAmount),
       contractorId: newWork.value.contractorId,
       // workTypes → workType
       workTypes: newWork.value.workType,
@@ -560,8 +520,7 @@ async function addWork() {
       ...result,
       paid: false,
       acceptedByClient: false,
-      amount: Number(result.workerAmount || 0),
-      clientAmount: Number(result.customerAmount || 0)
+      amount: Number(result.workerAmount || 0)
     })
     
     works.value.push({
@@ -615,14 +574,6 @@ async function acceptWork(workId) {
     const index = works.value.findIndex(w => w.id === workId)
     if (index !== -1) {
       works.value[index].acceptedByClient = true
-      
-      // Добавление процента от сметы в приходы
-      const percentAmount = calculatePercent(works.value[index].clientAmount)
-      comings.value.push({
-        amount: percentAmount,
-        comment: `Процент от работы "${works.value[index].workType}"`,
-        createdAt: new Date().toISOString()
-      })
     }
     
     successMessage.value = 'Работа принята заказчиком'
@@ -660,12 +611,6 @@ async function rejectWork(workId) {
     errorMessage.value = 'Не удалось отклонить работу'
     setTimeout(() => errorMessage.value = '', 5000)
   }
-}
-
-// Расчет процента от сметы (пример: 10%)
-function calculatePercent(amount) {
-  const percent = 10 // 10%
-  return Number(amount) * (percent / 100)
 }
 
 // Вспомогательные функции
@@ -874,10 +819,8 @@ th {
 
 td {
   padding: $spacing-sm $spacing-md;
-  text-align: center;
-  vertical-align: middle;
   border-bottom: 1px solid #f0f0f0;
-  font-size: $font-size-base;
+  font-size: .9em;
   white-space: nowrap;
 }
 

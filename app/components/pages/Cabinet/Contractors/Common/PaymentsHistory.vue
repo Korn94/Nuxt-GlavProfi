@@ -145,7 +145,7 @@ function formatDate(dateString) {
   return date.toLocaleDateString('ru-RU', {
     day: '2-digit',
     month: '2-digit',
-    year: 'numeric'
+    year: '2-digit'
   })
 }
 
@@ -283,7 +283,7 @@ h3 {
   width: 100%;
   border-collapse: collapse;
   margin-bottom: $spacing-lg;
-  font-size: 0.95rem;
+  font-size: 0.9em;
   background: #fff;
   box-shadow: $shadow-sm;
   border-radius: 6px;

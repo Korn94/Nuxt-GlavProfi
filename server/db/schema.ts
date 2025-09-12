@@ -92,9 +92,7 @@ export const expenses = mysqlTable('expenses', {
 // Таблица работ
 export const works = mysqlTable('works', {
   id: serial('id').primaryKey(),
-  customerAmount: decimal('customer_amount', { precision: 10, scale: 2 }).default('0.00').notNull(), // Сумма сметы (заказчик)
   workerAmount: decimal('worker_amount', { precision: 10, scale: 2 }).default('0.00').notNull(),    // Сумма работ (мастеру)
-  profit: decimal('profit', { precision: 10, scale: 2 }).default('0.00').notNull(),               // Прибыль (customerAmount - workerAmount)
   comment: text('comment'),
   contractorId: int('contractor_id').notNull(),                                                  // ID контрагента (мастер/рабочий)
   contractorType: varchar('contractor_type', {                                                   // Тип контрагента
@@ -105,7 +103,7 @@ export const works = mysqlTable('works', {
     length: 50,
     enum: [
       'Отделка', 'Электрика', 'Плитка', 'Сантехника', 'Перегородки ГКЛ',
-      'Сварка', 'Бетонные работы', 'Кровля', 'Перегородки Камень',
+      'Сварка', 'Бетонные работы', 'Кровля', 'Фасад', 'Перегородки Камень',
       'Демонтаж', 'Мусор', 'Прочее'
     ]
   }).default('Прочее'),
@@ -113,7 +111,6 @@ export const works = mysqlTable('works', {
   accepted: boolean('accepted').default(false),                                                 // Принята ли работа заказчиком
   acceptedDate: datetime('accepted_date'),                                                     // Дата принятия
   rejectedReason: text('rejected_reason'),                                                      // Причина отклонения
-  foremanProfit: decimal('foreman_profit', { precision: 10, scale: 2 }).default('0.00'),         // 8% от profit
   paid: boolean('paid').default(false),                                                         // Оплачена ли работа
   paymentDate: datetime('payment_date').default(sql`CURRENT_TIMESTAMP`),                        // Дата оплаты
   operationDate: datetime('operation_date').default(sql`CURRENT_TIMESTAMP`),                     // Дата создания работы

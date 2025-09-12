@@ -13,7 +13,6 @@ export default defineEventHandler(async (event) => {
     const updates: any = {}
 
     // Собираем обновления
-    if (body.customerAmount !== undefined) updates.customerAmount = body.customerAmount
     if (body.workerAmount !== undefined) updates.workerAmount = body.workerAmount
     if (body.comment !== undefined) updates.comment = body.comment
     if (body.contractorId !== undefined) updates.contractorId = body.contractorId
@@ -36,17 +35,6 @@ export default defineEventHandler(async (event) => {
 
     // Объединяем текущие данные с обновлениями
     const updatedWorkData = { ...currentWork, ...updates }
-
-    // Автоматический расчет profit
-    if (
-      updates.customerAmount !== undefined ||
-      updates.workerAmount !== undefined
-    ) {
-      const customerAmount = Number(updatedWorkData.customerAmount)
-      const workerAmount = Number(updatedWorkData.workerAmount)
-      const profit = (customerAmount - workerAmount).toFixed(2)
-      updates.profit = profit
-    }
 
     // Обновляем запись
     await db.update(works).set(updates).where(eq(works.id, parseInt(id)))

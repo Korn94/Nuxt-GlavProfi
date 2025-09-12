@@ -50,6 +50,13 @@
       "when": 1754296984400,
       "tag": "0006_pink_zarda",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1757594010120,
+      "tag": "0007_chubby_squadron_sinister",
+      "breakpoints": true
     }
   ]
 }

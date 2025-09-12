@@ -157,7 +157,11 @@ const filteredExpenses = computed(() => {
 const formatDate = (dateString) => {
   if (!dateString) return '—'
   const date = new Date(dateString)
-  return isNaN(date.getTime()) ? '—' : date.toLocaleDateString('ru-RU')
+  return isNaN(date.getTime()) ? '—' : date.toLocaleDateString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: '2-digit'
+  })
 }
 
 const formatCurrency = (amount) => {

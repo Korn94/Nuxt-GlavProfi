@@ -126,10 +126,15 @@ const updateChart = () => {
     .slice()
     .sort((a, b) => b.total - a.total)
 
-  // Добавляем сумму к названию категории
+  // Общая сумма расходов
+  const totalExpenses = sortedStats.reduce((sum, stat) => sum + stat.total, 0)
+
+  // Форматируем категории: добавляем сумму и процент
   const categories = sortedStats.map(stat => {
-    const formattedAmount = stat.total.toLocaleString('ru-RU')
-    return `${stat.expenseType}: ${formattedAmount} ₽`
+    const amount = stat.total
+    const percentage = totalExpenses > 0 ? ((amount / totalExpenses) * 100).toFixed(1) : 0
+    const formattedAmount = amount.toLocaleString('ru-RU')
+    return `${stat.expenseType}: ${formattedAmount} ₽ (${percentage}%)`
   })
 
   const values = sortedStats.map(stat => stat.total)
@@ -142,7 +147,9 @@ const updateChart = () => {
       },
       formatter: (params) => {
         const data = params[0].data
-        return `${params[0].name}: <b>${data.toLocaleString('ru-RU')} ₽</b>`
+        const value = data.toLocaleString('ru-RU')
+        const category = params[0].name.split(':')[0] // имя без суммы и %
+        return `${category}: <b>${value} ₽</b>`
       }
     },
     grid: {
@@ -166,12 +173,14 @@ const updateChart = () => {
     },
     yAxis: {
       type: 'category',
-      data: categories,  // <-- теперь с суммами
+      data: categories,
       axisLabel: {
         color: '#444',
         fontWeight: 500,
-        // Опционально: если текст не влезает — уменьшаем размер шрифта
-        fontSize: 12
+        fontSize: 12,
+        // Убедимся, что длинные строки не обрезаются
+        overflow: 'breakAll',
+        width: 250
       },
       axisTick: { show: false }
     },

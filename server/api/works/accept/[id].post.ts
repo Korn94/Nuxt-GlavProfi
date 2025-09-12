@@ -1,7 +1,7 @@
 // server/api/works/accept/[id].post.ts
 import { defineEventHandler, getRouterParam, createError } from 'h3'
 import { db } from '../../../db'
-import { works, foremans, foremanProfitHistory } from '../../../db/schema'
+import { works } from '../../../db/schema'
 import { eq, sql } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
@@ -14,28 +14,11 @@ export default defineEventHandler(async (event) => {
     if (work.accepted) throw createError({ statusCode: 400, message: 'Работа уже принята' })
     if (!work.foremanId) throw createError({ statusCode: 400, message: 'У работы не указан прораб' })
 
-    // Расчет 8% от profit
-    const profit = Number(work.profit)
-    const foremanProfit = profit * 0.08
-
     // Обновляем статус работы
     await db.update(works).set({
       accepted: true,
       acceptedDate: new Date()
     }).where(eq(works.id, parseInt(id)))
-
-    // === Временно отключено: обновление баланса прораба ===
-    // await db.update(foremans)
-    //   .set({ balance: sql`${foremans.balance} + ${foremanProfit}` })
-    //   .where(eq(foremans.id, work.foremanId))
-
-    // === Временно отключено: логирование начисления ===
-    // await db.insert(foremanProfitHistory).values({
-    //   workId: work.id,
-    //   objectId: work.objectId,
-    //   foremanId: work.foremanId,
-    //   amount: foremanProfit.toFixed(2)
-    // });
 
     return { success: true }
   } catch (error) {

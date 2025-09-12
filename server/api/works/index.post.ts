@@ -8,26 +8,19 @@ export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event)
 
-    if (!body.customerAmount || !body.workerAmount || !body.contractorId || !body.contractorType || !body.objectId) {
+    if (!body.workerAmount || !body.contractorId || !body.contractorType || !body.objectId) {
       throw createError({ 
         statusCode: 400,
         message: 'Недостаточно данных для создания работы' 
       })
     }
 
-    // Расчёт прибыли
-    const customerAmount = Number(body.customerAmount)
-    const workerAmount = Number(body.workerAmount)
-    const profit = customerAmount - workerAmount
-
     // Текущая дата
     const now = new Date()
 
     // Вставляем новую работу
     await db.insert(works).values({
-      customerAmount: body.customerAmount,
       workerAmount: body.workerAmount,
-      profit: profit.toFixed(2),
       comment: body.comment || '',
       contractorId: body.contractorId,
       contractorType: body.contractorType,
@@ -35,7 +28,6 @@ export default defineEventHandler(async (event) => {
       foremanId: body.foremanId || null,
       accepted: false,
       rejectedReason: null,
-      foremanProfit: '0.00',
       paid: body.paid || false,
       paymentDate: body.paymentDate || null,
       operationDate: now,
