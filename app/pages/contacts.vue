@@ -1,5 +1,5 @@
 <template>
-  <PagesContacts />
+  <PagesPublicContacts />
 </template>
 
 <script setup>

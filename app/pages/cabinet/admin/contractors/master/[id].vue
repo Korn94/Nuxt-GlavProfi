@@ -17,7 +17,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import MasterIndex from '@/components/pages/Cabinet/Contractors/MasterWorker/Index.vue'
+import MasterIndex from '@/components/pages/cabinet/Contractors/MasterWorker/Index.vue'
 
 const route = useRoute()
 const id = route.params.id

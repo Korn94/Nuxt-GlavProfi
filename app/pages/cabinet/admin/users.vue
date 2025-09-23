@@ -1,7 +1,14 @@
 <template>
+  <PagesCabinetUiLayoutPageTitle title="Управление пользователями" >
+    <template #actions>
+      <button class="btn btn-primary" @click="openAddModal">
+        <Icon name="mdi:plus" size="16" />
+        Новый
+      </button>
+    </template>
+  </PagesCabinetUiLayoutPageTitle>
+  
   <div class="container">
-    <h1>Управление пользователями</h1>
-
     <!-- Таблица пользователей -->
     <table>
       <thead>
@@ -95,9 +102,6 @@
         <div v-if="formErrors.general" class="error-message">{{ formErrors.general }}</div>
       </div>
     </div>
-
-    <!-- Кнопка открытия модала добавления -->
-    <button @click="openAddModal" class="btn-add">Добавить пользователя</button>
 
     <!-- Сообщения -->
     <div v-if="successMessage" class="success-message">{{ successMessage }}</div>

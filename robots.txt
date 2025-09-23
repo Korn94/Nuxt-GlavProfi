@@ -17,6 +17,9 @@ Disallow: /projects/6
 Disallow: /projects/7
 Disallow: /projects/8
 Disallow: /projects/9
+Disallow: /projects/10
+Disallow: /projects/11
+Disallow: /projects/12
 
 # Параметры
 Disallow: /*?utm_

@@ -1,5 +1,5 @@
 <template>
-  <PagesAccessDenied />
+  <PagesPublicAccessDenied />
 </template>
 
 <script setup>

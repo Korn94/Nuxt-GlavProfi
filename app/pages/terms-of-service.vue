@@ -1,5 +1,5 @@
 <template>
-  <PagesTerms />
+  <PagesPublicTerms />
 </template>
 
 <script setup>

@@ -1,21 +1,14 @@
 <template>
-  <div class="wrap">
-    <LayoutCabinetHeader />
-    <main>
-      <NuxtPage />
-    </main>
-  </div>
+  <LayoutCabinetHeader />
+  <main>
+    <NuxtPage />
+  </main>
 </template>
 
 <style lang="scss" scoped>
-.wrap {
-  display: flex;
-  background-color: #f7fafc;
-
+@media (min-width: 767.98px) {
   main {
-    margin: 5em auto;
-    width: 100%;
-    max-width: 1000px;
+    margin-left: 250px;
   }
 }
 </style>

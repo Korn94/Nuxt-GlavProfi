@@ -1,6 +1,6 @@
 <template>
   <div>
-    <PagesRemontPomescheniyPageTypesKliniki-i-meditsinskie-tsentry />
+    <PagesPublicRemontPomescheniyPageTypesKliniki-i-meditsinskie-tsentry />
   </div>
 </template>
 

@@ -1,34 +1,34 @@
 <template>
   <main>
-    <PagesHomePage />
-    <UIElementsBlockAnimator>
-      <PagesHomePageAdvantage />
-    </UIElementsBlockAnimator>
-    <UIElementsBlockAnimator>
-      <PagesHomePageInsert id="portfolio" />
-    </UIElementsBlockAnimator>
-    <UIElementsBlockAnimator>
-      <PagesHomePageMiniProjects />
-    </UIElementsBlockAnimator>
-    <UIElementsBlockAnimator>
-      <PagesHomePageBrands />
-    </UIElementsBlockAnimator>
-    <UIElementsBlockAnimator>
-      <PagesHomePageIntro />
-    </UIElementsBlockAnimator>
-    <UIElementsBlockAnimator>
-      <PagesHomePageCall />
-    </UIElementsBlockAnimator>
+    <PagesPublicHomePage />
+    <UiAnimationsBlockAnimator>
+      <PagesPublicHomePageAdvantage />
+    </UiAnimationsBlockAnimator>
+    <UiAnimationsBlockAnimator>
+      <PagesPublicHomePageInsert id="portfolio" />
+    </UiAnimationsBlockAnimator>
+    <UiAnimationsBlockAnimator>
+      <PagesPublicHomePageMiniProjects />
+    </UiAnimationsBlockAnimator>
+    <UiAnimationsBlockAnimator>
+      <PagesPublicHomePageBrands />
+    </UiAnimationsBlockAnimator>
+    <UiAnimationsBlockAnimator>
+      <PagesPublicHomePageIntro />
+    </UiAnimationsBlockAnimator>
+    <UiAnimationsBlockAnimator>
+      <PagesPublicHomePageCall />
+    </UiAnimationsBlockAnimator>
     <!-- <PagesHomePagePrice /> -->
-    <UIElementsBlockAnimator>
-      <PagesHomePageMiniPrice />
-    </UIElementsBlockAnimator>
-    <UIElementsBlockAnimator>
-      <PagesHomePageCallRevers />
-    </UIElementsBlockAnimator>
-    <UIElementsBlockAnimator>
-      <PagesHomePageFeedback id="feedback" />
-    </UIElementsBlockAnimator>
+    <UiAnimationsBlockAnimator>
+      <PagesPublicHomePageMiniPrice />
+    </UiAnimationsBlockAnimator>
+    <UiAnimationsBlockAnimator>
+      <PagesPublicHomePageCallRevers />
+    </UiAnimationsBlockAnimator>
+    <UiAnimationsBlockAnimator>
+      <PagesPublicHomePageFeedback id="feedback" />
+    </UiAnimationsBlockAnimator>
   </main>
 </template>
 

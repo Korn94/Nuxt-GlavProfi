@@ -1,19 +1,19 @@
 <template>
   <div class="wrap">
     <!-- <h1>Цены на ремонт помещений - <span>2025</span></h1> -->
-    <UIElementsOffer 
+    <UiWidgetsOffer 
       title="Не тратьте время на изучение прайс-листа!"
       description="Отправьте запрос — мы сами всё посчитаем быстро и бесплатно"
       buttonText="Заказать расчет"
     />
 
-    <PagesPrices 
+    <PagesPublicPrices 
       :categories="categories" 
       :active-category="route.params.category" 
       @update:active-category="setCategory" 
     />
 
-    <UIElementsOffer 
+    <UiWidgetsOffer 
       title="Делимся своими оптовыми скидками на материал"
       description="Наши клиенты получают лучшие цены на строительные материалы для своего объекта. Так же помогаем в организации закупок и логистики"
       buttonText="Связаться"

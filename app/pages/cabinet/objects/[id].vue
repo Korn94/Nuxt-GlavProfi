@@ -1,88 +1,135 @@
 <template>
-  <div class="object-detail">
+  <!-- Заголовок страницы -->
+  <PagesCabinetUiLayoutPageTitle :title="object.name">
+    <template #actions>
+      <!-- Кнопка редактирования -->
+      <button v-if="isAdmin" class="btn btn-sm primary">Редактировать</button>
 
-    <header class="object-header card">
-      <div class="header-content">
-        <h1 class="object-name">{{ object.name }}</h1>
-        <div class="status-tag">
-          <span>Статус:</span>
-          <span class="status-text">{{ object.status }}</span>
+      <!-- Кнопки управления объектом -->
+      <button
+        v-if="isAdmin"
+        @click="toggleStatus"
+        class="btn btn-sm"
+        :class="object.status === 'active' ? 'btn-warning' : 'btn-success'"
+      >
+        {{ object.status === 'active' ? 'Завершить' : 'Возобновить' }}
+      </button>
+      <button
+        v-if="isAdmin"
+        @click="confirmDelete"
+        class="btn btn-sm btn-danger"
+      >
+        Удалить
+      </button>
+    </template>
+  </PagesCabinetUiLayoutPageTitle>
+
+  <!-- Сообщения об ошибках и успехе -->
+  <div v-if="errorMessage" class="alert alert-error" style="margin: 0 2rem 1rem;">
+    {{ errorMessage }}
+  </div>
+  <div v-else-if="successMessage" class="alert alert-success" style="margin: 0 2rem 1rem;">
+    {{ successMessage }}
+  </div>
+
+  <div class="object-detail-layout">
+    <!-- Статус и информация -->
+    <Card class="status-card" bordered elevated>
+      <template #header>
+        <div class="status-header">
+          <h3>Информация об объекте</h3>
         </div>
+      </template>
+      <template #actions>
+        <div class="status-header">
+          <span class="status-badge" :class="`status-${object.status?.toLowerCase()}`">
+            {{ object.status }}
+          </span>
+        </div>
+      </template>
+      <p><strong>Адрес:</strong> {{ object.address || '—' }}</p>
+      <p><strong>Дата начала:</strong> {{ formatDate(object.startDate) }}</p>
+      <p><strong>Плановая дата завершения:</strong> {{ formatDate(object.endDate) }}</p>
+      <p><strong>Объект из:</strong> —</p>
+      <p><strong>Комментарий:</strong> —</p>
+    </Card>
+
+    <!-- Прораб -->
+    <Card title="Прораб" bordered elevated>
+      <div v-if="object.foreman" class="foreman-info">
+        🛠️ <strong>{{ object.foreman.name }}</strong>
       </div>
-    </header>
+      <div v-else class="empty-state">Не назначен</div>
 
-    <!-- Блок с прорабом -->
-    <div class="card foreman-section">
-      <h2 class="section-title">Прораб</h2>
-      <div class="content-wrapper">
-        <div v-if="object.foreman">
-          {{ object.foreman.name }}
-        </div>
-        <div v-else class="empty-state">Не назначен</div>
-        
-        <div v-if="isAdmin !== null" class="assign-form" v-show="isAdmin">
-          <select v-model="selectedForemanId" class="form-control">
-            <option :value="null">Не выбран</option>
+      <template v-if="isAdmin" #footer>
+        <div class="assign-foreman-form">
+          <select v-model="selectedForemanId" class="form-select">
+            <option :value="null">— Не выбран —</option>
             <option v-for="foreman in foremans" :key="foreman.id" :value="foreman.id">
               {{ foreman.name }}
             </option>
           </select>
-          <button @click="assignForeman" class="btn primary">Сохранить</button>
+          <button @click="assignForeman" class="btn primary btn-sm">Сохранить</button>
         </div>
-      </div>
-    </div>
+      </template>
+    </Card>
 
-    <div class="balance-section card">
-      <h2 class="section-title">Балансы</h2>
+    <!-- Баланс -->
+    <Card title="Баланс объекта" bordered elevated>
       <div class="balance-grid">
-        <div class="balance-card">
-          <div class="card-header">Объект</div>
-          <div class="card-body">
-            <p>{{ object.totalBalance }} ₽</p>
-            <div class="sub-balance">
-              <span>Приходы: {{ object.totalIncome }} ₽</span>
-              <span>Работы: {{ object.totalWorks }} ₽</span>
-            </div>
-          </div>
+        <div class="balance-item">
+          <div class="label">Общий баланс</div>
+          <div class="value">{{ formatCurrency(object.totalBalance) }}</div>
         </div>
-        <div class="balance-card">
-          <div class="card-header">Материалы</div>
-          <div class="card-body">
-            <p>{{ materialsTotal }} ₽</p>
-          </div>
+        <div class="balance-item">
+          <div class="label muted">Приходы</div>
+          <div class="value muted">{{ formatCurrency(object.totalIncome) }}</div>
+        </div>
+        <div class="balance-item">
+          <div class="label muted">Расходы (работы)</div>
+          <div class="value muted">{{ formatCurrency(object.totalWorks) }}</div>
         </div>
       </div>
-    </div>
+
+      <!-- Материалы -->
+      <div class="materials-balance">
+        <div class="divider"></div>
+        <div class="material-row">
+          <span>Материалы:</span>
+          <strong :class="{ 'text-danger': materialsTotal < 0 }">
+            {{ formatCurrency(materialsTotal) }}
+          </strong>
+        </div>
+      </div>
+    </Card>
 
     <!-- Вкладки -->
-    <div class="tabs-container card">
-      <div class="tabs">
-        <button
-          v-for="tab in tabs"
-          :key="tab"
-          :class="{ active: currentTab === tab }"
-          @click="currentTab = tab"
-          class="tab-button"
-        >
-          {{ tab }}
-        </button>
-      </div>
-    </div>
+    <Card class="tabs-card" bordered elevated>
+      <template #header>
+        <div class="tab-nav">
+          <button
+            v-for="tab in tabs"
+            :key="tab"
+            :class="['tab-button', { active: currentTab === tab }]"
+            @click="currentTab = tab"
+          >
+            {{ tab }}
+          </button>
+        </div>
+      </template>
 
-    <!-- Содержимое вкладок -->
-    <div class="content-container card">
-      <div v-if="currentTab === 'Операции'" class="tab-content">
+      <div class="tab-content">
         <PagesCabinetObjectsOperations
+          v-if="currentTab === 'Операции'"
           :object-id="objectId"
           :operations="operations"
           @add-coming="handleComingAdded"
           @add-expense="handleExpenseAdded"
           @add-work="handleWorkAdded"
         />
-      </div>
 
-      <div v-if="currentTab === 'Материалы'" class="tab-content">
         <PagesCabinetObjectsMaterials
+          v-else-if="currentTab === 'Материалы'"
           :materials="materials"
           :object-id="objectId"
           @add="handleMaterialAdded"
@@ -90,42 +137,32 @@
           @delete="handleMaterialDeleted"
         />
       </div>
-    </div>
+    </Card>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useNuxtApp } from '#app'
+import Card from '@/components/pages/cabinet/ui/cards/card.vue'
 
 const route = useRoute()
 const router = useRouter()
 const objectId = route.params.id
 
-const isAdmin = ref(false)
-
-// Данные объекта
+// Данные
 const object = ref({})
 const foremans = ref([])
-const selectedForemanId = ref(null)
 const materials = ref([])
 const operations = ref([])
+const selectedForemanId = ref(null)
 const currentTab = ref('Операции')
 const tabs = ['Операции', 'Материалы']
+const isAdmin = ref(false)
 
-// Вычисляемые свойства балансов (для отображения)
-const materialsTotal = computed(() => {
-  const incoming = materials.value
-    .filter(m => m.type === 'incoming')
-    .reduce((sum, m) => sum + Number(m.amount), 0)
-
-  const outgoing = materials.value
-    .filter(m => m.type === 'outgoing')
-    .reduce((sum, m) => sum + Number(m.amount), 0)
-
-  return (incoming - outgoing).toFixed(2)
-})
+// Сообщения
+const errorMessage = ref('')
+const successMessage = ref('')
 
 definePageMeta({
   layout: 'cabinet',
@@ -136,34 +173,36 @@ definePageMeta({
 onMounted(async () => {
   try {
     const me = await $fetch('/api/me')
-    isAdmin.value = me?.user?.role === 'admin' || false
+    isAdmin.value = me?.user?.role === 'admin'
   } catch (error) {
+    console.error('Ошибка при получении пользователя:', error)
     isAdmin.value = false
   }
 
   await fetchObject()
   await fetchForemans()
-  selectedForemanId.value = object.value.foremanId || null
   await fetchMaterials()
   await fetchOperations()
+
+  if (object.value.foremanId) {
+    selectedForemanId.value = object.value.foremanId
+  }
 })
 
-// Загрузка объекта
+// --- API методы ---
+
 async function fetchObject() {
   try {
-    const data = await $fetch(`/api/objects/${objectId}`, {
+    object.value = await $fetch(`/api/objects/${objectId}`, {
       method: 'GET',
       credentials: 'include'
     })
-    object.value = data
-    selectedForemanId.value = data.foremanId || null
   } catch (error) {
     console.error('Ошибка при получении объекта:', error)
     router.push('/cabinet/objects')
   }
 }
 
-// Загрузка прорабов
 async function fetchForemans() {
   try {
     foremans.value = await $fetch('/api/contractors/foremans')
@@ -172,34 +211,27 @@ async function fetchForemans() {
   }
 }
 
-// Назначение прораба
 async function assignForeman() {
   try {
-    await $fetch(`/api/objects/${route.params.id}`, {
+    await $fetch(`/api/objects/${objectId}`, {
       method: 'PUT',
-      body: { foremanId: selectedForemanId.value }
+      body: { foremanId: selectedForemanId.value },
+      credentials: 'include'
     })
     await fetchObject()
-    // showNotification('Прораб успешно назначен')
   } catch (error) {
     console.error('Ошибка назначения прораба:', error)
-    // showNotification('Ошибка назначения прораба')
   }
 }
 
 async function fetchMaterials() {
   try {
-    const data = await $fetch(`/api/materials`, {
+    const data = await $fetch('/api/materials', {
       method: 'GET',
       params: { objectId },
       credentials: 'include'
     })
-
-    // Преобразуем amount в число
-    materials.value = data.map(m => ({
-      ...m,
-      amount: Number(m.amount || 0)
-    }))
+    materials.value = data.map(m => ({ ...m, amount: Number(m.amount || 0) }))
   } catch (error) {
     console.error('Ошибка при загрузке материалов:', error)
   }
@@ -212,7 +244,6 @@ async function fetchOperations() {
       credentials: 'include'
     })
 
-    // Объединяем приходы и расходы в одну структуру с типом
     operations.value = [
       ...data.comings.map(op => ({ ...op, type: 'coming', amount: Number(op.amount) })),
       ...data.works.map(op => ({ ...op, type: 'work', amount: Number(op.amount) }))
@@ -222,15 +253,68 @@ async function fetchOperations() {
   }
 }
 
-// Обработчики событий из дочерних компонентов
+// --- Управление объектом ---
+
+// Переключение статуса: активный ↔ завершённый
+async function toggleStatus() {
+  const newStatus = object.value.status === 'active' ? 'completed' : 'active'
+  try {
+    await $fetch(`/api/objects/${objectId}`, {
+      method: 'PUT',
+      body: { status: newStatus },
+      credentials: 'include'
+    })
+
+    object.value.status = newStatus
+    successMessage.value = `Объект успешно ${newStatus === 'active' ? 'возобновлён' : 'завершён'}`
+    setTimeout(() => (successMessage.value = ''), 3000)
+  } catch (error) {
+    console.error('Ошибка изменения статуса:', error)
+    errorMessage.value = 'Не удалось изменить статус объекта'
+    setTimeout(() => (errorMessage.value = ''), 5000)
+  }
+}
+
+// Подтверждение и удаление объекта
+function confirmDelete() {
+  const confirmed = window.confirm(
+    'Вы уверены, что хотите удалить этот объект?\n\n' +
+    'Это действие нельзя отменить. Все данные по объекту будут потеряны.'
+  )
+  if (confirmed) {
+    deleteObject()
+  }
+}
+
+async function deleteObject() {
+  try {
+    await $fetch(`/api/objects/${objectId}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    })
+
+    // Очистка и редирект
+    successMessage.value = 'Объект успешно удалён'
+    setTimeout(() => {
+      router.push('/cabinet/objects')
+    }, 800)
+  } catch (error) {
+    console.error('Ошибка удаления объекта:', error)
+    errorMessage.value = 'Не удалось удалить объект'
+    setTimeout(() => (errorMessage.value = ''), 5000)
+  }
+}
+
+// --- Обработчики событий из дочерних компонентов ---
+
 function handleMaterialAdded(material) {
-  materials.value.push(material)
+  materials.value.push({ ...material, amount: Number(material.amount) })
 }
 
 function handleMaterialUpdated(updatedMaterial) {
   const index = materials.value.findIndex(m => m.id === updatedMaterial.id)
   if (index !== -1) {
-    materials.value.splice(index, 1, updatedMaterial)
+    materials.value.splice(index, 1, { ...updatedMaterial, amount: Number(updatedMaterial.amount) })
   }
 }
 
@@ -238,216 +322,247 @@ function handleMaterialDeleted(id) {
   materials.value = materials.value.filter(m => m.id !== id)
 }
 
-async function handleComingAdded(coming) {
-  operations.value.push({ ...coming, type: 'coming' })
-  await updateObjectBalance()
+function handleComingAdded(coming) {
+  operations.value.push({ ...coming, type: 'coming', amount: Number(coming.amount) })
+  refreshObjectData()
 }
 
-async function handleExpenseAdded(expense) {
-  operations.value.push({ ...expense, type: 'expense' })
-  await updateObjectBalance()
+function handleExpenseAdded(expense) {
+  operations.value.push({ ...expense, type: 'expense', amount: Number(expense.amount) })
+  refreshObjectData()
 }
-
-// function handleWorkAdded(work) {
-//   operations.value = [
-//     ...operations.value,
-//     { ...work, type: 'work' }
-//   ]
-//   updateObjectBalance()
-// }
 
 function handleWorkAdded(work) {
-  operations.value.push({ ...work, type: 'work' })
-  object.value.totalBalance -= work.amount // Пример локального обновления
+  operations.value.push({ ...work, type: 'work', amount: Number(work.amount) })
+  refreshObjectData()
 }
 
-// Обновление данных объекта после изменений
-async function updateObjectBalance() {
-  try {
-    const updatedObject = await $fetch(`/api/objects/${objectId}`, {
-      method: 'GET',
-      credentials: 'include'
-    })
-    object.value = updatedObject
-  } catch (error) {
-    console.error('Ошибка обновления данных объекта:', error)
-  }
+// Локальное обновление данных объекта (баланс и т.п.)
+async function refreshObjectData() {
+  await fetchObject()
+}
+
+// --- Вычисляемые значения ---
+
+const materialsTotal = computed(() => {
+  const incoming = materials.value
+    .filter(m => m.type === 'incoming')
+    .reduce((sum, m) => sum + Number(m.amount), 0)
+
+  const outgoing = materials.value
+    .filter(m => m.type === 'outgoing')
+    .reduce((sum, m) => sum + Number(m.amount), 0)
+
+  return incoming - outgoing
+})
+
+// --- Утилиты форматирования ---
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return '—'
+  const date = new Date(dateStr)
+  return date.toLocaleDateString('ru-RU')
+}
+
+const formatCurrency = (value) => {
+  return new Intl.NumberFormat('ru-RU').format(value || 0) + ' ₽'
 }
 </script>
 
 <style lang="scss" scoped>
-.object-detail {
+.object-detail-layout {
   padding: 2rem;
-  background-color: #f9f9f9;
-  min-height: 100vh;
   display: flex;
   flex-direction: column;
   gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  background-color: #fcfcfc;
 }
 
-.card {
-  background-color: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-  padding: 1.5rem;
-  transition: all 0.3s ease;
-}
-
-.card:hover {
-  box-shadow: 0 6px 12px rgba(0,0,0,0.1);
-}
-
-.section-title {
-  margin-bottom: 1.5rem;
-  color: #2c3e50;
-  font-size: 1.25rem;
-  border-bottom: 2px solid #ecf0f1;
-  padding-bottom: 0.5rem;
-}
-
-.content-wrapper {
+// Статус
+.status-header {
   display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+
+  h3 {
+    margin: unset;
+  }
+}
+
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  &.status-active {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+  }
+  &.status-completed {
+    background-color: #e3f2fd;
+    color: #1565c0;
+  }
+  &.status-paused {
+    background-color: #fff8e1;
+    color: #f57f17;
+  }
+  &.status-canceled {
+    background-color: #ffebee;
+    color: #c62828;
+  }
+}
+
+// Прораб
+.foreman-info {
+  font-size: 1.1rem;
+  color: $text-dark;
 }
 
 .empty-state {
-  color: #999;
+  color: $color-muted;
   font-style: italic;
+  padding: 0.5rem 0;
 }
 
-.assign-form {
+// Форма назначения
+.assign-foreman-form {
   display: flex;
   gap: 0.75rem;
+  align-items: center;
   flex-wrap: wrap;
+
+  .form-select {
+    flex: 1 1 200px;
+    padding: 0.5rem;
+    border: 1px solid $border-color;
+    border-radius: $border-radius;
+    background: white;
+  }
+
+  .btn {
+    white-space: nowrap;
+  }
 }
 
-.form-control {
-  flex: 1 1 200px;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 6px;
+// Баланс
+.balance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.balance-item {
+  padding: 1rem;
+  background: rgba($blue, 0.05);
+  border-radius: $border-radius;
+  text-align: center;
+}
+
+.label {
+  font-size: 0.9rem;
+  color: $text-dark;
+  &.muted {
+    color: $color-muted;
+  }
+}
+
+.value {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: $text-dark;
+  &.muted {
+    color: $color-muted;
+  }
+}
+
+.materials-balance {
+  text-align: right;
   font-size: 1rem;
 }
 
+.divider {
+  height: 1px;
+  background-color: $border-color;
+  margin: 1rem 0;
+}
+
+.text-danger {
+  color: #c62828;
+}
+
+// Вкладки
+.tab-nav {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+
+.tab-button {
+  padding: 0.6rem 1rem;
+  border: none;
+  background: $background-light;
+  border-radius: $border-radius;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+
+  &.active {
+    background: $blue;
+    color: white;
+  }
+
+  &:hover:not(.active) {
+    background: rgba($background-light, 5%);
+  }
+}
+
+.tab-content {
+  padding-top: 1.5rem;
+}
+
+// Кнопки
 .btn {
   padding: 0.5rem 1rem;
   border: none;
-  border-radius: 6px;
+  border-radius: $border-radius;
   cursor: pointer;
-  font-weight: 500;
-  transition: all 0.3s ease;
-}
-
-.primary {
-  background-color: #007bff;
-  color: white;
-}
-
-.primary:hover {
-  background-color: #0069d9;
-}
-
-.object-header {
-  .header-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  
-  .object-name {
-    font-size: 1.5rem;
-    color: #2c3e50;
-  }
-  
-  .status-tag {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    background-color: #e8f5e9;
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-  }
-  
-  .status-text {
-    color: #2e7d32;
-    font-weight: 500;
-  }
-}
-
-.balance-section {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.balance-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
-}
-
-.balance-card {
-  background-color: #f8f9fa;
-  border-radius: 8px;
-  padding: 1rem;
-  transition: all 0.3s ease;
-}
-
-.balance-card:hover {
-  background-color: #f1f3f4;
-}
-
-.card-header {
-  font-size: 1.1rem;
-  color: #34495e;
-  margin-bottom: 0.5rem;
-}
-
-.card-body p {
-  font-size: 1.25rem;
-  color: #2c3e50;
-  margin: 0.5rem 0;
-}
-
-.sub-balance {
-  display: flex;
-  justify-content: space-between;
   font-size: 0.95rem;
-  color: #7f8c8d;
-}
+  font-weight: 500;
+  transition: all 0.2s ease;
 
-.tabs-container {
-  .tabs {
-    display: flex;
-    gap: 1rem;
-    overflow-x: auto;
-  }
-  
-  .tab-button {
-    padding: 0.75rem 1.5rem;
-    background-color: #f1f1f1;
-    border: none;
-    border-radius: 6px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.3s ease;
-  }
-  
-  .tab-button.active {
-    background-color: #007bff;
+  &.primary {
+    background: $blue;
     color: white;
-  }
-}
 
-.content-container {
-  flex: 1;
-  min-height: 400px;
+    &:hover {
+      background: rgba($blue, 10%);
+    }
+  }
+
+  &.btn-sm {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.875rem;
+  }
 }
 
 @media (max-width: 768px) {
+  .object-detail-layout {
+    padding: 1rem;
+  }
+
   .balance-grid {
     grid-template-columns: 1fr;
+  }
+
+  .assign-foreman-form,
+  .tab-nav {
+    flex-wrap: wrap;
   }
 }
 </style>

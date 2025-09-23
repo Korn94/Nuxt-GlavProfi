@@ -1,6 +1,6 @@
 <template>
   <div>
-    <PagesRemontPomescheniyPageTypesMagaziny />
+    <PagesPublicRemontPomescheniyPageTypesMagaziny />
   </div>
 </template>
 

@@ -96,7 +96,7 @@
       </div>
     </div>
     <!-- Попап уведомления -->
-    <UIPopupsNotification
+    <UiAlerts
       :visible="data.isNotificationVisible"
       message="Номер скопирован!"
       color="green"

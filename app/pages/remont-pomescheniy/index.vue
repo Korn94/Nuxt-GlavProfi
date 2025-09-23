@@ -1,5 +1,5 @@
 <template>
-  <PagesRemontPomescheniyIndex />
+  <PagesPublicRemontPomescheniyIndex />
 </template>
 
 <script setup>

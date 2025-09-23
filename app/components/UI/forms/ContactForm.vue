@@ -4,12 +4,12 @@
         <div class="block_form">
           <span class="close" @click.stop="closeModal">&times;</span>
           <h2>Отправить сообщение</h2>
-          <UIForms @formSubmitted="handleFormSubmitted" />
+          <UiForms @formSubmitted="handleFormSubmitted" />
         </div>
         <div class="block">
           <div>
-            <p class="text">Отправь фото - получи быстрый расчет</p>
-            <UIElementsArrow />
+            <p class="text">Отправь фото — получи быстрый расчет</p>
+            <UiAnimationsArrow />
           </div>
           <NuxtLink href="https://api.whatsapp.com/send?phone=79109096947" target="_blank"><Icon name="bxl:whatsapp" size="28px" class="whatsapp" /></NuxtLink>
           <NuxtLink href="tg://resolve?domain=glavprofii" target="_blank"><Icon name="bxl:telegram" size="28px" class="tg" /></NuxtLink>

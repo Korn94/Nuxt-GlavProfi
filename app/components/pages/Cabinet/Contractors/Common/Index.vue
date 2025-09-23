@@ -47,14 +47,14 @@
     </div>
 
     <!-- Уведомления -->
-    <Notification
+    <UiAlerts
       :visible="!!successMessage"
       :message="successMessage"
       color="green"
       @update:visible="successMessage = ''"
     />
     
-    <Notification
+    <UiAlerts
       :visible="!!errorMessage"
       :message="errorMessage"
       color="red"
@@ -65,10 +65,9 @@
 
 <script setup>
 import { ref } from 'vue'
-import Header from '@/components/pages/Cabinet/Contractors/Common/Header.vue'
-import PaymentsHistory from '@/components/pages/Cabinet/Contractors/Common/PaymentsHistory.vue'
-import PaymentForm from '@/components/pages/Cabinet/Contractors/Common/PaymentForm.vue'
-import Notification from '@/components/UI/popups/Notification.vue'
+import Header from '@/components/pages/cabinet/Contractors/Common/Header.vue'
+import PaymentsHistory from '@/components/pages/cabinet/Contractors/Common/PaymentsHistory.vue'
+import PaymentForm from '@/components/pages/cabinet/Contractors/Common/PaymentForm.vue'
 
 const props = defineProps({
   salaryDeductions: {

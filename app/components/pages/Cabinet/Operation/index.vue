@@ -1,4 +1,17 @@
 <template>
+  <PagesCabinetUiLayoutPageTitle title="Операции">
+    <template #actions>
+      <div class="action-buttons">
+        <button @click="showExpenseModal = true" class="btn btn-danger">
+          + Расход
+        </button>
+        <button @click="showIncomeModal = true" class="btn btn-success">
+          + Приход
+        </button>
+      </div>
+    </template>
+  </PagesCabinetUiLayoutPageTitle>
+
   <div class="operations-history">
     <!-- Фильтр -->
     <div class="filter-wrapper">
@@ -20,16 +33,6 @@
         :error="errorBalance"
         :expense-stats="expenseStats"
       />
-    </div>
-
-    <!-- Кнопки -->
-    <div class="action-buttons">
-      <button @click="showExpenseModal = true" class="btn btn-danger">
-        + Расход
-      </button>
-      <button @click="showIncomeModal = true" class="btn btn-success">
-        + Приход
-      </button>
     </div>
 
     <!-- Уведомления -->
@@ -286,29 +289,6 @@ onMounted(() => {
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
   }
 
-  .action-buttons {
-    display: flex;
-    gap: 1rem;
-    justify-content: center;
-    .btn {
-      padding: 0.5rem 1.25rem;
-      border-radius: 8px;
-      font-size: 0.95rem;
-      font-weight: 600;
-      transition: all 0.2s ease;
-      &-danger {
-        background: #ff5a5a;
-        color: #fff;
-        &:hover { background: #e64a4a; }
-      }
-      &-success {
-        background: #4caf50;
-        color: #fff;
-        &:hover { background: #449d48; }
-      }
-    }
-  }
-
   .notification {
     padding: 0.75rem 1rem;
     border-radius: 8px;
@@ -332,6 +312,24 @@ onMounted(() => {
   }
   .fade-enter-from, .fade-leave-to {
     opacity: 0;
+  }
+}
+
+.action-buttons {
+  display: flex;
+  gap: 1rem;
+  .btn {
+    padding: 0.5rem 1.25rem;
+    &-danger {
+      background: #ff5a5a;
+      color: #fff;
+      &:hover { background: #e64a4a; }
+    }
+    &-success {
+      background: #4caf50;
+      color: #fff;
+      &:hover { background: #449d48; }
+    }
   }
 }
 </style>

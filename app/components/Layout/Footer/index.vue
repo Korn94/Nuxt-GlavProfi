@@ -83,10 +83,10 @@
       </p>
     </div>
 
-    <UIFormsConsentModal v-model="showConsentModal" @accept="acceptConsent"/>
+    <UiFormsConsentModal v-model="showConsentModal" @accept="acceptConsent"/>
 
     <!-- Компонент уведомлений -->
-    <UIPopupsNotification
+    <UiAlerts
       :visible="isNotificationVisible"
       :message="notificationMessage"
       :color="notificationColor"

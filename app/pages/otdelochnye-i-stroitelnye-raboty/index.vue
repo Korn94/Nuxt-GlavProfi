@@ -1,6 +1,6 @@
 <template>
   <div>
-    <PagesUslugiOtdelochnye-i-stroitelnye-raboty />
+    <PagesPublicUslugiOtdelochnye-i-stroitelnye-raboty />
   </div>
 </template>
 

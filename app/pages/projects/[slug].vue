@@ -1,3 +1,3 @@
 <template>
-  <PagesProjectsCasePage />
+  <PagesPublicProjectsCasePage />
 </template>

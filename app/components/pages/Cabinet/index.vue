@@ -1,28 +1,60 @@
+<!-- app/components/pages/cabinet/index.vue -->
 <template>
-  <div class="profile-page">
-    <h1 class="page-title">Главная страница</h1>
+  <PagesCabinetUiLayoutPageTitle title="Главная страница" />
 
-    <div v-if="isLoading" class="loading-text"><Icon name="eos-icons:bubble-loading" size="34px" /></div>
+  <div class="cabinet-page">
+    <!-- Карточка профиля -->
+    <Card :loading="isLoading" title="Ваш профиль" elevated class="profile-card">
+      <template #icon>
+        <Icon name="material-symbols-light:person" size="24" />
+      </template>
 
-    <div v-else-if="data" class="profile-card">
-      <div class="user-info">
-        <h2>Добро пожаловать, {{ data.user.name }}!</h2>
-        <p class="role"><strong>Роль:</strong> {{ data.user.role }}</p>
+      <div v-if="data" class="profile-content">
+        <!-- Основная информация о пользователе -->
+        <div class="user-section">
+          <p class="welcome-text">Добро пожаловать, <strong>{{ data.user.name }}</strong>!</p>
+          <p class="role"><Icon name="mdi:shield-account" size="16" /> Роль: <span>{{ data.user.role }}</span></p>
+        </div>
+
+        <!-- Информация о контрагенте (если есть) -->
+        <div v-if="contractorData" class="contractor-section">
+          <h3 class="section-title">Информация о контрагенте</h3>
+          <ul class="info-list">
+            <li><strong>Тип:</strong> {{ formatContractorType(contractorData.type) }}</li>
+            <li><strong>Имя:</strong> {{ contractorData.name }}</li>
+            <li><strong>Телефон:</strong> {{ contractorData.phone || 'Не указан' }}</li>
+            <li>
+              <strong>Баланс:</strong>
+              <span class="balance">{{ formatBalance(contractorData.balance) }} ₽</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Сообщение, если нет данных о контрагенте -->
+        <div v-else class="no-contractor">
+          <p>У вас пока нет привязанного контрагента.</p>
+        </div>
       </div>
 
-      <!-- Информация о контрагенте -->
-      <div v-if="contractorData" class="contractor-info">
-        <h3>Информация о контрагенте</h3>
-        <ul>
-          <li><strong>Тип:</strong> {{ contractorData.type }}</li>
-          <li><strong>Имя:</strong> {{ contractorData.name }}</li>
-          <li><strong>Телефон:</strong> {{ contractorData.phone }}</li>
-          <li><strong>Баланс:</strong> <span class="balance">{{ contractorData.balance }} ₽</span></li>
-        </ul>
+      <!-- Отображается при ошибке или отсутствии данных -->
+      <div v-else class="error-state">
+        <Icon name="ic:outline-warning" size="40" class="error-icon" />
+        <p>Не удалось загрузить данные пользователя.</p>
       </div>
-    </div>
 
-    <p v-else class="error-text">Не удалось загрузить данные.</p>
+      <!-- Действия -->
+      <template #actions>
+        <button class="btn btn-secondary" @click="refreshData">
+          <Icon name="mdi:refresh" size="18" />
+          Обновить
+        </button>
+      </template>
+
+      <!-- Футер с дополнительной информацией -->
+      <template #footer>
+        Последнее обновление: {{ new Date().toLocaleString('ru-RU') }}
+      </template>
+    </Card>
   </div>
 </template>
 
@@ -31,11 +63,42 @@ import { ref, onMounted } from 'vue'
 import { useAuth } from '~/composables/useAuth'
 import { navigateTo } from '#app'
 
+// Компоненты
+const Card = defineAsyncComponent(() => import('@/components/pages/cabinet/ui/cards/card.vue'))
+
+// Состояние
 const data = ref(null)
 const contractorData = ref(null)
 const isLoading = ref(true)
 
-onMounted(async () => {
+// Типы контрагентов для отображения
+const contractorTypeMap = {
+  office: 'offices',
+  foreman: 'foremans',
+  worker: 'workers',
+  master: 'masters'
+}
+
+const displayTypeLabels = {
+  office: 'Офис',
+  foreman: 'Прораб',
+  worker: 'Рабочий',
+  master: 'Мастер'
+}
+
+// Форматирование типа
+const formatContractorType = (type) => {
+  return displayTypeLabels[type] || 'Неизвестно'
+}
+
+// Форматирование баланса
+const formatBalance = (amount) => {
+  return new Intl.NumberFormat('ru-RU').format(amount || 0)
+}
+
+// Загрузка данных
+const fetchData = async () => {
+  isLoading.value = true
   try {
     const response = await $fetch('/api/me', {
       method: 'GET',
@@ -45,119 +108,151 @@ onMounted(async () => {
     if (response.status === 401) {
       const { logout } = useAuth()
       logout()
-      navigateTo('/login')
-      return
+      return navigateTo('/login')
     }
 
     data.value = response
 
-    const userData = data.value.user
-
-    if (userData.contractorId && userData.contractorType) {
-      const contractorTypeMap = {
-        office: 'offices',
-        foreman: 'foremans',
-        worker: 'workers',
-        master: 'masters'
+    const user = data.value.user
+    if (user.contractorId && user.contractorType) {
+      const type = contractorTypeMap[user.contractorType]
+      if (type) {
+        const res = await $fetch(`/api/contractors/${type}/${user.contractorId}`, {
+          method: 'GET',
+          credentials: 'include'
+        })
+        contractorData.value = res
       }
-
-      const type = contractorTypeMap[userData.contractorType] || 'default'
-      const res = await $fetch(`/api/contractors/${type}/${userData.contractorId}`, {
-        method: 'GET',
-        credentials: 'include'
-      })
-      contractorData.value = res
     }
   } catch (err) {
     console.error('Ошибка загрузки данных:', err)
-    const { logout } = useAuth()
-    logout()
-    navigateTo('/login')
+    data.value = null
   } finally {
     isLoading.value = false
   }
+}
+
+// Обновление данных
+const refreshData = () => {
+  fetchData()
+}
+
+onMounted(() => {
+  fetchData()
 })
 </script>
 
 <style lang="scss" scoped>
-.profile-page {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 2rem;
-  
-  .page-title {
-    font-size: 2.5rem;
-    color: #3182ce;
-    margin-bottom: 2rem;
-    text-align: center;
-  }
-
-  .loading-text {
+.profile-card {
+  width: 900px;
+  :deep(.card__body) {
     display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 20vh;
-    svg {
-      animation: spin infinite 2s linear;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+}
+
+.profile-content {
+  width: 100%;
+}
+
+.welcome-text {
+  font-size: 1.25rem;
+  margin: 0 0 0.5rem 0;
+
+  strong {
+    color: $blue;
+    font-weight: 600;
+  }
+}
+
+.role {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  color: $color-muted;
+
+  span {
+    font-weight: 500;
+  }
+}
+
+.section-title {
+  font-size: 1.1rem;
+  color: $color-dark;
+  margin: 0.5rem 0;
+}
+
+.info-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+
+  li {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px dashed $border-color;
+    font-size: 0.95rem;
+    color: $color-muted;
+
+    &:last-child {
+      border-bottom: none;
     }
-    
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
+
+    strong {
+      color: $color-dark;
+      min-width: 100px;
+      font-weight: 500;
+    }
+
+    .balance {
+      color: $color-success;
+      font-weight: bold;
+      font-size: 1.1rem;
     }
   }
+}
 
-  .profile-card {
-    width: 100%;
-    max-width: 600px;
-    background-color: white;
-    border-radius: 10px;
-    box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
-    padding: 2rem;
-    margin-top: 2rem;
+.no-contractor {
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px dashed $border-color;
+  text-align: center;
+  color: $color-muted;
+  font-size: 0.95rem;
+}
 
-    h2 {
-      font-size: 1.8rem;
-      color: #4a5568;
-      margin-bottom: 1rem;
-    }
+.error-state {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: $color-danger;
 
-    p.role {
-      font-size: 1.2rem;
-      color: #718096;
-      margin-bottom: 2rem;
-    }
-
-    .contractor-info {
-      margin-top: 2rem;
-      
-      ul {
-        list-style-type: none;
-        padding-left: 0;
-        
-        li {
-          margin-bottom: 0.5rem;
-          
-          strong {
-            font-weight: bold;
-            color: #4a5568;
-          }
-          
-          span.balance {
-            color: #38b2ac;
-            font-weight: bold;
-          }
-        }
-      }
-    }
+  .error-icon {
+    margin-bottom: 0.75rem;
+    opacity: 0.7;
   }
+}
 
-  .error-text {
-    font-size: 1.5rem;
-    color: red;
-    text-align: center;
-    margin-top: 2rem;
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &-secondary {
+    background-color: $background-light;
+    color: #495057;
+    border: 1px solid $border-color;
+
+    &:hover {
+      border: 1px solid $blue;
+    }
   }
 }
 </style>

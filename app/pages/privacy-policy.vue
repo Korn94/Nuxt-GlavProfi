@@ -1,5 +1,5 @@
 <template>
-  <PagesPrivacyPolicy />
+  <PagesPublicPrivacyPolicy />
 </template>
 
 <script setup>

@@ -3,7 +3,7 @@
   <form @submit.prevent="submitForm">
     <!-- Блок с именем и телефоном на одной строке -->
     <div class="input-group">
-      <input type="text" v-model="name" v-on:input="textFilter" required placeholder="Имя" class="inline-input"/>
+      <input type="text" v-model="name" v-on:input="textFilter" placeholder="Имя (не обязательно)" class="inline-input"/>
       <input type="text" v-phone-format id="phone" v-model="phoneNumber" required placeholder="Телефон" class="inline-input" :class="{ 'error-border': phoneError }"/>
     </div>
     <div>
@@ -20,7 +20,7 @@
   </form>
 
   <!-- Компонент уведомления -->
-  <UIPopupsNotification
+  <UiAlerts
     :visible="isNotificationVisible"
     :message="notificationMessage"
     :color="notificationColor"

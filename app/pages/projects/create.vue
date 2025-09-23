@@ -1,5 +1,5 @@
 <template>
-  <PagesProjectsCreate />
+  <PagesPublicProjectsCreate />
 </template>
 
 <script setup>

@@ -1,5 +1,5 @@
 <template>
-  <PagesAbout />
+  <PagesPublicAbout />
 </template>
 
 <script setup>
