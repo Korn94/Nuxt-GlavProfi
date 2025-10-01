@@ -1,0 +1,1 @@
+ALTER TABLE `objects` ADD `contract_type` varchar(20) DEFAULT 'unassigned';

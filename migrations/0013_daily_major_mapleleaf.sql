@@ -1,0 +1,1 @@
+ALTER TABLE `objects` DROP COLUMN `contract_type`;

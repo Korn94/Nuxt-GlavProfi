@@ -30,6 +30,24 @@ export const objects = mysqlTable('objects', {
     length: 50,
     enum: ['active', 'waiting', 'completed']
   }).default('active').notNull(),
+
+  address: text('address'), // Адрес объекта
+  comment: text('comment'),
+  startDate: datetime('start_date', { mode: 'string' }), // Дата начала (можно хранить как DATE или DATETIME)
+  plannedEndDate: datetime('planned_end_date', { mode: 'string' }), // Плановая дата завершения
+  completedDate: datetime('completed_date', { mode: 'string' }), // Фактическая дата завершения
+  source: varchar('source', {
+    length: 50,
+    enum: [
+      'Avito',
+      'Сарафанка',
+      'Сайт',
+      'Сайт + Директ',
+      'Вновь обратившийся',
+      'Прочее'
+    ]
+  }), // Источник объекта
+
   totalWorks: decimal('total_works', { precision: 10, scale: 2 }).default('0.00').notNull(),
   totalIncome: decimal('total_income', { precision: 10, scale: 2 }).default('0.00').notNull(),
   profit: decimal('profit', { precision: 10, scale: 2 }).default('0.00').notNull(),
@@ -38,6 +56,157 @@ export const objects = mysqlTable('objects', {
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
   updatedAt: datetime('updated_at') .default(sql`CURRENT_TIMESTAMP`) .notNull() .$type<Date>()
 })
+
+export const objectContracts = mysqlTable('object_contracts', {
+  id: serial('id').primaryKey(),
+
+  // Связь с объектом
+  objectId: bigint('object_id', { mode: 'number', unsigned: true })
+    .notNull()
+    .references(() => objects.id),
+
+  type: varchar('type', {
+    length: 20,
+    enum: [
+      'unassigned',  // Не выбрано (по умолчанию)
+      'none',    // Договор не нужен
+      'edo',     // ЭДО
+      'paper',   // Бумажный
+      'invoice'  // Счёт-договор
+    ]
+  }).default('unassigned'), // по умолчанию NULL
+
+  // Статус
+  status: varchar('status', {
+    length: 20,
+    enum: [
+      'prepared',     // Подготовлен
+      'sent',         // Отправлен клиенту
+      'awaiting',     // Ожидает подписи
+      'signed',       // Подписан
+      'cancelled'     // Отменён
+    ]
+  }).default('prepared').notNull(),
+
+  // Дата изменения статуса
+  statusDate: datetime('status_date', { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+
+  // Комментарий (например, кто отправил, номер, ссылка на PDF)
+  comment: text('comment'),
+
+  // Дата создания
+  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: datetime('updated_at') .default(sql`CURRENT_TIMESTAMP`) .notNull() .$type<Date>()
+}, (table) => ({
+  objectIndex: index('object_idx').on(table.objectId),
+  statusIndex: index('status_idx').on(table.status)
+}))
+
+// Таблица: Счета (как документы)
+export const objectInvoices = mysqlTable('object_invoices', {
+  id: serial('id').primaryKey(),
+
+  // Привязка к объекту
+  objectId: bigint('object_id', { mode: 'number', unsigned: true })
+    .notNull()
+    .references(() => objects.id),
+
+  // Название счёта (например, "Аванс", "Закрывающий", "Доп. работа по электрике")
+  name: varchar('name', { length: 255 }).notNull(),
+
+  // Сумма (совпадает с coming.amount, но не связана напрямую)
+  amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
+
+  // Комментарий
+  comment: text('comment'),
+
+  // Статус документа
+  status: varchar('status', {
+    length: 20,
+    enum: [
+      'prepared',   // Подготовлен
+      'sent',       // Отправлен
+      'paid'        // Оплачен
+    ]
+  }).default('prepared').notNull(),
+
+  // Дата изменения статуса
+  statusDate: datetime('status_date', { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+
+  // Подтип (для фильтрации)
+  subtype: varchar('subtype', {
+    length: 20,
+    enum: [
+      'advance',
+      'intermediate',
+      'final',
+      'additional'
+    ]
+  }),
+
+  // Порядок отображения
+  order: int('order').default(0),
+
+  // Дата создания
+  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: datetime('updated_at') .default(sql`CURRENT_TIMESTAMP`) .notNull() .$type<Date>()
+}, (table) => ({
+  objectIndex: index('object_idx').on(table.objectId),
+  statusIndex: index('status_idx').on(table.status),
+  orderIndex: index('order_idx').on(table.objectId, table.order)
+}))
+
+export const objectBudget = mysqlTable('object_budget', {
+  id: serial('id').primaryKey(),
+
+  // Привязка к объекту
+  objectId: bigint('object_id', { mode: 'number', unsigned: true })
+    .notNull()
+    .references(() => objects.id),
+
+  // Название: "Основная смета", "Утепление пола", "Электрика по потолку" и т.п.
+  name: varchar('name', { length: 255 }).notNull(),
+
+  // Сумма (в рублях)
+  amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
+
+  // Комментарий (опционально)
+  comment: text('comment'),
+
+  // Порядок отображения (чтобы первая была "основная")
+  order: int('order').default(0),
+
+  // Ход работ
+  workProgress: varchar('work_progress', {
+    length: 20,
+    enum: [
+      'queued',     // На очереди
+      'in_progress',// В работе
+      'completed',  // Выполнено
+      'cancelled'   // Отменено
+    ]
+  }).default('queued').notNull(),
+
+  // Статус акта
+  actStatus: varchar('act_status', {
+    length: 20,
+    enum: [
+      'none',        // Не применимо / ещё не нужно
+      'required',    // Нужно сделать (после "Выполнено")
+      'awaiting',    // Ждёт подписи
+      'signed'       // Подписан
+    ]
+  }).default('none').notNull(),
+
+  // Дата создания
+  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: datetime('updated_at') .default(sql`CURRENT_TIMESTAMP`) .notNull() .$type<Date>()
+}, (table) => ({
+  // Индекс для быстрого поиска по объекту
+  objectIndex: index('object_idx').on(table.objectId),
+  // Составной индекс: объект + порядок
+  orderIndex: index('order_idx').on(table.objectId, table.order)
+}))
 
 // Таблица материалов
 export const materials = mysqlTable('materials', {
@@ -118,16 +287,6 @@ export const works = mysqlTable('works', {
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),                            // Дата создания записи
   updatedAt: datetime('updated_at') .default(sql`CURRENT_TIMESTAMP`) .notNull() .$type<Date>()
 })
-
-// Процент от работ прорабов
-export const foremanProfitHistory = mysqlTable('foreman_profit_history', {
-  id: serial('id').primaryKey(),
-  workId: int('work_id').notNull(),                                                             // Ссылка на работу
-  objectId: int('object_id').notNull(),                                                         // Ссылка на объект
-  foremanId: int('foreman_id').notNull(),                                                       // Ссылка на прораба
-  amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),                              // Сумма начисления
-  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`)                              // Дата начисления
-});
 
 // Таблица мастеров
 export const masters = mysqlTable('masters', {

@@ -1,108 +1,164 @@
+<!-- app\components\pages\cabinet\Operation\AddIncome.vue -->
 <template>
-  <div v-if="isOpen" class="modal-overlay">
-    <div class="modal">
-      <div class="modal-header">
-        <h3>Добавить приход</h3>
-        <button @click="close" class="close-btn">×</button>
-      </div>
-      
-      <div class="modal-body">
-        <form @submit.prevent="submitIncome">
-          <!-- Сумма -->
-          <div class="form-group">
-            <label>Сумма <span class="required">*</span></label>
-            <input 
-              type="number" 
-              v-model.number="form.amount"
-              placeholder="Введите сумму"
-              required
-            />
-            <span v-if="errors.amount" class="error-message">{{ errors.amount }}</span>
-          </div>
+  <PagesCabinetUiModal
+    :visible="isOpen"
+    @close="close"
+    title="Добавить приход"
+    size="md"
+    closable
+  >
+    <!-- Слот контента -->
+    <div class="modal-content">
+      <form @submit.prevent="submitIncome">
+        <!-- Сумма -->
+        <div class="form-group">
+          <label>Сумма <span class="required">*</span></label>
+          <input
+            type="text"
+            v-model="displayAmount"
+            placeholder="Введите сумму"
+            @blur="formatOnBlur"
+            @focus="unformatOnFocus"
+            @input="syncAmount"
+            required
+          />
+          <span v-if="errors.amount" class="error-message">{{ errors.amount }}</span>
+        </div>
 
-          <div class="form-group">
-            <label>Дата операции <span class="required">*</span></label>
-            <input 
-              type="date" 
-              v-model="form.operationDate"
-            />
-            <span v-if="errors.operationDate" class="error-message">{{ errors.operationDate }}</span>
-          </div>
+        <!-- Дата операции -->
+        <div class="form-group">
+          <label>Дата операции <span class="required">*</span></label>
+          <input type="date" v-model="form.operationDate" required />
+          <span v-if="errors.operationDate" class="error-message">{{ errors.operationDate }}</span>
+        </div>
 
-          <!-- Объект -->
-          <div class="form-group">
-            <label>Объект <span class="required">*</span></label>
-            <select v-model="form.objectId" required>
-              <option value="">Выберите объект</option>
-              <option v-for="object in objects" :key="object.id" :value="object.id">
-                {{ object.name }}
-              </option>
-            </select>
-            <span v-if="errors.objectId" class="error-message">{{ errors.objectId }}</span>
-          </div>
+        <!-- Объект -->
+        <div class="form-group">
+          <label>Объект <span class="required">*</span></label>
+          <select v-model="form.objectId" required>
+            <option value="">Выберите объект</option>
+            <option v-for="object in objects" :key="object.id" :value="object.id">
+              {{ object.name }}
+            </option>
+          </select>
+          <span v-if="errors.objectId" class="error-message">{{ errors.objectId }}</span>
+        </div>
 
-          <!-- Комментарий -->
-          <div class="form-group">
-            <label>Комментарий</label>
-            <textarea v-model="form.comment" placeholder="Дополнительная информация"></textarea>
-          </div>
+        <!-- Комментарий -->
+        <div class="form-group">
+          <label>Комментарий</label>
+          <textarea v-model="form.comment" placeholder="Дополнительная информация"></textarea>
+        </div>
 
-          <!-- Ошибки формы -->
-          <div v-if="errors.form" class="error-message form-error">
-            {{ errors.form }}
-          </div>
-
-          <!-- Кнопки управления -->
-          <div class="modal-footer">
-            <button type="button" @click="close" class="btn secondary">Отмена</button>
-            <button type="submit" class="btn primary" :disabled="loading">
-              {{ loading ? 'Сохранение...' : 'Добавить приход' }}
-            </button>
-          </div>
-        </form>
-      </div>
+        <!-- Ошибки формы -->
+        <div v-if="errors.form" class="error-message form-error">
+          {{ errors.form }}
+        </div>
+      </form>
     </div>
-  </div>
+
+    <!-- Футер -->
+    <template #footer>
+      <button type="button" @click="close" class="btn btn-secondary">Отмена</button>
+      <button type="submit" @click="submitIncome" class="btn btn-primary" :disabled="loading">
+        {{ loading ? 'Сохранение...' : 'Добавить приход' }}
+      </button>
+    </template>
+  </PagesCabinetUiModal>
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
-import { useNuxtApp } from '#app'
+import { ref, watch, computed } from 'vue'
 
 const props = defineProps({
   isOpen: {
     type: Boolean,
-    required: true
-  }
+    required: true,
+  },
 })
 
 const emit = defineEmits(['close', 'income-added'])
 
-// Состояние формы
+// Форма
 const form = ref({
   amount: null,
   objectId: '',
   comment: '',
-  operationDate: new Date().toISOString().split('T')[0]
+  operationDate: new Date().toISOString().split('T')[0],
 })
 
 const loading = ref(false)
 const errors = ref({})
 const objects = ref([])
-const errorMessage = ref('')
-const successMessage = ref('')
+
+// Вычисляемое поле для отображения суммы с пробелами
+const displayAmount = computed({
+  get() {
+    if (form.value.amount === null || form.value.amount === '') return ''
+    // Форматируем число с пробелами как разделитель
+    return new Intl.NumberFormat('ru-RU').format(form.value.amount)
+  },
+  set(value) {
+    // Сохраняем строковое значение в input
+    localDisplayValue.value = value
+  }
+})
+
+// Локальное состояние для хранения строки во время ввода
+const localDisplayValue = ref('')
+
+// При фокусе — показываем "чистую" строку (без форматирования)
+function unformatOnFocus() {
+  if (form.value.amount !== null) {
+    localDisplayValue.value = String(form.value.amount)
+  } else {
+    localDisplayValue.value = ''
+  }
+}
+
+// При потере фокуса — форматируем обратно
+function formatOnBlur() {
+  const num = parseNumber(localDisplayValue.value)
+  if (!isNaN(num) && num >= 0) {
+    form.value.amount = num
+    localDisplayValue.value = new Intl.NumberFormat('ru-RU').format(num)
+  } else {
+    localDisplayValue.value = form.value.amount
+      ? new Intl.NumberFormat('ru-RU').format(form.value.amount)
+      : ''
+  }
+}
+
+// При каждом вводе обновляем локальную строку и синхронизируем число
+function syncAmount() {
+  const raw = localDisplayValue.value
+  const num = parseNumber(raw)
+  if (!isNaN(num)) {
+    form.value.amount = num
+  } else if (raw === '' || raw === null) {
+    form.value.amount = null
+  }
+  // Не обновляем form.value.amount, если некорректно — оставим предыдущее
+}
+
+// Помощник: парсит строку в число, игнорируя все кроме цифр и десятичного разделителя
+function parseNumber(str) {
+  if (!str) return NaN
+  // Удаляем всё, кроме цифр и запятой/точки
+  const cleaned = str.replace(/[^\d,.-]/g, '').replace(',', '.')
+  return parseFloat(cleaned)
+}
 
 // Загрузка данных
 async function loadData() {
   try {
-    // Загрузка объектов
     objects.value = await $fetch('/api/objects')
   } catch (error) {
-    console.error('Ошибка загрузки данных:', error)
+    console.error('Ошибка загрузки объектов:', error)
   }
 }
 
-// Валидация формы
+// Валидация
 function validateForm() {
   errors.value = {}
   let isValid = true
@@ -120,18 +176,12 @@ function validateForm() {
   if (!form.value.operationDate) {
     errors.value.operationDate = 'Дата операции обязательна'
     isValid = false
-  } else {
-    const date = new Date(form.value.operationDate)
-    if (isNaN(date.getTime())) {
-      errors.value.operationDate = 'Некорректный формат даты'
-      isValid = false
-    }
   }
 
   return isValid
 }
 
-// Отправка формы
+// Отправка
 async function submitIncome() {
   if (!validateForm()) return
 
@@ -139,145 +189,119 @@ async function submitIncome() {
   try {
     const payload = {
       ...form.value,
-      operationDate: form.value.operationDate || new Date().toISOString()
+      operationDate: form.value.operationDate,
     }
 
     const result = await $fetch('/api/comings', {
       method: 'POST',
       body: payload,
-      credentials: 'include'
+      credentials: 'include',
     })
 
     emit('income-added', result)
-    emit('close') // Закрываем модальное окно
-    
-    // Установка сообщения в родителе
-    successMessage.value = 'Приход успешно добавлен'
-    setTimeout(() => successMessage.value = '', 3000)
-
+    close()
   } catch (error) {
-    errorMessage.value = 'Ошибка при добавлении прихода'
-    setTimeout(() => errorMessage.value = '', 5000)
+    errors.value.form = 'Не удалось добавить приход'
   } finally {
     loading.value = false
   }
 }
 
-// Сброс формы
-function resetForm() {
-  form.value = {
-    amount: null,
-    objectId: '',
-    comment: ''
-  }
-  errors.value = {}
-}
-
-// Закрытие модального окна
+// Закрытие и сброс
 function close() {
   resetForm()
   emit('close')
 }
 
-// Автоматическая загрузка данных при открытии
-watch(() => props.isOpen, async (newVal) => {
-  if (newVal) {
-    await loadData()
+function resetForm() {
+  form.value = {
+    amount: null,
+    objectId: '',
+    comment: '',
+    operationDate: new Date().toISOString().split('T')[0],
   }
+  localDisplayValue.value = ''
+  errors.value = {}
+}
+
+// Загрузка при открытии
+watch(() => props.isOpen, async (val) => {
+  if (val) await loadData()
 })
 </script>
 
-<style scoped>
-/* Стили аналогичны компоненту AddExpenseModal.vue */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
+<style lang="scss" scoped>
+.modal-content {
+  .form-group {
+    margin-bottom: 1rem;
+  }
 
-.modal {
-  background: white;
-  padding: 20px;
-  border-radius: 8px;
-  width: 600px;
-  max-width: 90%;
-}
+  label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: $text-dark;
+  }
 
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
+  input,
+  select,
+  textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid $border-color;
+    border-radius: $border-radius;
+    background: $background-light;
+    transition: $transition;
 
-.close-btn {
-  font-size: 24px;
-  background: none;
-  border: none;
-  cursor: pointer;
-}
+    &:focus {
+      outline: none;
+      border-color: $blue;
+      box-shadow: 0 0 0 2px $blue20;
+    }
+  }
 
-.form-group {
-  margin-bottom: 20px;
-}
+  textarea {
+    resize: vertical;
+    min-height: 80px;
+  }
 
-.form-group label {
-  display: block;
-  margin-bottom: 8px;
-  font-weight: 500;
-}
+  .required {
+    color: $red;
+  }
 
-.form-group input,
-.form-group select,
-.form-group textarea {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-}
+  .error-message {
+    color: $color-danger;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+  }
 
-.required {
-  color: red;
-}
-
-.error-message {
-  color: red;
-  font-size: 14px;
-  margin-top: 4px;
-  display: block;
-}
-
-.form-error {
-  margin-bottom: 15px;
-}
-
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
+  .form-error {
+    margin-bottom: 1rem;
+  }
 }
 
 .btn {
-  padding: 10px 20px;
+  padding: 0.6rem 1.2rem;
   border: none;
-  border-radius: 4px;
+  border-radius: $border-radius;
   cursor: pointer;
-}
+  font-weight: 500;
+  transition: $transition;
 
-.btn.primary {
-  background-color: #28a745;
-  color: white;
-}
+  &-secondary {
+    background: $color-muted;
+    color: $text-light;
+    &:hover { background: $blue }
+  }
 
-.btn.secondary {
-  background-color: #6c757d;
-  color: white;
+  &-primary {
+    background: $green;
+    color: $text-light;
+    &:not(:disabled):hover { background: $blue; }
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
 }
 </style>

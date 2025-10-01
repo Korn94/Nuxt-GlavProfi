@@ -1,5 +1,5 @@
 <template>
-  <CommonIndex
+  <PagesCabinetContractorsCommonIndex
     :contractor="contractor"
     :salary-deductions="salaryDeductions"
     :pending-total="pendingTotal"
@@ -13,25 +13,17 @@
   >
     <!-- Левая колонка -->
     <template #left-column>
-      <ProfitHistory
-        :history="profitHistory"
-        :objects="objects"
-        @update:item="$emit('update:profit-item')"
-        @delete:item="$emit('delete:profit-item')"
-      />
+      <h2>Левая колонка</h2>
     </template>
 
     <!-- Правая колонка -->
     <template #right-column>
       <!-- Здесь можно добавить специфичные для прораба элементы -->
     </template>
-  </CommonIndex>
+  </PagesCabinetContractorsCommonIndex>
 </template>
 
 <script setup>
-import CommonIndex from '@/components/pages/Cabinet/Contractors/Common/Index.vue'
-import ProfitHistory from '@/components/pages/Cabinet/Contractors/Foreman/ProfitHistory.vue'
-
 const contractorType = 'foreman';
 
 // Пропсы, которые мы ожидаем получить от родительского компонента

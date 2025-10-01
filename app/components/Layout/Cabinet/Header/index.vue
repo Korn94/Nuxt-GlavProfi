@@ -274,6 +274,7 @@ function handleLogout() {
       border-bottom: 1px solid #444;
       padding-bottom: 10px;
       margin-bottom: 10px;
+      font-size: .9rem;
       
       p {
         color: $color-light;
@@ -282,7 +283,7 @@ function handleLogout() {
 
     button {
       width: 100%;
-      background: #662828;
+      background: $color-danger;
       border: none;
       padding: 10px;
       cursor: pointer;
@@ -292,7 +293,7 @@ function handleLogout() {
       transition: background-color 0.3s ease;
 
       &:hover {
-        background-color: #8d2222;
+        background-color: $red;
         color: white;
       }
     }

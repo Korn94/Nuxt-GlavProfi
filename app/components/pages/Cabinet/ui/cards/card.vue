@@ -60,10 +60,6 @@ const props = defineProps({
 </script>
 
 <style lang="scss" scoped>
-$shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
-$shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-$shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
-
 .card {
   background-color: $background-light;
   border-radius: $border-radius;
@@ -75,15 +71,15 @@ $shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
   }
 
   &--elevated {
-    box-shadow: $shadow-lg;
+    box-shadow: $box-shadow;
   }
 
   &:not(.card--elevated) {
-    box-shadow: $shadow-sm;
+    box-shadow: $box-shadow;
     transition: box-shadow 0.3s ease;
 
     &:hover {
-      box-shadow: $shadow-md;
+      box-shadow: $box-shadow;
     }
   }
 

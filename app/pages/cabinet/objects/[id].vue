@@ -1,25 +1,11 @@
+<!-- app/pages/cabinet/objects/[id].vue -->
 <template>
   <!-- Заголовок страницы -->
   <PagesCabinetUiLayoutPageTitle :title="object.name">
     <template #actions>
       <!-- Кнопка редактирования -->
-      <button v-if="isAdmin" class="btn btn-sm primary">Редактировать</button>
-
-      <!-- Кнопки управления объектом -->
-      <button
-        v-if="isAdmin"
-        @click="toggleStatus"
-        class="btn btn-sm"
-        :class="object.status === 'active' ? 'btn-warning' : 'btn-success'"
-      >
-        {{ object.status === 'active' ? 'Завершить' : 'Возобновить' }}
-      </button>
-      <button
-        v-if="isAdmin"
-        @click="confirmDelete"
-        class="btn btn-sm btn-danger"
-      >
-        Удалить
+      <button v-if="isAdmin" @click="isEditModalOpen = true" class="btn btn-sm primary">
+        Редактировать
       </button>
     </template>
   </PagesCabinetUiLayoutPageTitle>
@@ -43,15 +29,16 @@
       <template #actions>
         <div class="status-header">
           <span class="status-badge" :class="`status-${object.status?.toLowerCase()}`">
-            {{ object.status }}
+            {{ objectStatusText }}
           </span>
         </div>
       </template>
       <p><strong>Адрес:</strong> {{ object.address || '—' }}</p>
       <p><strong>Дата начала:</strong> {{ formatDate(object.startDate) }}</p>
-      <p><strong>Плановая дата завершения:</strong> {{ formatDate(object.endDate) }}</p>
-      <p><strong>Объект из:</strong> —</p>
-      <p><strong>Комментарий:</strong> —</p>
+      <p><strong>Плановая дата завершения:</strong> {{ formatDate(object.plannedEndDate) }}</p>
+      <p><strong>Фактическая дата завершения:</strong> {{ formatDate(object.completedDate) }}</p>
+      <p><strong>Объект из:</strong> {{ object.source || '—' }}</p>
+      <p><strong>Комментарий:</strong> {{ object.comment || '—' }}</p>
     </Card>
 
     <!-- Прораб -->
@@ -60,18 +47,6 @@
         🛠️ <strong>{{ object.foreman.name }}</strong>
       </div>
       <div v-else class="empty-state">Не назначен</div>
-
-      <template v-if="isAdmin" #footer>
-        <div class="assign-foreman-form">
-          <select v-model="selectedForemanId" class="form-select">
-            <option :value="null">— Не выбран —</option>
-            <option v-for="foreman in foremans" :key="foreman.id" :value="foreman.id">
-              {{ foreman.name }}
-            </option>
-          </select>
-          <button @click="assignForeman" class="btn primary btn-sm">Сохранить</button>
-        </div>
-      </template>
     </Card>
 
     <!-- Баланс -->
@@ -79,15 +54,15 @@
       <div class="balance-grid">
         <div class="balance-item">
           <div class="label">Общий баланс</div>
-          <div class="value">{{ formatCurrency(object.totalBalance) }}</div>
+          <div class="value">{{ formatCurrency(object.finances?.totalBalance) }}</div>
         </div>
         <div class="balance-item">
           <div class="label muted">Приходы</div>
-          <div class="value muted">{{ formatCurrency(object.totalIncome) }}</div>
+          <div class="value muted">{{ formatCurrency(object.finances?.totalIncome) }}</div>
         </div>
         <div class="balance-item">
           <div class="label muted">Расходы (работы)</div>
-          <div class="value muted">{{ formatCurrency(object.totalWorks) }}</div>
+          <div class="value muted">{{ formatCurrency(object.finances?.totalWorks) }}</div>
         </div>
       </div>
 
@@ -136,9 +111,27 @@
           @update="handleMaterialUpdated"
           @delete="handleMaterialDeleted"
         />
+
+        <PagesCabinetObjectsDocuments
+          v-else-if="currentTab === 'Документы'"
+          :object="object"
+          :object-id="objectId"
+          :is-admin="isAdmin"
+          @refresh="refreshObjectData"
+        />
       </div>
     </Card>
   </div>
+
+  <!-- Модальное окно редактирования -->
+  <PagesCabinetObjectsEditModal
+    v-if="isAdmin"
+    v-model="isEditModalOpen"
+    :object="object"
+    @updated="handleUpdated"
+    @completed="handleCompleted"
+    @deleted="handleDeleted"
+  />
 </template>
 
 <script setup>
@@ -146,30 +139,58 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Card from '@/components/pages/cabinet/ui/cards/card.vue'
 
+// --- Состояние ---
 const route = useRoute()
 const router = useRouter()
-const objectId = route.params.id
+const objectId = Number(route.params.id)
+
+if (isNaN(objectId)) {
+  router.push('/cabinet/objects')
+  throw new Error('Неверный ID объекта')
+}
 
 // Данные
-const object = ref({})
-const foremans = ref([])
+const object = ref({
+  id: null,
+  name: 'Загрузка...',
+  status: 'active',
+  finances: { totalIncome: 0, totalWorks: 0, totalBalance: 0 },
+  foreman: null,
+  address: null,
+  startDate: null,
+  plannedEndDate: null,
+  completedDate: null,
+  source: null,
+  documentType: null,
+  contractType: null,
+  comment: null,
+  budget: [],
+  invoices: []
+})
+
 const materials = ref([])
 const operations = ref([])
-const selectedForemanId = ref(null)
+
 const currentTab = ref('Операции')
-const tabs = ['Операции', 'Материалы']
+const tabs = ['Операции', 'Материалы', 'Документы']
+
 const isAdmin = ref(false)
+
+// Модальное окно редактирования объекта
+const isEditModalOpen = ref(false)
 
 // Сообщения
 const errorMessage = ref('')
 const successMessage = ref('')
 
+// Мета-информация
 definePageMeta({
   layout: 'cabinet',
   middleware: 'role',
   allowedRoles: ['admin']
 })
 
+// --- Жизненный цикл ---
 onMounted(async () => {
   try {
     const me = await $fetch('/api/me')
@@ -179,48 +200,33 @@ onMounted(async () => {
     isAdmin.value = false
   }
 
-  await fetchObject()
-  await fetchForemans()
-  await fetchMaterials()
-  await fetchOperations()
-
-  if (object.value.foremanId) {
-    selectedForemanId.value = object.value.foremanId
-  }
+  await refreshObjectData()
 })
 
 // --- API методы ---
 
-async function fetchObject() {
+async function fetchFullObject() {
   try {
-    object.value = await $fetch(`/api/objects/${objectId}`, {
+    const data = await $fetch(`/api/objects/${objectId}/full`, {
       method: 'GET',
       credentials: 'include'
     })
+
+    object.value = {
+      ...data,
+      finances: {
+        totalIncome: Number(data.finances?.totalIncome) || 0,
+        totalWorks: Number(data.finances?.totalWorks) || 0,
+        totalBalance: Number(data.finances?.totalBalance) || 0
+      }
+    }
   } catch (error) {
     console.error('Ошибка при получении объекта:', error)
+    errorMessage.value = 'Не удалось загрузить данные объекта'
+    setTimeout(() => (errorMessage.value = ''), 5000)
+
+    // Перенаправление при ошибке
     router.push('/cabinet/objects')
-  }
-}
-
-async function fetchForemans() {
-  try {
-    foremans.value = await $fetch('/api/contractors/foremans')
-  } catch (error) {
-    console.error('Ошибка при загрузке прорабов:', error)
-  }
-}
-
-async function assignForeman() {
-  try {
-    await $fetch(`/api/objects/${objectId}`, {
-      method: 'PUT',
-      body: { foremanId: selectedForemanId.value },
-      credentials: 'include'
-    })
-    await fetchObject()
-  } catch (error) {
-    console.error('Ошибка назначения прораба:', error)
   }
 }
 
@@ -253,60 +259,52 @@ async function fetchOperations() {
   }
 }
 
-// --- Управление объектом ---
+// --- Единая функция обновления данных ---
+async function refreshObjectData() {
+  await Promise.all([
+    fetchFullObject(),
+    fetchMaterials(),
+    fetchOperations()
+  ])
+}
 
-// Переключение статуса: активный ↔ завершённый
-async function toggleStatus() {
-  const newStatus = object.value.status === 'active' ? 'completed' : 'active'
+// --- Обработчики ---
+function handleUpdated(updatedObject) {
+  object.value = updatedObject
+  successMessage.value = 'Объект успешно обновлён'
+  setTimeout(() => (successMessage.value = ''), 3000)
+}
+
+function handleCompleted(updatedObject) {
+  object.value = updatedObject
+  successMessage.value = `Объект ${updatedObject.status === 'completed' ? 'завершён' : 'возобновлён'}`
+  setTimeout(() => (successMessage.value = ''), 3000)
+}
+
+// --- Обновление типа договора ---
+async function updateContractType(type) {
   try {
-    await $fetch(`/api/objects/${objectId}`, {
+    const updated = await $fetch(`/api/objects/${objectId}`, {
       method: 'PUT',
-      body: { status: newStatus },
+      body: { contractType: type },
       credentials: 'include'
     })
 
-    object.value.status = newStatus
-    successMessage.value = `Объект успешно ${newStatus === 'active' ? 'возобновлён' : 'завершён'}`
+    object.value = updated
+    successMessage.value = 'Тип договора обновлён'
     setTimeout(() => (successMessage.value = ''), 3000)
   } catch (error) {
-    console.error('Ошибка изменения статуса:', error)
-    errorMessage.value = 'Не удалось изменить статус объекта'
+    console.error('Ошибка обновления типа договора:', error)
+    errorMessage.value = 'Не удалось изменить тип договора'
     setTimeout(() => (errorMessage.value = ''), 5000)
   }
 }
 
-// Подтверждение и удаление объекта
-function confirmDelete() {
-  const confirmed = window.confirm(
-    'Вы уверены, что хотите удалить этот объект?\n\n' +
-    'Это действие нельзя отменить. Все данные по объекту будут потеряны.'
-  )
-  if (confirmed) {
-    deleteObject()
-  }
+function handleDeleted() {
+  // Уже перенаправлено внутри модалки
 }
 
-async function deleteObject() {
-  try {
-    await $fetch(`/api/objects/${objectId}`, {
-      method: 'DELETE',
-      credentials: 'include'
-    })
-
-    // Очистка и редирект
-    successMessage.value = 'Объект успешно удалён'
-    setTimeout(() => {
-      router.push('/cabinet/objects')
-    }, 800)
-  } catch (error) {
-    console.error('Ошибка удаления объекта:', error)
-    errorMessage.value = 'Не удалось удалить объект'
-    setTimeout(() => (errorMessage.value = ''), 5000)
-  }
-}
-
-// --- Обработчики событий из дочерних компонентов ---
-
+// --- Работа с материалами ---
 function handleMaterialAdded(material) {
   materials.value.push({ ...material, amount: Number(material.amount) })
 }
@@ -322,6 +320,7 @@ function handleMaterialDeleted(id) {
   materials.value = materials.value.filter(m => m.id !== id)
 }
 
+// --- Работа с операциями ---
 function handleComingAdded(coming) {
   operations.value.push({ ...coming, type: 'coming', amount: Number(coming.amount) })
   refreshObjectData()
@@ -335,11 +334,6 @@ function handleExpenseAdded(expense) {
 function handleWorkAdded(work) {
   operations.value.push({ ...work, type: 'work', amount: Number(work.amount) })
   refreshObjectData()
-}
-
-// Локальное обновление данных объекта (баланс и т.п.)
-async function refreshObjectData() {
-  await fetchObject()
 }
 
 // --- Вычисляемые значения ---
@@ -367,6 +361,14 @@ const formatDate = (dateStr) => {
 const formatCurrency = (value) => {
   return new Intl.NumberFormat('ru-RU').format(value || 0) + ' ₽'
 }
+
+// --- Текстовые отображения ---
+
+const objectStatusText = computed(() => {
+  if (!object.value?.status) return '—'
+  const map = { active: 'Активный', completed: 'Завершён', waiting: 'Ожидание' }
+  return map[object.value.status] || object.value.status
+})
 </script>
 
 <style lang="scss" scoped>
@@ -405,13 +407,9 @@ const formatCurrency = (value) => {
     background-color: #e3f2fd;
     color: #1565c0;
   }
-  &.status-paused {
+  &.status-waiting {
     background-color: #fff8e1;
     color: #f57f17;
-  }
-  &.status-canceled {
-    background-color: #ffebee;
-    color: #c62828;
   }
 }
 
@@ -425,26 +423,6 @@ const formatCurrency = (value) => {
   color: $color-muted;
   font-style: italic;
   padding: 0.5rem 0;
-}
-
-// Форма назначения
-.assign-foreman-form {
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-  flex-wrap: wrap;
-
-  .form-select {
-    flex: 1 1 200px;
-    padding: 0.5rem;
-    border: 1px solid $border-color;
-    border-radius: $border-radius;
-    background: white;
-  }
-
-  .btn {
-    white-space: nowrap;
-  }
 }
 
 // Баланс
@@ -548,6 +526,25 @@ const formatCurrency = (value) => {
   &.btn-sm {
     padding: 0.4rem 0.8rem;
     font-size: 0.875rem;
+  }
+}
+
+.alert {
+  padding: 0.75rem 1rem;
+  border-radius: $border-radius;
+  margin: 0 2rem;
+  font-size: 0.95rem;
+
+  &.alert-success {
+    background: #e8f5e9;
+    color: #2e7d32;
+    border: 1px solid #c8e6c9;
+  }
+
+  &.alert-error {
+    background: #ffebee;
+    color: #c62828;
+    border: 1px solid #ef9a9a;
   }
 }
 

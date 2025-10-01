@@ -1,12 +1,11 @@
 <template>
-  <ForemanIndex
+  <PagesCabinetContractorsForeman
     :id="id"
     :contractor-type="'foreman'"
     :contractor="contractor"
     :expenses="expenses"
     :objects="objects"
     :salary-deductions="salaryDeductions"
-    :profit-history="profitHistory"
     @update-contractor="updateContractor"
     @add-payment="addPayment"
   />
@@ -15,7 +14,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import ForemanIndex from '@/components/pages/Cabinet/Contractors/Foreman/Index.vue'
 
 const route = useRoute()
 const id = route.params.id
@@ -23,7 +21,6 @@ const id = route.params.id
 // Основные данные
 const contractor = ref({})
 const salaryDeductions = ref([])
-const profitHistory = ref([])
 const expenses = ref([])
 const objects = ref([])
 
@@ -52,12 +49,6 @@ async function fetchData() {
         credentials: 'include'
       }),
 
-      $fetch(`/api/contractors/foremans/profit-history/${id}`, {
-        method: 'GET',
-        params: { foremanId: id },
-        credentials: 'include'
-      }),
-
       // Расходы
       $fetch(`/api/expenses`, {
         method: 'GET',
@@ -76,26 +67,12 @@ async function fetchData() {
     salaryDeductions.value = deductionsData
     expenses.value = expensesData
     objects.value = objectsData // Сохраняем объекты
-    profitHistory.value = formatProfitHistory(historyData)
   } catch (err) {
     error.value = 'Не удалось загрузить данные'
     console.error('Ошибка загрузки:', err)
   } finally {
     loading.value = false
   }
-}
-
-function formatProfitHistory(data) {
-  // Берём данные из поля `profitHistory`
-  return (data.profitHistory || []).map(item => ({
-    id: item.id,
-    amount: parseFloat(item.amount),
-    description: item.description || '',
-    objectId: item.objectId,
-    objectName: item.objectName || 'Не указан',
-    date: item.date ? new Date(item.date) : new Date(),
-    createdAt: item.createdAt ? new Date(item.createdAt) : new Date()
-  }))
 }
 
 // Обработчики

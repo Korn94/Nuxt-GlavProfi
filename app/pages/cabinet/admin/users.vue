@@ -1,5 +1,6 @@
+<!-- app\components\pages\cabinet\UserManagement.vue -->
 <template>
-  <PagesCabinetUiLayoutPageTitle title="Управление пользователями" >
+  <PagesCabinetUiLayoutPageTitle title="Управление пользователями">
     <template #actions>
       <button class="btn btn-primary" @click="openAddModal">
         <Icon name="mdi:plus" size="16" />
@@ -7,7 +8,7 @@
       </button>
     </template>
   </PagesCabinetUiLayoutPageTitle>
-  
+
   <div class="container">
     <!-- Таблица пользователей -->
     <table>
@@ -15,7 +16,6 @@
         <tr>
           <th>ID</th>
           <th>Имя</th>
-          <!-- <th>Логин</th> -->
           <th>Роль</th>
           <th>Контрагент</th>
           <th>Баланс</th>
@@ -26,97 +26,131 @@
         <tr v-for="user in users" :key="user.id">
           <td>{{ user.id }}</td>
           <td>{{ user.name }}</td>
+          <td>{{ user.role }}</td>
           <td>
             <div v-if="user.contractorType && user.contractorId">
               <NuxtLink :to="`/cabinet/admin/contractors/${user.contractorType}/${user.contractorId}`">
                 {{ formatContractorName(user) }}
               </NuxtLink>
             </div>
-            <div v-else>
-              —
-            </div>
+            <div v-else>—</div>
           </td>
-          <td>{{ user.role }}</td>
-          <td>
-            {{ getContractorBalanceText(user) }}
-          </td>
+          <td>{{ getContractorBalanceText(user) }}</td>
           <td>
             <button @click="editUser(user)">Редактировать</button>
-            <!-- <button @click="deleteUser(user.id)">Удалить</button> -->
           </td>
         </tr>
       </tbody>
     </table>
 
-    <!-- Единое модальное окно для добавления/редактирования -->
-    <div v-if="isModalOpen" class="modal">
+    <!-- Универсальное модальное окно -->
+    <PagesCabinetUiModal
+      :visible="isModalOpen"
+      @close="closeModal"
+      :title="isEditing ? 'Редактировать пользователя' : 'Добавить нового пользователя'"
+      size="md"
+      :closable="true"
+    >
+      <!-- Контент формы -->
       <div class="modal-content">
-        <h2>{{ isEditing ? 'Редактировать пользователя' : 'Добавить нового пользователя' }}</h2>
+        <!-- Имя -->
+        <div class="form-group">
+          <label>Имя <span class="required">*</span></label>
+          <input
+            v-model="currentForm.name"
+            placeholder="Введите имя"
+            :class="{ error: formErrors.name }"
+          />
+          <span v-if="formErrors.name" class="error-message">{{ formErrors.name }}</span>
+        </div>
 
-        <input v-model="currentForm.name" placeholder="Имя" :class="{ error: formErrors.name }" />
-        <span v-if="formErrors.name" class="error-message">{{ formErrors.name }}</span>
+        <!-- Логин -->
+        <div class="form-group">
+          <label>Логин <span class="required">*</span></label>
+          <input
+            v-model="currentForm.login"
+            placeholder="Введите логин"
+            :class="{ error: formErrors.login }"
+          />
+          <span v-if="formErrors.login" class="error-message">{{ formErrors.login }}</span>
+        </div>
 
-        <input v-model="currentForm.login" placeholder="Логин" :class="{ error: formErrors.login }" />
-        <span v-if="formErrors.login" class="error-message">{{ formErrors.login }}</span>
+        <!-- Пароль (только при добавлении или если editPassword) -->
+        <div v-if="!isEditing || editPassword" class="form-group">
+          <label>Пароль</label>
+          <input
+            v-model="currentForm.password"
+            type="password"
+            :placeholder="isEditing ? 'Оставьте пустым, чтобы не менять' : 'Введите пароль'"
+          />
+          <span v-if="formErrors.password" class="error-message">{{ formErrors.password }}</span>
+        </div>
 
-        <input v-if="!isEditing || editPassword"
-               v-model="currentForm.password"
-               type="password"
-               placeholder="Пароль (оставьте пустым, чтобы не менять)"
-               :class="{ error: formErrors.password }" />
-        <span v-if="formErrors.password" class="error-message">{{ formErrors.password }}</span>
-
-        <select v-model="currentForm.role">
-          <option value="admin">Админ</option>
-          <option value="manager">Менеджер</option>
-          <option value="foreman">Прораб</option>
-          <option value="worker">Рабочий</option>
-          <option value="master">Мастер</option>
-        </select>
-
-        <!-- Поля для контрагента только при редактировании -->
-        <div v-if="isEditing">
-          <label for="contractorType">Тип контрагента:</label>
-          <select v-model="currentForm.contractorType" id="contractorType">
-            <option value="">Без привязки</option>
-            <option value="master">Мастер</option>
-            <option value="worker">Рабочий</option>
+        <!-- Роль -->
+        <div class="form-group">
+          <label>Роль</label>
+          <select v-model="currentForm.role">
+            <option value="admin">Админ</option>
+            <option value="manager">Менеджер</option>
             <option value="foreman">Прораб</option>
-            <option value="office">Офис</option>
+            <option value="worker">Рабочий</option>
+            <option value="master">Мастер</option>
           </select>
+        </div>
 
-          <div v-if="currentForm.contractorType">
-            <label :for="`contractorId-${currentForm.contractorType}`">Выберите {{ currentForm.contractorType }}:</label>
-            <select v-model="currentForm.contractorId" :id="`contractorId-${currentForm.contractorType}`">
-              <option value="">— Выберите имя —</option>
-              <option v-for="contractor in contractorsByType" :key="contractor.id" :value="contractor.id">
-                {{ contractor.name }}
+        <!-- Привязка к контрагенту (только при редактировании) -->
+        <div v-if="isEditing">
+          <div class="form-group">
+            <label>Тип контрагента</label>
+            <select v-model="currentForm.contractorType">
+              <option value="">Без привязки</option>
+              <option value="master">Мастер</option>
+              <option value="worker">Рабочий</option>
+              <option value="foreman">Прораб</option>
+              <option value="office">Офис</option>
+            </select>
+          </div>
+
+          <div v-if="currentForm.contractorType" class="form-group">
+            <label>Контрагент</label>
+            <select v-model="currentForm.contractorId">
+              <option value="">— Выберите —</option>
+              <option v-for="c in contractorsByType" :key="c.id" :value="c.id">
+                {{ c.name }}
               </option>
             </select>
           </div>
         </div>
 
-        <button @click="submitForm">{{ isEditing ? 'Сохранить' : 'Добавить' }}</button>
-        <button @click="closeModal" class="btn-cancel">Отмена</button>
-
-        <div v-if="formErrors.general" class="error-message">{{ formErrors.general }}</div>
+        <!-- Ошибка формы -->
+        <div v-if="formErrors.general" class="error-message form-error">
+          {{ formErrors.general }}
+        </div>
       </div>
-    </div>
+
+      <!-- Футер -->
+      <template #footer>
+        <button type="button" @click="closeModal" class="btn btn-secondary">Отмена</button>
+        <button type="button" @click="submitForm" class="btn btn-primary">
+          {{ isEditing ? 'Сохранить' : 'Добавить' }}
+        </button>
+      </template>
+    </PagesCabinetUiModal>
 
     <!-- Сообщения -->
-    <div v-if="successMessage" class="success-message">{{ successMessage }}</div>
-    <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
+    <div v-if="successMessage" class="notification success">{{ successMessage }}</div>
+    <div v-if="errorMessage" class="notification error">{{ errorMessage }}</div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
 
-// Список пользователей и контрагентов
+// Данные
 const users = ref([])
 const contractors = ref([])
 
-// Форма пользователя (для добавления/редактирования)
+// Форма
 const currentForm = ref({
   id: null,
   name: '',
@@ -124,28 +158,28 @@ const currentForm = ref({
   password: '',
   role: 'worker',
   contractorType: '',
-  contractorId: ''
+  contractorId: '',
 })
 
 const isModalOpen = ref(false)
 const isEditing = ref(false)
-const editPassword = ref(false) // Показать/скрыть поле пароля при редактировании
+const editPassword = ref(false)
 
 // Сообщения
 const formErrors = ref({})
 const successMessage = ref('')
 const errorMessage = ref('')
 
-// Фильтр контрагентов по выбранному типу
+// Вычисляем контрагентов по типу
 const contractorsByType = computed(() => {
   if (!currentForm.value.contractorType) return []
   return contractors.value.filter(c => c.type === currentForm.value.contractorType)
 })
 
 definePageMeta({
-  layout: "cabinet",
+  layout: 'cabinet',
   middleware: 'role',
-  allowedRoles: ['admin']
+  allowedRoles: ['admin'],
 })
 
 onMounted(async () => {
@@ -153,37 +187,27 @@ onMounted(async () => {
   await fetchContractors()
 })
 
-// Получить список пользователей
+// Загрузка данных
 async function fetchUsers() {
   try {
-    const response = await fetch('/api/users', {
-      method: 'GET',
-      credentials: 'include'
-    })
-    if (!response.ok) throw new Error('Ошибка загрузки пользователей')
-    const data = await response.json()
-    users.value = data.users || []
+    const data = await $fetch('/api/users', { credentials: 'include' })
+    users.value = Array.isArray(data.users) ? data.users : []
     clearMessages()
-  } catch (error) {
-    errorMessage.value = 'Ошибка при загрузке пользователей.'
-    console.error(error)
+  } catch (e) {
+    errorMessage.value = 'Ошибка загрузки пользователей'
   }
 }
 
-// Получить список контрагентов
 async function fetchContractors() {
   try {
-    const data = await $fetch('/api/contractors', {
-      method: 'GET',
-      credentials: 'include'
-    })
-    contractors.value = data
-  } catch (error) {
-    console.error('Ошибка загрузки контрагентов:', error)
+    const data = await $fetch('/api/contractors', { credentials: 'include' })
+    contractors.value = Array.isArray(data) ? data : []
+  } catch (e) {
+    console.error('Ошибка загрузки контрагентов:', e)
   }
 }
 
-// Открытие формы добавления
+// Открытие модального окна
 function openAddModal() {
   currentForm.value = {
     id: null,
@@ -192,7 +216,7 @@ function openAddModal() {
     password: '',
     role: 'worker',
     contractorType: '',
-    contractorId: ''
+    contractorId: '',
   }
   isEditing.value = false
   editPassword.value = false
@@ -200,7 +224,7 @@ function openAddModal() {
   isModalOpen.value = true
 }
 
-// Редактирование пользователя
+// Редактирование
 function editUser(user) {
   currentForm.value = { ...user }
   isEditing.value = true
@@ -209,120 +233,89 @@ function editUser(user) {
   isModalOpen.value = true
 }
 
-// Закрытие модала
+// Закрытие
 function closeModal() {
   isModalOpen.value = false
   formErrors.value = {}
 }
 
-// Валидация формы
+// Валидация
 function validateForm() {
   formErrors.value = {}
-  if (!currentForm.value.name) formErrors.value.name = 'Имя обязательно'
-  if (!currentForm.value.login) formErrors.value.login = 'Логин обязателен'
-  if (!isEditing.value && !currentForm.value.password) formErrors.value.password = 'Пароль обязателен'
-  return Object.keys(formErrors.value).length === 0
+  let valid = true
+
+  if (!currentForm.value.name?.trim()) {
+    formErrors.value.name = 'Имя обязательно'
+    valid = false
+  }
+  if (!currentForm.value.login?.trim()) {
+    formErrors.value.login = 'Логин обязателен'
+    valid = false
+  }
+  if (!isEditing.value && !currentForm.value.password?.trim()) {
+    formErrors.value.password = 'Пароль обязателен'
+    valid = false
+  }
+
+  return valid
 }
 
-// Сохранение пользователя
+// Отправка формы
 async function submitForm() {
   if (!validateForm()) return
 
-  const body = { ...currentForm.value }
-
-  // Подготовка данных для отправки
   const payload = {
-    name: body.name,
-    login: body.login,
-    role: body.role,
-    ...(body.password && { password: body.password }),
-    ...(body.contractorType && { contractorType: body.contractorType }),
-    ...(body.contractorId && { contractorId: body.contractorId })
+    name: currentForm.value.name,
+    login: currentForm.value.login,
+    role: currentForm.value.role,
+    ...(currentForm.value.password && { password: currentForm.value.password }),
+    ...(currentForm.value.contractorType && { contractorType: currentForm.value.contractorType }),
+    ...(currentForm.value.contractorId && { contractorId: currentForm.value.contractorId }),
   }
 
-  if (!isEditing.value) {
-    // Добавление нового пользователя
-    try {
-      const res = await fetch('/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        credentials: 'include'
-      })
-
-      if (!res.ok) {
-        const errData = await res.json()
-        if (errData.message.includes('логин')) {
-          formErrors.value.login = 'Этот логин уже занят'
-        } else {
-          throw new Error(errData.message || 'Ошибка добавления')
-        }
-      } else {
-        successMessage.value = 'Пользователь добавлен!'
-        await fetchUsers()
-        closeModal()
-      }
-    } catch (e) {
-      errorMessage.value = e.message || 'Ошибка при добавлении'
-    }
-  } else {
-    // Редактирование существующего пользователя
-    try {
-      const res = await $fetch(`/api/users/${body.id}`, {
+  try {
+    if (isEditing.value) {
+      // Редактирование
+      await $fetch(`/api/users/${currentForm.value.id}`, {
         method: 'PUT',
         body: payload,
-        credentials: 'include'
+        credentials: 'include',
       })
+      successMessage.value = 'Пользователь обновлён'
+    } else {
+      // Создание
+      await $fetch('/api/users', {
+        method: 'POST',
+        body: payload,
+        credentials: 'include',
+      })
+      successMessage.value = 'Пользователь добавлен'
+    }
 
-      if (res?.id) {
-        successMessage.value = 'Пользователь обновлён'
-
-        await fetchUsers()
-        closeModal()
-      }
-    } catch (e) {
-      console.error(e)
-      formErrors.value.general = 'Не удалось сохранить изменения'
+    await fetchUsers()
+    closeModal()
+  } catch (e) {
+    if (e.data?.message?.includes('логин')) {
+      formErrors.value.login = 'Этот логин уже занят'
+    } else {
+      formErrors.value.general = 'Не удалось сохранить'
     }
   }
 }
 
-// Удаление пользователя
-function deleteUser(id) {
-  if (!confirm('Вы уверены, что хотите удалить этого пользователя?')) return
-  fetch(`/api/users/${id}`, {
-    method: 'DELETE',
-    credentials: 'include'
-  }).then(() => {
-    successMessage.value = 'Пользователь удалён'
-    fetchUsers()
-  }).catch(() => {
-    errorMessage.value = 'Ошибка удаления'
-  })
-}
-
-// Для отображения типа и ID контрагента
+// Форматирование имени контрагента
 function formatContractorName(user) {
-  if (!user.contractorType || !user.contractorId) return '—'
-
-  const typeMap = {
-    master: 'Мастер',
-    worker: 'Рабочий',
-    foreman: 'Прораб',
-    office: 'Офис'
-  }
-
-  const typeName = typeMap[user.contractorType] || user.contractorType
-
-  return `${typeName}`
+  const map = { master: 'Мастер', worker: 'Рабочий', foreman: 'Прораб', office: 'Офис' }
+  return map[user.contractorType] || user.contractorType || ''
 }
 
-// Форматирование баланса
+// Баланс контрагента
 function getContractorBalanceText(user) {
   if (!user.contractorType || !user.contractorId) return '—'
-  const contractor = contractors.value.find(c => c.type === user.contractorType && c.id === user.contractorId)
-  if (!contractor) return 'Не найден'
-  return `${Number(contractor.balance).toFixed(2)} ₽`
+  const c = contractors.value.find(
+    item => item.type === user.contractorType && item.id === user.contractorId
+  )
+  return c ? `${Number(c.balance).toFixed(2)} ₽` : 'Не найден'
 }
 
 // Очистка сообщений
@@ -333,97 +326,69 @@ function clearMessages() {
 </script>
 
 <style lang="scss" scoped>
-// Переменные
-$primary-color: #4361ee;
-$danger-color: #f72585;
-$success-color: #4cc9f0;
-$warning-color: #ff9e00;
-$gray-light: #f8f9fa;
-$gray: #adb5bd;
-$gray-dark: #343a40;
-$text-color: #212529;
-$border-color: #dee2e6;
-$box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-$border-radius: 8px;
-$transition: all 0.3s ease;
+@use 'sass:map';
 
 .container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem 1rem;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  color: $text-color;
+  padding: 1.5rem;
 
-  h1 {
-    text-align: center;
-    margin-bottom: 2rem;
-    color: $text-color;
-    font-size: 1.8rem;
-    font-weight: 600;
-  }
-
-  // Таблица пользователей
   table {
     width: 100%;
     border-collapse: collapse;
-    margin-bottom: 2rem;
-    background-color: #fff;
+    background: #fff;
     border-radius: $border-radius;
     overflow: hidden;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    box-shadow: $box-shadow;
+    margin-bottom: 1.5rem;
 
     thead {
-      background-color: $gray;
-      color: white;
+      background: $blue20;
+      color: $text-dark;
 
       th {
         padding: 1rem;
         text-align: left;
         font-weight: 600;
-        font-size: 0.95rem;
+        font-size: 0.9rem;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        color: $text-dark;
       }
     }
 
-    tbody {
-      tr {
-        border-bottom: 1px solid $border-color;
-        transition: background-color 0.2s;
+    tbody tr {
+      border-bottom: 1px solid $border-color;
 
-        &:nth-child(even) {
-          background-color: $gray-light;
-        }
+      &:nth-child(even) {
+        background: $sub-item-bg;
+      }
 
-        &:hover {
-          background-color: $border-color;
-        }
+      &:hover {
+        background: $blue20;
+      }
 
-        td {
-          padding: 1rem;
-          vertical-align: middle;
+      td {
+        padding: 1rem;
+        vertical-align: middle;
 
-          .nuxt-link {
-            color: $blue;
-            text-decoration: none;
-            font-weight: 500;
+        .nuxt-link {
+          color: $blue;
+          text-decoration: none;
+          font-weight: 500;
 
-            &:hover {
-              text-decoration: underline;
-            }
+          &:hover {
+            text-decoration: underline;
           }
         }
       }
     }
   }
 
-  // Кнопки
   button {
     padding: 0.5rem 1rem;
     border: none;
     border-radius: $border-radius;
     cursor: pointer;
-    font-size: 0.9rem;
     font-weight: 500;
     transition: $transition;
 
@@ -431,190 +396,101 @@ $transition: all 0.3s ease;
       outline: 2px solid $blue;
       outline-offset: 2px;
     }
-
-    &:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
   }
 
-  .btn-add {
-    background-color: $blue;
-    color: white;
+  .btn-primary {
+    background: $blue;
+    color: $text-light;
 
     &:hover:not(:disabled) {
-      background-color: #333;
-      transform: translateY(-1px);
+      background: $blue;
     }
   }
 
-  .btn-cancel {
-    background-color: $gray;
-    color: white;
-    margin-left: 0.5rem;
+  .btn-secondary {
+    background: $color-muted;
+    color: $text-light;
 
     &:hover {
-      background-color: $gray-light;
-    }
-  }
-
-  // Модальное окно
-  .modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-    animation: fadeIn 0.3s ease;
-
-    .modal-content {
-      background: white;
-      padding: 2rem;
-      border-radius: $border-radius;
-      width: 100%;
-      max-width: 500px;
-      box-shadow: $box-shadow;
-      animation: slideUp 0.3s ease;
-      max-height: 90vh;
-      overflow-y: auto;
-
-      h2 {
-        margin-top: 0;
-        margin-bottom: 1.5rem;
-        color: $blue;
-        font-size: 1.4rem;
-        font-weight: 600;
-      }
-
-      input,
-      select {
-        width: 100%;
-        padding: 0.75rem;
-        margin: 0.5rem 0 0.25rem;
-        border: 1px solid $border-color;
-        border-radius: $border-radius;
-        font-size: 1rem;
-        transition: border-color $transition;
-
-        &:focus {
-          outline: none;
-          border-color: $blue;
-          box-shadow: 0 0 0 3px rgba($blue, 0.2);
-        }
-
-        &.error {
-          border-color: $danger-color;
-          background-color: rgba($danger-color, 0.05);
-        }
-      }
-
-      select {
-        cursor: pointer;
-      }
-
-      label {
-        display: block;
-        margin-top: 1rem;
-        margin-bottom: 0.5rem;
-        font-weight: 500;
-        color: $gray-dark;
-      }
-
-      button {
-        margin-top: 1.5rem;
-        padding: 0.75rem 1.5rem;
-        font-size: 1rem;
-
-        &:first-of-type {
-          background-color: $blue;
-          color: white;
-
-          &:hover:not(:disabled) {
-            background-color: #333;
-          }
-        }
-      }
-    }
-  }
-
-  // Сообщения
-  .success-message {
-    padding: 1rem;
-    margin: 1rem 0;
-    background-color: rgba($success-color, 0.15);
-    color: $success-color;
-    border: 1px solid rgba($success-color, 0.3);
-    border-radius: $border-radius;
-    text-align: center;
-    font-weight: 500;
-  }
-
-  .error-message {
-    color: $danger-color;
-    font-size: 0.85rem;
-    margin-top: 0.25rem;
-    font-weight: 500;
-
-    // Для общей ошибки формы
-    &.form-error {
-      background-color: rgba($danger-color, 0.1);
-      padding: 0.75rem;
-      border-radius: $border-radius;
-      margin-top: 1rem;
-      border: 1px solid rgba($danger-color, 0.2);
-    }
-  }
-
-  // Анимации
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
-
-  @keyframes slideUp {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
+      background: $blue;
     }
   }
 }
 
-// Адаптивность
-@media (max-width: 768px) {
-  .container {
-    padding: 1rem;
+// Стили внутри модального окна
+.modal-content {
+  .form-group {
+    margin-bottom: 1rem;
+  }
 
-    table {
-      font-size: 0.9rem;
+  label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: $text-dark;
+  }
 
-      th,
-      td {
-        padding: 0.75rem;
-      }
+  input,
+  select {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid $border-color;
+    border-radius: $border-radius;
+    background: $background-light;
+    transition: $transition;
 
-      th:nth-child(5),
-      td:nth-child(5) {
-        display: none; // Скрыть баланс на малых экранах
-      }
+    &:focus {
+      outline: none;
+      border-color: $blue;
+      box-shadow: 0 0 0 2px $blue20;
     }
 
-    .modal .modal-content {
-      margin: 1rem;
-      max-height: calc(100vh - 2rem);
+    &.error {
+      border-color: $red;
+      background: rgba($red, 0.05);
     }
+  }
+
+  select {
+    cursor: pointer;
+  }
+
+  .required {
+    color: $red;
+  }
+
+  .error-message {
+    color: $color-danger;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+
+    &.form-error {
+      padding: 0.75rem;
+      background: rgba($color-danger, 0.1);
+      border: 1px solid rgba($color-danger, 0.2);
+      border-radius: $border-radius;
+      margin-top: 1rem;
+    }
+  }
+}
+
+.notification {
+  padding: 0.75rem 1rem;
+  border-radius: $border-radius;
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin: 1rem 0;
+
+  &.success {
+    background: rgba($green, 0.15);
+    color: $green;
+    border: 1px solid rgba($green, 0.3);
+  }
+
+  &.error {
+    background: rgba($red, 0.15);
+    color: $red;
+    border: 1px solid rgba($red, 0.3);
   }
 }
 </style>

@@ -1,6 +1,7 @@
 <template>
   <div class="block">
     <h2>Операции объекта</h2>
+
     <!-- Баланс объекта -->
     <div class="balance-summary">
       <div class="balance-card">
@@ -9,49 +10,32 @@
           <Icon name="fa6-solid:coins" width="24" height="24" />
         </div>
         <div class="card-body">
-          <p>{{ objectBalance }} ₽</p>
+          <p>{{ formatAmount(objectBalance) }} ₽</p>
           <small class="balance-description">Приходы - Вып. работы</small>
         </div>
       </div>
-      <div class="balance-card">
-        <div class="card-header">
-          <span>Остаток от заказчика</span>
-          <Icon name="fa6-solid:clock" width="24" height="24" />
-        </div>
-        <div class="card-body">
-          <p>{{ remainingFromClient }} ₽</p>
-          <small class="balance-description">Смета - Приход</small>
-        </div>
-      </div>
-      <div class="balance-card">
-        <div class="card-header">
-          <span>Общая сумма по смете</span>
-          <!-- <small class="balance-description">Сумма всех смет по работам</small> -->
-          <Icon name="fa6-solid:list" width="24" height="24" />
-        </div>
-        <div class="card-body">
-          <p>{{ expectedTotal }} ₽</p>
-        </div>
-      </div>
+
       <div class="balance-card">
         <div class="card-header">
           <span>Сумма работ в работе</span>
           <Icon name="fa6-solid:clock" width="24" height="24" />
         </div>
         <div class="card-body">
-          <p>{{ pendingWorksTotal }} ₽</p>
+          <p>{{ formatAmount(pendingWorksTotal) }} ₽</p>
           <small class="balance-description">Сумма не принятых работ</small>
         </div>
       </div>
     </div>
+
     <!-- Кнопки добавления -->
     <div class="add-buttons">
       <button @click="openComingModal" class="btn primary">Добавить приход</button>
       <button @click="openWorkModal" class="btn primary">Добавить работу</button>
     </div>
+
     <!-- Таблица приходов -->
     <div class="table-section">
-      <h3>Приходы <Icon name="fa6-solid:arrow-down" width="24" height="24" /></h3>
+      <h3><Icon name="fa6-solid:arrow-down" width="24" height="24" /> Приходы</h3>
       <div class="table-wrapper">
         <table>
           <thead>
@@ -64,16 +48,17 @@
           <tbody>
             <tr v-for="coming in comings" :key="coming.id" :class="{ 'odd-row': comings.indexOf(coming) % 2 === 0 }">
               <td>{{ formatDate(coming.operationDate) }}</td>
-              <td>{{ coming.amount }} ₽</td>
-              <td>{{ coming.comment }}</td>
+              <td>{{ formatAmount(coming.amount) }} ₽</td>
+              <td>{{ coming.comment || '-' }}</td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
+
     <!-- Таблица работ -->
     <div class="table-section">
-      <h3>Работы <Icon name="fa6-solid:toolbox" width="24" height="24" /></h3>
+      <h3><Icon name="fa6-solid:toolbox" width="24" height="24" /> Работы</h3>
       <div class="table-wrapper">
         <table>
           <thead>
@@ -93,11 +78,11 @@
           <tbody>
             <tr v-for="work in works" :key="work.id" :class="{ 'odd-row': works.indexOf(work) % 2 === 0 }">
               <td>{{ formatDate(work.operationDate) }}</td>
-              <td>{{ work.workerAmount }} ₽</td>
+              <td>{{ formatAmount(work.workerAmount || work.amount) }} ₽</td>
               <td>
                 {{ contractors.find(c => c.id === work.contractorId && c.type === work.contractorType)?.name || '-' }}
               </td>
-              <td>{{ work.comment }}</td>
+              <td>{{ work.comment || '-' }}</td>
               <td>
                 {{ foremans.find(s => s.id === work.supervisorId)?.name || '-' }}
               </td>
@@ -125,7 +110,8 @@
         </table>
       </div>
     </div>
-    <!-- Сообщения -->
+
+    <!-- Уведомления -->
     <div v-if="successMessage" class="notification success">
       <Icon name="fa6-solid:check-circle" width="24" height="24" />
       {{ successMessage }}
@@ -134,7 +120,8 @@
       <Icon name="fa6-solid:exclamation-circle" width="24" height="24" />
       {{ errorMessage }}
     </div>
-    <!-- Модальное окно для прихода -->
+
+    <!-- Модальное окно: Добавить приход -->
     <div v-if="isComingModalOpen" class="modal-overlay">
       <div class="modal">
         <div class="modal-header">
@@ -143,27 +130,36 @@
         </div>
         <div class="modal-body">
           <div class="form-group">
+            <label>Сумма</label>
             <input
               type="number"
-              step="100.00"
+              step="100"
               v-model.number="newComing.amount"
-              placeholder="Сумма"
+              placeholder="Введите сумму"
               required
               :class="{ error: formErrors.coming }"
             />
             <span v-if="formErrors.coming" class="error-message">{{ formErrors.coming }}</span>
+            <!-- Визуальная подсказка -->
+            <small v-if="newComing.amount > 0" class="format-preview">
+              Будет отображено: {{ formatAmount(newComing.amount) }} ₽
+            </small>
           </div>
           <div class="form-group">
-            <textarea v-model="newComing.comment" placeholder="Комментарий"></textarea>
+            <label>Комментарий</label>
+            <textarea v-model="newComing.comment" placeholder="Дополнительная информация"></textarea>
           </div>
         </div>
         <div class="modal-footer">
           <button @click="closeModals" class="btn secondary">Отмена</button>
-          <button @click="addComing" :disabled="!isComingValid" class="btn primary">Добавить</button>
+          <button @click="addComing" :disabled="!isComingValid" class="btn primary">
+            {{ loadingComing ? 'Сохранение...' : 'Добавить' }}
+          </button>
         </div>
       </div>
     </div>
-    <!-- Модальное окно для работы -->
+
+    <!-- Модальное окно: Добавить работу -->
     <div v-if="isWorkModalOpen" class="modal-overlay">
       <div class="modal">
         <div class="modal-header">
@@ -175,14 +171,18 @@
             <label>Сумма работ (мастеру)</label>
             <input
               type="number"
-              step="100.00"
+              step="100"
               v-model.number="newWork.amount"
               placeholder="Сумма работ"
               required
               :class="{ error: formErrors.contractorAmount }"
             />
             <span v-if="formErrors.contractorAmount" class="error-message">{{ formErrors.contractorAmount }}</span>
+            <small v-if="newWork.amount > 0" class="format-preview">
+              Будет отображено: {{ formatAmount(newWork.amount) }} ₽
+            </small>
           </div>
+
           <div class="form-group">
             <label>Выберите категорию</label>
             <select v-model="selectedCategory">
@@ -191,39 +191,51 @@
               <option value="worker">Рабочие</option>
             </select>
           </div>
+
           <div class="form-group">
             <label>Выберите контрагента</label>
-            <select v-model="newWork.contractorId">
+            <select v-model="newWork.contractorId" :disabled="!selectedCategory">
               <option value="">Выберите контрагента</option>
-              <option v-for="contractor in filteredContractors" :key="contractor.id" :value="contractor.id">
-                {{ contractor.name }} (Баланс: {{ contractor.balance }} ₽)
+              <option
+                v-for="contractor in filteredContractors"
+                :key="contractor.id"
+                :value="contractor.id"
+              >
+                {{ contractor.name }} (Баланс: {{ formatAmount(contractor.balance) }} ₽)
               </option>
             </select>
           </div>
+
           <div class="form-group">
             <label>Выберите прораба</label>
             <select v-model="newWork.supervisorId">
+              <option value="">Выберите прораба</option>
               <option v-for="foreman in foremans" :key="foreman.id" :value="foreman.id">
                 {{ foreman.name }}
               </option>
             </select>
           </div>
+
           <div class="form-group">
             <label>Выберите вид работы</label>
             <select v-model="newWork.workType">
+              <option value="">Выберите вид работы</option>
               <option v-for="type in workTypes" :key="type" :value="type">
                 {{ type }}
               </option>
             </select>
           </div>
+
           <div class="form-group">
             <label>Комментарий</label>
-            <textarea v-model="newWork.comment" placeholder="Комментарий"></textarea>
+            <textarea v-model="newWork.comment" placeholder="Комментарий к работе"></textarea>
           </div>
         </div>
         <div class="modal-footer">
           <button @click="closeModals" class="btn secondary">Отмена</button>
-          <button @click="addWork" :disabled="!isWorkValid" class="btn primary">Добавить работу</button>
+          <button @click="addWork" :disabled="!isWorkValid" class="btn primary">
+            {{ loadingWork ? 'Сохранение...' : 'Добавить работу' }}
+          </button>
         </div>
       </div>
     </div>
@@ -278,7 +290,143 @@ const formErrors = ref({})
 const successMessage = ref('')
 const errorMessage = ref('')
 
-// Функции открытия/закрытия модалей
+// --- Функции форматирования ---
+
+/**
+ * Форматирует число с пробелами как разделитель тысяч.
+ * Только визуальное отображение.
+ */
+function formatAmount(value) {
+  if (value == null || isNaN(value)) return '0'
+  return new Intl.NumberFormat('ru-RU').format(Number(value))
+}
+
+// --- Вычисляемые значения (чистые числа, без форматирования!) ---
+
+// Общая сумма приходов
+const totalComings = computed(() => {
+  return comings.value.reduce((sum, op) => sum + Number(op.amount), 0)
+})
+
+// Баланс объекта: приходы - выплаченные работы (принятые заказчиком)
+const objectBalance = computed(() => {
+  const totalWorksPaid = works.value
+    .filter(w => w.paid && w.acceptedByClient)
+    .reduce((sum, w) => sum + Number(w.workerAmount || w.amount || 0), 0)
+  return totalComings.value - totalWorksPaid
+})
+
+// Сумма непринятых работ (в работе)
+const pendingWorksTotal = computed(() => {
+  return works.value
+    .filter(w => !w.paid && !w.acceptedByClient)
+    .reduce((sum, w) => sum + Number(w.workerAmount || w.amount || 0), 0)
+})
+
+// --- Фильтрация контрагентов ---
+const filteredContractors = computed(() => {
+  if (!selectedCategory.value) return []
+  return contractors.value.filter(c => c.type === selectedCategory.value)
+})
+
+// --- Валидация форм ---
+const isComingValid = computed(() => Number(newComing.value.amount) > 0)
+
+const isWorkValid = computed(() => {
+  return (
+    Number(newWork.value.amount) > 0 &&
+    newWork.value.contractorId !== null &&
+    newWork.value.workType !== '' &&
+    newWork.value.supervisorId !== null
+  )
+})
+
+// --- Форматирование даты ---
+function formatDate(dateString) {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  return date.toLocaleDateString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: '2-digit',
+  })
+}
+
+// --- Загрузка данных ---
+onMounted(async () => {
+  await fetchOperations()
+  await fetchContractors()
+  await fetchForemans()
+})
+
+async function fetchOperations() {
+  try {
+    const data = await $fetch(`/api/objects/${objectId}/operations`, {
+      method: 'GET',
+      credentials: 'include'
+    })
+
+    // Разделяем на приходы и работы
+    comings.value = data.comings?.map(op => ({
+      ...op,
+      amount: Number(op.amount)
+    })) || []
+
+    works.value = (data.works || []).map(op => ({
+      ...op,
+      workerAmount: Number(op.workerAmount || 0),
+      amount: Number(op.workerAmount || 0), // дубль для удобства
+      paid: Boolean(op.paid),
+      acceptedByClient: Boolean(op.accepted),
+      rejectionComment: op.rejectedReason || null,
+      workType: op.workTypes || '',
+      supervisorId: op.foremanId || null,
+      contractorType: op.contractorType
+    }))
+
+    clearMessages()
+  } catch (error) {
+    console.error('Ошибка получения операций:', error)
+    errorMessage.value = 'Не удалось загрузить список операций'
+    setTimeout(() => errorMessage.value = '', 5000)
+  }
+}
+
+async function fetchContractors() {
+  try {
+    const [mastersData, workersData] = await Promise.all([
+      $fetch('/api/contractors/masters', { method: 'GET', credentials: 'include' }),
+      $fetch('/api/contractors/workers', { method: 'GET', credentials: 'include' })
+    ])
+
+    contractors.value = [
+      ...mastersData.map(m => ({ ...m, type: 'master' })),
+      ...workersData.map(w => ({ ...w, type: 'worker' }))
+    ]
+
+    clearMessages()
+  } catch (error) {
+    console.error('Ошибка получения контрагентов:', error)
+    errorMessage.value = 'Не удалось загрузить список контрагентов'
+    setTimeout(() => errorMessage.value = '', 5000)
+  }
+}
+
+async function fetchForemans() {
+  try {
+    const data = await $fetch('/api/contractors/foremans', { 
+      method: 'GET', 
+      credentials: 'include' 
+    })
+    foremans.value = data || []
+  } catch (error) {
+    console.error('Ошибка получения прорабов:', error)
+    errorMessage.value = 'Не удалось загрузить список прорабов'
+    setTimeout(() => errorMessage.value = '', 5000)
+  }
+}
+
+// --- Управление модальными окнами ---
 function openComingModal() {
   resetFormErrors()
   isComingModalOpen.value = true
@@ -295,7 +443,6 @@ function closeModals() {
   resetForm()
 }
 
-// Сброс форм
 function resetForm() {
   newComing.value = { amount: 0, comment: '', objectId }
   newWork.value = {
@@ -312,149 +459,15 @@ function resetForm() {
   selectedCategory.value = ''
 }
 
-// Валидация форм
-const isComingValid = computed(() => Number(newComing.value.amount) > 0)
-
-const isWorkValid = computed(() => {
-  const valid = (
-    Number(newWork.value.amount) > 0 &&
-    newWork.value.contractorId !== null &&
-    newWork.value.workType !== '' &&
-    newWork.value.supervisorId !== null
-  )
-  return valid
-})
-
-// Фильтрация контрагентов по категории
-const filteredContractors = computed(() => {
-  if (!selectedCategory.value) return []
-  return contractors.value.filter(c => c.type === selectedCategory.value)
-})
-
-// Пробел на тысячах
-function formatCurrency(value) {
-  const formatter = new Intl.NumberFormat('ru-RU', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  })
-  return formatter.format(Number(value))
-}
-
-// Расчёт баланса объекта (только по принятым работам)
-const objectBalance = computed(() => {
-  const totalComings = comings.value.reduce((sum, op) => sum + Number(op.amount), 0)
-  const totalWorksPaid = works.value
-    .filter(w => w.paid && w.acceptedByClient)
-    .reduce((sum, w) => sum + Number(w.amount), 0)
-  return formatCurrency(totalComings - totalWorksPaid)
-})
-
-// Сумма ожидаемых работ (только непринятые)
-const pendingWorksTotal = computed(() => {
-  const total = works.value
-    .filter(w => !w.paid && !w.acceptedByClient)
-    .reduce((sum, w) => sum + Number(w.amount), 0)
-  return formatCurrency(total)
-})
-
-// Форматирование даты
-function formatDate(dateString) {
-  if (!dateString) return ''
-  const date = new Date(dateString)
-  return date.toLocaleDateString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: '2-digit',
-  })
-}
-
-// Загрузка данных
-onMounted(async () => {
-  await fetchOperations()
-  await fetchContractors()
-  await fetchForemans() // Загрузка прорабов
-})
-
-async function fetchOperations() {
-  try {
-    const data = await $fetch(`/api/objects/${objectId}/operations`, {
-      method: 'GET',
-      credentials: 'include'
-    })
-    
-    // Разделяем на приходы и работы
-    comings.value = data.comings.map(op => ({
-      ...op,
-      amount: Number(op.amount)
-    }))
-    
-    works.value = data.works.map(op => ({
-      ...op,
-      // workerAmount → amount
-      amount: Number(op.workerAmount || 0),
-      paid: Boolean(op.paid),
-      // accepted → acceptedByClient
-      acceptedByClient: Boolean(op.accepted),
-      rejectionComment: op.rejectedReason || null,
-      // workTypes → workType
-      workType: op.workTypes || '',
-      // foremanId → supervisorId
-      supervisorId: op.foremanId || null,
-      // contractorType (берётся из contractorType в API)
-      contractorType: op.contractorType
-    }))
-    
-    clearMessages()
-  } catch (error) {
-    console.error('Ошибка получения операций:', error)
-    errorMessage.value = 'Не удалось загрузить список операций'
-    setTimeout(() => errorMessage.value = '', 5000)
-  }
-}
-
-async function fetchContractors() {
-  try {
-    const [mastersData, workersData] = await Promise.all([
-      $fetch('/api/contractors/masters', { method: 'GET', credentials: 'include' }),
-      $fetch('/api/contractors/workers', { method: 'GET', credentials: 'include' })
-    ])
-    
-    contractors.value = [
-      ...mastersData.map(m => ({ ...m, type: 'master' })),
-      ...workersData.map(w => ({ ...w, type: 'worker' }))
-    ]
-    
-    clearMessages()
-  } catch (error) {
-    console.error('Ошибка получения контрагентов:', error)
-    errorMessage.value = 'Не удалось загрузить список контрагентов'
-    setTimeout(() => errorMessage.value = '', 5000)
-  }
-}
-
-async function fetchForemans() {
-  try {
-    const data = await $fetch('/api/contractors/foremans', { 
-      method: 'GET', 
-      credentials: 'include' 
-    })
-    foremans.value = data
-  } catch (error) {
-    console.error('Ошибка получения прорабов:', error)
-    errorMessage.value = 'Не удалось загрузить список прорабов'
-    setTimeout(() => errorMessage.value = '', 5000)
-  }
-}
-
-// Добавление прихода
+// --- Добавление операций ---
 async function addComing() {
   formErrors.value = {}
-  
+
   if (!isComingValid.value) {
     formErrors.value.coming = 'Сумма должна быть больше нуля'
     return
   }
-  
+
   try {
     const created = await $fetch('/api/comings', {
       method: 'POST',
@@ -464,11 +477,11 @@ async function addComing() {
       },
       credentials: 'include'
     })
-    
+
     emit('add-coming', created)
     comings.value.push(created)
     closeModals()
-    
+
     successMessage.value = 'Приход успешно добавлен'
     setTimeout(() => successMessage.value = '', 3000)
   } catch (error) {
@@ -478,10 +491,9 @@ async function addComing() {
   }
 }
 
-// Добавление работы
 async function addWork() {
   formErrors.value = {}
-  
+
   if (!isWorkValid.value) {
     formErrors.value = {
       workAmount: 'Сумма работ обязательна',
@@ -491,15 +503,12 @@ async function addWork() {
     }
     return
   }
-  
+
   try {
     const payload = {
-      // workerAmount → amount
       workerAmount: Number(newWork.value.amount),
       contractorId: newWork.value.contractorId,
-      // workTypes → workType
       workTypes: newWork.value.workType,
-      // foremanId → supervisorId
       foremanId: newWork.value.supervisorId,
       comment: newWork.value.comment || '',
       paid: false,
@@ -508,29 +517,29 @@ async function addWork() {
       objectId,
       contractorType: selectedCategory.value
     }
-    
+
     const result = await $fetch('/api/works', {
       method: 'POST',
       body: payload,
       credentials: 'include'
     })
 
-    // Эмитим событие для родителя
-    emit('add-work', {
+    const workItem = {
       ...result,
       paid: false,
       acceptedByClient: false,
-      amount: Number(result.workerAmount || 0)
-    })
-    
-    works.value.push({
-      ...result,
-      paid: false,
-      acceptedByClient: false
-    })
-    
+      workerAmount: Number(result.workerAmount || 0),
+      amount: Number(result.workerAmount || 0),
+      workType: result.workTypes || '',
+      supervisorId: result.foremanId || null,
+      contractorType: selectedCategory.value
+    }
+
+    emit('add-work', workItem)
+    works.value.push(workItem)
+
     closeModals()
-    
+
     successMessage.value = 'Работа успешно добавлена'
     setTimeout(() => successMessage.value = '', 3000)
   } catch (error) {
@@ -540,20 +549,20 @@ async function addWork() {
   }
 }
 
-// Оплата работы
+// --- Работа с существующими работами ---
 async function payWork(workId) {
   try {
     const result = await $fetch(`/api/works/pay-work/${workId}`, {
       method: 'POST',
       credentials: 'include'
     })
-    
-    const index = works.value.findIndex(w => w.id === workId)
-    if (index !== -1) {
-      works.value[index].paid = true
-      works.value[index].paymentDate = result.paymentDate
+
+    const work = works.value.find(w => w.id === workId)
+    if (work) {
+      work.paid = true
+      work.paymentDate = result.paymentDate
     }
-    
+
     successMessage.value = 'Работа оплачена'
     setTimeout(() => successMessage.value = '', 3000)
   } catch (error) {
@@ -563,19 +572,19 @@ async function payWork(workId) {
   }
 }
 
-// Принятие работы заказчиком
 async function acceptWork(workId) {
   try {
     await $fetch(`/api/works/accept/${workId}`, {
       method: 'POST',
       credentials: 'include'
     })
-    
-    const index = works.value.findIndex(w => w.id === workId)
-    if (index !== -1) {
-      works.value[index].acceptedByClient = true
+
+    const work = works.value.find(w => w.id === workId)
+    if (work) {
+      work.acceptedByClient = true
+      work.rejectionComment = null
     }
-    
+
     successMessage.value = 'Работа принята заказчиком'
     setTimeout(() => successMessage.value = '', 3000)
   } catch (error) {
@@ -585,25 +594,23 @@ async function acceptWork(workId) {
   }
 }
 
-// Отклонение работы заказчиком
 async function rejectWork(workId) {
   const comment = prompt('Введите причину отклонения:')
-  
   if (!comment) return
-  
+
   try {
     await $fetch(`/api/works/reject/${workId}`, {
       method: 'POST',
       body: { comment },
       credentials: 'include'
     })
-    
-    const index = works.value.findIndex(w => w.id === workId)
-    if (index !== -1) {
-      works.value[index].rejectionComment = comment
-      works.value[index].acceptedByClient = false
+
+    const work = works.value.find(w => w.id === workId)
+    if (work) {
+      work.rejectionComment = comment
+      work.acceptedByClient = false
     }
-    
+
     successMessage.value = 'Работа отклонена'
     setTimeout(() => successMessage.value = '', 3000)
   } catch (error) {
@@ -613,7 +620,7 @@ async function rejectWork(workId) {
   }
 }
 
-// Вспомогательные функции
+// --- Вспомогательные функции ---
 function clearMessages() {
   successMessage.value = ''
   errorMessage.value = ''
