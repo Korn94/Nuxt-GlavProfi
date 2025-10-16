@@ -46,7 +46,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="coming in comings" :key="coming.id" :class="{ 'odd-row': comings.indexOf(coming) % 2 === 0 }">
+            <tr v-for="(coming, $index) in sortByDateDesc(comings)" :key="coming.id" :class="{ 'odd-row': $index % 2 === 0 }">
               <td>{{ formatDate(coming.operationDate) }}</td>
               <td>{{ formatAmount(coming.amount) }} ₽</td>
               <td>{{ coming.comment || '-' }}</td>
@@ -65,20 +65,23 @@
             <tr>
               <th>Дата</th>
               <th>Сумма</th>
+              <th>Статус</th>
               <th>Контрагент</th>
               <th>Комментарий</th>
               <th>Прораб</th>
               <th>Вид работы</th>
-              <th>Статус</th>
               <th>Принято заказчиком</th>
               <th>Комментарий</th>
               <th>Действия</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="work in works" :key="work.id" :class="{ 'odd-row': works.indexOf(work) % 2 === 0 }">
+              <tr v-for="(work, $index) in sortByDateDesc(works)" :key="work.id" :class="{ 'odd-row': $index % 2 === 0 }">
               <td>{{ formatDate(work.operationDate) }}</td>
               <td>{{ formatAmount(work.workerAmount || work.amount) }} ₽</td>
+              <td :class="{'status-paid': work.paid, 'status-pending': !work.paid}">
+                {{ work.paid ? 'Принято' : 'В работе' }}
+              </td>
               <td>
                 {{ contractors.find(c => c.id === work.contractorId && c.type === work.contractorType)?.name || '-' }}
               </td>
@@ -87,9 +90,6 @@
                 {{ foremans.find(s => s.id === work.supervisorId)?.name || '-' }}
               </td>
               <td>{{ work.workType || '-' }}</td>
-              <td :class="{'status-paid': work.paid, 'status-pending': !work.paid}">
-                {{ work.paid ? 'Принято' : 'В работе' }}
-              </td>
               <td>
                 <span v-if="work.acceptedByClient">✅</span>
                 <span v-else>❌</span>
@@ -350,6 +350,11 @@ function formatDate(dateString) {
     month: '2-digit',
     year: '2-digit',
   })
+}
+
+// Сортирует массив объектов по дате operationDate в порядке убывания (новые сверху)
+function sortByDateDesc(array) {
+  return [...array].sort((a, b) => new Date(b.operationDate) - new Date(a.operationDate))
 }
 
 // --- Загрузка данных ---
@@ -859,7 +864,6 @@ tr {
   display: flex;
   gap: $spacing-sm;
   justify-content: center;
-  flex-wrap: wrap;
 
   button {
     padding: $spacing-xs $spacing-sm;

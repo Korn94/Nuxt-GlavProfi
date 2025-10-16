@@ -14,7 +14,20 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Вставляем материал
+    // Проверяем и парсим дату
+    let operationDate = new Date()
+    if (body.operationDate) {
+      const parsedDate = new Date(body.operationDate)
+      if (isNaN(parsedDate.getTime())) {
+        throw createError({ 
+          statusCode: 400, 
+          message: 'Некорректный формат даты операции' 
+        })
+      }
+      operationDate = parsedDate
+    }
+
+    // Вставляем материал с датой
     await db.insert(materials).values({
       name: body.name,
       amount: body.amount,
@@ -22,6 +35,7 @@ export default defineEventHandler(async (event) => {
       hasReceipt: body.hasReceipt || false,
       type: body.type,
       objectId: parseInt(body.objectId),
+      operationDate: operationDate
     })
 
     const [newMaterial] = await db.select()

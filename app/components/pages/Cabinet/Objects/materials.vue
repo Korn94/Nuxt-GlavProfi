@@ -63,10 +63,10 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="material in filteredMaterials" :key="material.id" :class="{ 'odd-row': materials.indexOf(material) % 2 === 0 }">
-            <td>{{ formatDate(material.createdAt) }}</td>
+          <tr v-for="(material, $index) in filteredMaterials" :key="material.id" :class="{ 'odd-row': $index % 2 === 0 }">
+            <td>{{ formatDate(material.operationDate) }}</td>
             <td>{{ material.name }}</td>
-            <td>{{ material.amount }} ₽</td>
+            <td>{{ formatAmount(material.amount) }} ₽</td>
             <td>{{ material.type === 'incoming' ? 'Приход' : 'Расход' }}</td>
             <td>
               <input
@@ -77,9 +77,9 @@
                 :disabled="!canToggleReceipt(material)"
               />
             </td>
-            <td>
-              <button @click="editMaterial(material)" class="btn small">Редактировать</button>
-              <button @click="deleteMaterial(material.id)" class="btn small danger">Удалить</button>
+            <td class="flex">
+              <button @click="editMaterial(material)" class="btn small">Ред</button>
+              <button @click="deleteMaterial(material.id)" class="btn small danger">✕</button>
             </td>
           </tr>
         </tbody>
@@ -97,61 +97,71 @@
     </div>
 
     <!-- Модальное окно -->
-    <div v-if="isModalOpen" class="modal-overlay">
-      <div class="modal">
-        <div class="modal-header">
-          <h3>{{ isEditing ? 'Редактировать материал' : 'Добавить материал' }}</h3>
-          <button @click="closeModal" class="close-btn">×</button>
+    <PagesCabinetUiModal
+      :visible="isModalOpen"
+      @update:visible="closeModal"
+      :title="isEditing ? 'Редактировать материал' : 'Добавить материал'"
+      size="md"
+      closable
+    >
+      <!-- Тело модалки -->
+      <div class="modal-body">
+        <div class="form-group">
+          <input
+            type="text"
+            v-model="currentMaterial.name"
+            placeholder="Название"
+            required
+            :class="{ error: formErrors.name }"
+          />
+          <span v-if="formErrors.name" class="error-message">{{ formErrors.name }}</span>
         </div>
-        <div class="modal-body">
-          <div class="form-group">
-            <input
-              type="text"
-              v-model="currentMaterial.name"
-              placeholder="Название"
-              required
-              :class="{ error: formErrors.name }"
-            />
-            <span v-if="formErrors.name" class="error-message">{{ formErrors.name }}</span>
-          </div>
-          <div class="form-group">
-            <input
-              type="number"
-              step="100.00"
-              v-model.number="currentMaterial.amount"
-              placeholder="Сумма"
-              required
-              :class="{ error: formErrors.amount }"
-            />
-            <span v-if="formErrors.amount" class="error-message">{{ formErrors.amount }}</span>
-          </div>
-          <div class="form-group">
-            <select v-model="currentMaterial.type" disabled>
-              <option value="incoming">Приход</option>
-              <option value="outgoing">Расход</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <textarea v-model="currentMaterial.comment" placeholder="Комментарий"></textarea>
-          </div>
-          <div v-if="currentMaterial.type === 'outgoing'" class="form-group">
-            <label>
-              <input
-                type="checkbox"
-                v-model="currentMaterial.hasReceipt"
-              />
-              Наличие чека
-            </label>
-          </div>
+
+        <div class="form-group">
+          <input
+            type="number"
+            step="100.00"
+            v-model.number="currentMaterial.amount"
+            placeholder="Сумма"
+            required
+            :class="{ error: formErrors.amount }"
+          />
+          <span v-if="formErrors.amount" class="error-message">{{ formErrors.amount }}</span>
         </div>
-        <div class="modal-footer">
+
+        <div class="form-group">
+          <label>Дата операции</label>
+          <input
+            type="date"
+            v-model="currentMaterial.operationDate"
+            required
+            :class="{ error: formErrors.operationDate }"
+          />
+          <span v-if="formErrors.operationDate" class="error-message">{{ formErrors.operationDate }}</span>
+        </div>
+
+        <div class="form-group">
+          <textarea v-model="currentMaterial.comment" placeholder="Комментарий"></textarea>
+        </div>
+
+        <div v-if="currentMaterial.type === 'outgoing'" class="form-group">
+          <label>
+            <input type="checkbox" v-model="currentMaterial.hasReceipt" />
+            Наличие чека
+          </label>
+        </div>
+      </div>
+
+      <!-- Футер -->
+      <template #footer>
+        <div class="modal-footer-controls">
           <button @click="closeModal" class="btn secondary">Отмена</button>
           <button @click="saveMaterial" :disabled="!isFormValid" class="btn primary">
             {{ isEditing ? 'Сохранить' : 'Добавить' }}
           </button>
         </div>
-      </div>
-    </div>
+      </template>
+    </PagesCabinetUiModal>
   </div>
 </template>
 
@@ -174,7 +184,8 @@ const currentMaterial = ref({
   comment: '',
   hasReceipt: false,
   objectId: route.params.id,
-  type: 'incoming'
+  type: 'incoming',
+  operationDate: new Date().toISOString().split('T')[0]
 })
 const isEditing = ref(false)
 const filterType = ref('')
@@ -191,13 +202,21 @@ const isFormValid = computed(() => {
   )
 })
 
-// Фильтрация материалов
+// Сортирует массив по operationDate в порядке убывания (новые — сверху)
+function sortByDateDesc(array) {
+  return [...array].sort((a, b) => new Date(b.operationDate) - new Date(a.operationDate))
+}
+
+// Фильтрация и сортировка материалов
 const filteredMaterials = computed(() => {
-  return materials.value.filter(material => {
+  const filtered = materials.value.filter(material => {
     const matchesType = !filterType.value || material.type === filterType.value
     const matchesObject = parseInt(material.objectId) === parseInt(route.params.id)
     return matchesType && matchesObject
   })
+
+  // Сортируем отфильтрованные материалы: новые — сверху
+  return sortByDateDesc(filtered)
 })
 
 // Вычисляемые балансы
@@ -218,6 +237,10 @@ const outgoingTotal = computed(() => {
 const totalBalance = computed(() => {
   return (Number(incomingTotal.value) - Number(outgoingTotal.value)).toFixed(2)
 })
+
+const formatAmount = (amount) => {
+  return Number(amount).toLocaleString('ru-RU')
+}
 
 // Форматирование даты
 function formatDate(dateString) {
@@ -260,6 +283,9 @@ async function saveMaterial() {
   if (Number(currentMaterial.value.amount) <= 0) {
     formErrors.value.amount = 'Сумма должна быть больше нуля'
   }
+  if (!currentMaterial.value.operationDate || isNaN(Date.parse(currentMaterial.value.operationDate))) {
+    formErrors.value.operationDate = 'Укажите корректную дату'
+  }
 
   if (Object.keys(formErrors.value).length > 0) return
 
@@ -290,7 +316,13 @@ async function saveMaterial() {
 }
 
 async function editMaterial(material) {
-  currentMaterial.value = { ...material }
+  const date = new Date(material.operationDate)
+  currentMaterial.value = {
+    ...material,
+    operationDate: isNaN(date.getTime())
+      ? new Date().toISOString().split('T')[0]
+      : date.toISOString().split('T')[0]
+  }
   isEditing.value = true
   modalType.value = material.type
   openModal(material.type)
@@ -353,7 +385,8 @@ function resetForm() {
     comment: '',
     hasReceipt: false,
     objectId: route.params.id,
-    type: modalType.value
+    type: modalType.value,
+    operationDate: new Date().toISOString().split('T')[0] // <-- Сегодняшняя дата
   }
   isEditing.value = false
   formErrors.value = {}
@@ -367,14 +400,19 @@ function clearMessages() {
 // Открытие модального окна
 function openModal(type) {
   modalType.value = type
-  resetForm()
+  if (!isEditing.value) {
+    resetForm()
+  }
   isModalOpen.value = true
 }
 
 // Закрытие модального окна
 function closeModal() {
   isModalOpen.value = false
-  resetForm()
+  // Сброс формы при закрытии
+  nextTick(() => {
+    resetForm()
+  })
 }
 
 // Следим за изменением объекта

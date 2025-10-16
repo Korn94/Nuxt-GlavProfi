@@ -299,12 +299,9 @@ const token = useCookie('token')
 
 // Статические категории (временно)
 const categories = [
-  { id: "floor", name: "Пол", title: "ремонт пола" },
-  { id: "walls", name: "Стены", title: "ремонт стен" },
-  { id: "ceiling", name: "Потолок", title: "ремонт потолка" },
+  { id: "otdelochnye-raboty", name: "Отделочные работы", title: "отделочные работы" },
   { id: "plumbing", name: "Сантехника", title: "ремонт сантехники" },
-  { id: "electricity", name: "Электрика", title: "ремонт электрики" },
-  { id: "other", name: "Дополнительные услуги", title: "дополнительные услуги" },
+  { id: "electricity", name: "Электрика", title: "ремонт электрики" }
 ]
 
 // Состояния
@@ -1205,17 +1202,17 @@ h1, h2 {
   flex-shrink: 0;
   padding: 10px 15px 8px;
   cursor: pointer;
-  border-bottom: 2px solid $primary-color;
+  border-bottom: 1px solid $primary-color;
   background: #fff;
   color: $text-color;
   border-radius: 5px;
   font-weight: 600;
   transition: all 0.3s ease;
+  box-shadow: 0 4px 10px rgba(0, 195, 245, 0.3);
   
   &.active {
     color: $sub-item-bg;
     background: linear-gradient(to right, #00c3f5, #00a3d3);
-    box-shadow: 0 4px 10px rgba(0, 195, 245, 0.3);
   }
   
   &:hover {
@@ -1240,6 +1237,7 @@ h1, h2 {
     outline: none;
     transition: all 0.3s ease;
     box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 0 5px rgba(0, 195, 245, 0.5);
     
     &:focus {
       border-color: $primary-color;
@@ -1331,7 +1329,7 @@ h1, h2 {
         box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 
           &:hover {
-            background: linear-gradient(to right, #00c3f5, #00a3d3);
+            // background: linear-gradient(to right, #00c3f5, #00a3d3);
             // background: linear-gradient(to right, #56d8f8, #f7f7f7);
             border: 1px solid #00c3f5;
             box-shadow: 0 4px 10px rgba(0, 195, 245, 0.3);
@@ -1346,7 +1344,7 @@ h1, h2 {
           margin: 0;
 
             &:hover {
-              transform: translate(10px, 0px);
+              transform: translate(3px, 0px);
               // color: #fff;
             }
 

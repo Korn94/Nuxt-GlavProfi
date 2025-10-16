@@ -2,12 +2,15 @@
 import { defineEventHandler, createError } from 'h3'
 import { db } from '../../../db'
 import { pricePages } from '../../../db/schema'
+import { eq, desc, asc, and, or, not, sql } from 'drizzle-orm'
 
 export default defineEventHandler(async () => {
   try {
-    const pages = await db.select().from(pricePages)
+    const pages = await db
+      .select()
+      .from(pricePages)
+      .orderBy(pricePages.order) // <-- Сортировка по полю order
 
-    // Форматируем данные для фронтенда
     return pages.map(page => ({
       id: page.id,
       title: page.title,

@@ -53,11 +53,63 @@
       <ul v-if="filteredObjects.length" class="object-list">
         <li v-for="object in filteredObjects" :key="object.id" class="object-item">
           <router-link :to="`/cabinet/objects/${object.id}`" class="object-name">
-            {{ object.name }}
+            <div class="info">
+              <div class="flex-colomn">
+                <!-- Название объекта -->
+                <p><b>{{ object.name }}</b></p>
+
+                <!-- Адрес объекта -->
+                <div class="object-address">
+                  <span class="balance">{{ object.address || '—' }}</span>
+                </div>
+              </div>
+
+              <div v-if="object.status !== 'completed'" class="profitability-row">
+                <span class="balance">Баланс: <strong>{{ formatNumber(object.totalBalance) }} ₽</strong></span>
+                <div class="debug-info">
+                  Работы: {{ formatNumber(object.totalWorks) }} ₽, 
+                  Материалы: 
+                  <span :class="getMaterialBalance(object) >= 0 ? 'positive' : 'negative'">
+                    {{ getMaterialBalance(object) >= 0 ? '+' : '' }}{{ formatNumber(getMaterialBalance(object)) }} ₽
+                  </span>
+                </div>
+              </div>
+
+              <!-- Маржинальность (только для завершённых) -->
+              <div v-if="getProfitabilityText(object)" class="profitability-row">
+                <span :class="{ 'profit-positive': getProfitabilityText(object).isProfit, 'profit-negative': !getProfitabilityText(object).isProfit }">
+                  Маржа: {{ getProfitabilityText(object).text }}
+                </span>
+                <div class="debug-info">
+                  Работы: {{ formatNumber(object.totalWorks) }} ₽, 
+                  Материалы: 
+                  <span :class="getMaterialBalance(object) >= 0 ? 'positive' : 'negative'">
+                    {{ getMaterialBalance(object) >= 0 ? '+' : '' }}{{ formatNumber(getMaterialBalance(object)) }} ₽
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div class="docs">
+              <!-- Индикатор договора -->
+              <div class="object-doc-status" :title="getDocumentTooltip(object)">
+                <span :class="`doc-indicator ${getDocumentClass(object)}`"></span>
+                <span class="doc-text">{{ getDocumentText(object) }}</span>
+              </div>
+
+              <!-- Индикатор счетов -->
+              <div class="object-doc-status" :title="getInvoiceTooltip(object)">
+                <span :class="`doc-indicator ${getInvoiceClass(object)}`"></span>
+                <span class="doc-text">Счета {{ object.invoiceStats.total }}/{{ object.invoiceStats.signed }}</span>
+              </div>
+
+              <!-- Индикатор актов -->
+              <div class="object-doc-status" :title="getActTooltip(object)">
+                <span :class="`doc-indicator ${getActClass(object)}`"></span>
+                <span class="doc-text">Акты {{ object.actStats.total }}/{{ object.actStats.signed }}</span>
+              </div>
+            </div>
           </router-link>
-          <div class="object-actions">
-            <span class="balance">Баланс: <strong>{{ formatNumber(object.totalBalance) }} ₽</strong></span>
-          </div>
         </li>
       </ul>
 
@@ -125,12 +177,14 @@ const filteredObjects = computed(() => {
 const addError = computed(() => !newObjectName.value.trim())
 
 // Форматирование чисел
-const formatNumber = (num) => num.toLocaleString('ru-RU')
+const formatNumber = (num) => {
+  const value = Number(num) || 0
+  return value.toLocaleString('ru-RU')
+}
 
 // Переключение вкладок
-async function switchTab(tabValue) {
+function switchTab(tabValue) {
   currentTab.value = tabValue
-  await fetchObjects()
 }
 
 // Загрузка пользователя и объектов
@@ -158,18 +212,11 @@ async function fetchObjects() {
   try {
     const data = await $fetch('/api/objects', {
       method: 'GET',
-      params: { status: currentTab.value },
       credentials: 'include'
     })
 
-    // Инициализируем объекты с нулевым балансом
-    objects.value = data.map(obj => ({
-      ...obj,
-      totalBalance: 0
-    }))
-
-    // Загружаем актуальные балансы
-    await updateBalances()
+    // ✅ ПРОСТО СОХРАНЯЕМ ДАННЫЕ КАК ЕСТЬ
+    objects.value = data
   } catch (error) {
     console.error('Ошибка загрузки объектов:', error)
     errorMessage.value = 'Не удалось загрузить объекты'
@@ -183,19 +230,24 @@ async function updateBalances() {
   try {
     const updatedObjects = await Promise.all(
       objects.value.map(async (obj) => {
-        const balanceData = await $fetch(`/api/objects/${obj.id}/balance`, {
+        const fullData = await $fetch(`/api/objects/${obj.id}/full`, {
           method: 'GET',
           credentials: 'include'
         })
+
         return {
           ...obj,
-          totalBalance: parseFloat(balanceData.totalBalance) || 0
+          totalIncome: fullData.finances.totalIncome,
+          totalWorks: fullData.finances.totalWorks,
+          materialsTotal: fullData.materialsTotal, // нужно добавить в full.get.ts
+          expenses: fullData.finances.totalWorks + (fullData.materialsTotal || 0),
+          totalBalance: fullData.finances.totalBalance
         }
       })
     )
     objects.value = updatedObjects
   } catch (error) {
-    console.error('Не удалось загрузить балансы', error)
+    console.error('Ошибка обновления балансов:', error)
   }
 }
 
@@ -227,11 +279,119 @@ async function addObject() {
     loading.value = false
   }
 }
+
+// --- Вспомогательная функция: баланс материалов ---
+function getMaterialBalance(object) {
+  const incoming = object.materialIncoming || 0
+  const outgoing = object.materialOutgoing || 0
+  return incoming - outgoing
+}
+
+// --- ДОКУМЕНТЫ: статус договора ---
+
+// Карта типов договоров
+const contractTypeMap = {
+  edo: 'ЭДО',
+  paper: 'Бумажный',
+  invoice: 'Счёт-договор',
+  none: 'Не нужен',
+  unassigned: '—'
+}
+
+// Карта статусов (для подсказки)
+const contractStatusMap = {
+  prepared: 'Подготовлен',
+  sent: 'Отправлен',
+  awaiting: 'На подписи',
+  signed: 'Подписан',
+  cancelled: 'Отменён'
+}
+
+// Получить класс для индикатора
+function getDocumentClass(object) {
+  if (!object.contract) return 'doc-red'
+  if (object.contract.status === 'signed') return 'doc-green'
+  if (['sent', 'awaiting'].includes(object.contract.status)) return 'doc-yellow'
+  return 'doc-yellow'
+}
+
+// Получить текстовое описание
+function getDocumentText(object) {
+  if (!object.contract) return '—'
+  return contractTypeMap[object.contract.type] || '—'
+}
+
+// Получить подсказку при наведении
+function getDocumentTooltip(object) {
+  if (!object.contract) return 'Договор не создан'
+
+  const typeTip = {
+    edo: 'Электронный документооборот',
+    paper: 'Бумажный договор',
+    invoice: 'Счёт-договор',
+    none: 'Договор не требуется',
+    unassigned: 'Тип договора не выбран'
+  }[object.contract.type] || '—'
+
+  const statusTip = contractStatusMap[object.contract.status] || '—'
+
+  return `${typeTip} — ${statusTip}`
+}
+
+// --- ИНДИКАТОРЫ ДЛЯ СЧЁТОВ ---
+
+function getInvoiceClass(object) {
+  const stats = object.invoiceStats
+  if (stats.total === 0) return 'doc-red'
+  if (stats.signed === stats.total) return 'doc-green'
+  return 'doc-yellow'
+}
+
+function getInvoiceTooltip(object) {
+  const { total, signed } = object.invoiceStats
+  if (total === 0) return 'Нет счётов'
+  if (signed === total) return `Все ${total} счётов оплачены`
+  return `${signed} из ${total} счётов оплачено`
+}
+
+// --- ИНДИКАТОРЫ ДЛЯ АКТОВ ---
+
+function getActClass(object) {
+  const stats = object.actStats
+  if (stats.total === 0) return 'doc-red'
+  if (stats.signed === stats.total) return 'doc-green'
+  return 'doc-yellow'
+}
+
+function getActTooltip(object) {
+  const { total, signed } = object.actStats
+  if (total === 0) return 'Нет актов'
+  if (signed === total) return `Все ${total} актов подписаны`
+  return `${signed} из ${total} актов подписано`
+}
+
+// --- МАРЖИНАЛЬНОСТЬ ДЛЯ ЗАВЕРШЁННЫХ ОБЪЕКТОВ ---
+function getProfitabilityText(object) {
+  if (object.status !== 'completed') return null
+
+  const income = object.totalIncome || 0
+  const expenses = object.expenses || 0
+  const profit = income - expenses
+
+  if (income === 0) return 'Приход: 0 ₽'
+
+  const marginPercent = ((profit / income) * 100).toFixed(1)
+
+  return {
+    text: `${formatNumber(profit)} ₽ (${marginPercent}%)`,
+    isProfit: profit >= 0
+  }
+}
 </script>
 
 <style lang="scss" scoped>
 .cabinet-page {
-  max-width: 1000px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 1.5rem;
 }
@@ -241,13 +401,15 @@ async function addObject() {
   gap: 0.5rem;
 
   button {
-    padding: 0.5rem 1rem;
+    padding: 0.6rem 1rem;
     border: none;
     background: $background-light;
     border-radius: $border-radius;
     cursor: pointer;
     transition: all 0.2s ease;
-    font-size: 0.9rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+    white-space: nowrap;
 
     &.active {
       background: $blue;
@@ -255,7 +417,7 @@ async function addObject() {
     }
 
     &:hover:not(.active) {
-      background: #d8d8d8;
+      background: $blue;
     }
   }
 }
@@ -271,33 +433,53 @@ async function addObject() {
   min-width: 80px;
   text-align: end;
   font-family: 'Courier', monospace; // улучшает выравнивание цифр
+  border-left: 1px solid $border-color;
 }
 
 .add-object-form {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.75rem;
   align-items: center;
 
   input {
     flex: 1;
+    max-width: 300px;
     padding: 0.6rem 0.8rem;
     border: 1px solid $border-color;
     border-radius: $border-radius;
-    font-size: 0.9rem;
+    font-size: 0.95rem;
+    transition: border-color 0.2s ease;
+
+    &:focus {
+      outline: none;
+      border-color: $blue;
+    }
+
+    // &.error {
+    //   border-color: $color-danger;
+    //   background: #ffebee;
+    // }
   }
 
   .btn-primary {
-    padding: 0.6rem 1rem;
+    padding: 0.6rem 1.2rem;
     background: $color-success;
     color: white;
     border: none;
     border-radius: $border-radius;
     cursor: pointer;
-    font-size: 0.9rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+    transition: background 0.2s ease;
 
     &:disabled {
-      background: #868282;
+      background: $color-muted;
       cursor: not-allowed;
+      opacity: 0.7;
+    }
+
+    &:not(:disabled):hover {
+      background: $color-success;
     }
   }
 }
@@ -307,17 +489,18 @@ async function addObject() {
   border-radius: $border-radius;
   font-size: 0.875rem;
   margin-bottom: 1rem;
+  border: 1px solid transparent;
 
   &-error {
     background: #ffeaea;
     color: $color-danger;
-    border: 1px solid #f1948a;
+    border-color: #f1948a;
   }
 
   &-success {
     background: #ecfde4;
     color: $color-success;
-    border: 1px solid #a3e635;
+    border-color: #a3e635;
   }
 }
 
@@ -327,12 +510,14 @@ async function addObject() {
   margin: 0;
 
   .object-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.75rem 1rem;
+    // display: flex;
+    // flex-direction: column;
+    // justify-content: space-between;
+    // align-items: center;
+    padding: 1rem;
     border-bottom: 1px solid $border-color;
-    transition: background 0.2s ease;
+    transition: background 0.2s ease, transform 0.1s ease;
+    gap: 1rem;
 
     &:last-child {
       border-bottom: none;
@@ -340,6 +525,51 @@ async function addObject() {
 
     &:hover {
       background: rgba($blue, 0.02);
+    }
+
+    .info {
+      justify-content: space-between;
+    }
+
+    .docs {
+      gap: 1em;
+      margin-top: .5em;
+    }
+
+    .info, .docs {
+      // border: 1px solid red;
+      display: flex;
+      align-items: start;
+
+      .profitability-row {
+        font-size: 0.85rem;
+        margin-top: 0.25rem;
+        text-align: end;
+
+        span {
+          padding: 0.25rem 0.5rem;
+          border-radius: $border-radius;
+          font-weight: 600;
+          font-size: 0.9rem;
+
+          &.profit-positive {
+            color: #2e7d32;
+            background: #e8f5e9;
+          }
+
+          &.profit-negative {
+            color: #c62828;
+            background: #ffebee;
+          }
+        }
+
+        .debug-info, span {
+          font-size: 0.8rem;
+          color: $color-muted;
+          margin-top: 0.25rem;
+          padding: unset;
+        }
+      }
     }
   }
 
@@ -349,30 +579,84 @@ async function addObject() {
     color: $text-dark;
     text-decoration: none;
     font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 
     &:hover {
       color: $blue;
     }
   }
 
-  .object-actions {
-    display: flex;
-    gap: 0.75rem;
-    align-items: center;
-    font-size: 0.875rem;
-    white-space: nowrap;
-  }
-
   .balance {
     color: $color-muted;
+    font-size: 0.95rem;
+    
+    strong {
+      color: $text-dark;
+      font-weight: 600;
+      font-size: 1.2em;
+    }
   }
+}
+
+// --- Статус договора ---
+.object-doc-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: $text-dark;
+  flex-shrink: 0;
+  min-width: 160px;
+  padding: 0.25rem 0.5rem;
+  border-radius: $border-radius;
+  background: rgba($border-color, 0.05);
+  border: 1px solid rgba($border-color, 1);
+  transition: all 0.2s ease;
+}
+
+.doc-indicator {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+
+  &.doc-green {
+    background: #4caf50;
+    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+  }
+
+  &.doc-yellow {
+    background: #ff9800;
+    box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.2);
+  }
+
+  &.doc-red {
+    background: #f44336;
+    box-shadow: 0 0 0 2px rgba(244, 67, 54, 0.2);
+  }
+}
+
+.doc-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: $text-dark;
 }
 
 .empty-state {
   text-align: center;
-  padding: 2rem;
+  padding: 3rem;
   color: $color-muted;
   font-style: italic;
+  font-size: 1rem;
+  border-top: 1px solid $border-color;
 }
 
 .btn-sm {
@@ -381,20 +665,67 @@ async function addObject() {
   border-radius: $border-radius;
   font-size: 0.8rem;
   cursor: pointer;
+  transition: background 0.2s ease;
 
   &.btn-success {
     background: $color-success;
     color: white;
+
+    &:hover {
+      background: $color-success;
+    }
   }
 
   &.btn-warning {
-    background: $color-danger;
+    background: $yellow;
     color: white;
+
+    &:hover {
+      background: $yellow;
+    }
   }
 
   &.btn-danger {
     background: $color-danger;
     color: white;
+
+    &:hover {
+      background: $color-danger;
+    }
+  }
+}
+
+// --- Адаптивность ---
+@media (max-width: 1024px) {
+  .cabinet-page {
+    padding: 1rem;
+  }
+
+  .add-object-form input {
+    max-width: 200px;
+    font-size: 0.9rem;
+  }
+
+  .card-tab-counter {
+    font-size: 0.9rem;
+    padding: 0.4rem 0.8rem;
+  }
+
+  .object-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+
+  .object-doc-status {
+    align-self: flex-end;
+    margin-top: 0.5rem;
+  }
+
+  .doc-text {
+    max-width: 100px;
+    font-size: 0.8rem;
   }
 }
 </style>

@@ -57,6 +57,7 @@ export const objects = mysqlTable('objects', {
   updatedAt: datetime('updated_at') .default(sql`CURRENT_TIMESTAMP`) .notNull() .$type<Date>()
 })
 
+// Договора
 export const objectContracts = mysqlTable('object_contracts', {
   id: serial('id').primaryKey(),
 
@@ -102,7 +103,103 @@ export const objectContracts = mysqlTable('object_contracts', {
   statusIndex: index('status_idx').on(table.status)
 }))
 
-// Таблица: Счета (как документы)
+// Приложения - Смета
+export const objectBudget = mysqlTable('object_budget', {
+  id: serial('id').primaryKey(),
+
+  // Привязка к объекту
+  objectId: bigint('object_id', { mode: 'number', unsigned: true })
+    .notNull()
+    .references(() => objects.id),
+
+  // Название: "Основная смета", "Утепление пола", "Электрика по потолку" и т.п.
+  name: varchar('name', { length: 255 }).notNull(),
+
+  // Сумма (в рублях)
+  amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
+
+  // Комментарий (опционально)
+  comment: text('comment'),
+
+  // Порядок отображения (чтобы первая была "основная")
+  order: int('order').default(0),
+
+  // Ход работ
+  workProgress: varchar('work_progress', {
+    length: 20,
+    enum: [
+      'queued',     // На очереди
+      'in_progress',// В работе
+      'completed',  // Выполнено
+      'cancelled'   // Отменено
+    ]
+  }).default('queued').notNull(),
+
+  // Статус акта
+  actStatus: varchar('act_status', {
+    length: 20,
+    enum: [
+      'none',        // Не применимо / ещё не нужно
+      'required',    // Нужно сделать (после "Выполнено")
+      'awaiting',    // Ждёт подписи
+      'signed'       // Подписан
+    ]
+  }).default('none').notNull(),
+
+  // Дата создания
+  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: datetime('updated_at') .default(sql`CURRENT_TIMESTAMP`) .notNull() .$type<Date>()
+}, (table) => ({
+  // Индекс для быстрого поиска по объекту
+  objectIndex: index('object_idx').on(table.objectId),
+  // Составной индекс: объект + порядок
+  orderIndex: index('order_idx').on(table.objectId, table.order)
+}))
+
+// Акты
+export const objectActs = mysqlTable('object_acts', {
+  id: serial('id').primaryKey(),
+
+  // Привязка к объекту
+  objectId: bigint('object_id', { mode: 'number', unsigned: true })
+    .notNull()
+    .references(() => objects.id),
+
+  // Название акта (например, "Акт №1", "Промежуточный акт", "Закрывающий")
+  name: varchar('name', { length: 255 }).notNull(),
+
+  // Сумма (может совпадать с суммой выбранных позиций)
+  amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
+
+  // Комментарий
+  comment: text('comment'),
+
+  // Статус документа
+  status: varchar('status', {
+    length: 20,
+    enum: [
+      'prepared',   // Подготовлен
+      'awaiting',   // Ждёт подписи
+      'signed'      // Подписан
+    ]
+  }).default('prepared').notNull(),
+
+  // Дата изменения статуса
+  statusDate: datetime('status_date', { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+
+  // Порядок отображения
+  order: int('order').default(0),
+
+  // Дата создания
+  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: datetime('updated_at') .default(sql`CURRENT_TIMESTAMP`) .notNull() .$type<Date>()
+}, (table) => ({
+  objectIndex: index('object_idx').on(table.objectId),
+  statusIndex: index('status_idx').on(table.status),
+  orderIndex: index('order_idx').on(table.objectId, table.order)
+}))
+
+// Счета
 export const objectInvoices = mysqlTable('object_invoices', {
   id: serial('id').primaryKey(),
 
@@ -156,58 +253,6 @@ export const objectInvoices = mysqlTable('object_invoices', {
   orderIndex: index('order_idx').on(table.objectId, table.order)
 }))
 
-export const objectBudget = mysqlTable('object_budget', {
-  id: serial('id').primaryKey(),
-
-  // Привязка к объекту
-  objectId: bigint('object_id', { mode: 'number', unsigned: true })
-    .notNull()
-    .references(() => objects.id),
-
-  // Название: "Основная смета", "Утепление пола", "Электрика по потолку" и т.п.
-  name: varchar('name', { length: 255 }).notNull(),
-
-  // Сумма (в рублях)
-  amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
-
-  // Комментарий (опционально)
-  comment: text('comment'),
-
-  // Порядок отображения (чтобы первая была "основная")
-  order: int('order').default(0),
-
-  // Ход работ
-  workProgress: varchar('work_progress', {
-    length: 20,
-    enum: [
-      'queued',     // На очереди
-      'in_progress',// В работе
-      'completed',  // Выполнено
-      'cancelled'   // Отменено
-    ]
-  }).default('queued').notNull(),
-
-  // Статус акта
-  actStatus: varchar('act_status', {
-    length: 20,
-    enum: [
-      'none',        // Не применимо / ещё не нужно
-      'required',    // Нужно сделать (после "Выполнено")
-      'awaiting',    // Ждёт подписи
-      'signed'       // Подписан
-    ]
-  }).default('none').notNull(),
-
-  // Дата создания
-  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: datetime('updated_at') .default(sql`CURRENT_TIMESTAMP`) .notNull() .$type<Date>()
-}, (table) => ({
-  // Индекс для быстрого поиска по объекту
-  objectIndex: index('object_idx').on(table.objectId),
-  // Составной индекс: объект + порядок
-  orderIndex: index('order_idx').on(table.objectId, table.order)
-}))
-
 // Таблица материалов
 export const materials = mysqlTable('materials', {
   id: serial('id').primaryKey(),
@@ -230,7 +275,6 @@ export const comings = mysqlTable('comings', {
   id: serial('id').primaryKey(),
   amount: decimal('amount', { precision: 10, scale: 2 }).default('0.00').notNull(),
   comment: text('comment'),
-  paymentDate: datetime('payment_date').default(sql`CURRENT_TIMESTAMP`),
   operationDate: datetime('operation_date').default(sql`CURRENT_TIMESTAMP`),
   objectId: int('object_id').notNull(),
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
@@ -385,7 +429,7 @@ export const pricePages = mysqlTable('price_pages', {
 // 2. Категории (Подготовка основания, Монтаж напольных покрытий)
 export const priceCategories = mysqlTable('price_categories', {
   id: serial('id').primaryKey(),
-  pageId: int('page_id').notNull(), // Ссылка на страницу
+  pageId: bigint('page_id', { mode: 'number', unsigned: true }).notNull().references(() => pricePages.id, { onDelete: 'cascade' }), // Ссылка на страницу
   name: varchar('name', { length: 255 }).notNull(), // "Подготовка основания"
   order: int('order').default(0),
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
@@ -395,7 +439,7 @@ export const priceCategories = mysqlTable('price_categories', {
 // 3. Подкатегории (Демонтаж старого покрытия, Удаление старой стяжки)
 export const priceSubCategories = mysqlTable('price_sub_categories', {
   id: serial('id').primaryKey(),
-  categoryId: int('category_id').notNull(), // Ссылка на категорию
+  categoryId: bigint('category_id', { mode: 'number', unsigned: true }).notNull().references(() => priceCategories.id, { onDelete: 'cascade' }), // Ссылка на категорию
   name: varchar('name', { length: 255 }).notNull(), // "Демонтаж старого покрытия"
   order: int('order').default(0),
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
@@ -405,7 +449,7 @@ export const priceSubCategories = mysqlTable('price_sub_categories', {
 // 4. Работы (Демонтаж ламината, Демонтаж линолеума)
 export const priceItems = mysqlTable('price_items', {
   id: serial('id').primaryKey(),
-  subCategoryId: int('sub_category_id').notNull(), // Ссылка на подкатегорию
+  subCategoryId: bigint('sub_category_id', { mode: 'number', unsigned: true }).notNull().references(() => priceSubCategories.id, { onDelete: 'cascade' }), // Ссылка на подкатегорию
   name: varchar('name', { length: 255 }).notNull(), // "Демонтаж ламината"
   unit: varchar('unit', { length: 50 }).notNull(), // "м²", "пог.м"
   price: decimal('price', { precision: 10, scale: 2 }).notNull(), // 1200.00
@@ -417,7 +461,7 @@ export const priceItems = mysqlTable('price_items', {
 // 5. Расшифровка работ (Разборка ламината, Удаление подложки)
 export const priceItemDetails = mysqlTable('price_item_details', {
   id: serial('id').primaryKey(),
-  itemId: int('item_id').notNull(), // Ссылка на работу
+  itemId: bigint('item_id', { mode: 'number', unsigned: true }).notNull().references(() => priceItems.id, { onDelete: 'cascade' }), // Ссылка на работу
   name: varchar('name', { length: 255 }).notNull(), // "Разборка ламината"
   unit: varchar('unit', { length: 50 }).notNull(), // "м²"
   price: decimal('price', { precision: 10, scale: 2 }).notNull(), // 300.00
@@ -429,7 +473,7 @@ export const priceItemDetails = mysqlTable('price_item_details', {
 // 6. Доп. работы (Покраска в 1 слой)
 export const priceAdditionalItems = mysqlTable('price_additional_items', {
   id: serial('id').primaryKey(),
-  itemId: int('item_id').notNull(), // Ссылка на работу
+  itemId: bigint('item_id', { mode: 'number', unsigned: true }).notNull().references(() => priceItems.id, { onDelete: 'cascade' }), // Ссылка на работу
   label: varchar('label', { length: 255 }), // "Подготовка"
   dopwork: varchar('dopwork', { length: 255 }).notNull(), // "Покраска в 1 слой"
   unit: varchar('unit', { length: 50 }).notNull(), // "м²"

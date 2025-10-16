@@ -44,7 +44,6 @@ export default defineEventHandler(async (event) => {
       amount: amount.toString(),
       comment,
       objectId: parseInt(objectId),
-      paymentDate: new Date(), // Текущая дата оплаты
       operationDate: parsedDate // Используем переданную дату
     }).$returningId()
 

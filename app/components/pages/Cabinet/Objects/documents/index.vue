@@ -15,6 +15,14 @@
       :object-income="object.finances?.totalIncome || 0"
     />
 
+    <!-- Акты -->
+    <PagesCabinetObjectsDocumentsActs
+      :object-id="objectId"
+      :items="object.acts"
+      :is-admin="isAdmin"
+      @refresh="$emit('refresh')"
+    />
+
     <!-- Счета -->
     <PagesCabinetObjectsDocumentsInvoices
       :object-id="objectId"

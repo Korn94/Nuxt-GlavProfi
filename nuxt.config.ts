@@ -65,11 +65,8 @@ export default defineNuxtConfig({
     '/privacy-policy',
     '/terms-of-service',
     // Страницы с ценами
-    '/prices/floor',
-    '/prices/ceiling',
-    '/prices/walls',
-    '/prices/plumbing',
-    '/prices/other'
+    '/prices/otdelochnye-raboty',
+    '/prices/plumbing'
   ],
   },
 
@@ -104,7 +101,21 @@ export default defineNuxtConfig({
         headers: {
           'X-Robots-Tag': 'noindex, nofollow',
         }
-      }
+      },
+
+      // Редирект со старого прайса
+      '/prices/floor': {
+        redirect: { to: '/prices/otdelochnye-raboty', statusCode: 301 }
+      },
+      '/prices/walls': {
+        redirect: { to: '/prices/otdelochnye-raboty', statusCode: 301 }
+      },
+      '/prices/ceiling': {
+        redirect: { to: '/prices/otdelochnye-raboty', statusCode: 301 }
+      },
+      '/prices/other': {
+        redirect: { to: '/prices/otdelochnye-raboty', statusCode: 301 }
+      },
     }
   },
 

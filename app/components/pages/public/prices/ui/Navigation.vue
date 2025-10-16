@@ -96,9 +96,6 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
-$primary-color: #00c3f5;
-$background-light: #f7f7f7;
-
 .navigation-wrapper {
   position: relative;
 }
@@ -113,7 +110,7 @@ $background-light: #f7f7f7;
   width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  margin-bottom: 10px;
+  margin-bottom: 2em;
   white-space: nowrap;
   position: relative;
   z-index: 1;
@@ -127,7 +124,7 @@ $background-light: #f7f7f7;
     left: 0;
     right: 0;
     border-top: 1px solid #555555;
-    background: rgba(54, 54, 54, 0.8);
+    background: rgba(54, 54, 54, 0.3);
     backdrop-filter: blur(5px);
     padding: 10px 0;
     z-index: 1;
@@ -172,18 +169,16 @@ $background-light: #f7f7f7;
       border-radius: 5px;
       font-weight: 600;
       transition: all 0.3s ease;
-      border-bottom: 2px solid $primary-color;
+      border: 1px solid $blue;
 
       &.active {
-        background: linear-gradient(to right, #00c3f5, #00a3d3);
-        color: #fff;
-        box-shadow: 0 4px 10px rgba(0, 195, 245, 0.3);
+        background: $blue;
+        color: $text-light;
       }
 
       &:hover {
-        background: linear-gradient(to right, #00c3f5, #00a3d3);
-        color: #fff;
-        box-shadow: 0 4px 10px rgba(0, 195, 245, 0.3);
+        background: $blue;
+        color: $text-light;
       }
     }
   }

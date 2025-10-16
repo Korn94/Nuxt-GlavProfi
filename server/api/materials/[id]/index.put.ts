@@ -19,6 +19,15 @@ export default defineEventHandler(async (event) => {
     if (body.objectId !== undefined) updates.objectId = parseInt(body.objectId)
     if (body.hasReceipt !== undefined) updates.hasReceipt = body.hasReceipt
 
+    // ✅ Обработка operationDate
+    if (body.operationDate) {
+      const parsedDate = new Date(body.operationDate)
+      if (isNaN(parsedDate.getTime())) {
+        throw createError({ statusCode: 400, message: 'Некорректная дата операции' })
+      }
+      updates.operationDate = parsedDate
+    }
+
     if (Object.keys(updates).length === 0) {
       throw createError({ statusCode: 400, message: 'Нет данных для обновления' })
     }

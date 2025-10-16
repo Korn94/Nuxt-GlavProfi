@@ -59,21 +59,7 @@ const isMobileDevice = () => {
 </script>
 
 <style lang="scss" scoped>
-button {
-  padding: 10px 20px;
-  min-width: 150px;
-  margin-top: 1.5em;
-  background: linear-gradient(to right, #00c3f5, #00a3d3);
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: background 0.3s ease;
 
-  &:hover {
-    background: #00a3d3;
-  }
-}
 
 .offer {
   text-align: center;
@@ -88,6 +74,22 @@ button {
     font-size: 20px;
     margin-bottom: 1em;
     font-weight: 700;
+  }
+
+  button {
+    padding: 10px 20px;
+    min-width: 150px;
+    margin: 1.5em auto 0;
+    background: linear-gradient(to right, #00c3f5, #00a3d3);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+
+    &:hover {
+      background: #00a3d3;
+    }
   }
 }
 </style>

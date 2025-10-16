@@ -11,7 +11,6 @@ import {
   priceAdditionalItems 
 } from '../../db/schema'
 
-// Типы для работы с данными
 interface Dopwork {
   id: number
   itemId: number
@@ -31,28 +30,51 @@ interface DopworkGroup {
 
 export default defineEventHandler(async () => {
   try {
-    // Получаем все данные с иерархией
-    const pages = await db.select().from(pricePages)
-    
+    // 🔹 Получаем страницы, отсортированные по полю `order`
+    const pages = await db
+      .select()
+      .from(pricePages)
+      .orderBy(pricePages.order)
+
     const fullStructure = await Promise.all(pages.map(async (page) => {
-      const categories = await db.select().from(priceCategories)
+      // 🔹 Категории — тоже по порядку
+      const categories = await db
+        .select()
+        .from(priceCategories)
         .where(eq(priceCategories.pageId, page.id))
-        
+        .orderBy(priceCategories.order)
+
       const enrichedCategories = await Promise.all(categories.map(async (category) => {
-        const subcategories = await db.select().from(priceSubCategories)
+        // 🔹 Подкатегории
+        const subcategories = await db
+          .select()
+          .from(priceSubCategories)
           .where(eq(priceSubCategories.categoryId, category.id))
-          
+          .orderBy(priceSubCategories.order)
+
         const enrichedSubcategories = await Promise.all(subcategories.map(async (subcategory) => {
-          const items = await db.select().from(priceItems)
+          // 🔹 Работы
+          const items = await db
+            .select()
+            .from(priceItems)
             .where(eq(priceItems.subCategoryId, subcategory.id))
-            
+            .orderBy(priceItems.order)
+
           const enrichedItems = await Promise.all(items.map(async (item) => {
-            const details = await db.select().from(priceItemDetails)
+            // 🔹 Детали работ
+            const details = await db
+              .select()
+              .from(priceItemDetails)
               .where(eq(priceItemDetails.itemId, item.id))
-              
-            const dopworks = await db.select().from(priceAdditionalItems)
+              .orderBy(priceItemDetails.order)
+
+            // 🔹 Доп. работы
+            const dopworks = await db
+              .select()
+              .from(priceAdditionalItems)
               .where(eq(priceAdditionalItems.itemId, item.id))
-              
+              .orderBy(priceAdditionalItems.order)
+
             return {
               ...item,
               details,
@@ -67,25 +89,25 @@ export default defineEventHandler(async () => {
               }, [])
             }
           }))
-          
+
           return {
             ...subcategory,
             items: enrichedItems
           }
         }))
-        
+
         return {
           ...category,
           subcategories: enrichedSubcategories
         }
       }))
-      
+
       return {
         ...page,
         categories: enrichedCategories
       }
     }))
-    
+
     return fullStructure
   } catch (error) {
     console.error('Ошибка получения полной структуры:', error)

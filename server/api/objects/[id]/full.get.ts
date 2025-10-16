@@ -2,7 +2,6 @@
 import { defineEventHandler, getRouterParam, createError } from 'h3'
 import { db } from '../../../db'
 
-// Таблицы
 import {
   objects,
   foremans,
@@ -11,22 +10,20 @@ import {
   materials,
   objectBudget,
   objectInvoices,
-  objectContracts // ← добавлено
+  objectContracts,
+  objectActs
 } from '../../../db/schema'
 
 import { eq, sum, and } from 'drizzle-orm'
+import { calculateObjectFinance } from '../../../utils/calculateObjectFinance'
 
 export default defineEventHandler(async (event) => {
   const id = Number(getRouterParam(event, 'id'))
   if (isNaN(id)) throw createError({ statusCode: 400, message: 'Неверный ID' })
 
   try {
-    // 1. Основной объект + прораб
     const [objectWithForeman] = await db
-      .select({
-        object: objects,
-        foreman: foremans
-      })
+      .select({ object: objects, foreman: foremans })
       .from(objects)
       .leftJoin(foremans, eq(objects.foremanId, foremans.id))
       .where(eq(objects.id, id))
@@ -35,56 +32,61 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 404, message: 'Объект не найден' })
     }
 
-    // 2. Финансы — отдельные запросы, чтобы избежать JOIN-дублей
+    // Приход по счётам
     const [incomeResult] = await db
-      .select({
-        totalIncome: sum(comings.amount).mapWith(Number)
-      })
+      .select({ totalIncome: sum(comings.amount).mapWith(Number) })
       .from(comings)
       .where(eq(comings.objectId, id))
 
     const [worksResult] = await db
-      .select({
-        totalWorks: sum(works.workerAmount).mapWith(Number)
-      })
+      .select({ totalWorks: sum(works.workerAmount).mapWith(Number) })
       .from(works)
       .where(and(eq(works.objectId, id), eq(works.paid, true)))
 
     const totalIncome = Number(incomeResult?.totalIncome || 0)
     const totalWorks = Number(worksResult?.totalWorks || 0)
-    const totalBalance = totalIncome - totalWorks
 
-    // 3. Смета
-    const budgetItems = await db
-      .select()
-      .from(objectBudget)
-      .where(eq(objectBudget.objectId, id))
-      .orderBy(objectBudget.order)
-
-    // 4. Счета
-    const invoices = await db
-      .select()
-      .from(objectInvoices)
-      .where(eq(objectInvoices.objectId, id))
-      .orderBy(objectInvoices.order)
-
-    // 5. Договор
-    const [contract] = await db
-      .select()
-      .from(objectContracts)
-      .where(eq(objectContracts.objectId, id))
-
-    // 6. Материалы
+    // Материалы
     const materialsList = await db
       .select()
       .from(materials)
       .where(eq(materials.objectId, id))
 
-    // 7. Формируем финальный объект
+    const materialIncoming = materialsList
+      .filter(m => m.type === 'incoming')
+      .reduce((sum, m) => sum + (typeof m.amount === 'string' ? parseFloat(m.amount) : m.amount), 0)
+
+    const materialOutgoing = materialsList
+      .filter(m => m.type === 'outgoing')
+      .reduce((sum, m) => sum + (typeof m.amount === 'string' ? parseFloat(m.amount) : m.amount), 0)
+
+    // Финансы
+    const finance = calculateObjectFinance({
+      totalIncome,
+      totalWorks,
+      materialIncoming,
+      materialOutgoing
+    })
+
+    // Остальные данные...
+    const budgetItems = await db.select().from(objectBudget).where(eq(objectBudget.objectId, id))
+    const acts = await db.select().from(objectActs).where(eq(objectActs.objectId, id))
+    const invoices = await db.select().from(objectInvoices).where(eq(objectInvoices.objectId, id))
+    const [contract] = await db.select().from(objectContracts).where(eq(objectContracts.objectId, id))
+
     return {
       ...objectWithForeman.object,
       foreman: objectWithForeman.foreman,
-      finances: { totalIncome, totalWorks, totalBalance },
+      finances: {
+        totalIncome,
+        totalWorks,
+        totalBalance: finance.totalBalance
+      },
+      materialIncoming,
+      materialOutgoing,
+      materialBalance: finance.materialBalance,
+      
+      // ✅ Исправлено: полные map()
       budget: budgetItems.map(item => ({
         ...item,
         amount: typeof item.amount === 'string' ? parseFloat(item.amount) : item.amount
@@ -93,15 +95,20 @@ export default defineEventHandler(async (event) => {
         ...inv,
         amount: typeof inv.amount === 'string' ? parseFloat(inv.amount) : inv.amount
       })),
-      contract: contract || null, // ← если нет договора — null
+      
+      contract: contract || null,
       materials: materialsList.map(m => ({
         ...m,
         amount: typeof m.amount === 'string' ? parseFloat(m.amount) : m.amount
       })),
-      contractType: contract?.type || 'unassigned'
+      contractType: contract?.type || 'unassigned',
+      acts: acts.map(a => ({
+        ...a,
+        amount: typeof a.amount === 'string' ? parseFloat(a.amount) : a.amount
+      }))
     }
   } catch (error) {
-    console.error('Ошибка получения полных данных объекта:', error)
-    throw createError({ statusCode: 500, message: 'Ошибка сервера при получении данных объекта' })
+    console.error('Ошибка получения данных объекта:', error)
+    throw createError({ statusCode: 500, message: 'Ошибка сервера' })
   }
 })

@@ -74,7 +74,6 @@ const roleLabels = {
 // --- Меню с разделителем после "Операции" ---
 const menuItems = [
   { title: 'Главная', path: '/cabinet', roles: ['admin', 'manager', 'foreman', 'master', 'worker'] },
-  { title: 'Пользователи', path: '/cabinet/admin/users', roles: ['admin'] },
   { title: 'Сотрудники', path: '/cabinet/admin/contractors', roles: ['admin'] },
   { title: 'Объекты', path: '/cabinet/objects', roles: ['admin', 'foreman', 'master', 'worker'] },
   { title: 'Операции', path: '/cabinet/operation', roles: ['admin'] },

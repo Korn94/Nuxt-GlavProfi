@@ -9,9 +9,9 @@ export default defineEventHandler(async (event) => {
   if (!id) throw new Error('ID прихода обязателен')
 
   try {
-    const { amount, comment, objectId, paymentDate, operationDate } = await readBody(event)
+    const { amount, comment, objectId, operationDate } = await readBody(event)
 
-    if (!amount && !comment && !objectId && !paymentDate && !operationDate) {
+    if (!amount && !comment && !objectId && !operationDate) {
       throw new Error('Нет данных для обновления')
     }
 
@@ -19,7 +19,6 @@ export default defineEventHandler(async (event) => {
     if (amount !== undefined) updates.amount = amount
     if (comment) updates.comment = comment
     if (objectId !== undefined) updates.objectId = objectId
-    if (paymentDate) updates.paymentDate = paymentDate
     if (operationDate) updates.operationDate = operationDate
 
     await db.update(comings).set(updates).where(eq(comings.id, parseInt(id)))

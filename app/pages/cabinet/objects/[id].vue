@@ -33,46 +33,127 @@
           </span>
         </div>
       </template>
-      <p><strong>Адрес:</strong> {{ object.address || '—' }}</p>
-      <p><strong>Дата начала:</strong> {{ formatDate(object.startDate) }}</p>
-      <p><strong>Плановая дата завершения:</strong> {{ formatDate(object.plannedEndDate) }}</p>
-      <p><strong>Фактическая дата завершения:</strong> {{ formatDate(object.completedDate) }}</p>
-      <p><strong>Объект из:</strong> {{ object.source || '—' }}</p>
-      <p><strong>Комментарий:</strong> {{ object.comment || '—' }}</p>
-    </Card>
 
-    <!-- Прораб -->
-    <Card title="Прораб" bordered elevated>
-      <div v-if="object.foreman" class="foreman-info">
-        🛠️ <strong>{{ object.foreman.name }}</strong>
+      <div class="info-grid">
+        <!-- Адрес -->
+        <div class="info-item">
+          <Icon name="material-symbols:location-on" class="info-icon" />
+          <div class="info-content">
+            <label>Адрес</label>
+            <b>{{ object.address || '—' }}</b>
+          </div>
+        </div>
+
+        <!-- Источник -->
+        <div class="info-item">
+          <Icon name="fluent:database-48-regular" class="info-icon" />
+          <div class="info-content">
+            <label>Объект из</label>
+            <b>{{ object.source || '—' }}</b>
+          </div>
+        </div>
+
+        <!-- Прораб -->
+        <div class="info-item">
+          <Icon name="solar:user-rounded-outline" class="info-icon" />
+          <div class="info-content">
+            <label>Прораб</label>
+            <template v-if="object.foreman">
+              <b class="foreman-name">{{ object.foreman.name }}</b>
+            </template>
+            <span v-else class="empty-state">Не назначен</span>
+          </div>
+        </div>
+
+        <!-- Даты -->
+        <div class="info-item">
+          <Icon name="solar:calendar-add-outline" class="info-icon" />
+          <div class="info-content">
+            <label>Дата начала</label>
+            <b>{{ formatDate(object.startDate) }}</b>
+          </div>
+        </div>
+
+        <div class="info-item">
+          <Icon name="solar:calendar-mark-bold" class="info-icon" />
+          <div class="info-content">
+            <label>План завершения</label>
+            <b>{{ formatDate(object.plannedEndDate) }}</b>
+          </div>
+        </div>
+
+        <div class="info-item">
+          <Icon name="solar:check-read-outline" class="info-icon" />
+          <div class="info-content">
+            <label>Фактическая дата</label>
+            <b>{{ formatDate(object.completedDate) }}</b>
+          </div>
+        </div>
+
+        <!-- Комментарий -->
+        <div class="info-item comment-item">
+          <Icon name="solar:chat-line-outline" class="info-icon" />
+          <div class="info-content">
+            <label>Комментарий</label>
+            <b>{{ object.comment || '—' }}</b>
+          </div>
+        </div>
       </div>
-      <div v-else class="empty-state">Не назначен</div>
     </Card>
 
     <!-- Баланс -->
     <Card title="Баланс объекта" bordered elevated>
-      <div class="balance-grid">
-        <div class="balance-item">
-          <div class="label">Общий баланс</div>
-          <div class="value">{{ formatCurrency(object.finances?.totalBalance) }}</div>
+      <!-- 1. Общий баланс (приходы - работы - баланс материалов) -->
+      <div class="main-balance">
+        <div class="balance-value" :class="{ 'positive': object.finances?.totalBalance >= 0, 'negative': object.finances?.totalBalance < 0 }">
+          {{ formatCurrency(object.finances?.totalBalance) }}
         </div>
-        <div class="balance-item">
-          <div class="label muted">Приходы</div>
-          <div class="value muted">{{ formatCurrency(object.finances?.totalIncome) }}</div>
-        </div>
-        <div class="balance-item">
-          <div class="label muted">Расходы (работы)</div>
-          <div class="value muted">{{ formatCurrency(object.finances?.totalWorks) }}</div>
+        <div class="balance-description">
+          Приходы ({{ formatCurrency(object.finances?.totalIncome) }}) − 
+          Работы ({{ formatCurrency(object.finances?.totalWorks) }}) − 
+          Материалы ({{ formatCurrency(object.materialBalance) }})
         </div>
       </div>
 
-      <!-- Материалы -->
-      <div class="materials-balance">
+      <!-- 2. Детализация по категориям -->
+      <div class="balance-categories">
+        <div class="category-item">
+          <div class="category-label">Приходы</div>
+          <div class="category-value">{{ formatCurrency(object.finances?.totalIncome) }}</div>
+        </div>
+        <div class="category-item">
+          <div class="category-label">Работы</div>
+          <div class="category-value">{{ formatCurrency(object.finances?.totalWorks) }}</div>
+        </div>
+        <div class="category-item">
+          <div class="category-label">Материалы</div>
+          <div 
+            class="category-value" 
+            :class="{ 'text-success': object.materialBalance >= 0, 'text-danger': object.materialBalance < 0 }"
+          >
+            {{ formatCurrency(object.materialBalance) }}
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Смета и выполнение -->
+      <div class="budget-summary">
         <div class="divider"></div>
-        <div class="material-row">
-          <span>Материалы:</span>
-          <strong :class="{ 'text-danger': materialsTotal < 0 }">
-            {{ formatCurrency(materialsTotal) }}
+        
+        <div class="budget-row">
+          <span>Смета (общая):</span>
+          <strong>{{ formatCurrency(totalBudget) }}</strong>
+        </div>
+        
+        <div class="budget-row">
+          <span>Выполнено по смете:</span>
+          <strong>{{ formatCurrency(completedBudget) }}</strong>
+        </div>
+        
+        <div class="budget-row">
+          <span>Смета − баланс объекта:</span>
+          <strong :class="{ 'text-success': budgetVsBalance >= 0, 'text-danger': budgetVsBalance < 0 }">
+            {{ formatCurrency(budgetVsBalance) }}
           </strong>
         </div>
       </div>
@@ -369,6 +450,27 @@ const objectStatusText = computed(() => {
   const map = { active: 'Активный', completed: 'Завершён', waiting: 'Ожидание' }
   return map[object.value.status] || object.value.status
 })
+
+// --- Добавляем вычисляемые свойства для сметы ---
+const totalBudget = computed(() => {
+  return object.value.budget?.reduce((sum, item) => {
+    const amount = typeof item.amount === 'string' ? parseFloat(item.amount) : item.amount
+    return sum + (amount || 0)
+  }, 0) || 0
+})
+
+const completedBudget = computed(() => {
+  return object.value.budget
+    ?.filter(item => item.workProgress === 'completed')
+    .reduce((sum, item) => {
+      const amount = typeof item.amount === 'string' ? parseFloat(item.amount) : item.amount
+      return sum + (amount || 0)
+    }, 0) || 0
+})
+
+const budgetVsBalance = computed(() => {
+  return totalBudget.value - (object.value.finances?.totalBalance || 0)
+})
 </script>
 
 <style lang="scss" scoped>
@@ -380,6 +482,104 @@ const objectStatusText = computed(() => {
   max-width: 1200px;
   margin: 0 auto;
   background-color: #fcfcfc;
+
+  // --- ОСНОВНОЙ БАЛАНС ---
+  .main-balance {
+    padding: 1.5rem 1rem;
+    text-align: center;
+    background: rgba($blue, 0.03);
+    border-radius: $border-radius;
+    margin-bottom: 1.5rem;
+    
+    .balance-value {
+      font-size: 2.2rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      
+      &.positive {
+        color: #2e7d32;
+      }
+      
+      &.negative {
+        color: #c62828;
+      }
+    }
+    
+    .balance-description {
+      font-size: 0.95rem;
+      color: $color-muted;
+      line-height: 1.4;
+    }
+  }
+
+  // --- КАТЕГОРИИ БАЛАНСА ---
+  .balance-categories {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    
+    @media (max-width: 768px) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .category-item {
+    padding: 1rem;
+    background: $sub-item-bg;
+    border-radius: $border-radius;
+    text-align: center;
+    
+    .category-label {
+      font-size: 0.9rem;
+      color: $color-muted;
+      margin-bottom: 0.5rem;
+    }
+    
+    .category-value {
+      font-size: 1.25rem;
+      font-weight: 600;
+      
+      &.text-success {
+        color: #2e7d32;
+      }
+      
+      &.text-danger {
+        color: #c62828;
+      }
+    }
+  }
+
+  // --- СМЕТА И ВЫПОЛНЕНИЕ ---
+  .budget-summary {
+    .divider {
+      height: 1px;
+      background-color: $border-color;
+      margin: 1rem 0;
+    }
+    
+    .budget-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.75rem 0;
+      
+      span {
+        color: $color-muted;
+      }
+      
+      strong {
+        font-weight: 600;
+        
+        &.text-success {
+          color: #2e7d32;
+        }
+        
+        &.text-danger {
+          color: #c62828;
+        }
+      }
+    }
+  }
 }
 
 // Статус
@@ -413,9 +613,8 @@ const objectStatusText = computed(() => {
   }
 }
 
-// Прораб
-.foreman-info {
-  font-size: 1.1rem;
+// Инлайн-стиль для прораба внутри карточки
+.foreman-inline {
   color: $text-dark;
 }
 
@@ -561,5 +760,53 @@ const objectStatusText = computed(() => {
   .tab-nav {
     flex-wrap: wrap;
   }
+}
+
+// --- Сетка информации ---
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  row-gap: 1.5rem;
+}
+
+.info-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.info-icon {
+  color: $blue;
+  font-size: 1.25rem;
+  min-width: 24px;
+  margin-top: 0.25rem;
+}
+
+.info-content {
+  flex: 1;
+  line-height: 1.5;
+}
+
+.info-content label {
+  display: block;
+  font-size: 0.85rem;
+  color: $color-muted;
+  margin-bottom: 0.25rem;
+}
+
+.info-content b {
+  font-weight: 600;
+  color: $text-dark;
+}
+
+.empty-state {
+  color: $color-muted;
+  font-style: italic;
+  font-weight: normal;
+}
+
+.comment-item {
+  grid-column: 1 / -1; // Занимает всю ширину на всех экранах
 }
 </style>

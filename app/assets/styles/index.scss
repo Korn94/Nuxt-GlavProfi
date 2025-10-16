@@ -168,6 +168,16 @@ button {
   color: $yellow;
 }
 
+.flex {
+  display: flex;
+  gap: 1em;
+}
+
+.flex-colomn {
+  display: flex;
+  flex-direction: column;
+}
+
 // Статьи
 .article__subtitle { 
   margin-bottom: 1rem;

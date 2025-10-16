@@ -1,0 +1,1 @@
+ALTER TABLE `comings` DROP COLUMN `payment_date`;

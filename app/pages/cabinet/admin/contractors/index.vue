@@ -48,6 +48,7 @@
               <span class="count">{{ category.count }}</span>
             </NuxtLink>
           </li>
+          <NuxtLink :to="`/cabinet/admin/users`" class="category-link">Пользователи CRM</NuxtLink>
         </ul>
       </div>
 
