@@ -1,15 +1,50 @@
 import { defineNuxtConfig } from 'nuxt/config';
 
 export default defineNuxtConfig({
+  app: {
+    head: {
+      link: [
+        // Добавляем предзагрузку для ОСНОВНОГО шрифта
+        {
+          rel: 'preload',
+          href: '/fonts/rubik/Rubik-Regular.woff2',
+          as: 'font',
+          type: 'font/woff2',
+          crossorigin: 'anonymous'
+        }
+      ],
+      script: [
+        {
+          id: 'viewport-init',
+          innerHTML: `
+            (function() {
+              const isMobile = window.innerWidth <= 840;
+              document.documentElement.classList.toggle('mobile', isMobile);
+              window.addEventListener('resize', () => {
+                document.documentElement.classList.toggle('mobile', window.innerWidth <= 840);
+              });
+            })();
+          `,
+          type: 'text/javascript',
+          // ИСПОЛЬЗУЕМ ПРАВИЛЬНЫЕ СВОЙСТВА
+          tagPriority: 'critical',
+          processTemplateParams: true // Правильное имя свойства (без вложенного объекта)
+        }
+      ],
+      
+      // ПРАВИЛЬНЫЙ ФОРМАТ ДЛЯ NOSCRIPT
+      noscript: [
+        {
+          innerHTML: '<style>.mobile-bottom-nav { display: none; }</style>',
+          // ИСПОЛЬЗУЕМ ПРАВИЛЬНОЕ СВОЙСТВО ВМЕСТО body
+          tagPosition: 'bodyClose' // Добавляет в конец body
+        }
+      ]
+    }
+  },
+  
   // Включаем SSR
   ssr: true,
-
-  // Настройка маршрутизации
-  // router: {
-  //   options: {
-  //     hashMode: false, // Использование history mode вместо hash mode
-  //   },
-  // },
 
   typescript: {
     typeCheck: false,

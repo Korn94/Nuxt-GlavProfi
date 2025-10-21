@@ -70,6 +70,12 @@ const title = computed(() => {
   }
 })
 
+// Вычисляемый заголовок для мета-тега
+const pageTitle = computed(() => {
+  const roleTitle = title.value
+  return `CRM — ${roleTitle}`
+})
+
 const contractors = ref([])
 const errorMessage = ref(null)
 
@@ -112,6 +118,13 @@ async function deleteContractor(id) {
     alert('Ошибка при удалении контрагента')
   }
 }
+
+useHead(() => ({
+  meta: [
+    { name: 'robots', content: 'noindex, nofollow' },
+  ],
+  title: pageTitle.value
+}))
 </script>
 
 <style lang="scss" scoped>

@@ -140,15 +140,24 @@ hr {
 }
 
 button {
-  padding: 10px 15px;
-  cursor: pointer;
+  // padding: 12px 15px;
+  // cursor: pointer;
   border: none;
-  border-radius: 5px;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  display: flex;
-  justify-content: center;
-  gap: .1rem;
+  // border-radius: 5px;
+  // font-weight: 600;
+  // transition: all 0.3s ease;
+  // display: flex;
+  // justify-content: center;
+  // gap: .1rem;
+  // border: 1px solid $color-light;
+
+  // &:hover {
+  //   border: 1px solid $blue50;
+  //   background: $blue50;
+  //   transform: translateY(-3px);
+  //   box-shadow: 0 5px 25px rgba(0, 195, 245, 0.4);
+  //   color: $text-light;
+  // }
 }
 
 .small {
@@ -190,32 +199,6 @@ button {
 // @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
 // @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&family=Nanum+Myeongjo&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&family=Rubik:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet');
 
-// === Comfortaa ===
-
-@font-face {
-  font-family: 'Comfortaa';
-  font-style: normal;
-  font-weight: 300;
-  font-display: swap;
-  src: url('/fonts/comfortaa/Comfortaa-Light.woff2') format('woff2');
-}
-
-@font-face {
-  font-family: 'Comfortaa';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('/fonts/comfortaa/Comfortaa-Regular.woff2') format('woff2');
-}
-
-@font-face {
-  font-family: 'Comfortaa';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('/fonts/comfortaa/Comfortaa-Bold.woff2') format('woff2');
-}
-
 // === RUBIK ===
 @font-face {
   font-family: 'Rubik';
@@ -255,4 +238,29 @@ button {
   font-weight: 700;
   font-display: swap;
   src: url('/fonts/rubik/Rubik-Bold.woff2') format('woff2');
+}
+
+// === Comfortaa ===
+@font-face {
+  font-family: 'Comfortaa';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url('/fonts/comfortaa/Comfortaa-Light.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Comfortaa';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/comfortaa/Comfortaa-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Comfortaa';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/comfortaa/Comfortaa-Bold.woff2') format('woff2');
 }

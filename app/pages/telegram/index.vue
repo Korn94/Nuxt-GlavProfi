@@ -57,6 +57,15 @@ async function bindAccount() {
     isBinding.value = false;
   }
 }
+
+useHead({
+  title: 'Авторизации в CRM-систему через Telegram',
+  meta: [
+    { name: 'description', content: 'Страница авторизации в CRM-систему через Telegram' },
+    { property: 'og:title', content: 'Авторизации в CRM-систему через Telegram' },
+    { property: 'og:description', content: 'Страница авторизации в CRM-систему через Telegram' },
+  ]
+})
 </script>
 
 <style lang="scss" scoped>

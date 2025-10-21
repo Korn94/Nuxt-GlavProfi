@@ -387,6 +387,13 @@ function getProfitabilityText(object) {
     isProfit: profit >= 0
   }
 }
+
+useHead({
+  meta: [
+    { name: 'robots', content: 'noindex, nofollow' },
+  ],
+  title: 'CRM — Объекты'
+})
 </script>
 
 <style lang="scss" scoped>

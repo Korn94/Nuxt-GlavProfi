@@ -213,7 +213,7 @@ export default {
     }
 
     .image-container .content {
-      height: calc(100vh - 65px);
+      height: calc(100vh - 59px);
       padding: 0 5%;
       align-items: center;
       text-align: center;

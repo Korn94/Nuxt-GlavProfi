@@ -8,4 +8,11 @@ definePageMeta({
   middleware: 'role',
   allowedRoles: ['admin']
 })
+
+useHead({
+  meta: [
+    { name: 'robots', content: 'noindex, nofollow' },
+  ],
+  title: 'CRM — Операции'
+})
 </script>

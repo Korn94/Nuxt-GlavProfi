@@ -1,45 +1,34 @@
 <template>
-  <div>
+  <div class="header-container" :class="{ 'client-rendered': isClient }">
     <component :is="currentComponent" />
   </div>
 </template>
 
-<script>
-import { shallowRef, onMounted, onUnmounted } from 'vue';
+<script setup>
+import { shallowRef, onMounted, ref } from 'vue'
 
-export default {
-  name: 'App',
-  setup() {
-    const currentComponent = shallowRef(null);
+// Определяем компоненты
+const MobileHeader = defineAsyncComponent(() => import('./mobile/index.vue'))
+const DesktopHeader = defineAsyncComponent(() => import('./desktop/index.vue'))
 
-    const loadComponent = () => {
-      if (window.innerWidth > 840) {
-        import('./desktop/index.vue').then(module => {
-          currentComponent.value = module.default;
-        });
-      } else {
-        import('./mobile/index.vue').then(module => {
-          currentComponent.value = module.default;
-        });
-      }
-    };
+// Флаг для отслеживания клиентского рендеринга
+const isClient = ref(false)
+const currentComponent = shallowRef(null) // ⚠️ Ключевое изменение!
 
-    const handleResize = () => {
-      loadComponent();
-    };
-
-    onMounted(() => {
-      loadComponent();
-      window.addEventListener('resize', handleResize);
-    });
-
-    onUnmounted(() => {
-      window.removeEventListener('resize', handleResize);
-    });
-
-    return {
-      currentComponent
-    };
+onMounted(() => {
+  isClient.value = true
+  
+  const updateHeader = () => {
+    const isMobile = window.innerWidth <= 840
+    currentComponent.value = isMobile ? MobileHeader : DesktopHeader
   }
-}
+  
+  updateHeader()
+  
+  window.addEventListener('resize', updateHeader)
+  
+  onUnmounted(() => {
+    window.removeEventListener('resize', updateHeader)
+  })
+})
 </script>

@@ -300,8 +300,8 @@ const token = useCookie('token')
 // Статические категории (временно)
 const categories = [
   { id: "otdelochnye-raboty", name: "Отделочные работы", title: "отделочные работы" },
-  { id: "plumbing", name: "Сантехника", title: "ремонт сантехники" },
-  { id: "electricity", name: "Электрика", title: "ремонт электрики" }
+  { id: "plumbing", name: "Сантехника", title: "работы по сантехнике" },
+  { id: "electricity", name: "Электромонтаж", title: "электромонтаж" }
 ]
 
 // Состояния

@@ -215,6 +215,13 @@ definePageMeta({
   middleware: 'role',
   allowedRoles: ['admin']
 })
+
+useHead({
+  meta: [
+    { name: 'robots', content: 'noindex, nofollow' },
+  ],
+  title: 'CRM — Контрагенты'
+})
 </script>
 
 <style lang="scss" scoped>

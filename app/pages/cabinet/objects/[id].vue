@@ -271,6 +271,13 @@ definePageMeta({
   allowedRoles: ['admin']
 })
 
+// --- Вычисляемое свойство для заголовка ---
+const pageTitle = computed(() => {
+  if (!object.value) return 'CRM'
+  if (!object.value.name || object.value.name === 'Загрузка...') return 'CRM'
+  return `CRM — ${object.value.name}`
+})
+
 // --- Жизненный цикл ---
 onMounted(async () => {
   try {
@@ -471,6 +478,13 @@ const completedBudget = computed(() => {
 const budgetVsBalance = computed(() => {
   return totalBudget.value - (object.value.finances?.totalBalance || 0)
 })
+
+useHead(() => ({
+  meta: [
+    { name: 'robots', content: 'noindex, nofollow' },
+  ],
+  title: pageTitle.value
+}))
 </script>
 
 <style lang="scss" scoped>

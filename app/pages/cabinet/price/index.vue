@@ -744,6 +744,13 @@ const resetForm = () => {
 
 // Инициализация
 fetchPages()
+
+useHead({
+  meta: [
+    { name: 'robots', content: 'noindex, nofollow' },
+  ],
+  title: 'CRM — Добавление страниц и категорий'
+})
 </script>
 
 <style scoped>

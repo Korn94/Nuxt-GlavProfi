@@ -1,8 +1,6 @@
+<!-- app/components/pages/public/projects/casePage/index.vue -->
 <template>
-  <div v-if="loading" class="loading"><Icon name="eos-icons:bubble-loading" size="34px" /> Загрузка...</div>
-  <div v-else-if="error" class="error">{{ error }}</div>
-  
-  <div v-else class="portfolio-case-page">
+  <div class="portfolio-case-page">
     <!-- Параллакс фон -->
     <div 
       ref="parallaxRef" 
@@ -18,14 +16,7 @@
 
     <!-- Сравнение до/после -->
     <div v-if="groupedImages.length > 0" class="comparison-section">
-      <PagesPublicProjectsCasePageBeforeAfter
-        :image-pairs="groupedImages.map(g => ({
-          before: g.before.url,
-          after: g.after.url,
-          beforeAlt: g.before.alt,
-          afterAlt: g.after.alt
-        }))"
-      />
+      <PagesPublicProjectsCasePageBeforeAfter :image-pairs="imagePairs" />
     </div>
 
     <!-- Результаты -->
@@ -33,42 +24,43 @@
 
     <!-- Галерея -->
     <PagesPublicProjectsCasePageGallery
-      v-if="images.length > 0"
-      :images="images.value" 
+      v-if="galleryImages.length > 0"
+      :images="galleryImages" 
       :case-data="caseData" 
     />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, onMounted, onUnmounted } from 'vue'
 
-// Состояние
-const route = useRoute()
-const caseData = ref(null)
-const images = ref([])
-const works = ref([])
-const loading = ref(true)
-const error = ref(null)
-const selectedImageIndex = ref(0)
-
-// ID кейса из URL
-const slug = computed(() => {
-  return route.params.slug
+// Получаем данные через props
+const props = defineProps({
+  caseData: {
+    type: Object,
+    required: true
+  },
+  images: {
+    type: Array,
+    default: () => []
+  },
+  works: {
+    type: Array,
+    default: () => []
+  }
 })
 
-// Получение главного изображения
+// Вычисляемые свойства
 const mainImageUrl = computed(() => {
-  const mainImage = images.value.find(img => img.type === 'main')
-  return mainImage?.url || '/main/projects.webp' // Резервное изображение
+  const mainImage = props.images.find(img => img.type === 'main')
+  return mainImage?.url || '/main/projects.webp'
 })
 
 // Группировка изображений "до/после"
 const groupedImages = computed(() => {
   const groups = {}
   
-  images.value
+  props.images
     .filter(img => img.type === 'before' || img.type === 'after')
     .forEach(img => {
       const groupKey = img.pairGroup || 'ungrouped'
@@ -81,81 +73,44 @@ const groupedImages = computed(() => {
   return Object.values(groups).filter(g => g.before && g.after)
 })
 
-// Галерея (только изображения типа gallery)
-const galleryImages = computed(() => {
-  return images.value.filter(img => img.type === 'gallery')
+// Правильная структура для передачи в компонент сравнения
+const imagePairs = computed(() => {
+  return groupedImages.value.map(g => ({
+    before: g.before.url,
+    after: g.after.url,
+    beforeAlt: g.before.alt,
+    afterAlt: g.after.alt  // Здесь была ошибка - я писал g.afterAlt вместо g.after.alt
+  }))
 })
 
-// Загрузка данных
-const fetchData = async () => {
-  try {
-    loading.value = true
-    error.value = null
-    
-    // Проверка наличия slug
-    if (!slug.value) {
-      throw new Error('Slug не найден в URL')
-    }
-
-    // Загрузка данных кейса по slug
-    const caseDataResponse = await $fetch(`/api/portfolio/${slug.value}`, {
-      method: 'GET'
-    })
-    caseData.value = caseDataResponse
-
-    // Загрузка изображений по slug
-    const imagesResponse = await $fetch(`/api/portfolio/${slug.value}/images`, {
-      method: 'GET'
-    })
-    images.value = imagesResponse || []
-
-    // Загрузка работ по slug
-    const worksResponse = await $fetch(`/api/portfolio/${slug.value}/works`, {
-      method: 'GET'
-    })
-    works.value = worksResponse || []
-
-  } catch (err) {
-    console.error('Ошибка загрузки данных:', err)
-    error.value = 'Не удалось загрузить данные кейса'
-  } finally {
-    loading.value = false
-  }
-}
+const galleryImages = computed(() => {
+  // Передаём ВСЕ изображения "до" и "после" в галерею
+  return props.images.filter(img => 
+    img.type === 'before' || img.type === 'after'
+  )
+})
 
 // Параллакс-эффект
 const parallaxRef = ref(null)
-let ticking = false;
+let ticking = false
 
 const handleScroll = () => {
   if (!ticking) {
     window.requestAnimationFrame(() => {
       if (parallaxRef.value) {
-        // Добавляем проверку на существование элемента
         const scrollY = window.scrollY || window.pageYOffset
         parallaxRef.value.style.transform = `translateY(${scrollY * -0.3}px)`
       }
-      ticking = false;
-    });
-    ticking = true;
+      ticking = false
+    })
+    ticking = true
   }
 }
 
-onMounted(async () => {
-  try {
-    await fetchData()
-    window.scrollTo(0, 0)
-
-    console.log('images.value:', images.value)
-    console.log('filtered beforeImages:', images.value.filter(img => img.type === 'before'))
-    console.log('filtered afterImages:', images.value.filter(img => img.type === 'after'))
-
-    window.addEventListener('scroll', handleScroll)
-    handleScroll()
-
-  } catch (error) {
-    console.error('Ошибка в onMounted:', error)
-  }
+onMounted(() => {
+  window.scrollTo(0, 0)
+  window.addEventListener('scroll', handleScroll)
+  handleScroll()
 })
 
 onUnmounted(() => {

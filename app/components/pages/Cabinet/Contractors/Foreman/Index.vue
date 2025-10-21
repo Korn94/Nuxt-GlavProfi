@@ -32,10 +32,6 @@ const props = defineProps({
     type: Object,
     required: true
   },
-  profitHistory: {
-    type: Array,
-    required: true
-  },
   salaryDeductions: {
     type: Array,
     required: true
@@ -65,8 +61,6 @@ const emit = defineEmits([
   'add-payment',
   'update:salary-deduction',
   'delete:salary-deduction',
-  'update:profit-item',
-  'delete:profit-item'
 ])
 </script>
 

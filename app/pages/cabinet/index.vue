@@ -11,7 +11,7 @@ useHead({
   meta: [
     { name: 'robots', content: 'noindex, nofollow' },
   ],
-  title: 'CRM' // Можно оставить, но необязательно
+  title: 'CRM — Главная'
 })
 </script>
 

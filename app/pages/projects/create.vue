@@ -12,6 +12,11 @@ useHead({
   meta: [
     { name: 'robots', content: 'noindex, nofollow' },
   ],
-  title: 'Добавить проект' // Можно оставить, но необязательно
+  title: 'Новый кейс',
+    meta: [
+    { name: 'description', content: 'Добавить новый кейс в портфолио' },
+    { property: 'og:title', content: 'Новый кейс' },
+    { property: 'og:description', content: 'Добавить новый кейс в портфолио' },
+  ]
 })
 </script>

@@ -8,43 +8,72 @@ export default defineNuxtPlugin((nuxtApp) => {
       return;
     }
 
-    // Защита от повторной инициализации
-    if (!window.ym) {
-      window.ym = function () {
-        (ym.a = ym.a || []).push(arguments);
-      };
-      window.ym.l = new Date().getTime();
+    // Проверяем, не инициализирована ли метрика ранее
+    if (window.ym && window.ym.initialized) {
+      return;
     }
 
-    // Подключение скрипта
-    (function (m, e, t, r, i, k, a) {
-      m[i] = m[i] || function () {
-        (m[i].a = m[i].a || []).push(arguments);
+    // Добавляем флаг инициализации
+    window.ym = function() {
+      (window.ym.a = window.ym.a || []).push(arguments);
+    };
+    window.ym.initialized = true;
+    window.ym.a = [];
+
+    // Загружаем скрипт метрики после полной загрузки страницы
+    if (document.readyState === 'complete') {
+      loadMetricaScript();
+    } else {
+      window.addEventListener('load', loadMetricaScript);
+    }
+
+    // Функция для загрузки скрипта метрики
+    function loadMetricaScript() {
+      const script = document.createElement('script');
+      script.async = true; // Асинхронная загрузка - КЛЮЧЕВОЙ ПАРАМЕТР
+      script.defer = true;  // Также используем defer для дополнительной оптимизации
+      script.src = `https://mc.yandex.ru/metrika/tag.js?id=${metricaId}`; // Убраны пробелы в URL
+      
+      // Добавляем обработчик ошибок
+      script.onerror = () => {
+        console.error('Ошибка загрузки Яндекс.Метрики');
+        window.ym.initialized = false;
       };
-      m[i].l = 1 * new Date();
-      k = e.createElement(t);
-      a = e.getElementsByTagName(t)[0];
-      k.async = 1;
-      k.src = r;
-      a.parentNode.insertBefore(k, a);
-    })(window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
-
-    // Инициализация счётчика
-    ym(metricaId, "init", {
-      clickmap: true,
-      trackLinks: true,
-      accurateTrackBounce: true,
-      webvisor: true,
-    });
-
-    // Глобальный метод $ym
-    nuxtApp.vueApp.config.globalProperties.$ym = ym;
-
-    // Отправка hit при изменении страницы
-    nuxtApp.hook('page:finish', () => {
-      if (typeof ym === 'function') {
-        ym(metricaId, 'hit', window.location.href);
-      }
-    });
+      
+      document.head.appendChild(script);
+      
+      // Инициализация после загрузки скрипта
+      script.onload = () => {
+        try {
+          ym(metricaId, "init", {
+            clickmap: true,
+            trackLinks: true,
+            accurateTrackBounce: true,
+            webvisor: true,
+            trackHash: true,
+            ecommerce: "dataLayer"
+          });
+          
+          // Отправляем первый хит
+          ym(metricaId, "hit", window.location.href);
+          
+          // Глобальный метод $ym
+          nuxtApp.vueApp.config.globalProperties.$ym = ym;
+          
+          // Отправка hit при изменении страницы
+          nuxtApp.hook('page:finish', () => {
+            if (typeof ym === 'function') {
+              ym(metricaId, 'hit', window.location.href);
+            }
+          });
+          
+          // Логируем успешную загрузку
+          console.log('Яндекс.Метрика успешно инициализирована');
+        } catch (e) {
+          console.error('Ошибка инициализации Яндекс.Метрики:', e);
+          window.ym.initialized = false;
+        }
+      };
+    }
   }
 });

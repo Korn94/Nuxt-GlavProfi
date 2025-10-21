@@ -167,6 +167,13 @@ const availableUsers = computed(() => {
     return !user.contractorId || user.contractorType === formData.value.role
   })
 })
+
+useHead({
+  meta: [
+    { name: 'robots', content: 'noindex, nofollow' },
+  ],
+  title: 'CRM — Добавить контрагента'
+})
 </script>
 
 <style lang="scss" scoped>

@@ -49,14 +49,14 @@ if (pagesError?.value) {
 
 // --- НОВОЕ: Жестко заданный маппинг URL -> Title ---
 const categoryTitles = {
-  'otdelochnye-raboty': 'Цены на отделочные работы - 2025',
-  'plumbing': 'Цены на ремонт сантехники - 2025',
-  'electricity': 'Цены на ремонт электрики - 2025',
+  'otdelochnye-raboty': 'Цены на отделочные работы 2025 — Рязань и область',
+  'plumbing': 'Цены на работы по сантехнике 2025 — Рязань и область',
+  'electricity': 'Цены на электромонтаж 2025 — Рязань и область',
 }
 
 // Получаем title для текущей категории
 const pageTitle = computed(() => {
-  return categoryTitles[route.params.category] || 'Цены на ремонт - 2025 | ГлавПрофи'
+  return categoryTitles[route.params.category] || 'Цены на ремонт помещений - 2025 | ГлавПрофи'
 })
 // --- КОНЕЦ НОВОГО КОДА ---
 
@@ -86,24 +86,15 @@ const setCategory = (categoryId) => {
 
 // --- НОВОЕ: Используем pageTitle в useHead ---
 useHead({
-  title: pageTitle,
+  title: pageTitle.value,
   meta: [
     // Используем описание из API, если есть, иначе fallback
-    { name: 'description', content: currentCategory.value?.metaDescription || 'Актуальные цены 2025 на ремонт помещений. Составим смету бесплатно.' },
-    { property: 'og:title', content: pageTitle },
-    { property: 'og:description', content: currentCategory.value?.metaDescription || 'Актуальные цены 2025 на ремонт помещений. Составим смету бесплатно.' },
+    { name: 'description', content: currentCategory.value?.metaDescription || 'Актуальные цены 2025 на ремонт помещений.' },
+    { property: 'og:title', content: pageTitle.value },
+    { property: 'og:description', content: currentCategory.value?.metaDescription || 'Актуальные цены 2025 на ремонт помещений.' },
     { property: 'og:image', content: currentCategory.value?.image || 'https://glavprofi.ru/images/og-image.jpg' },
-    { property: 'og:url', content: `https://glavprofi.ru/prices/${route.params.category}` },
-    { property: 'og:type', content: 'website' },
-    { name: 'author', content: 'ГлавПрофи' },
-    { name: 'robots', content: 'index, follow' },
-    { name: 'keywords', content: 'ремонт, отделка, коммерческие помещения, Рязань' },
-    { name: 'yandex-verification', content: '20069298ebe4c5a9' },
-    { name: 'google-site-verification', content: 'LKcZiHnWxVZA1TiAOOcActZaanDDvdxFhs4pEELAsak' },
-  ],
-  link: [
-    { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
-    { rel: 'canonical', href: `https://glavprofi.ru/prices/${route.params.category}` },
+        { name: 'keywords', content: 'ремонт, отделка, коммерческие помещения, Рязань, ' + 
+      (currentCategory.value?.title ? currentCategory.value.title.toLowerCase() : '') }
   ],
   script: [
     {

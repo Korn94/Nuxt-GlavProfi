@@ -46,6 +46,12 @@ definePageMeta({
   allowedRoles: ['admin']
 });
 
+// --- Вычисляемое свойство для заголовка ---
+const pageTitle = computed(() => {
+  if (!contractor.value?.name) return 'CRM — Рабочий'
+  return `CRM — ${contractor.value.name}`
+})
+
 // API
 async function fetchData() {
   try {
@@ -127,4 +133,12 @@ function addPayment(newPayment) {
 onMounted(async () => {
   await fetchData()
 })
+
+// --- Динамический заголовок ---
+useHead(() => ({
+  meta: [
+    { name: 'robots', content: 'noindex, nofollow' },
+  ],
+  title: pageTitle.value
+}))
 </script>

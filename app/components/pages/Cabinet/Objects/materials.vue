@@ -41,6 +41,31 @@
       </select>
     </div>
 
+    <!-- Фильтр по дате -->
+    <div class="date-filters" style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+      <div>
+        <label>С</label>
+        <input
+          type="date"
+          v-model="startDate"
+          @change="applyFilters"
+          :max="endDate || ''"
+        />
+      </div>
+      <div>
+        <label>По</label>
+        <input
+          type="date"
+          v-model="endDate"
+          @change="applyFilters"
+          :min="startDate || ''"
+        />
+      </div>
+      <button @click="clearDateFilter" class="btn secondary" style="align-self: flex-end;">
+        Сбросить
+      </button>
+    </div>
+
     <!-- Кнопки добавления -->
     <div class="add-buttons">
       <button @click="openModal('incoming')" class="btn primary">Добавить приход</button>
@@ -189,6 +214,8 @@ const currentMaterial = ref({
 })
 const isEditing = ref(false)
 const filterType = ref('')
+const startDate = ref('')
+const endDate = ref('')
 const formErrors = ref({})
 const successMessage = ref('')
 const errorMessage = ref('')
@@ -209,14 +236,9 @@ function sortByDateDesc(array) {
 
 // Фильтрация и сортировка материалов
 const filteredMaterials = computed(() => {
-  const filtered = materials.value.filter(material => {
-    const matchesType = !filterType.value || material.type === filterType.value
-    const matchesObject = parseInt(material.objectId) === parseInt(route.params.id)
-    return matchesType && matchesObject
-  })
-
-  // Сортируем отфильтрованные материалы: новые — сверху
-  return sortByDateDesc(filtered)
+  // Данные уже отфильтрованы на сервере: по objectId, type, дате
+  // Осталось только отсортировать по дате
+  return sortByDateDesc(materials.value)
 })
 
 // Вычисляемые балансы
@@ -256,9 +278,18 @@ function formatDate(dateString) {
 // Методы для работы с материалами
 async function fetchMaterials() {
   try {
+    const params = {
+      objectId: route.params.id,
+      type: filterType.value
+    }
+
+    // Только если указана дата — добавляем её в параметры
+    if (startDate.value) params.startDate = startDate.value
+    if (endDate.value) params.endDate = endDate.value
+
     const data = await $fetch(`/api/materials`, {
       method: 'GET',
-      params: { objectId: route.params.id, type: filterType.value },
+      params,
       credentials: 'include'
     })
 
@@ -347,6 +378,18 @@ async function deleteMaterial(id) {
   }
 }
 
+// Фильтр по дате
+function applyFilters() {
+  // Не делаем проверку isNaN — date input сам валидирует
+  fetchMaterials()
+}
+
+function clearDateFilter() {
+  startDate.value = ''
+  endDate.value = ''
+  fetchMaterials()
+}
+
 async function toggleCheck(material) {
   if (material.hasReceipt) {
     alert('Снятие чека разрешено только через редактирование')
@@ -417,11 +460,12 @@ function closeModal() {
 
 // Следим за изменением объекта
 watch(
-  () => route.params.id,
-  async (newId) => {
+  () => [route.params.id, filterType.value, startDate.value, endDate.value],
+  async ([newId]) => {
     currentMaterial.value.objectId = newId
     await fetchMaterials()
-  }
+  },
+  { immediate: true }
 )
 
 onMounted(async () => {

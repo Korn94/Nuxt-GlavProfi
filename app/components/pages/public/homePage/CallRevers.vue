@@ -13,7 +13,8 @@
       <form class="form" @submit.prevent="openConsentModal">
         <input type="text" class="input" placeholder="Имя" v-model="name" v-on:input="textFilter" required />
         <input type="tel" class="input" placeholder="Телефон" v-phone-format v-model="phoneNumber" required :class="{ 'error-border': phoneError }"/>
-        <button type="submit" class="btn">Отправить</button>
+        <!-- <button type="submit">Отправить</button> -->
+        <UiButtonsSecondary type="submit">Отправить</UiButtonsSecondary>
       </form>
     </div>
 
@@ -172,23 +173,6 @@ async function acceptConsent() {
         &:focus {
           border-color: #00c3f5;
           box-shadow: 0 0 5px rgba(0, 195, 245, 0.5);
-        }
-      }
-
-      .btn {
-        width: 100%;
-        padding: 0.8em;
-        background: #00c3f5;
-        color: #111;
-        font-size: 16px;
-        font-weight: 600;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: 0.3s;
-
-        &:hover {
-          background: #008bbf;
         }
       }
     }

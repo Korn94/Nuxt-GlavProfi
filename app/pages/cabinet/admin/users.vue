@@ -323,6 +323,13 @@ function clearMessages() {
   successMessage.value = ''
   errorMessage.value = ''
 }
+
+useHead({
+  meta: [
+    { name: 'robots', content: 'noindex, nofollow' },
+  ],
+  title: 'CRM — Пользователи CRM-системой'
+})
 </script>
 
 <style lang="scss" scoped>

@@ -34,11 +34,17 @@ definePageMeta({
   allowedRoles: ['admin']
 });
 
+// --- Вычисляемое свойство для заголовка ---
+const pageTitle = computed(() => {
+  if (!contractor.value?.name) return 'CRM — Прораб'
+  return `CRM — ${contractor.value.name}`
+})
+
 // API
 async function fetchData() {
   try {
     loading.value = true
-    const [contractorData, deductionsData, historyData, expensesData, objectsData] = await Promise.all([
+    const [contractorData, deductionsData, expensesData, objectsData] = await Promise.all([
       $fetch(`/api/contractors/foremans/${id}`, { 
         method: 'GET',
         credentials: 'include'
@@ -99,4 +105,12 @@ function addPayment(newPayment) {
 onMounted(async () => {
   await fetchData()
 })
+
+// --- Динамический заголовок ---
+useHead(() => ({
+  meta: [
+    { name: 'robots', content: 'noindex, nofollow' },
+  ],
+  title: pageTitle.value
+}))
 </script>

@@ -9,10 +9,6 @@
             <span class="label">Главная</span>
           </nuxt-link>
         </li>
-        <!-- <li :class="{ active: isServiceActive }" @click="toggleServiceMenu">
-          <Icon name="solar:clipboard-text-outline" size="28px" />
-          <span class="label">Услуги</span>
-        </li> -->
         <li :class="{ active: !isMenuActive && isPriceRoute }">
           <nuxt-link to="/prices/floor" @click.native="closeMenus">
             <Icon name="solar:tag-price-broken" size="22px" />
@@ -31,30 +27,6 @@
         </li>
       </ul>
     </nav>
-
-    <!-- Модальное окно для "Услуги" -->
-    <!-- <div v-if="isServiceMenuOpen" class="service-menu-overlay" @click="closeMenus">
-      <div class="service-menu-background"></div>
-      <div class="service-menu" @click.stop>
-        <ul>
-          <li :class="{ active: currentRoute === 'repair' }">
-            <nuxt-link to="/services/repair" @click.native="closeMenus">
-              Чистовая отделка
-            </nuxt-link>
-          </li>
-          <li :class="{ active: currentRoute === 'plumbing' }">
-            <nuxt-link to="/services/plumbing" @click.native="closeMenus">
-              Сантехника
-            </nuxt-link>
-          </li>
-          <li :class="{ active: currentRoute === 'electricity' }">
-            <nuxt-link to="/services/electricity" @click.native="closeMenus">
-              Электрика
-            </nuxt-link>
-          </li>
-        </ul>
-      </div>
-    </div> -->
 
     <!-- Модальное окно для "Меню" -->
     <div v-if="isMenuOpen" class="menu-overlay" @click="closeMenus">
@@ -101,14 +73,6 @@ const currentRoute = ref(route.name);
 const isServiceMenuOpen = ref(false);
 const isMenuOpen = ref(false);
 
-// Проверка активности пункта "Услуги"
-const isServiceActive = computed(() => {
-  return (
-    isServiceMenuOpen.value || // Если модальное окно открыто
-    ["repair", "plumbing", "electricity"].includes(currentRoute.value) // Если текущий маршрут — одна из вложенных страниц услуг
-  );
-});
-
 // Проверка активности пункта "Меню"
 const isMenuActive = computed(() => {
   return isMenuOpen.value;
@@ -127,14 +91,6 @@ watch(
     closeMenus();
   }
 );
-
-// Открытие/закрытие модального окна "Услуги"
-const toggleServiceMenu = () => {
-  if (isMenuOpen.value) {
-    isMenuOpen.value = false; // Закрываем меню, если оно открыто
-  }
-  isServiceMenuOpen.value = !isServiceMenuOpen.value;
-};
 
 // Открытие/закрытие модального окна "Меню"
 const toggleMenu = () => {
@@ -158,6 +114,7 @@ const closeMenus = () => {
   left: 0;
   width: 100%;
   z-index: 300;
+  // transform: translateZ(0);
 
   span {
     color: unset;
@@ -168,13 +125,8 @@ const closeMenus = () => {
   }
 
   nav {
-    border-top: 1px solid #555555;
-    background: linear-gradient(135deg, rgba(54, 54, 54, 0.8) 0%, rgba(54, 54, 54, 0.9) 50%, rgba(0, 0, 0, 0.9) 100%);
-    backdrop-filter: blur(5px);
-
-    // border-top: 1px solid;
-    // border-image: linear-gradient(to right, #18191b, #18191b, #18191b);
-    // border-image-slice: 1;
+    border-top: 1px solid $color-muted;
+    background: $text-dark;
     
     ul {
       display: flex;
@@ -192,10 +144,10 @@ const closeMenus = () => {
         padding: 10px 0;
         cursor: pointer;
         transition: color 0.3s ease;
-        color: #fff;
+        color: $text-light;
         
         &.active {
-          color: #00c3f5;
+          color: $blue;
         }
 
         .label {
@@ -209,73 +161,6 @@ const closeMenus = () => {
           display: flex;
           flex-direction: column;
           align-items: center;
-        }
-      }
-    }
-  }
-}
-
-/* Модальное окно */
-.service-menu-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  justify-content: flex-end;
-  align-items: flex-end;
-  z-index: -1; /* Выше нижнего меню */
-
-  /* Затемнённый фон */
-  .service-menu-background {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(5px);
-    z-index: 1; /* Ниже модального окна */
-  }
-
-  /* Само модальное окно */
-  .service-menu {
-    position: relative;
-    z-index: 2; /* Выше затемнённого фона */
-    background-color: #fff;
-    width: 100%;
-    max-height: 50%;
-    overflow-y: auto;
-    border-top: 1px solid #ddd;
-    border-top-left-radius: 16px;
-    border-top-right-radius: 16px;
-    padding: 20px 20px 100px;
-
-    ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-
-      li {
-        padding: 10px;
-        cursor: pointer;
-        transition: background-color 0.3s ease;
-
-        &.active {
-          background-color: #00c3f5;
-          color: #fff;
-          border-radius: 4px;
-        }
-
-        &:hover {
-          background-color: #f0f0f0;
-        }
-
-        a {
-          text-decoration: none;
-          color: inherit;
-          display: block;
         }
       }
     }
@@ -301,7 +186,7 @@ const closeMenus = () => {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: rgba(0, 0, 0, 0.4);
     backdrop-filter: blur(5px);
     z-index: 1;
   }
@@ -310,15 +195,16 @@ const closeMenus = () => {
   .menu {
     position: relative;
     z-index: 2;
-    background: #242424cb;
-    backdrop-filter: blur(5px);
+    background: $background-gray;
+    // backdrop-filter: blur(5px);
     width: 100%;
-    max-height: 50%;
+    // max-height: 50%;
     overflow-y: auto;
-    // border-top: 1px solid #555555;
-    border-top-left-radius: 16px;
-    border-top-right-radius: 16px;
-    padding: 20px 20px 100px;
+    border-top-left-radius: $border-radius;
+    border-top-right-radius: $border-radius;
+    padding: 20px 20px 70px;
+    opacity: 0;
+    animation: fadeIn 0.3s forwards;
 
     ul {
       list-style: none;
@@ -328,17 +214,17 @@ const closeMenus = () => {
       li {
         padding: 10px;
         cursor: pointer;
-        color: #fff;
+        color: $text-light;
         transition: background-color 0.3s ease;
+        border-radius: $border-radius;
 
         &.active {
-          background-color: #00c3f5;
-          color: #fff;
-          border-radius: 4px;
+          background-color: $blue;
         }
-
+        
         &:hover {
-          background-color: #f0f0f0;
+          background-color: $background-light;
+          color: $text-dark;
         }
 
         a {

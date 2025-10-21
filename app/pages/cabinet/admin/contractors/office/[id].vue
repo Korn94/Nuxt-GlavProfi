@@ -14,7 +14,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import OfficeIndex from '@/components/pages/Cabinet/Contractors/Office/Index.vue'
+import OfficeIndex from '@/components/pages/cabinet/Contractors/Office/Index.vue'
 
 const route = useRoute()
 const id = route.params.id
@@ -34,6 +34,12 @@ definePageMeta({
   middleware: 'role',
   allowedRoles: ['admin']
 });
+
+// --- Вычисляемое свойство для заголовка ---
+const pageTitle = computed(() => {
+  if (!contractor.value?.name) return 'CRM — Офисный работник'
+  return `CRM — ${contractor.value.name}`
+})
 
 // API
 async function fetchData() {
@@ -98,4 +104,12 @@ function addPayment(newPayment) {
 onMounted(async () => {
   await fetchData()
 })
+
+// --- Динамический заголовок ---
+useHead(() => ({
+  meta: [
+    { name: 'robots', content: 'noindex, nofollow' },
+  ],
+  title: pageTitle.value
+}))
 </script>

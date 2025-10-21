@@ -50,7 +50,7 @@
             required
             :class="{ 'error-border': phoneError }"
           />
-          <button type="button" @click="openConsentModal">Отправить</button>
+          <UiButtonsSecondary type="button" @click="openConsentModal">Отправить</UiButtonsSecondary>
         </form>
 
         <!-- <h3 class="footer-title">Свяжитесь с нами</h3> -->
@@ -338,22 +338,6 @@ $subtext-color: #bdc3c7;
 
     button {
       padding: 10px 15px;
-      margin: 0;
-      background-color: $primary-color;
-      color: $text-color;
-      border: none;
-      border-radius: 5px;
-      font-size: 0.9rem;
-      cursor: pointer;
-      transition: background-color 0.3s ease;
-
-      &:hover {
-        background-color: #00a3d3;
-      }
-
-      &:active {
-        transform: scale(0.98);
-      }
     }
 
     .error-border {
