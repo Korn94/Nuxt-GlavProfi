@@ -12,7 +12,6 @@ export default defineEventHandler(async (event) => {
     const [work] = await db.select().from(works).where(eq(works.id, parseInt(id)))
     if (!work) throw createError({ statusCode: 404, message: 'Работа не найдена' })
     if (work.accepted) throw createError({ statusCode: 400, message: 'Работа уже принята' })
-    if (!work.foremanId) throw createError({ statusCode: 400, message: 'У работы не указан прораб' })
 
     // Обновляем статус работы
     await db.update(works).set({

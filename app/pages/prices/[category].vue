@@ -1,11 +1,11 @@
 <template>
   <div class="wrap">
     <!-- <h1>Цены на ремонт помещений - <span>2025</span></h1> -->
-    <UiWidgetsOffer 
+    <!-- <UiWidgetsOffer 
       title="Не тратьте время на изучение прайс-листа!"
       description="Отправьте запрос — мы сами всё посчитаем быстро и бесплатно"
       buttonText="Заказать расчет"
-    />
+    /> -->
 
     <PagesPublicPrices 
       :categories="categories" 
@@ -162,7 +162,11 @@ useHead({
 
 <style lang="scss" scoped>
 .wrap {
-  margin: 10em 5px 0;
+  margin: 8em 5px 0;
+  
+  @media (max-width: 840px) {
+    margin: 2em 5px 0;
+  }
 
   h1 {
     margin-bottom: 3em;

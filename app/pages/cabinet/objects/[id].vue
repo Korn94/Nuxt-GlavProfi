@@ -95,7 +95,7 @@
           <Icon name="solar:chat-line-outline" class="info-icon" />
           <div class="info-content">
             <label>Комментарий</label>
-            <b>{{ object.comment || '—' }}</b>
+            <pre>{{ object.comment || '—' }}</pre>
           </div>
         </div>
       </div>
@@ -182,6 +182,7 @@
           @add-coming="handleComingAdded"
           @add-expense="handleExpenseAdded"
           @add-work="handleWorkAdded"
+          @delete-work="handleWorkDeleted"
         />
 
         <PagesCabinetObjectsMaterials
@@ -422,6 +423,12 @@ function handleExpenseAdded(expense) {
 function handleWorkAdded(work) {
   operations.value.push({ ...work, type: 'work', amount: Number(work.amount) })
   refreshObjectData()
+}
+
+function handleWorkDeleted(id) {
+  operations.value = operations.value.filter(op => op.id !== id);
+  // Обновляем данные объекта
+  refreshObjectData();
 }
 
 // --- Вычисляемые значения ---

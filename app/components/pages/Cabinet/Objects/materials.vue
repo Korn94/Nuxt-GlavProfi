@@ -6,7 +6,7 @@
       <div class="balance-card">
         <div class="card-header">
           <span>Приходы</span>
-          <i class="fas fa-arrow-up"></i>
+          <Icon name="fa6-solid:arrow-up" width="20" height="20" />
         </div>
         <div class="card-body">
           <p>{{ incomingTotal }} ₽</p>
@@ -15,7 +15,7 @@
       <div class="balance-card">
         <div class="card-header">
           <span>Расходы</span>
-          <i class="fas fa-arrow-down"></i>
+          <Icon name="fa6-solid:arrow-down" width="20" height="20" />
         </div>
         <div class="card-body">
           <p>{{ outgoingTotal }} ₽</p>
@@ -24,10 +24,12 @@
       <div class="balance-card total">
         <div class="card-header">
           <span>Итого</span>
-          <i class="fas fa-balance-scale"></i>
+          <Icon name="fa6-solid:balance-scale" width="20" height="20" />
         </div>
         <div class="card-body">
-          <p>{{ totalBalance }} ₽</p>
+          <p :class="{ 'positive': Number(totalBalance) >= 0, 'negative': Number(totalBalance) < 0 }">
+            {{ totalBalance }} ₽
+          </p>
         </div>
       </div>
     </div>
@@ -42,8 +44,8 @@
     </div>
 
     <!-- Фильтр по дате -->
-    <div class="date-filters" style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
-      <div>
+    <div class="date-filters">
+      <div class="date-group">
         <label>С</label>
         <input
           type="date"
@@ -52,7 +54,7 @@
           :max="endDate || ''"
         />
       </div>
-      <div>
+      <div class="date-group">
         <label>По</label>
         <input
           type="date"
@@ -61,9 +63,7 @@
           :min="startDate || ''"
         />
       </div>
-      <button @click="clearDateFilter" class="btn secondary" style="align-self: flex-end;">
-        Сбросить
-      </button>
+      <button @click="clearDateFilter" class="btn secondary">Сбросить</button>
     </div>
 
     <!-- Кнопки добавления -->
@@ -102,9 +102,9 @@
                 :disabled="!canToggleReceipt(material)"
               />
             </td>
-            <td class="flex">
+            <td class="action-cell">
               <button @click="editMaterial(material)" class="btn small">Ред</button>
-              <button @click="deleteMaterial(material.id)" class="btn small danger">✕</button>
+              <button @click="deleteMaterial(material.id)" class="btn small danger">×</button>
             </td>
           </tr>
         </tbody>
@@ -113,11 +113,11 @@
 
     <!-- Сообщения -->
     <div v-if="successMessage" class="notification success">
-      <i class="fas fa-check-circle"></i>
+      <Icon name="fa6-solid:check-circle" width="24" height="24" />
       {{ successMessage }}
     </div>
     <div v-if="errorMessage" class="notification error">
-      <i class="fas fa-exclamation-circle"></i>
+      <Icon name="fa6-solid:exclamation-circle" width="24" height="24" />
       {{ errorMessage }}
     </div>
 
@@ -145,7 +145,7 @@
         <div class="form-group">
           <input
             type="number"
-            step="100.00"
+            step="100"
             v-model.number="currentMaterial.amount"
             placeholder="Сумма"
             required
@@ -193,7 +193,6 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { useNuxtApp } from '#app'
 
 const route = useRoute()
 
@@ -223,21 +222,19 @@ const errorMessage = ref('')
 // Валидация формы
 const isFormValid = computed(() => {
   return (
-    currentMaterial.value.name.trim() !== '' &&
+    currentMaterial.value.name?.trim() !== '' &&
     Number(currentMaterial.value.amount) > 0 &&
     ['incoming', 'outgoing'].includes(currentMaterial.value.type)
   )
 })
 
-// Сортирует массив по operationDate в порядке убывания (новые — сверху)
+// Сортирует массив по operationDate в порядке убывания
 function sortByDateDesc(array) {
   return [...array].sort((a, b) => new Date(b.operationDate) - new Date(a.operationDate))
 }
 
 // Фильтрация и сортировка материалов
 const filteredMaterials = computed(() => {
-  // Данные уже отфильтрованы на сервере: по objectId, type, дате
-  // Осталось только отсортировать по дате
   return sortByDateDesc(materials.value)
 })
 
@@ -257,9 +254,11 @@ const outgoingTotal = computed(() => {
 })
 
 const totalBalance = computed(() => {
-  return (Number(incomingTotal.value) - Number(outgoingTotal.value)).toFixed(2)
+  const total = Number(incomingTotal.value) - Number(outgoingTotal.value)
+  return total.toFixed(2)
 })
 
+// Форматирование числа
 const formatAmount = (amount) => {
   return Number(amount).toLocaleString('ru-RU')
 }
@@ -275,7 +274,7 @@ function formatDate(dateString) {
   })
 }
 
-// Методы для работы с материалами
+// Загрузка данных
 async function fetchMaterials() {
   try {
     const params = {
@@ -283,7 +282,6 @@ async function fetchMaterials() {
       type: filterType.value
     }
 
-    // Только если указана дата — добавляем её в параметры
     if (startDate.value) params.startDate = startDate.value
     if (endDate.value) params.endDate = endDate.value
 
@@ -301,9 +299,11 @@ async function fetchMaterials() {
   } catch (error) {
     console.error('Ошибка загрузки материалов:', error)
     errorMessage.value = 'Не удалось загрузить материалы'
+    setTimeout(() => errorMessage.value = '', 5000)
   }
 }
 
+// Сохранение материала
 async function saveMaterial() {
   formErrors.value = {}
 
@@ -314,6 +314,7 @@ async function saveMaterial() {
   if (Number(currentMaterial.value.amount) <= 0) {
     formErrors.value.amount = 'Сумма должна быть больше нуля'
   }
+
   if (!currentMaterial.value.operationDate || isNaN(Date.parse(currentMaterial.value.operationDate))) {
     formErrors.value.operationDate = 'Укажите корректную дату'
   }
@@ -346,6 +347,7 @@ async function saveMaterial() {
   }
 }
 
+// Редактирование материала
 async function editMaterial(material) {
   const date = new Date(material.operationDate)
   currentMaterial.value = {
@@ -359,6 +361,7 @@ async function editMaterial(material) {
   openModal(material.type)
 }
 
+// Удаление материала
 async function deleteMaterial(id) {
   if (!confirm('Вы уверены, что хотите удалить этот материал?')) return
 
@@ -380,7 +383,6 @@ async function deleteMaterial(id) {
 
 // Фильтр по дате
 function applyFilters() {
-  // Не делаем проверку isNaN — date input сам валидирует
   fetchMaterials()
 }
 
@@ -390,24 +392,23 @@ function clearDateFilter() {
   fetchMaterials()
 }
 
+// Переключение чека
 async function toggleCheck(material) {
   if (material.hasReceipt) {
     alert('Снятие чека разрешено только через редактирование')
     return
   }
 
-  const checked = true
   try {
     await $fetch(`/api/materials/${material.id}/toggle-check`, {
       method: 'PATCH',
-      body: { hasReceipt: checked },
+      body: { hasReceipt: true },
       credentials: 'include'
     })
 
-    // Локальное обновление
     const index = materials.value.findIndex(m => m.id === material.id)
     if (index !== -1) {
-      materials.value[index].hasReceipt = checked
+      materials.value[index].hasReceipt = true
     }
   } catch (error) {
     console.error('Ошибка изменения статуса чека:', error)
@@ -416,11 +417,12 @@ async function toggleCheck(material) {
   }
 }
 
-// Определяет, можно ли менять флаг hasReceipt
+// Можно ли переключить чек
 const canToggleReceipt = (material) => {
   return material.type === 'outgoing' && !material.hasReceipt
 }
 
+// Сброс формы
 function resetForm() {
   currentMaterial.value = {
     name: '',
@@ -429,18 +431,19 @@ function resetForm() {
     hasReceipt: false,
     objectId: route.params.id,
     type: modalType.value,
-    operationDate: new Date().toISOString().split('T')[0] // <-- Сегодняшняя дата
+    operationDate: new Date().toISOString().split('T')[0]
   }
   isEditing.value = false
   formErrors.value = {}
 }
 
+// Очистка сообщений
 function clearMessages() {
   successMessage.value = ''
   errorMessage.value = ''
 }
 
-// Открытие модального окна
+// Открытие модалки
 function openModal(type) {
   modalType.value = type
   if (!isEditing.value) {
@@ -449,16 +452,15 @@ function openModal(type) {
   isModalOpen.value = true
 }
 
-// Закрытие модального окна
+// Закрытие модалки
 function closeModal() {
   isModalOpen.value = false
-  // Сброс формы при закрытии
   nextTick(() => {
     resetForm()
   })
 }
 
-// Следим за изменением объекта
+// Слежение за параметрами
 watch(
   () => [route.params.id, filterType.value, startDate.value, endDate.value],
   async ([newId]) => {
@@ -474,82 +476,71 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-.block {
-  margin-bottom: 2rem;
-  position: relative;
+// ========================================
+// Миксины
+// ========================================
+@mixin button-reset() {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  outline: none;
+  font: inherit;
 }
 
-.filter {
-  margin-bottom: 1.5rem;
-  select {
-    width: 100%;
-    padding: 0.5rem;
-    border: 1px solid #ccc;
-    border-radius: 6px;
-    font-size: 1rem;
+@mixin transition($props...) {
+  transition: $props;
+}
+
+@mixin card-shadow() {
+  box-shadow: $box-shadow;
+  @include transition(all 0.3s ease);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: $box-shadow;
   }
 }
 
-.add-buttons {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+// ========================================
+// Основной блок
+// ========================================
+.block {
+  margin-bottom: 1em;
+  position: relative;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-.table-section {
-  background: #ffffff;
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-  padding: 1rem;
-  transition: all 0.3s ease;
-  overflow: hidden;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-th,
-td {
-  padding: 0.75rem 1rem;
-  text-align: left;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-tr:hover {
-  background-color: #f9f9f9;
-  transition: background-color 0.3s ease;
-}
-
-.odd-row {
-  background-color: #fafafa;
-}
-
-.status-checkbox {
-  transform: scale(1.2);
-}
-
+// ========================================
+// Баланс — карточки
+// ========================================
 .balance-summary {
   display: flex;
-  gap: 1.5rem;
+  gap: 1em;
+  margin-bottom: 1em;
   flex-wrap: wrap;
-  margin-top: 2rem;
 }
 
 .balance-card {
-  flex: 1 1 calc(33% - 1.5rem);
-  min-width: 200px;
-  background: #ffffff;
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-  transition: all 0.3s ease;
+  flex: 1 1 calc(33% - 1rem);
+  min-width: 250px;
+  background: $background-light;
+  border-radius: $border-radius;
   overflow: hidden;
-  cursor: default;
-  
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+  @include card-shadow();
+
+  &.total {
+    background: $blue20;
+    color: $text-dark;
+
+    .card-header {
+      background: rgba($blue, 0.1);
+    }
+
+    p {
+      color: $blue;
+      font-weight: bold;
+    }
   }
 }
 
@@ -557,195 +548,357 @@ tr:hover {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem;
-  background: #f0f8ff;
+  padding: 1em;
+  background: $sub-item-bg;
+  color: $text-dark;
   font-weight: 600;
-  color: #2c3e50;
-  font-size: 0.95rem;
+  font-size: 1em;
+  letter-spacing: 0.3px;
 }
 
 .card-body {
-  padding: 0 1rem 1rem;
-  text-align: right;
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: #27ae60;
+  padding: 0 1em 1em;
+
+  p {
+    margin: 0;
+    font-size: 1.4em;
+    font-weight: bold;
+    color: $text-dark;
+  }
+
+  &.positive {
+    color: $color-success;
+  }
+
+  &.negative {
+    color: $red;
+  }
 }
 
-.total {
-  .card-header {
-    background: #e6e6e6;
-  }
-  .card-body {
-    color: #34495e;
+// ========================================
+// Фильтры
+// ========================================
+.filter {
+  margin-bottom: 1em;
+
+  select {
+    padding: 0.7em 1em;
+    border: 1px solid $border-color;
+    border-radius: $border-radius;
+    background: $background-light;
+    color: $text-dark;
+    font-size: 0.95em;
+
+    &:focus {
+      outline: none;
+      border-color: $blue;
+      box-shadow: 0 0 0 3px rgba($blue, 0.1);
+    }
   }
 }
 
+.date-filters {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  align-items: end;
+
+  .date-group {
+    label {
+      display: block;
+      margin-bottom: 0.5em;
+      font-size: 0.9em;
+      color: $text-dark;
+    }
+
+    input[type="date"] {
+      padding: 0.6em;
+      border: 1px solid $border-color;
+      border-radius: $border-radius;
+      background: $background-light;
+      font-size: 0.95em;
+
+      &:focus {
+        outline: none;
+        border-color: $blue;
+        box-shadow: 0 0 0 3px rgba($blue, 0.1);
+      }
+    }
+  }
+}
+
+// ========================================
+// Кнопки добавления
+// ========================================
+.add-buttons {
+  display: flex;
+  gap: 1em;
+  margin-bottom: 1.5em;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+// ========================================
+// Таблица материалов
+// ========================================
+.table-section {
+  margin-bottom: 1.5em;
+  background: $background-light;
+  border-radius: $border-radius;
+  box-shadow: $box-shadow;
+  overflow: hidden;
+}
+
+.table-section h3 {
+  margin: 0 0 1em 0;
+  color: $text-dark;
+  font-size: 1.2em;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  padding: 0.8em 1em;
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #34495e;
+  text-transform: uppercase;
+  font-size: 0.8em;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid $border-color;
+}
+
+td {
+  padding: 0.7em 1em;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+
+tr {
+  @include transition(background-color 0.2s ease);
+
+  &:hover {
+    background-color: #f9f9f9;
+  }
+
+  &.odd-row {
+    background-color: #fafafa;
+  }
+}
+
+.action-cell {
+  display: flex;
+  gap: 0.8em;
+  justify-content: center;
+}
+
+.status-checkbox {
+  accent-color: $blue;
+  transform: scale(1.2);
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+// ========================================
+// Кнопки в таблице
+// ========================================
+.btn {
+  padding: 0.4em 0.8em;
+  border: none;
+  border-radius: $border-radius;
+  font-weight: 500;
+  cursor: pointer;
+  @include transition(all 0.2s ease);
+  font-size: 0.9em;
+
+  &.primary {
+    background: $blue;
+    color: #fff;
+
+    &:hover:not(:disabled) {
+      background: rgba($blue, 0.9);
+    }
+
+    &:disabled {
+      background: $color-muted;
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+  }
+
+  &.secondary {
+    background: $color-muted;
+    color: #fff;
+
+    &:hover {
+      background: rgba($color-muted, 0.9);
+    }
+  }
+
+  &.small {
+    padding: 0.2em 0.5em;
+    font-size: 0.85em;
+
+    &.danger {
+      background: $red;
+      color: #fff;
+
+      &:hover {
+        background: rgba($red, 0.9);
+      }
+    }
+  }
+}
+
+// ========================================
+// Уведомления
+// ========================================
 .notification {
-  padding: 1rem 1.5rem;
-  border-radius: 6px;
-  margin-bottom: 1rem;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 1em;
+  padding: 1em;
+  margin-bottom: 1em;
+  border-radius: $border-radius;
   font-weight: 500;
+  font-size: 1em;
+
+  svg {
+    flex-shrink: 0;
+  }
 }
 
 .success {
   background: #d4edda;
   color: #155724;
+  border: 1px solid #c3e6cb;
 }
 
 .error {
   background: #f8d7da;
   color: #721c24;
+  border: 1px solid #f5c6cb;
 }
 
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0,0,0,0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 999;
-  backdrop-filter: blur(2px);
-}
-
-.modal {
-  background: white;
-  border-radius: 10px;
-  width: 90%;
-  max-width: 600px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-  overflow: hidden;
-  animation: fadeIn 0.3s ease-out;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1.5rem;
-  background: #f8f9fa;
-  border-bottom: 1px solid #ddd;
-}
-
-.modal-header h3 {
-  margin: 0;
-  font-size: 1.25rem;
-  color: #2c3e50;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: #666;
-  transition: color 0.3s ease;
-}
-
-.close-btn:hover {
-  color: #34495e;
-}
-
-.modal-body {
-  padding: 1.5rem;
-}
-
+// ========================================
+// Формы и поля
+// ========================================
 .form-group {
-  margin-bottom: 1.5rem;
-}
+  margin-bottom: 1em;
 
-input, select, textarea {
-  width: 100%;
-  padding: 0.5rem;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  font-size: 1rem;
-  transition: border-color 0.3s ease;
-  margin-top: 0.5rem;
-}
+  label {
+    display: block;
+    margin-bottom: 0.5em;
+    font-weight: 500;
+    color: $text-dark;
+    font-size: 0.95em;
+  }
 
-input:focus, select:focus, textarea:focus {
-  border-color: #007bff;
-  outline: none;
-}
+  input,
+  select,
+  textarea {
+    width: 100%;
+    padding: 0.8em 1em;
+    border: 1px solid $border-color;
+    border-radius: $border-radius;
+    background: $background-light;
+    color: $text-dark;
+    @include transition(border-color, box-shadow);
 
-textarea {
-  resize: vertical;
-  min-height: 80px;
-}
+    &:focus {
+      outline: none;
+      border-color: $blue;
+      box-shadow: 0 0 0 3px rgba($blue, 0.1);
+    }
 
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  padding: 1rem 1.5rem;
-  border-top: 1px solid #ddd;
-  gap: 1rem;
-}
+    &.error {
+      border-color: $color-danger;
+      box-shadow: 0 0 0 3px rgba($color-danger, 0.1);
+    }
+  }
 
-.btn {
-  padding: 0.5rem 1.2rem;
-  border: none;
-  border-radius: 6px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 1rem;
-}
-
-.primary {
-  background-color: #007bff;
-  color: white;
-}
-
-.secondary {
-  background-color: #6c757d;
-  color: white;
-}
-
-.danger {
-  background-color: #dc3545;
-  color: white;
-}
-
-.btn:hover {
-  transform: translateY(-1px);
-}
-
-.btn:active {
-  transform: translateY(0);
-}
-
-.small {
-  padding: 0.3rem 0.7rem;
-  font-size: 0.9rem;
-}
-
-.error {
-  border-color: #dc3545 !important;
+  textarea {
+    resize: vertical;
+    min-height: 80px;
+  }
 }
 
 .error-message {
-  color: #dc3545;
-  font-size: 0.85em;
-  margin-top: 0.25rem;
   display: block;
+  margin-top: 0.5em;
+  color: $color-danger;
+  font-size: 0.9em;
+  font-weight: 500;
 }
 
+// ========================================
+// Модальное окно
+// ========================================
+.modal-body {
+  padding: 1em 0;
+}
+
+.modal-footer-controls {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1em;
+}
+
+// ========================================
+// Адаптивность
+// ========================================
 @media (max-width: 768px) {
+  .balance-summary {
+    flex-direction: column;
+    gap: 0.8em;
+  }
+
   .balance-card {
     flex: 1 1 100%;
+  }
+
+  .date-filters {
+    flex-direction: column;
+    align-items: stretch;
+
+    .date-group {
+      max-width: 100%;
+    }
+  }
+
+  .add-buttons {
+    flex-direction: column;
+    align-items: stretch;
+    max-width: 300px;
+    margin: 0 auto 1.5em;
+  }
+
+  th, td {
+    padding: 0.6em 0.8em;
+    font-size: 0.8em;
+  }
+
+  .btn.small {
+    font-size: 0.8em;
+    padding: 0.3em 0.5em;
+  }
+}
+
+@media (max-width: 480px) {
+  .block {
+    padding: 0 0.5em;
+  }
+
+  .notification {
+    font-size: 0.95em;
   }
 }
 </style>

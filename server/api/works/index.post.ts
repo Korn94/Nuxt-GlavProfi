@@ -7,7 +7,6 @@ import { eq } from 'drizzle-orm'
 export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event)
-
     if (!body.workerAmount || !body.contractorId || !body.contractorType || !body.objectId) {
       throw createError({ 
         statusCode: 400,
@@ -18,8 +17,8 @@ export default defineEventHandler(async (event) => {
     // Текущая дата
     const now = new Date()
 
-    // Вставляем новую работу
-    await db.insert(works).values({
+    // Вставляем новую работу и сразу получаем её данные
+    const [newWork] = await db.insert(works).values({
       workerAmount: body.workerAmount,
       comment: body.comment || '',
       contractorId: body.contractorId,
@@ -32,10 +31,8 @@ export default defineEventHandler(async (event) => {
       paymentDate: body.paymentDate || null,
       operationDate: now,
       objectId: body.objectId
-    })
+    }).$returningId()
 
-    // Получаем созданную запись
-    const [newWork] = await db.select().from(works).orderBy(works.id).limit(1)
     return newWork
   } catch (error) {
     console.error('Ошибка создания работы:', error)

@@ -13,7 +13,6 @@
         type="file"
         accept="image/*"
         @change="handleMainImage"
-        required
       />
       <small>Основное изображение проекта, будет отображаться на странице кейса</small>
       <div v-if="mainImage" class="image-preview">
@@ -36,7 +35,6 @@
         type="file"
         accept="image/*"
         @change="handleThumbnail"
-        required
       />
       <small>Изображение для превью в карточке проекта (рекомендуемый размер: 400×300)</small>
       <div v-if="thumbnail" class="image-preview">
@@ -70,14 +68,33 @@
       </button>
       <small>Дополнительные изображения проекта. Можно загрузить несколько сразу.</small>
 
-      <!-- Превью галереи -->
-      <div v-if="gallery.length" class="gallery-preview">
+      <!-- Превью существующих изображений из БД -->
+      <div v-if="existingGallery.length" class="existing-gallery-preview">
+        <h4>Существующие фотографии:</h4>
+        <div class="gallery-item" v-for="image in existingGallery" :key="image.id">
+          <img :src="image.url" :alt="`Фото ${image.type}`" />
+          <div class="gallery-item-controls">
+            <span class="type-badge">{{ image.type === 'before' ? 'До' : 'После' }}</span>
+            <button
+              type="button"
+              @click="removeExistingImage(image.id)"
+              class="remove-gallery-btn danger"
+            >
+              Удалить
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Превью новых изображений (ещё не загруженных на сервер) -->
+      <div v-if="gallery.length" class="new-gallery-preview">
+        <h4>Новые фотографии (будут добавлены):</h4>
         <div
           v-for="(image, index) in gallery"
           :key="index"
           class="gallery-item"
         >
-          <img :src="image.preview" :alt="`Фото галереи ${index + 1}`" />
+          <img :src="image.preview" :alt="`Новое фото ${index + 1}`" />
           <div class="gallery-item-controls">
             <select v-model="image.type" class="type-select">
               <option value="after">После</option>
@@ -104,13 +121,21 @@ import { computed } from 'vue'
 const props = defineProps({
   mainImage: { type: Object, default: null },
   thumbnail: { type: Object, default: null },
-  gallery: { type: Array, default: () => [] }
+  // gallery теперь содержит ТОЛЬКО новые файлы
+  gallery: { type: Array, default: () => [] },
+  // Список существующих изображений из БД
+  existingGallery: { type: Array, default: () => [] }
 })
 
 // Определение событий
-const emit = defineEmits(['update:mainImage', 'update:thumbnail', 'update:gallery'])
+const emit = defineEmits([
+  'update:mainImage',
+  'update:thumbnail',
+  'update:gallery', // Только новые файлы
+  'remove-existing-image' // Событие для удаления существующего изображения
+])
 
-// Реактивные геттеры и сеттеры
+// Реактивные геттеры и сеттеры для основных изображений
 const mainImage = computed({
   get: () => props.mainImage,
   set: (value) => {
@@ -178,6 +203,11 @@ const removeGalleryImage = (index) => {
   emit('update:gallery', updatedGallery)
 }
 
+// Удаление существующего изображения
+const removeExistingImage = (imageId) => {
+  emit('remove-existing-image', imageId)
+}
+
 // Удаление главного изображения
 const removeMainImage = () => {
   emit('update:mainImage', null)
@@ -241,8 +271,8 @@ const removeThumbnail = () => {
       font-size: 0.875rem;
     }
 
-    .image-preview,
-    .gallery-preview {
+    // Превью для главного изображения и миниатюры
+    .image-preview {
       margin-top: 1rem;
       position: relative;
 
@@ -278,11 +308,13 @@ const removeThumbnail = () => {
       }
     }
 
-    .gallery-preview {
+    // Стили для галереи — сохранены как были, просто разделены на два блока
+    .existing-gallery-preview,
+    .new-gallery-preview {
+      margin-top: 1rem;
       display: flex;
       flex-wrap: wrap;
       gap: 1rem;
-      margin-top: 1rem;
 
       .gallery-item {
         position: relative;
@@ -292,6 +324,8 @@ const removeThumbnail = () => {
           width: 100%;
           height: 200px;
           object-fit: cover;
+          border-radius: 0.5rem;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
         .gallery-item-controls {
@@ -300,6 +334,18 @@ const removeThumbnail = () => {
           margin-top: 0.5rem;
           align-items: center;
 
+          // Для существующих фото — только текст (без select)
+          .type-badge {
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            font-size: 0.9rem;
+            background: white;
+            min-width: 80px;
+            text-align: center;
+          }
+
+          // Выпадающий список для новых фото
           .type-select {
             flex: 1;
             padding: 0.5rem;

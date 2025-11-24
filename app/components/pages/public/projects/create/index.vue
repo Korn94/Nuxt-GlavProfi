@@ -209,8 +209,10 @@ const submitCase = async () => {
 
     // Добавление галереи
     form.value.gallery.forEach((image, index) => {
-      formData.append(`gallery[${index}]`, image.file)
-      formData.append(`galleryType[${index}]`, image.type)
+      if (image.file) { // Только новые изображения
+        formData.append(`gallery[${index}]`, image.file)
+        formData.append(`galleryType[${index}]`, image.type)
+      }
     })
 
     // Работы

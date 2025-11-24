@@ -66,30 +66,30 @@
               <th>Дата</th>
               <th>Сумма</th>
               <th>Статус</th>
-              <th>Контрагент</th>
               <th>Комментарий</th>
-              <th>Прораб</th>
+              <th>Контрагент</th>
               <th>Вид работы</th>
+              <th>Прораб</th>
               <th>Принято заказчиком</th>
               <th>Комментарий</th>
               <th>Действия</th>
             </tr>
           </thead>
           <tbody>
-              <tr v-for="(work, $index) in sortByDateDesc(works)" :key="work.id" :class="{ 'odd-row': $index % 2 === 0 }">
+            <tr v-for="(work, $index) in sortByDateDesc(works)" :key="work.id" :class="{ 'odd-row': $index % 2 === 0 }">
               <td>{{ formatDate(work.operationDate) }}</td>
               <td>{{ formatAmount(work.workerAmount || work.amount) }} ₽</td>
               <td :class="{'status-paid': work.paid, 'status-pending': !work.paid}">
                 {{ work.paid ? 'Принято' : 'В работе' }}
               </td>
+              <td>{{ work.comment || '-' }}</td>
               <td>
                 {{ contractors.find(c => c.id === work.contractorId && c.type === work.contractorType)?.name || '-' }}
               </td>
-              <td>{{ work.comment || '-' }}</td>
+              <td>{{ work.workType || '-' }}</td>
               <td>
                 {{ foremans.find(s => s.id === work.supervisorId)?.name || '-' }}
               </td>
-              <td>{{ work.workType || '-' }}</td>
               <td>
                 <span v-if="work.acceptedByClient">✅</span>
                 <span v-else>❌</span>
@@ -103,6 +103,7 @@
                   <button v-if="!work.paid && !work.acceptedByClient" @click="acceptWork(work.id)">Принять</button>
                   <button v-if="!work.paid && !work.acceptedByClient" @click="rejectWork(work.id)">Отклонить</button>
                   <button v-if="!work.paid && work.acceptedByClient" @click="payWork(work.id)">Закрыть</button>
+                  <button @click="deleteWork(work.id, work.paid)" class="delete-button" title="Удалить работу">×</button>
                 </div>
               </td>
             </tr>
@@ -122,123 +123,142 @@
     </div>
 
     <!-- Модальное окно: Добавить приход -->
-    <div v-if="isComingModalOpen" class="modal-overlay">
-      <div class="modal">
-        <div class="modal-header">
-          <h3>Добавить приход</h3>
-          <button @click="closeModals" class="close-btn">×</button>
-        </div>
-        <div class="modal-body">
+    <PagesCabinetUiModal
+      :visible="isComingModalOpen"
+      @update:visible="closeModals"
+      @close="closeModals"
+      title="Добавить приход"
+      size="md"
+      closable
+    >
+      <!-- Контент -->
+      <div class="modal-content">
+        <form @submit.prevent="addComing">
           <div class="form-group">
-            <label>Сумма</label>
+            <label>Сумма <span class="required">*</span></label>
             <input
-              type="number"
-              step="100"
-              v-model.number="newComing.amount"
+              type="text"
+              v-model="comingDisplayAmount"
               placeholder="Введите сумму"
+              @blur="formatComingOnBlur"
+              @focus="unformatComingOnFocus"
+              @input="syncComingAmount"
               required
               :class="{ error: formErrors.coming }"
             />
             <span v-if="formErrors.coming" class="error-message">{{ formErrors.coming }}</span>
-            <!-- Визуальная подсказка -->
-            <small v-if="newComing.amount > 0" class="format-preview">
-              Будет отображено: {{ formatAmount(newComing.amount) }} ₽
-            </small>
           </div>
+
           <div class="form-group">
             <label>Комментарий</label>
             <textarea v-model="newComing.comment" placeholder="Дополнительная информация"></textarea>
           </div>
-        </div>
-        <div class="modal-footer">
-          <button @click="closeModals" class="btn secondary">Отмена</button>
-          <button @click="addComing" :disabled="!isComingValid" class="btn primary">
-            {{ loadingComing ? 'Сохранение...' : 'Добавить' }}
-          </button>
-        </div>
+        </form>
       </div>
-    </div>
+
+      <!-- Футер -->
+      <template #footer>
+        <button type="button" @click="closeModals" class="btn secondary">Отмена</button>
+        <button type="submit" @click="addComing" :disabled="!isComingValid" class="btn primary">
+          {{ loadingComing ? 'Сохранение...' : 'Добавить' }}
+        </button>
+      </template>
+    </PagesCabinetUiModal>
 
     <!-- Модальное окно: Добавить работу -->
-    <div v-if="isWorkModalOpen" class="modal-overlay">
-      <div class="modal">
-        <div class="modal-header">
-          <h3>Добавить работу</h3>
-          <button @click="closeModals" class="close-btn">×</button>
-        </div>
-        <div class="modal-body">
-          <div class="form-group">
-            <label>Сумма работ (мастеру)</label>
-            <input
-              type="number"
-              step="100"
-              v-model.number="newWork.amount"
-              placeholder="Сумма работ"
-              required
-              :class="{ error: formErrors.contractorAmount }"
-            />
-            <span v-if="formErrors.contractorAmount" class="error-message">{{ formErrors.contractorAmount }}</span>
-            <small v-if="newWork.amount > 0" class="format-preview">
-              Будет отображено: {{ formatAmount(newWork.amount) }} ₽
-            </small>
-          </div>
+    <PagesCabinetUiModal
+      :visible="isWorkModalOpen"
+      @update:visible="closeModals"
+      @close="closeModals"
+      title="Добавить работу"
+      size="lg"
+      closable
+    >
+      <!-- Контент -->
+      <div class="modal-content">
+        <form @submit.prevent="addWork">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Сумма работ (мастеру) <span class="required">*</span></label>
+              <input
+                type="text"
+                v-model="workDisplayAmount"
+                placeholder="Сумма работ"
+                @blur="formatWorkOnBlur"
+                @focus="unformatWorkOnFocus"
+                @input="syncWorkAmount"
+                required
+                :class="{ error: formErrors.contractorAmount }"
+              />
+              <span v-if="formErrors.contractorAmount" class="error-message">{{ formErrors.contractorAmount }}</span>
+            </div>
 
-          <div class="form-group">
-            <label>Выберите категорию</label>
-            <select v-model="selectedCategory">
-              <option value="">Выберите категорию</option>
-              <option value="master">Мастера</option>
-              <option value="worker">Рабочие</option>
-            </select>
-          </div>
+            <div class="form-group">
+              <label>Выберите категорию</label>
+              <select v-model="selectedCategory">
+                <option value="">Выберите категорию</option>
+                <option value="master">Мастера</option>
+                <option value="worker">Рабочие</option>
+              </select>
+            </div>
 
-          <div class="form-group">
-            <label>Выберите контрагента</label>
-            <select v-model="newWork.contractorId" :disabled="!selectedCategory">
-              <option value="">Выберите контрагента</option>
-              <option
-                v-for="contractor in filteredContractors"
-                :key="contractor.id"
-                :value="contractor.id"
-              >
-                {{ contractor.name }} (Баланс: {{ formatAmount(contractor.balance) }} ₽)
-              </option>
-            </select>
-          </div>
+            <div class="form-group">
+              <label>Выберите контрагента</label>
+              <select v-model="newWork.contractorId" :disabled="!selectedCategory">
+                <option value="">Выберите контрагента</option>
+                <option
+                  v-for="contractor in filteredContractors"
+                  :key="contractor.id"
+                  :value="contractor.id"
+                >
+                  {{ contractor.name }} (Баланс: {{ formatAmount(contractor.balance) }} ₽)
+                </option>
+              </select>
+            </div>
 
-          <div class="form-group">
-            <label>Выберите прораба</label>
-            <select v-model="newWork.supervisorId">
-              <option value="">Выберите прораба</option>
-              <option v-for="foreman in foremans" :key="foreman.id" :value="foreman.id">
-                {{ foreman.name }}
-              </option>
-            </select>
-          </div>
+            <div class="form-group">
+              <label>Выберите прораба</label>
+              <select v-model="newWork.supervisorId">
+                <option value="">Без прораба</option>
+                <option v-for="foreman in foremans" :key="foreman.id" :value="foreman.id">
+                  {{ foreman.name }}
+                </option>
+              </select>
+            </div>
 
-          <div class="form-group">
-            <label>Выберите вид работы</label>
-            <select v-model="newWork.workType">
-              <option value="">Выберите вид работы</option>
-              <option v-for="type in workTypes" :key="type" :value="type">
-                {{ type }}
-              </option>
-            </select>
+            <div class="form-group">
+              <label>Выберите вид работы</label>
+              <select v-model="newWork.workType">
+                <option value="">Выберите вид работы</option>
+                <option v-for="type in workTypes" :key="type" :value="type">
+                  {{ type }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>
+                <input type="checkbox" v-model="newWork.immediatePayment" />
+                <span>Сразу оплатить с баланса компании</span>
+              </label>
+            </div>
           </div>
 
           <div class="form-group">
             <label>Комментарий</label>
             <textarea v-model="newWork.comment" placeholder="Комментарий к работе"></textarea>
           </div>
-        </div>
-        <div class="modal-footer">
-          <button @click="closeModals" class="btn secondary">Отмена</button>
-          <button @click="addWork" :disabled="!isWorkValid" class="btn primary">
-            {{ loadingWork ? 'Сохранение...' : 'Добавить работу' }}
-          </button>
-        </div>
+        </form>
       </div>
-    </div>
+
+      <!-- Футер -->
+      <template #footer>
+        <button type="button" @click="closeModals" class="btn secondary">Отмена</button>
+        <button type="submit" @click="addWork" :disabled="!isWorkValid" class="btn primary">
+          {{ loadingWork ? 'Сохранение...' : 'Добавить работу' }}
+        </button>
+      </template>
+    </PagesCabinetUiModal>
   </div>
 </template>
 
@@ -252,11 +272,13 @@ const objectId = route.params.id
 // Состояние модалей
 const isComingModalOpen = ref(false)
 const isWorkModalOpen = ref(false)
+const loadingComing = ref(false)
+const loadingWork = ref(false)
 
 // Операции и справочники
 const operations = ref([])
 const contractors = ref([])
-const foremans = ref([]) // Прорабы
+const foremans = ref([])
 
 // Приходы и работы
 const comings = ref([])
@@ -270,9 +292,9 @@ const workTypes = [
 ]
 
 // Формы
-const newComing = ref({ amount: 0, comment: '', objectId })
+const newComing = ref({ amount: null, comment: '', objectId })
 const newWork = ref({
-  amount: 0, // Сумма работ (мастеру)
+  amount: null, // Сумма работ (мастеру)
   contractorId: null,
   comment: '',
   paid: false,
@@ -280,7 +302,8 @@ const newWork = ref({
   acceptedByClient: false, // Принято заказчиком
   rejectionComment: null, // Комментарий при отклонении
   workType: '', // Вид работы
-  supervisorId: null // ID прораба
+  supervisorId: null, // ID прораба
+  immediatePayment: false // Немедленная оплата
 })
 
 const emit = defineEmits(['add-coming', 'add-work'])
@@ -290,18 +313,17 @@ const formErrors = ref({})
 const successMessage = ref('')
 const errorMessage = ref('')
 
-// --- Функции форматирования ---
+// --- Локальные значения для отображения ---
+const localComingValue = ref('')
+const localWorkValue = ref('')
 
-/**
- * Форматирует число с пробелами как разделитель тысяч.
- * Только визуальное отображение.
- */
+// --- Функции форматирования ---
 function formatAmount(value) {
   if (value == null || isNaN(value)) return '0'
   return new Intl.NumberFormat('ru-RU').format(Number(value))
 }
 
-// --- Вычисляемые значения (чистые числа, без форматирования!) ---
+// --- Вычисляемые значения ---
 
 // Общая сумма приходов
 const totalComings = computed(() => {
@@ -336,8 +358,7 @@ const isWorkValid = computed(() => {
   return (
     Number(newWork.value.amount) > 0 &&
     newWork.value.contractorId !== null &&
-    newWork.value.workType !== '' &&
-    newWork.value.supervisorId !== null
+    newWork.value.workType !== ''
   )
 })
 
@@ -355,6 +376,99 @@ function formatDate(dateString) {
 // Сортирует массив объектов по дате operationDate в порядке убывания (новые сверху)
 function sortByDateDesc(array) {
   return [...array].sort((a, b) => new Date(b.operationDate) - new Date(a.operationDate))
+}
+
+// --- ВЫЧИСЛЯЕМЫЕ ПОЛЯ ДЛЯ ОТОБРАЖЕНИЯ СУММ ---
+
+// Приход: displayAmount
+const comingDisplayAmount = computed({
+  get() {
+    if (newComing.value.amount === null || newComing.value.amount === '') return ''
+    return new Intl.NumberFormat('ru-RU').format(newComing.value.amount)
+  },
+  set(value) {
+    localComingValue.value = value
+  }
+})
+
+// Работа: displayAmount
+const workDisplayAmount = computed({
+  get() {
+    if (newWork.value.amount === null || newWork.value.amount === '') return ''
+    return new Intl.NumberFormat('ru-RU').format(newWork.value.amount)
+  },
+  set(value) {
+    localWorkValue.value = value
+  }
+})
+
+// --- Парсер строки в число ---
+function parseNumber(str) {
+  if (!str) return NaN
+  const cleaned = str.replace(/[^\d,.-]/g, '').replace(',', '.')
+  return parseFloat(cleaned)
+}
+
+// --- Приход: события ввода ---
+function unformatComingOnFocus() {
+  if (newComing.value.amount !== null) {
+    localComingValue.value = String(newComing.value.amount)
+  } else {
+    localComingValue.value = ''
+  }
+}
+
+function formatComingOnBlur() {
+  const num = parseNumber(localComingValue.value)
+  if (!isNaN(num) && num >= 0) {
+    newComing.value.amount = num
+    localComingValue.value = new Intl.NumberFormat('ru-RU').format(num)
+  } else {
+    localComingValue.value = newComing.value.amount
+      ? new Intl.NumberFormat('ru-RU').format(newComing.value.amount)
+      : ''
+  }
+}
+
+function syncComingAmount() {
+  const raw = localComingValue.value
+  const num = parseNumber(raw)
+  if (!isNaN(num)) {
+    newComing.value.amount = num
+  } else if (raw === '' || raw === null) {
+    newComing.value.amount = null
+  }
+}
+
+// --- Работа: события ввода ---
+function unformatWorkOnFocus() {
+  if (newWork.value.amount !== null) {
+    localWorkValue.value = String(newWork.value.amount)
+  } else {
+    localWorkValue.value = ''
+  }
+}
+
+function formatWorkOnBlur() {
+  const num = parseNumber(localWorkValue.value)
+  if (!isNaN(num) && num >= 0) {
+    newWork.value.amount = num
+    localWorkValue.value = new Intl.NumberFormat('ru-RU').format(num)
+  } else {
+    localWorkValue.value = newWork.value.amount
+      ? new Intl.NumberFormat('ru-RU').format(newWork.value.amount)
+      : ''
+  }
+}
+
+function syncWorkAmount() {
+  const raw = localWorkValue.value
+  const num = parseNumber(raw)
+  if (!isNaN(num)) {
+    newWork.value.amount = num
+  } else if (raw === '' || raw === null) {
+    newWork.value.amount = null
+  }
 }
 
 // --- Загрузка данных ---
@@ -449,9 +563,9 @@ function closeModals() {
 }
 
 function resetForm() {
-  newComing.value = { amount: 0, comment: '', objectId }
+  newComing.value = { amount: null, comment: '', objectId }
   newWork.value = {
-    amount: 0,
+    amount: null,
     contractorId: null,
     comment: '',
     paid: false,
@@ -459,9 +573,12 @@ function resetForm() {
     acceptedByClient: false,
     rejectionComment: null,
     workType: '',
-    supervisorId: null
+    supervisorId: null,
+    immediatePayment: false
   }
   selectedCategory.value = ''
+  localComingValue.value = ''
+  localWorkValue.value = ''
 }
 
 // --- Добавление операций ---
@@ -498,46 +615,67 @@ async function addComing() {
 
 async function addWork() {
   formErrors.value = {}
-
   if (!isWorkValid.value) {
     formErrors.value = {
       workAmount: 'Сумма работ обязательна',
       contractor: 'Контрагент обязателен',
-      workType: 'Выберите вид работы',
-      supervisor: 'Выберите прораба'
+      workType: 'Выберите вид работы'
     }
     return
   }
 
+  loadingWork.value = true
+
   try {
-    const payload = {
-      workerAmount: Number(newWork.value.amount),
-      contractorId: newWork.value.contractorId,
-      workTypes: newWork.value.workType,
-      foremanId: newWork.value.supervisorId,
-      comment: newWork.value.comment || '',
-      paid: false,
-      paymentDate: null,
-      operationDate: new Date().toISOString(),
-      objectId,
-      contractorType: selectedCategory.value
+    let result;
+    
+    if (newWork.value.immediatePayment) {
+      // Используем новое API для создания и немедленной оплаты
+      result = await $fetch('/api/works/create-and-pay', {
+        method: 'POST',
+        body: {
+          workerAmount: Number(newWork.value.amount),
+          contractorId: newWork.value.contractorId,
+          contractorType: selectedCategory.value,
+          workTypes: newWork.value.workType,
+          foremanId: newWork.value.supervisorId || null,
+          comment: newWork.value.comment || '',
+          objectId
+        },
+        credentials: 'include'
+      });
+    } else {
+      // Используем существующее API
+      const payload = {
+        workerAmount: Number(newWork.value.amount),
+        contractorId: newWork.value.contractorId,
+        workTypes: newWork.value.workType,
+        foremanId: newWork.value.supervisorId || null,
+        comment: newWork.value.comment || '',
+        paid: false,
+        paymentDate: null,
+        operationDate: new Date().toISOString(),
+        objectId,
+        contractorType: selectedCategory.value
+      }
+
+      result = await $fetch('/api/works', {
+        method: 'POST',
+        body: payload,
+        credentials: 'include'
+      })
     }
 
-    const result = await $fetch('/api/works', {
-      method: 'POST',
-      body: payload,
-      credentials: 'include'
-    })
-
+    // Убедимся, что у нас есть все необходимые поля
     const workItem = {
       ...result,
-      paid: false,
-      acceptedByClient: false,
+      paid: result.paid,
+      acceptedByClient: result.accepted,
       workerAmount: Number(result.workerAmount || 0),
       amount: Number(result.workerAmount || 0),
       workType: result.workTypes || '',
       supervisorId: result.foremanId || null,
-      contractorType: selectedCategory.value
+      operationDate: result.operationDate || new Date().toISOString()
     }
 
     emit('add-work', workItem)
@@ -545,7 +683,8 @@ async function addWork() {
 
     closeModals()
 
-    successMessage.value = 'Работа успешно добавлена'
+    successMessage.value = newWork.value.immediatePayment ? 
+      'Работа создана и оплачена' : 'Работа успешно добавлена'
     setTimeout(() => successMessage.value = '', 3000)
   } catch (error) {
     console.error('Ошибка при добавлении работы:', error)
@@ -625,6 +764,33 @@ async function rejectWork(workId) {
   }
 }
 
+// Обработчик удаления в компонент операций
+async function deleteWork(workId, isPaid) {
+  const message = isPaid 
+    ? 'Вы уверены, что хотите удалить эту оплаченную работу? Это действие вернёт средства контрагенту и обновит баланс объекта.' 
+    : 'Вы уверены, что хотите удалить эту работу? Это действие нельзя отменить.';
+    
+  if (!confirm(message)) {
+    return;
+  }
+  try {
+    await $fetch(`/api/works/${workId}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
+    // Удаляем работу из локального списка
+    works.value = works.value.filter(work => work.id !== workId);
+    // Эмитим событие об удалении работы
+    emit('delete-work', workId);
+    successMessage.value = 'Работа успешно удалена';
+    setTimeout(() => successMessage.value = '', 3000);
+  } catch (error) {
+    console.error('Ошибка удаления работы:', error);
+    errorMessage.value = 'Не удалось удалить работу';
+    setTimeout(() => errorMessage.value = '', 5000);
+  }
+}
+
 // --- Вспомогательные функции ---
 function clearMessages() {
   successMessage.value = ''
@@ -637,37 +803,6 @@ function resetFormErrors() {
 </script>
 
 <style lang="scss" scoped>
-// ========================================
-// Переменные
-// ========================================
-$color-primary: #007bff;
-$color-success: #27ae60;
-$color-warning: #f39c12;
-$color-danger: #dc3545;
-$color-muted: #6c757d;
-$color-bg: #f8f9fa;
-$color-text: #2c3e50;
-$color-border: #e0e0e0;
-$color-bg-card: #ffffff;
-
-$shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
-$shadow-md: 0 4px 16px rgba(0, 0, 0, 0.1);
-$shadow-hover: 0 4px 20px rgba(0, 0, 0, 0.15);
-
-$border-radius: 10px;
-$border-radius-sm: 6px;
-
-$spacing-xs: 0.25rem;
-$spacing-sm: 0.5rem;
-$spacing-md: 1rem;
-$spacing-lg: 1.5rem;
-$spacing-xl: 2rem;
-
-$font-size-sm: 0.85rem;
-$font-size-base: 1rem;
-$font-size-lg: 1.25rem;
-$font-size-xl: 1.5rem;
-
 // ========================================
 // Миксины
 // ========================================
@@ -685,12 +820,12 @@ $font-size-xl: 1.5rem;
 }
 
 @mixin card-shadow() {
-  box-shadow: $shadow-sm;
-  transition: all 0.3s ease;
+  box-shadow: $box-shadow;
+  @include transition(all 0.3s ease);
 
   &:hover {
     transform: translateY(-2px);
-    box-shadow: $shadow-md;
+    box-shadow: $box-shadow;
   }
 }
 
@@ -698,7 +833,7 @@ $font-size-xl: 1.5rem;
 // Основной блок
 // ========================================
 .block {
-  margin-bottom: $spacing-xl;
+  margin-bottom: 1em;
   position: relative;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
@@ -708,53 +843,48 @@ $font-size-xl: 1.5rem;
 // ========================================
 .balance-summary {
   display: flex;
-  gap: $spacing-lg;
-  margin-bottom: $spacing-xl;
+  gap: 1em;
+  margin-bottom: 1em;
   flex-wrap: wrap;
 }
 
 .balance-card {
   flex: 1 1 calc(50% - 1rem);
   min-width: 250px;
-  background: $color-bg-card;
+  background: $background-light;
   border-radius: $border-radius;
   overflow: hidden;
   @include card-shadow();
-
-  &:hover {
-    transform: translateY(-2px);
-  }
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: $spacing-md;
-  background: linear-gradient(to right, #f0f8ff, #fff);
+  padding: 1em;
+  background: $blue20;
+  color: $text-dark;
   font-weight: 600;
-  color: $color-text;
-  font-size: $font-size-sm;
+  font-size: 1em;
   letter-spacing: 0.3px;
 }
 
 .card-body {
-  padding: 0 $spacing-md $spacing-md;
-  text-align: right;
+  padding: 0 1em 1em;
 
   p {
     margin: 0;
-    font-size: $font-size-xl;
+    font-size: 1.4em;
     font-weight: bold;
-    color: $color-text;
+    color: $text-dark;
   }
 }
 
 .balance-description {
   display: block;
-  font-size: $font-size-sm;
-  color: #666;
-  margin-top: $spacing-xs;
+  font-size: 0.9em;
+  color: $text-gray;
+  margin-top: 0.5em;
 }
 
 // ========================================
@@ -762,18 +892,18 @@ $font-size-xl: 1.5rem;
 // ========================================
 .add-buttons {
   display: flex;
-  gap: $spacing-lg;
-  margin-bottom: $spacing-xl;
+  gap: 1em;
+  margin-bottom: 1.5em;
   justify-content: center;
   flex-wrap: wrap;
 
   .btn {
     @include transition(transform 0.2s ease, box-shadow 0.2s ease);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px $shadow-color;
 
     &:hover {
       transform: translateY(-1px);
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+      box-shadow: 0 4px 8px $shadow-color;
     }
 
     &:active {
@@ -786,30 +916,28 @@ $font-size-xl: 1.5rem;
 // Таблицы
 // ========================================
 .table-section {
-  margin-bottom: $spacing-xl;
-  background: $color-bg-card;
+  margin-bottom: 1.5em;
+  background: $background-light;
   border-radius: $border-radius;
-  box-shadow: $shadow-sm;
+  box-shadow: $box-shadow;
   overflow: hidden;
 }
 
 .table-section h3 {
   display: flex;
   align-items: center;
-  gap: $spacing-sm;
+  gap: 0.8em;
   margin: 0;
-  padding: $spacing-md;
-  font-size: $font-size-lg;
-  color: $color-text;
-  border-bottom: 1px solid $color-border;
-  background: $color-bg;
+  padding: 1em;
+  font-size: 1.1em;
+  color: $text-dark;
+  border-bottom: 1px solid $border-color;
+  background: $sub-item-bg;
 }
 
 .table-wrapper {
   max-height: 600px;
   overflow-y: auto;
-  margin-top: $spacing-md;
-  border-top: 1px solid $color-border;
 }
 
 table {
@@ -819,20 +947,20 @@ table {
 }
 
 th {
-  padding: $spacing-sm $spacing-md;
+  padding: 0.8em 1em;
   background-color: #f8f9fa;
   font-weight: 600;
   color: #34495e;
   text-transform: uppercase;
-  font-size: $font-size-sm;
+  font-size: 0.8em;
   letter-spacing: 0.5px;
-  border-bottom: 2px solid $color-border;
+  border-bottom: 1px solid $border-color;
 }
 
 td {
-  padding: $spacing-sm $spacing-md;
+  padding: 0.7em 1em;
   border-bottom: 1px solid #f0f0f0;
-  font-size: .9em;
+  font-size: 0.85em;
   white-space: nowrap;
 }
 
@@ -862,18 +990,16 @@ tr {
 // Действия в таблице
 .action-buttons {
   display: flex;
-  gap: $spacing-sm;
+  gap: 0.8em;
   justify-content: center;
 
   button {
-    padding: $spacing-xs $spacing-sm;
-    font-size: $font-size-sm;
-    border-radius: $border-radius-sm;
+    padding: 0.3em 0.6em;
+    border-radius: $border-radius;
     border: 1px solid $color-muted;
-    background: #fff;
     color: $color-muted;
     cursor: pointer;
-    transition: all 0.2s ease;
+    @include transition(all 0.2s ease);
 
     &:hover {
       background: $color-muted;
@@ -881,32 +1007,35 @@ tr {
     }
 
     &:first-child {
+      // Принять
       background: $color-success;
       color: #fff;
       border: none;
 
       &:hover {
-        background: #333;
+        background: rgba($color-success, 0.9);
       }
     }
 
     &:nth-child(2) {
+      // Отклонить
       background: $color-warning;
       color: #fff;
       border: none;
 
       &:hover {
-        background: #333
+        background: rgba($color-warning, 0.9);
       }
     }
 
     &:last-child {
-      background: $color-primary;
+      // Удалить
+      background: $blue;
       color: #fff;
       border: none;
 
       &:hover {
-        background: #333;
+        background: rgba($blue, 0.9);
       }
     }
   }
@@ -918,12 +1047,12 @@ tr {
 .notification {
   display: flex;
   align-items: center;
-  gap: $spacing-sm;
-  padding: $spacing-md;
-  margin-bottom: $spacing-md;
-  border-radius: $border-radius-sm;
+  gap: 1em;
+  padding: 1em;
+  margin-bottom: 1em;
+  border-radius: $border-radius;
   font-weight: 500;
-  font-size: $font-size-base;
+  font-size: 1em;
 
   svg {
     flex-shrink: 0;
@@ -943,105 +1072,34 @@ tr {
 }
 
 // ========================================
-// Модальные окна
+// Формы и поля
 // ========================================
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  backdrop-filter: blur(4px);
-  animation: fadeIn 0.3s ease-out;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.modal {
-  background: #fff;
-  border-radius: $border-radius;
-  width: 90%;
-  max-width: 600px;
-  max-height: 90vh;
-  overflow: hidden;
-  box-shadow: $shadow-hover;
-  display: flex;
-  flex-direction: column;
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: $spacing-lg;
-  background: $color-bg;
-  border-bottom: 1px solid $color-border;
-}
-
-.modal-header h3 {
-  margin: 0;
-  font-size: $font-size-lg;
-  color: $color-text;
-}
-
-.close-btn {
-  @include button-reset();
-  font-size: 1.8rem;
-  color: #666;
-  line-height: 1;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: background 0.2s ease, color 0.2s ease;
-
-  &:hover {
-    background: #e9ecef;
-    color: #333;
-  }
-}
-
-.modal-body {
-  padding: $spacing-lg;
-  flex-grow: 1;
-  overflow-y: auto;
-}
-
 .form-group {
-  margin-bottom: $spacing-lg;
+  margin-bottom: 1em;
 
   label {
     display: block;
-    margin-bottom: $spacing-xs;
+    margin-bottom: 0.5em;
     font-weight: 500;
-    color: #495057;
-    font-size: $font-size-base;
+    color: $text-dark;
+    font-size: 0.95em;
   }
 
   input,
   select,
   textarea {
     width: 100%;
-    padding: $spacing-sm;
-    border: 1px solid #ccc;
-    border-radius: $border-radius-sm;
-    font-size: $font-size-base;
-    @include transition(border-color);
+    padding: 0.8em 1em;
+    border: 1px solid $border-color;
+    border-radius: $border-radius;
+    background: $background-light;
+    color: $text-dark;
+    @include transition(border-color, box-shadow);
 
     &:focus {
       outline: none;
-      border-color: $color-primary;
-      box-shadow: 0 0 0 3px rgba($color-primary, 0.1);
+      border-color: $blue;
+      box-shadow: 0 0 0 3px rgba($blue, 0.1);
     }
 
     &.error {
@@ -1058,39 +1116,40 @@ tr {
 
 .error-message {
   display: block;
-  margin-top: $spacing-xs;
+  margin-top: 0.5em;
   color: $color-danger;
-  font-size: $font-size-sm;
+  font-size: 0.9em;
+  font-weight: 500;
 }
 
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  padding: $spacing-md $spacing-lg;
-  gap: $spacing-md;
-  border-top: 1px solid $color-border;
-  background: $color-bg;
+.required {
+  color: $red;
+  font-weight: bold;
 }
 
+// ========================================
+// Кнопки
+// ========================================
 .btn {
-  padding: $spacing-sm $spacing-md;
+  padding: 0.5em 1em;
   border: none;
-  border-radius: $border-radius-sm;
+  border-radius: $border-radius;
   font-weight: 500;
   cursor: pointer;
   @include transition(all 0.2s ease);
-  font-size: $font-size-base;
+  font-size: 0.95em;
 
   &.primary {
-    background: $color-primary;
+    background: $blue;
     color: #fff;
 
     &:hover:not(:disabled) {
-      background: #333;
+      background: rgba($blue, 0.9);
     }
 
     &:disabled {
-      background: #aaa;
+      background: $color-muted;
+      color: #fff;
       cursor: not-allowed;
       opacity: 0.7;
     }
@@ -1101,7 +1160,7 @@ tr {
     color: #fff;
 
     &:hover {
-      background: #333;
+      background: rgba($color-muted, 0.9);
     }
   }
 }
@@ -1111,7 +1170,7 @@ tr {
 // ========================================
 @media (max-width: 768px) {
   .balance-summary {
-    gap: $spacing-md;
+    gap: 1em;
   }
 
   .balance-card {
@@ -1121,44 +1180,47 @@ tr {
 
   .add-buttons {
     flex-direction: column;
-    align-items: center;
+    align-items: stretch;
+    max-width: 300px;
+    margin: 0 auto 1.5em;
   }
 
   .table-wrapper {
     max-height: 400px;
   }
 
-  .modal {
-    width: 95%;
-    max-width: 100%;
-    padding: 0 $spacing-sm;
-  }
-
-  .modal-body,
-  .modal-footer {
-    padding: $spacing-md;
-  }
-
   th, td {
-    padding: $spacing-xs;
-    font-size: $font-size-sm;
+    padding: 0.7em 0.8em;
+    font-size: 0.85em;
+  }
+
+  .action-buttons {
+    gap: 0.5em;
   }
 
   .action-buttons button {
-    font-size: $font-size-sm;
-    padding: $spacing-xs $spacing-sm;
+    font-size: 0.85em;
+    padding: 0.4em 0.5em;
   }
 }
 
 @media (max-width: 480px) {
+  .block {
+    padding: 0 0.5em;
+  }
+
   .table-section h3 {
-    font-size: 1.1rem;
-    padding: $spacing-md;
+    font-size: 1.1em;
+    padding: 1em;
   }
 
   .btn {
-    font-size: $font-size-sm;
-    padding: $spacing-xs $spacing-sm;
+    font-size: 1em;
+    padding: 0.8em 1em;
+  }
+
+  .notification {
+    font-size: 0.95em;
   }
 }
 </style>

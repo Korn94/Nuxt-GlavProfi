@@ -3,7 +3,7 @@
     <!-- Заголовок -->
 
     <!-- Динамический подзаголовок -->
-    <h1>Цены на <span>{{ activeCategoryTitle }}</span> - 2025</h1>
+    <h1>Актуальные цены на <span>{{ activeCategoryTitle }}</span> - 2025 год</h1>
 
     <!-- Навигация -->
     <PagesPublicPricesUiNavigation
@@ -12,29 +12,39 @@
       @update:active-category="setCategory"
     />
 
-    <!-- Поиск -->
-    <div class="search-bar">
-      <div style="position: relative; width: 100%;">
-        <input
-          type="text"
-          v-model="searchQuery"
-          placeholder="Поиск по работам..."
-          style="padding-right: 30px;"
-        />
-        <Icon 
-          v-if="searchQuery"
-          name="material-symbols:close" 
-          class="ico"
-          width="24" 
-          height="24"
-          @click="clearSearch"
-          style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer;"
-        />
-      </div>
-    </div>
-
     <!-- Таблица -->
     <div class="price-list">
+
+      <!-- Поиск -->
+      <div class="search-bar">
+        <!-- Обертка с относительным позиционированием -->
+        <div style="position: relative; width: 100%;">
+          <!-- Иконка поиска -->
+          <Icon 
+            name="material-symbols:search" 
+            class="search-icon"
+            width="24" 
+            height="24"
+          />
+          <!-- Инпут с отступом слева, чтобы не перекрывать иконку -->
+          <input
+            type="text"
+            v-model="searchQuery"
+            placeholder="Поиск по работам..."
+            style="padding-left: 36px; padding-right: 30px; width: 100%;"
+          />
+          <!-- Иконка "очистить" -->
+          <Icon 
+            v-if="searchQuery"
+            name="material-symbols:close" 
+            class="ico"
+            width="24" 
+            height="24"
+            @click="clearSearch"
+          />
+        </div>
+      </div>
+
       <!-- Условие загрузки -->
       <!-- Индикатор загрузки -->
       <div v-if="isLoading" class="loading-indicator">
@@ -43,9 +53,12 @@
       </div>
       <!-- Условие ошибки -->
       <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
+
+      <!-- Блок с результатами поиска или сообщением "Ничего не найдено" -->
+      <div v-if="!isLoading && !errorMessage">
       <div v-if="filteredWorks.length">
       <!-- Меню навигации для заголовков работ -->
-      <div class="work-navigation">
+      <div class="work-navigation" v-if="isAdmin">
         <div class="work-navigation-inner">
           <button
             :class="{ active: activeWork === 'all' }"
@@ -61,7 +74,6 @@
           >
             {{ category.title }}
           </button>
-          <!-- Кнопка добавления новой категории (только для админа) -->
           <div v-if="isAdmin" class="add-category-button">
             <button @click="showCategoryForm = true">+ Добавить категорию</button>
             <div v-if="showCategoryForm" class="form">
@@ -72,6 +84,7 @@
           </div>
         </div>
       </div>
+    
       <!-- Категории, условие если есть работы -->
         <div v-for="category in filteredWorks" :key="category.id" class="category-block">
           <div class="category-header">
@@ -262,12 +275,12 @@
           </div>
         </div>
       </div>
-      <!-- Если ничего не найдено -->
-      <div v-else-if="!isLoading && filteredWorks.length === 0" class="no-results">
-        Подождите
-      </div>
-    </div>
 
+
+    <div v-else class="no-results">
+      Ничего не найдено по запросу "{{ searchQuery }}"
+    </div>
+  </div>
     <!-- Всплывающее окно для уведомления -->
     <UiAlerts
       :visible="notificationVisible"
@@ -275,6 +288,7 @@
       class="fade-animation"
     />
   </div>
+</div>
 </template>
 
 <script setup>
@@ -299,9 +313,9 @@ const token = useCookie('token')
 
 // Статические категории (временно)
 const categories = [
-  { id: "otdelochnye-raboty", name: "Отделочные работы", title: "отделочные работы" },
-  { id: "plumbing", name: "Сантехника", title: "работы по сантехнике" },
-  { id: "electricity", name: "Электромонтаж", title: "электромонтаж" }
+  { id: "otdelochnye-raboty", name: "Отделочные работы", title: "Отделочные работы" },
+  { id: "plumbing", name: "Сантехника", title: "работы по Сантехнике" },
+  { id: "electricity", name: "Электромонтаж", title: "Электромонтаж" }
 ]
 
 // Состояния
@@ -1211,12 +1225,12 @@ h1, h2 {
   box-shadow: 0 4px 10px rgba(0, 195, 245, 0.3);
   
   &.active {
-    color: $sub-item-bg;
-    background: linear-gradient(to right, #00c3f5, #00a3d3);
+    // color: $sub-item-bg;
+    background: $blue;
   }
   
   &:hover {
-    background: linear-gradient(to right, #00c3f5, #00a3d3);
+    background: $blue;
     box-shadow: 0 4px 10px rgba(0, 195, 245, 0.3);
   }
 }
@@ -1237,12 +1251,28 @@ h1, h2 {
     outline: none;
     transition: all 0.3s ease;
     box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.05);
-    box-shadow: 0 0 5px rgba(0, 195, 245, 0.5);
+    // box-shadow: 0 0 5px rgba(0, 195, 245, 0.5);
     
     &:focus {
       border-color: $primary-color;
       box-shadow: 0 0 5px rgba(0, 195, 245, 0.5);
     }
+  }
+
+  
+  .search-icon {
+    position: absolute;
+    left: 10px; top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+  }
+
+  .ico {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
   }
 }
 
@@ -1332,7 +1362,7 @@ h1, h2 {
             // background: linear-gradient(to right, #00c3f5, #00a3d3);
             // background: linear-gradient(to right, #56d8f8, #f7f7f7);
             border: 1px solid #00c3f5;
-            box-shadow: 0 4px 10px rgba(0, 195, 245, 0.3);
+            box-shadow: 0 4px 10px rgba(0, 195, 245, 0.2);
             transition: border 0.3s ease, box-shadow 0.3s ease;
           }
         
@@ -1342,12 +1372,6 @@ h1, h2 {
           width: 100%;
           padding: 10px 15px;
           margin: 0;
-
-            &:hover {
-              transform: translate(3px, 0px);
-              // color: #fff;
-            }
-
           
           .ico {
             margin-left: 1em;
@@ -1534,27 +1558,6 @@ h1, h2 {
           cursor: pointer;
         }
       }
-    }
-  }
-}
-
-/* Админские кнопки */
-.add-category-button,
-.add-detail-button,
-.add-dopwork-button {
-  margin-top: 10px;
-  
-  button {
-    padding: 8px 12px;
-    background: $primary-color;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.85rem;
-    
-    &:hover {
-      background: rgb(139, 139, 139);
     }
   }
 }

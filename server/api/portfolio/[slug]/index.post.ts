@@ -6,41 +6,100 @@ import { eq } from 'drizzle-orm'
 import { verifyAuth } from '../../../utils/auth'
 
 export default eventHandler(async (event) => {
-  const user = await verifyAuth(event)
-  if (!['admin', 'manager'].includes(user.role)) {
-    throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
-  }
+  try {
+    // Авторизация
+    const user = await verifyAuth(event)
+    if (!['admin', 'manager'].includes(user.role)) {
+      throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
+    }
 
-  const params = event.context.params
-  if (!params || !params.id) {
-    throw createError({ statusCode: 400, statusMessage: 'Missing case ID' })
-  }
+    // Проверка params и slug
+    const params = event.context.params
+    if (!params || !params.slug) {
+      throw createError({ 
+        statusCode: 400, 
+        statusMessage: 'Missing case slug in request parameters' 
+      })
+    }
+    
+    const slug = params.slug
 
-  const caseId = parseInt(params.id)
-  if (isNaN(caseId)) {
-    throw createError({ statusCode: 400, statusMessage: 'Invalid case ID' })
-  }
+    // Чтение тела запроса
+    const body = await readBody(event)
+    if (!body) {
+      throw createError({ 
+        statusCode: 400, 
+        statusMessage: 'Request body is missing' 
+      })
+    }
 
-  const body = await readBody(event)
+    // Валидация обязательных текстовых полей
+    const requiredFields = [
+      'title', 'category', 'address',
+      'objectDescription', 'shortObject',
+      'space', 'duration', 'people',
+      'shortDescription'
+    ]
 
-  // Сначала обновляем кейс
-  await db
-    .update(portfolioCases)
-    .set({
+    for (const field of requiredFields) {
+      if (!body[field] && body[field] !== 0) {
+        throw createError({ 
+          statusCode: 400, 
+          statusMessage: `Missing required field: ${field}` 
+        })
+      }
+    }
+
+    // Преобразование числовых значений
+    const spaceValue = body.space ? String(parseFloat(body.space)) : '0'
+
+    // Подготовка данных для обновления
+    const updateData = {
       ...body,
-      updatedAt: new Date()
+      updatedAt: new Date(),
+      space: spaceValue,
+      isPublished: body.isPublished === 'true' || body.isPublished === true
+    }
+
+    // Удаляем поля, которые не должны быть в таблице portfolioCases
+    delete updateData.mainImage
+    delete updateData.thumbnail
+    delete updateData.beforeAfterPairs
+    delete updateData.gallery
+    delete updateData.works
+
+    // Обновляем кейс
+    await db
+      .update(portfolioCases)
+      .set(updateData)
+      .where(eq(portfolioCases.slug, slug))
+
+    // Теперь выбираем обновлённый кейс
+    const [updatedCase] = await db
+      .select()
+      .from(portfolioCases)
+      .where(eq(portfolioCases.slug, slug))
+
+    if (!updatedCase) {
+      throw createError({ 
+        statusCode: 404, 
+        statusMessage: 'Case not found' 
+      })
+    }
+
+    return updatedCase
+  } catch (error) {
+    console.error('Ошибка при обновлении кейса:', error)
+    
+    // Проверяем, является ли ошибка уже созданным объектом ошибки
+    if (error instanceof Error && 'statusCode' in error) {
+      throw error
+    }
+    
+    // Иначе создаем общую ошибку сервера
+    throw createError({ 
+      statusCode: 500, 
+      statusMessage: 'Internal server error' 
     })
-    .where(eq(portfolioCases.id, caseId))
-
-  // Затем выбираем обновлённый кейс
-  const [updatedCase] = await db
-    .select()
-    .from(portfolioCases)
-    .where(eq(portfolioCases.id, caseId))
-
-  if (!updatedCase) {
-    throw createError({ statusCode: 404, statusMessage: 'Case not found' })
   }
-
-  return updatedCase
 })

@@ -110,11 +110,12 @@ onMounted(() => {
   width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  margin-bottom: 2em;
+  // padding-bottom: .2em;
+  margin-bottom: 1em;
   white-space: nowrap;
   position: relative;
   z-index: 1;
-  text-align: center;
+  // text-align: center;
   background: transparent;
   transition: all 0.3s ease;
 
@@ -123,12 +124,12 @@ onMounted(() => {
     top: 80px; // Высота хедера
     left: 0;
     right: 0;
-    border-top: 1px solid #555555;
-    background: rgba(54, 54, 54, 0.3);
-    backdrop-filter: blur(5px);
-    padding: 10px 0;
+    // border-top: 1px solid #555555;
+    // background: $background-light;
+    // padding: 10px 0;
     z-index: 1;
     transform: translateY(0);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     .inner {
       justify-content: center;
     }
@@ -152,28 +153,39 @@ onMounted(() => {
   scrollbar-color: #ccc transparent;
 
   .inner {
-    display: inline-flex;
-    gap: 10px;
+    display: flex;
+    // gap: 10px;
     padding: 0;
     transition: all 0.3s ease;
-
-    @media (max-width: 768px) {
-      padding: 10px;
+    width: 100%;
+    
+    @media (max-width: 450px) {
+      width: max-content;
+      padding: 0.5em;
+      background: $background-light;
+      gap: .5em;
     }
+    
 
     button {
-      padding: 10px 15px 8px;
+      flex: 1;
+      padding: 10px 15px;
       cursor: pointer;
       border: none;
-      background: $background-light;
-      border-radius: 5px;
+      background: #f7f7f7;
+      // border-radius: 3px;
       font-weight: 600;
+      font-size: .9em;
       transition: all 0.3s ease;
-      border: 1px solid $blue;
+      border: 1px solid $border-color;
+
+      // &:last-child {
+      //   border: unset;
+      // }
 
       &.active {
         background: $blue;
-        color: $text-light;
+        // color: $text-light;
       }
 
       &:hover {
@@ -187,7 +199,6 @@ onMounted(() => {
 @media (max-width: 839px) {
   .navigation.fixed {
     top: 0 !important;
-    border-top: none; // можно убрать лишние бордеры, если нужно
   }
 }
 </style>
