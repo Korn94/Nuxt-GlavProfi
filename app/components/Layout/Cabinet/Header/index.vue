@@ -64,7 +64,7 @@ const isMobile = ref(false)
 
 // --- Перевод ролей на русский ---
 const roleLabels = {
-  admin: 'Администратор',
+  admin: 'Админ',
   manager: 'Менеджер',
   foreman: 'Прораб',
   master: 'Мастер',
@@ -76,6 +76,7 @@ const menuItems = [
   { title: 'Главная', path: '/cabinet', roles: ['admin', 'manager', 'foreman', 'master', 'worker'] },
   { title: 'Сотрудники', path: '/cabinet/admin/contractors', roles: ['admin'] },
   { title: 'Объекты', path: '/cabinet/objects', roles: ['admin', 'foreman', 'master', 'worker'] },
+  { title: 'Чеки', path: '/cabinet/materials', roles: ['admin'] },
   { title: 'Операции', path: '/cabinet/operation', roles: ['admin'] },
   { divider: true }, // Разделитель после "Операции"
   { title: 'На сайт', path: '/', roles: ['admin', 'manager', 'foreman', 'master', 'worker'] },

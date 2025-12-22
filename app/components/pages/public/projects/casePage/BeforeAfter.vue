@@ -150,8 +150,9 @@ const stopDrag = () => {
   border-top: 4px solid white;
   position: relative;
   width: 100%;
+  // height: 80vh;
   overflow: hidden;
-  aspect-ratio: 16/9;
+  aspect-ratio: 22/9;
 
     @media (max-width: 768px) {
       aspect-ratio: 1/1;

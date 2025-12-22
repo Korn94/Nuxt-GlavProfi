@@ -59,6 +59,10 @@
     <!-- Таблица работ -->
     <div class="table-section">
       <h3><Icon name="fa6-solid:toolbox" width="24" height="24" /> Работы</h3>
+      <button class="btn btn-secondary" @click="refreshData">
+        <Icon name="mdi:refresh" size="18" />
+        Обновить
+      </button>
       <div class="table-wrapper">
         <table>
           <thead>
@@ -510,6 +514,12 @@ async function fetchOperations() {
     setTimeout(() => errorMessage.value = '', 5000)
   }
 }
+
+// Обновление данных
+const refreshData = () => {
+  fetchOperations()
+}
+
 
 async function fetchContractors() {
   try {

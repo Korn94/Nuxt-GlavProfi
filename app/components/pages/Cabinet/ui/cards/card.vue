@@ -23,7 +23,7 @@
     </div>
 
     <!-- Основное содержимое -->
-    <main v-else class="card__body">
+    <main v-else class="card__body" :class="{ 'card__body--no-padding': noPaddingBody }">
       <slot />
     </main>
 
@@ -53,6 +53,10 @@ const props = defineProps({
     default: true
   },
   loading: {
+    type: Boolean,
+    default: false
+  },
+  noPaddingBody: {
     type: Boolean,
     default: false
   }
@@ -131,6 +135,10 @@ const props = defineProps({
   padding: 1.5rem;
   color: $text-dark;
   line-height: 1.5;
+
+  &--no-padding {
+    padding: unset;
+  }
 }
 
 .card__footer {

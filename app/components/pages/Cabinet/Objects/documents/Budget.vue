@@ -1,6 +1,6 @@
 <!-- app/components/pages/cabinet/objects/documents/Budget.vue -->
 <template>
-  <Card title="Смета" bordered elevated>
+  <Card title="Смета" bordered elevated no-padding-body>
     <!-- Заголовок с кнопкой -->
     <template #actions>
       <button v-if="isAdmin" @click="openModal()" class="btn btn-sm primary">+ Добавить</button>
@@ -196,7 +196,7 @@ const workProgressText = {
 const actStatusText = {
   none: '—',
   required: 'Нужно сделать',
-  awaiting: 'Ждёт подписи',
+  awaiting: 'Без подписи',
   signed: 'Подписан'
 }
 
@@ -434,6 +434,7 @@ const formatCurrency = (value) => {
 // Итог
 .budget-summary {
   margin-top: 1rem;
+  padding: 1.5rem;
 }
 
 .summary-row {

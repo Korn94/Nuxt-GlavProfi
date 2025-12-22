@@ -1,6 +1,6 @@
 <!-- app/components/pages/cabinet/objects/documents/Acts.vue -->
 <template>
-  <Card title="Акты" bordered elevated>
+  <Card title="Акты" bordered elevated no-padding-body>
     <!-- Заголовок + кнопка -->
     <template #actions>
       <button v-if="isAdmin" @click="isModalOpen = true" class="btn btn-sm primary">+ Добавить</button>
@@ -108,8 +108,8 @@ const editing = ref(null)
 const form = ref({ name: '', amount: '', comment: '', status: 'prepared' })
 
 const statusText = {
-  prepared: 'Подготовлен',
-  awaiting: 'Ждёт подписи',
+  prepared: 'Нужно сделать',
+  awaiting: 'Без подписи',
   signed: 'Подписан'
 }
 

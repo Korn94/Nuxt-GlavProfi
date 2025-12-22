@@ -19,7 +19,7 @@
 
   <!-- Основной контент -->
   <div class="cabinet-page">
-    <Card :loading="loading" elevated>
+    <Card :loading="loading" elevated no-padding-body>
       <!-- Вкладки слева в заголовке карточки -->
       <template #header>
         <div class="tabs-container">

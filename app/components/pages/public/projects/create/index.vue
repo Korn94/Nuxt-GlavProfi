@@ -11,25 +11,24 @@
         @update:slug="form.slug = $event"
         @update:category="form.category = $event"
       />
-
       <!-- Основные изображения и галерея -->
       <ImagesMain
         :main-image="form.mainImage"
         :thumbnail="form.thumbnail"
         :gallery="form.gallery"
+        :existing-gallery="existingGallery"
         @update:main-image="form.mainImage = $event"
         @update:thumbnail="form.thumbnail = $event"
         @update:gallery="form.gallery = $event"
+        @remove-existing-image="removeExistingGalleryImage"
       />
-
       <!-- Сравнение: До и После -->
       <BeforeAfter
-        :pair-group="form.pairGroup"
+        :existing-before-after-pairs="existingBeforeAfterPairs"
         :before-after-pairs="form.beforeAfterPairs"
-        @update:pair-group="form.pairGroup = $event"
-        @update:before-after-pairs="form.beforeAfterPairs = $event"
+        @update:existing-before-after-pairs="updateExistingBeforeAfterPairs"
+        @update:before-after-pairs="updateBeforeAfterPairs"
       />
-
       <!-- Описания и результат -->
       <Descriptions
         :object-description="form.objectDescription"
@@ -43,7 +42,6 @@
         @update:full-description="form.fullDescription = $event"
         @update:result="form.result = $event"
       />
-
       <!-- Работы и статистика -->
       <WorksAndStats
         :works="form.works"
@@ -55,7 +53,6 @@
         @update:duration="form.duration = $event"
         @update:people="form.people = $event"
       />
-
       <!-- SEO-настройки -->
       <Seo
         :meta-title="form.metaTitle"
@@ -65,7 +62,6 @@
         @update:meta-description="form.metaDescription = $event"
         @update:meta-keywords="form.metaKeywords = $event"
       />
-
       <!-- Кнопки управления -->
       <div class="form-actions">
         <button type="submit" class="btn primary" :disabled="uploading">
@@ -83,12 +79,10 @@
     </form>
   </div>
 </template>
-
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '~/composables/useAuth'
-
 // Импорт компонентов
 import BasicInfo from '~/components/pages/public/projects/create/BasicInfo.vue'
 import ImagesMain from '~/components/pages/public/projects/create/ImagesMain.vue'
@@ -96,17 +90,14 @@ import BeforeAfter from '~/components/pages/public/projects/create/BeforeAfter.v
 import Descriptions from '~/components/pages/public/projects/create/Descriptions.vue'
 import WorksAndStats from '~/components/pages/public/projects/create/WorksAndStats.vue'
 import Seo from '~/components/pages/public/projects/create/Seo.vue'
-
 // Инициализация
 const router = useRouter()
 const { user } = useAuth()
-
 // Список категорий
 const categories = [
   'Кафе', 'Магазины', 'Клиники', 'Банки', 'Фитнес',
   'Производственные', 'Фасады и Кровля', 'Прочее'
 ]
-
 // Список типов работ из enum
 const workTypesEnum = [
   'Демонтаж',
@@ -137,7 +128,6 @@ const workTypesEnum = [
   'Монтаж металлоконструкций',
   'Террасная доска'
 ]
-
 // Структура формы
 const form = ref({
   title: '',
@@ -161,28 +151,38 @@ const form = ref({
   pairGroup: '',
   works: []
 })
+// Недостающие свойства и методы
+const existingGallery = ref([])
+const existingBeforeAfterPairs = ref([])
+
+const removeExistingGalleryImage = (imageId) => {
+  existingGallery.value = existingGallery.value.filter(img => img.id !== imageId)
+}
+
+const updateExistingBeforeAfterPairs = (value) => {
+  existingBeforeAfterPairs.value = value
+}
+
+const updateBeforeAfterPairs = (value) => {
+  form.value.beforeAfterPairs = value
+}
 
 // Состояние загрузки
 const uploading = ref(false)
-
 // Отправка формы
 const submitCase = async () => {
   try {
     uploading.value = true
-
     // Валидация обязательных полей
     if (!form.value.mainImage?.file || !form.value.thumbnail?.file) {
       throw new Error('Необходимо загрузить главное изображение и миниатюру')
     }
-
     const formData = new FormData()
-
     // Добавление текстовых полей
     Object.entries(form.value).forEach(([key, value]) => {
       if (['beforeAfterPairs', 'gallery', 'mainImage', 'thumbnail'].includes(key)) return
       formData.append(key, value || '')
     })
-
     // Добавление основных изображений
     const appendImage = (image, prefix) => {
       if (image?.file) {
@@ -191,11 +191,9 @@ const submitCase = async () => {
     }
     appendImage(form.value.mainImage, 'mainImage')
     appendImage(form.value.thumbnail, 'thumbnail')
-
     // Добавление пар "до/после"
     if (form.value.beforeAfterPairs.length > 0) {
       formData.append('pairGroup', form.value.pairGroup || `Сравнение фото - ${Date.now()}`)
-
       form.value.beforeAfterPairs.forEach((pair, index) => {
         if (pair.before?.file) {
           formData.append(`beforeImage[${index}]`, pair.before.file)
@@ -206,7 +204,6 @@ const submitCase = async () => {
       })
     }
     formData.append('pairCount', form.value.beforeAfterPairs.length)
-
     // Добавление галереи
     form.value.gallery.forEach((image, index) => {
       if (image.file) { // Только новые изображения
@@ -214,25 +211,21 @@ const submitCase = async () => {
         formData.append(`galleryType[${index}]`, image.type)
       }
     })
-
     // Работы
     form.value.works.forEach((work, index) => {
       formData.append(`workType[${index}]`, work.workType)
       formData.append(`progress[${index}]`, work.progress.toString())
     })
-
     // Отправка запроса
     const response = await fetch('/api/portfolio', {
       method: 'POST',
       body: formData,
       credentials: 'same-origin'
     })
-
     if (!response.ok) {
       const errorData = await response.json()
       throw new Error(errorData.statusMessage || 'Ошибка сети')
     }
-
     const result = await response.json()
     router.push(`/projects/${result.slug}`)
   } catch (err) {
@@ -243,6 +236,56 @@ const submitCase = async () => {
   }
 }
 </script>
+<style lang="scss" scoped>
+.admin-portfolio-create {
+  background: #f9fafb;
+  padding: 5em 0;
+  h1 {
+    font-size: 2rem;
+    text-align: center;
+    margin-bottom: 2rem;
+    color: #1f2937;
+  }
+  form {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 5px;
+    .form-actions {
+      display: flex;
+      gap: 1rem;
+      margin-top: 2rem;
+      justify-content: center;
+      .btn {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s;
+        &.primary {
+          background-color: #3b82f6;
+          color: white;
+          &:hover {
+            background-color: #2563eb;
+          }
+        }
+        &.secondary {
+          background-color: transparent;
+          color: #3b82f6;
+          border: 2px solid #3b82f6;
+          &:hover {
+            background-color: #bfdbfe;
+          }
+        }
+        &:disabled {
+          opacity: 0.7;
+          cursor: not-allowed;
+        }
+      }
+    }
+  }
+}
+</style>
 
 <style lang="scss" scoped>
 .admin-portfolio-create {

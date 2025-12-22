@@ -14,8 +14,14 @@ import { siteMeta, metaTags, linkTags, scriptTags } from '~/config/meta.config';
 const route = useRoute();
 const config = useRuntimeConfig();
 
-// Формируем полный URL текущей страницы: https://glavprofi.ru/о-нас
-const currentPageUrl = `${config.public.siteUrl}${route.path}`;
+// Формируем путь БЕЗ trailing slash
+let cleanPath = route.path;
+if (cleanPath.endsWith('/')) {
+  cleanPath = cleanPath.slice(0, -1); // убираем последний слеш
+}
+
+// Формируем полный URL текущей страницы — БЕЗ слеша на конце
+const currentPageUrl = `${config.public.siteUrl}${cleanPath}`;
 
 useHead({
   htmlAttrs: {

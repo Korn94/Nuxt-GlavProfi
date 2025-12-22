@@ -1,15 +1,7 @@
 <template>
-  <div class="admin-portfolio-edit">
+  <div v-if="form" class="admin-portfolio-edit">
     <h1>Редактирование кейса: {{ form.title }}</h1>
-    
-    <div v-if="loading" class="loading">
-      <Icon name="eos-icons:bubble-loading" size="34px" /> Загрузка данных...
-    </div>
-    
-    <div v-else-if="error" class="error">{{ error }}</div>
-    
-    <form v-else @submit.prevent="submitCase">
-      <!-- Основная информация -->
+    <form @submit.prevent="submitCase">
       <BasicInfo
         :title="form.title"
         :slug="form.slug"
@@ -20,8 +12,6 @@
         @update:category="form.category = $event"
         @update:address="form.address = $event"
       />
-
-      <!-- Основные изображения и галерея -->
       <ImagesMain
         :main-image="form.mainImage"
         :thumbnail="form.thumbnail"
@@ -30,18 +20,14 @@
         @update:main-image="form.mainImage = $event"
         @update:thumbnail="form.thumbnail = $event"
         @update:gallery="form.gallery = $event"
-        @remove-existing-image="handleRemoveExistingImage"
+        @remove-existing-image="removeExistingGalleryImage"
       />
-
-      <!-- Сравнение: До и После -->
       <BeforeAfter
-        :pair-group="form.pairGroup"
+        :existing-before-after-pairs="existingBeforeAfterPairs"
         :before-after-pairs="form.beforeAfterPairs"
-        @update:pair-group="form.pairGroup = $event"
-        @update:before-after-pairs="form.beforeAfterPairs = $event"
+        @update:existing-before-after-pairs="updateExistingBeforeAfterPairs"
+        @update:before-after-pairs="updateBeforeAfterPairs"
       />
-
-      <!-- Описания и результат -->
       <Descriptions
         :object-description="form.objectDescription"
         :short-object="form.shortObject"
@@ -54,8 +40,6 @@
         @update:full-description="form.fullDescription = $event"
         @update:result="form.result = $event"
       />
-
-      <!-- Работы и статистика -->
       <WorksAndStats
         :works="form.works"
         :space="form.space"
@@ -66,8 +50,6 @@
         @update:duration="form.duration = $event"
         @update:people="form.people = $event"
       />
-
-      <!-- SEO-настройки -->
       <Seo
         :meta-title="form.metaTitle"
         :meta-description="form.metaDescription"
@@ -76,22 +58,21 @@
         @update:meta-description="form.metaDescription = $event"
         @update:meta-keywords="form.metaKeywords = $event"
       />
-
-      <!-- Кнопки управления -->
       <div class="form-actions">
         <button type="submit" class="btn primary" :disabled="uploading">
           {{ uploading ? 'Сохранение...' : 'Сохранить изменения' }}
         </button>
-        <button
-          @click="$router.back()"
-          type="button"
-          class="btn secondary"
-          :disabled="uploading"
-        >
+        <button @click="$router.back()" type="button" class="btn secondary" :disabled="uploading">
           Отмена
         </button>
       </div>
     </form>
+  </div>
+  <div v-else-if="loading" class="loading">
+    Загрузка...
+  </div>
+  <div v-else-if="error" class="error">
+    {{ error }}
   </div>
 </template>
 
@@ -99,8 +80,6 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useHead } from '#app'
-
-// Импорт компонентов
 import BasicInfo from '~/components/pages/public/projects/create/BasicInfo.vue'
 import ImagesMain from '~/components/pages/public/projects/create/ImagesMain.vue'
 import BeforeAfter from '~/components/pages/public/projects/create/BeforeAfter.vue'
@@ -108,298 +87,306 @@ import Descriptions from '~/components/pages/public/projects/create/Descriptions
 import WorksAndStats from '~/components/pages/public/projects/create/WorksAndStats.vue'
 import Seo from '~/components/pages/public/projects/create/Seo.vue'
 
-// Получаем текущий маршрут и роутер
 const route = useRoute()
 const router = useRouter()
-
-// Состояние
-const form = ref({
-  title: '',
-  slug: '',
-  category: 'Кафе',
-  objectDescription: '',
-  shortObject: '',
-  space: 0,
-  duration: '',
-  people: '',
-  shortDescription: '',
-  fullDescription: '',
-  result: '',
-  metaTitle: '',
-  metaDescription: '',
-  metaKeywords: '',
-  address: 'Не указано',
-  mainImage: null,
-  thumbnail: null,
-  beforeAfterPairs: [],
-  gallery: [],
-  pairGroup: '',
-  works: []
-})
-
-// Состояние загрузки
+const form = ref(null)
+// existingGallery теперь содержит ВСЕ изображения галереи (gallery, before, after), НО НЕ main и thumbnail
+const existingGallery = ref([])
+const existingBeforeAfterPairs = ref([]) // Этот массив не используется ImagesMain, но нужен BeforeAfter
+const originalCaseData = ref(null) // Для отслеживания изменений
 const loading = ref(false)
 const uploading = ref(false)
 const error = ref(null)
-const originalCaseData = ref(null)
-const existingGallery = ref([])
+const isEditing = !!route.params.slug
 
-// Метод для удаления существующего изображения
-const handleRemoveExistingImage = (imageId) => {
-  if (confirm('Вы уверены, что хотите удалить это изображение?')) {
-    // Удаляем изображение через API
-    fetch(`/api/portfolio/${route.params.slug}/images/${imageId}`, {
-      method: 'DELETE',
-      credentials: 'same-origin'
-    })
-    .then(response => {
-      if (response.ok) {
-        // Успешно удалено, перезагружаем данные
-        loadCaseData()
-      } else {
-        alert('Не удалось удалить изображение')
-      }
-    })
-    .catch(err => {
-      console.error('Ошибка при удалении изображения:', err)
-      alert('Ошибка сети при удалении изображения')
-    })
-  }
-}
-
-// Загрузка данных кейса
 const loadCaseData = async () => {
   try {
-    loading.value = true
-    error.value = null
-
-    // Загружаем основные данные кейса
-    const caseData = await $fetch(`/api/portfolio/${route.params.slug}`, { method: 'GET' })
-
-    // Загружаем изображения
-    const images = await $fetch(`/api/portfolio/${route.params.slug}/images`, { method: 'GET' })
-
-    // Загружаем работы
-    const works = await $fetch(`/api/portfolio/${route.params.slug}/works`, { method: 'GET' })
-
-    // Сохраняем оригинальные данные
-    originalCaseData.value = caseData
-
-    // Разделяем существующие изображения по типам
-    console.log("DEBUG CLIENT: images from API:", images);
-    const existingMainImage = images.find(img => img.type === 'main')
-    const existingThumbnail = images.find(img => img.type === 'thumbnail')
-    console.log("DEBUG CLIENT: existingMainImage:", existingMainImage);
-    console.log("DEBUG CLIENT: existingThumbnail:", existingThumbnail);
-
-    // КРИТИЧЕСКИ ВАЖНЫЙ ФРАГМЕНТ - УСТАНОВКА ID ДЛЯ ОСНОВНЫХ ИЗОБРАЖЕНИЙ
-    // Устанавливаем главное изображение с ID
-    if (existingMainImage) {
-      form.value.mainImage = {
-        id: existingMainImage.id,
-        preview: existingMainImage.url,
-        type: 'main'
-      }
+    loading.value = true;
+    error.value = null;
+    // Загрузка основных данных кейса
+    const response = await fetch(`/api/portfolio/${route.params.slug}`);
+    if (!response.ok) {
+      throw new Error(`Ошибка загрузки: ${response.statusText}`);
     }
-
-    // Устанавливаем миниатюру с ID
-    if (existingThumbnail) {
-      form.value.thumbnail = {
-        id: existingThumbnail.id,
-        preview: existingThumbnail.url,
-        type: 'thumbnail'
-      }
+    const data = await response.json();
+    if (!data) {
+      throw new Error('Кейс не найден');
     }
-
-    // Фильтруем только изображения типа "before" и "after" для галереи
-    existingGallery.value = images.filter(img => img.type === 'before' || img.type === 'after')
-
-    // Преобразуем пары "до/после"
-    const beforeAfterMap = new Map()
-    existingGallery.value.forEach(img => {
-      if (img.type === 'before' || img.type === 'after') {
-        const groupKey = img.pairGroup || 'ungrouped'
-        if (!beforeAfterMap.has(groupKey)) {
-          beforeAfterMap.set(groupKey, { before: null, after: null })
-        }
-        beforeAfterMap.get(groupKey)[img.type] = {
-          file: null,
-          preview: img.url,
-          id: img.id
-        }
+    originalCaseData.value = data;
+    // Загрузка всех изображений для этого кейса
+    const imagesResponse = await fetch(`/api/portfolio/${route.params.slug}/images`);
+    if (!imagesResponse.ok) {
+      console.warn('Не удалось загрузить изображения:', imagesResponse.statusText);
+      existingGallery.value = [];
+      existingBeforeAfterPairs.value = [];
+    } else {
+      const allImages = await imagesResponse.json();
+      // --- Обработка главного изображения (main) ---
+      const mainImage = allImages.find(img => img.type === 'main');
+      let mainImageData = { id: null, preview: null, alt: '' };
+      if (mainImage) {
+        mainImageData = {
+          id: mainImage.id,
+          preview: mainImage.url,
+          alt: mainImage.alt || `Главное фото для кейса ${data.id}`
+        };
       }
-    })
-    form.value.beforeAfterPairs = Array.from(beforeAfterMap.values())
-
-    // Устанавливаем остальные поля формы
-    form.value.title = caseData.title || ''
-    form.value.slug = caseData.slug || ''
-    form.value.category = caseData.category || 'Кафе'
-    form.value.objectDescription = caseData.objectDescription || ''
-    form.value.shortObject = caseData.shortObject || ''
-    form.value.space = caseData.space || 0
-    form.value.duration = caseData.duration || ''
-    form.value.people = caseData.people || ''
-    form.value.shortDescription = caseData.shortDescription || ''
-    form.value.fullDescription = caseData.fullDescription || ''
-    form.value.result = caseData.result || ''
-    form.value.metaTitle = caseData.metaTitle || ''
-    form.value.metaDescription = caseData.metaDescription || ''
-    form.value.metaKeywords = caseData.metaKeywords || ''
-    form.value.address = caseData.address || 'Не указано'
-
-    console.log("DEBUG CLIENT: form.mainImage after setting:", form.value.mainImage);
-    console.log("DEBUG CLIENT: form.thumbnail after setting:", form.value.thumbnail);
-
-    // Устанавливаем работы
-    form.value.works = works.map(work => ({
-      workType: work.workType,
-      progress: work.progress
-    }))
-
+      // --- Обработка миниатюры (thumbnail) ---
+      const thumbnailImage = allImages.find(img => img.type === 'thumbnail');
+      let thumbnailImageData = { id: null, preview: null, alt: '' };
+      if (thumbnailImage) {
+        thumbnailImageData = {
+          id: thumbnailImage.id,
+          preview: thumbnailImage.url,
+          alt: thumbnailImage.alt || `Миниатюра для кейса ${data.id}`
+        };
+      }
+      // --- Фильтрация изображений для ImagesMain (галерея) ---
+      // ImagesMain ожидает в existingGallery изображения типа 'before', 'after'
+      existingGallery.value = allImages.filter(img => 
+        ['before', 'after'].includes(img.type) && 
+        (img.pairGroup === null || img.pairGroup === undefined)
+      );
+      // --- Фильтрация и группировка изображений для BeforeAfter (пары) ---
+      // Собираем пары 'before' и 'after' по pairGroup
+      const beforeImages = allImages.filter(img => 
+        img.type === 'before' && 
+        img.pairGroup !== null && 
+        img.pairGroup !== undefined
+      );
+      const afterImages = allImages.filter(img => 
+        img.type === 'after' && 
+        img.pairGroup !== null && 
+        img.pairGroup !== undefined
+      );
+      const pairsMap = {};
+      beforeImages.forEach(img => {
+        if (!pairsMap[img.pairGroup]) {
+          pairsMap[img.pairGroup] = { pairGroup: img.pairGroup, id: img.pairGroup };
+        }
+        pairsMap[img.pairGroup].beforeId = img.id;
+        pairsMap[img.pairGroup].beforeUrl = img.url;
+        pairsMap[img.pairGroup].beforeAlt = img.alt;
+      });
+      afterImages.forEach(img => {
+        if (!pairsMap[img.pairGroup]) {
+          // Если была только before, добавляем пустое after
+          pairsMap[img.pairGroup] = { pairGroup: img.pairGroup, id: img.pairGroup };
+        }
+        pairsMap[img.pairGroup].afterId = img.id;
+        pairsMap[img.pairGroup].afterUrl = img.url;
+        pairsMap[img.pairGroup].afterAlt = img.alt;
+      });
+      existingBeforeAfterPairs.value = Object.values(pairsMap).filter(pair => pair.beforeId || pair.afterId);
+      // --- Инициализация формы ---
+      form.value = {
+        title: data.title || '',
+        slug: data.slug || '',
+        category: data.category || 'Кафе',
+        address: data.address || 'Не указано',
+        objectDescription: data.objectDescription || '',
+        shortObject: data.shortObject || '',
+        space: data.space ? parseFloat(data.space) : 0,
+        duration: data.duration || '',
+        people: data.people || '',
+        shortDescription: data.shortDescription || '',
+        fullDescription: data.fullDescription || '',
+        result: data.result || '',
+        metaTitle: data.metaTitle || '',
+        metaDescription: data.metaDescription || '',
+        metaKeywords: data.metaKeywords || '',
+        // Передаем данные об изображениях с учетом их ID и URL
+        mainImage: mainImageData,
+        thumbnail: thumbnailImageData,
+        works: data.works || [],
+        beforeAfterPairs: [], // Для новых пар
+        gallery: [], // Для новых файлов
+      };
+      console.log("DEBUG CLIENT: Loaded case data with images:", form.value);
+    }
   } catch (err) {
-    error.value = 'Не удалось загрузить данные кейса для редактирования'
-    console.error('Ошибка загрузки кейса:', err)
+    error.value = err.message || 'Ошибка при загрузке данных кейса';
+    alert(error.value);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
-// Отправка формы
+const removeExistingGalleryImage = (imageId) => {
+  existingGallery.value = existingGallery.value.filter(img => img.id !== imageId)
+}
+
+const updateExistingBeforeAfterPairs = (value) => {
+  existingBeforeAfterPairs.value = value
+}
+
+const updateBeforeAfterPairs = (value) => {
+  form.value.beforeAfterPairs = value
+}
+
 const submitCase = async () => {
   try {
     uploading.value = true
     error.value = null
-
-    // Определяем, редактируем ли мы существующий кейс
-    const isEditing = !!route.params.slug
-
-    console.log("DEBUG CLIENT: submitCase started. form.mainImage:", form.value.mainImage, "form.thumbnail:", form.value.thumbnail);
-
-    // --- ПРОВЕРКИ ---
-    // Проверяем, что объекты изображений существуют
-    if (!form.value.mainImage) {
-      throw new Error('Главное изображение не определено')
-    }
-    if (!form.value.thumbnail) {
-      throw new Error('Миниатюра не определена')
-    }
+    if (!form.value.mainImage) throw new Error('Главное изображение не определено')
+    if (!form.value.thumbnail) throw new Error('Миниатюра не определена')
 
     // Проверяем, что для НОВОГО кейса обязательно загружены файлы
-    if (!isEditing) {
-      if (!form.value.mainImage.file) {
-        throw new Error('Необходимо загрузить главное изображение')
-      }
-      if (!form.value.thumbnail.file) {
-        throw new Error('Необходимо загрузить миниатюру')
-      }
-    } else { // Проверяем, что при РЕДАКТИРОВАНИИ либо есть файл, либо есть ID существующего изображения
-      if (!form.value.mainImage.file && !form.value.mainImage.id) {
-        throw new Error('Необходимо загрузить главное изображение или оставить существующее')
-      }
-      if (!form.value.thumbnail.file && !form.value.thumbnail.id) {
-        throw new Error('Необходимо загрузить миниатюру или оставить существующую')
-      }
+    // Для редактирования файлы могут быть не загружены, но ID должны быть
+    if (!isEditing) { // Создание
+        if (!form.value.mainImage.file) throw new Error('Необходимо загрузить главное изображение')
+        if (!form.value.thumbnail.file) throw new Error('Необходимо загрузить миниатюру')
+    } else { // Редактирование
+        if (!form.value.mainImage.file && !form.value.mainImage.id) {
+            throw new Error('Необходимо загрузить главное изображение или оставить существующее')
+        }
+        if (!form.value.thumbnail.file && !form.value.thumbnail.id) {
+            throw new Error('Необходимо загрузить миниатюру или оставить существующую')
+        }
     }
 
     const formData = new FormData()
-
-    // Добавляем текстовые поля
     Object.entries(form.value).forEach(([key, value]) => {
-      // Исключаем сложные объекты, которые будут обрабатываться отдельно
-      if (['beforeAfterPairs', 'gallery', 'mainImage', 'thumbnail', 'works'].includes(key)) return
+      if (['beforeAfterPairs', 'mainImage', 'thumbnail', 'works'].includes(key)) return
+      if (Array.isArray(value)) {
+        value.forEach((item, idx) => {
+           Object.entries(item).forEach(([subKey, subVal]) => {
+             formData.append(`${key}[${idx}][${subKey}]`, subVal ?? '')
+           })
+        })
+        return
+      }
       formData.append(key, value ?? '')
     })
 
-    // --- ОБРАБОТКА ОСНОВНЫХ ИЗОБРАЖЕНИЙ ---
-    // Если файл нового главного изображения загружен, отправляем его
+    // --- ОБНОВЛЕНО: Отправка mainImage и thumbnail ---
     if (form.value.mainImage?.file) {
-        console.debug("DEBUG CLIENT: Sending NEW main image file", form.value.mainImage.file);
-        formData.append('mainImage', form.value.mainImage.file);
-    } else if (form.value.mainImage?.id && form.value.mainImage?.preview) {
-        // Если файл не загружен, но есть ID и preview (старое изображение), отправляем ID
-        console.debug("DEBUG CLIENT: Keeping EXISTING main image by ID", form.value.mainImage.id);
-        formData.append('mainImageId', form.value.mainImage.id);
+      console.debug("DEBUG CLIENT: Sending NEW main image file", form.value.mainImage.file.name);
+      formData.append('mainImage', form.value.mainImage.file);
+    } else if (form.value.mainImage?.id) {
+      // Если файл не загружен, но есть ID, отправляем ID (только при редактировании)
+      if (isEditing) {
+          console.debug("DEBUG CLIENT: Keeping EXISTING main image by ID", form.value.mainImage.id);
+          // ЯВНО ПРЕОБРАЗУЕМ В СТРОКУ
+          formData.append('mainImageId', String(form.value.mainImage.id));
+      }
+    } else if (isEditing) {
+        throw new Error('Отсутствует ID существующего главного изображения для редактирования.');
     }
 
-    // Аналогично для миниатюры
     if (form.value.thumbnail?.file) {
-        console.debug("DEBUG CLIENT: Sending NEW thumbnail file", form.value.thumbnail.file);
-        formData.append('thumbnail', form.value.thumbnail.file);
-    } else if (form.value.thumbnail?.id && form.value.thumbnail?.preview) {
-        console.debug("DEBUG CLIENT: Keeping EXISTING thumbnail by ID", form.value.thumbnail.id);
-        formData.append('thumbnailId', form.value.thumbnail.id);
+      console.debug("DEBUG CLIENT: Sending NEW thumbnail file", form.value.thumbnail.file.name);
+      formData.append('thumbnail', form.value.thumbnail.file);
+    } else if (form.value.thumbnail?.id) {
+      // Если файл не загружен, но есть ID, отправляем ID (только при редактировании)
+      if (isEditing) {
+          console.debug("DEBUG CLIENT: Keeping EXISTING thumbnail by ID", form.value.thumbnail.id);
+          // ЯВНО ПРЕОБРАЗУЕМ В СТРОКУ
+          formData.append('thumbnailId', String(form.value.thumbnail.id));
+      }
+    } else if (isEditing) {
+        throw new Error('Отсутствует ID существующей миниатюры для редактирования.');
     }
 
-    // --- ОБРАБОТКА ГАЛЕРЕИ ---
-    // Отправляем только *новые* файлы из галереи (form.value.gallery)
-    form.value.gallery.forEach((img, index) => {
-      if (img.file) { // Только если это новый файл
-        formData.append(`gallery[${index}]`, img.file)
-        formData.append(`galleryType[${index}]`, img.type)
+    // Отправляем ID существующих изображений, которые НЕ были удалены
+    existingBeforeAfterPairs.value.forEach((pair, index) => {
+      if (pair.beforeId) {
+        formData.append('keepImageId[]', pair.beforeId);
+      }
+      if (pair.afterId) {
+        formData.append('keepImageId[]', pair.afterId);
       }
     })
 
-    // --- ОБРАБОТКА ПАР "ДО/ПОСЛЕ" ---
-    // Отправляем информацию о существующих парах "до/после"
     form.value.beforeAfterPairs.forEach((pair, index) => {
-      if (pair.before?.id) {
-        formData.append(`existingBeforeImage[${index}]`, pair.before.id)
+      if (pair.before) {
+        formData.append(`beforeImage[${index}]`, pair.before)
+        formData.append(`beforePairGroup[${index}]`, pair.pairGroup || `new-pair-${index}`)
       }
-      if (pair.after?.id) {
-        formData.append(`existingAfterImage[${index}]`, pair.after.id)
+      if (pair.after) {
+        formData.append(`afterImage[${index}]`, pair.after)
+        formData.append(`afterPairGroup[${index}]`, pair.pairGroup || `new-pair-${index}`)
       }
     })
 
-    // Отправляем информацию о существующих изображениях галереи
-    if (Array.isArray(existingGallery.value)) {
-      existingGallery.value.forEach((image, index) => {
-        formData.append(`existingGalleryImage[${index}]`, image.id)
+    // --- ОБНОВЛЕНО: Отправка ID изображений галереи (gallery, before, after) ---
+    existingGallery.value.forEach((img, index) => {
+      // Отправляем ID только для типов, которые не обрабатываются в других блоках (gallery, before, after)
+      // main и thumbnail обрабатываются отдельно выше
+      if (img.id) {
+        formData.append('keepImageId[]', img.id);
+      }
+    })
+
+    // --- ОБНОВЛЕНО: Отправка новых файлов галереи как отдельные изображения "до" и "после" ---
+    if (form.value.gallery && form.value.gallery.length > 0) {
+      form.value.gallery.forEach((image, index) => {
+        formData.append(`gallery[${index}]`, image.file)
+        formData.append(`galleryType[${index}]`, image.type)
       })
     }
 
-    // --- ОБРАБОТКА РАБОТ ---
-    form.value.works.forEach((work, index) => {
-      formData.append(`workType[${index}]`, work.workType)
-      formData.append(`progress[${index}]`, work.progress)
-    })
+    // --- ОБНОВЛЕНО: Определение эндпоинта и метода ---
+    let apiEndpoint = '/api/portfolio'
+    let method = 'POST'
+    if (isEditing) { // Если есть slug в URL, значит, это редактирование
+      apiEndpoint = `/api/portfolio/${route.params.slug}`
+      method = 'PUT'
+    }
 
-    // --- ОТПРАВКА НА СЕРВЕР ---
-    const url = route.params.slug
-      ? `/api/portfolio/${route.params.slug}` // PUT для обновления
-      : '/api/portfolio'                      // POST для создания
-
-    const method = route.params.slug ? 'PUT' : 'POST'
-
-    const response = await $fetch(url, {
+    const response = await fetch(apiEndpoint, {
       method,
       body: formData,
-    })
+      credentials: 'same-origin' // Важно для авторизации
+    });
 
-    console.log("DEBUG CLIENT: Server response:", response);
-
-    // Перенаправление после успешного сохранения
-    router.push('/projects')
-
-  } catch (err) {
-    console.error('Ошибка при сохранении кейса:', err)
-    if (err.data && err.data.statusMessage) {
-      error.value = err.data.statusMessage
-    } else {
-      error.value = err.message || 'Ошибка при сохранении кейса'
+    if (!response.ok) {
+      const errorText = await response.text(); // Используем text() для получения подробной ошибки от сервера
+      throw new Error(errorText || `HTTP error! status: ${response.status}`);
     }
-    alert(`Не удалось сохранить кейс: ${error.value}`)
+
+    const result = await response.json();
+    console.log('Case saved successfully:', result);
+    alert(isEditing ? 'Кейс успешно обновлён!' : 'Кейс успешно создан!');
+    router.push(`/projects/${result.slug}`); // Переход на страницу созданного/обновлённого кейса
+  } catch (err) {
+    console.error('Submission error:', err);
+    error.value = err.message || 'Не удалось сохранить кейс';
+    alert(`Ошибка при сохранении: ${error.value}`);
   } finally {
-    uploading.value = false
+    uploading.value = false;
   }
 }
 
-// Инициализация
 onMounted(() => {
-  loadCaseData()
+  if (isEditing) {
+    loadCaseData()
+  } else {
+    form.value = {
+      title: '',
+      slug: '',
+      category: 'Кафе',
+      objectDescription: '',
+      shortObject: '',
+      shortDescription: '',
+      fullDescription: '',
+      result: '',
+      space: 0,
+      duration: '',
+      people: '',
+      works: [],
+      mainImage: { file: null, preview: null },
+      thumbnail: { file: null, preview: null },
+      gallery: [],
+      beforeAfterPairs: [],
+      metaTitle: '',
+      metaDescription: '',
+      metaKeywords: '',
+      address: 'Не указано',
+    }
+  }
 })
 
-// Настройка мета-тегов
 useHead({
   meta: [
     { name: 'robots', content: 'noindex, nofollow' },

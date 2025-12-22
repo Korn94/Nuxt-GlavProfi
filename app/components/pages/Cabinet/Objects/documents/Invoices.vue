@@ -1,6 +1,6 @@
 <!-- app/components/pages/cabinet/objects/documents/Invoices.vue -->
 <template>
-  <Card title="Счета" bordered elevated>
+  <Card title="Счета" bordered elevated no-padding-body>
     <!-- Заголовок + кнопка -->
     <template #actions>
       <div class="table-header">

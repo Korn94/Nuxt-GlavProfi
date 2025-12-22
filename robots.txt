@@ -22,6 +22,7 @@ Disallow: /projects/11
 Disallow: /projects/12
 
 # Параметры
+Disallow: /*?
 Disallow: /*?utm_
 Disallow: /*?yabizcmpgn
 Disallow: /*?erid

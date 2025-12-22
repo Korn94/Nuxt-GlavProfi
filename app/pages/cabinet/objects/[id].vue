@@ -146,7 +146,7 @@
         </div>
         
         <div class="budget-row">
-          <span>Выполнено по смете:</span>
+          <span>Выполнено по смете (Акты):</span>
           <strong>{{ formatCurrency(completedBudget) }}</strong>
         </div>
         
@@ -155,6 +155,16 @@
           <strong :class="{ 'text-success': budgetVsBalance >= 0, 'text-danger': budgetVsBalance < 0 }">
             {{ formatCurrency(budgetVsBalance) }}
           </strong>
+        </div>
+        
+        <!-- 4. Остаток оплаты от заказчика -->
+        <div class="budget-row">
+          <span>Остаток = Смета + Материалы - Приходы:</span>
+          <div class="flex items-center gap-1">
+            <strong :class="{ 'text-success': remainingPayment >= 0, 'text-danger': remainingPayment < 0 }">
+              {{ formatCurrency(remainingPayment) }}
+            </strong>
+          </div>
         </div>
       </div>
     </Card>
@@ -486,6 +496,13 @@ const budgetVsBalance = computed(() => {
   return totalBudget.value - (object.value.finances?.totalBalance || 0)
 })
 
+// --- Новое вычисляемое свойство: Остаток оплаты от заказчика ---
+const remainingPayment = computed(() => {
+  // Смета (общая) - Материалы (баланс, который обычно отрицательный) - Приходы
+  // Если materialBalance = -100, то -(-100) = +100 — это дополнительная сумма, которую должен заплатить заказчик
+  return totalBudget.value - object.value.materialBalance - (object.value.finances?.totalIncome || 0)
+})
+
 useHead(() => ({
   meta: [
     { name: 'robots', content: 'noindex, nofollow' },
@@ -599,6 +616,13 @@ useHead(() => ({
           color: #c62828;
         }
       }
+    }
+    
+    // --- ОСТАТОК ОПЛАТЫ ---
+    .budget-row:last-child {
+      border-top: 1px solid $border-color;
+      margin-top: 0.5rem;
+      padding-top: 0.75rem;
     }
   }
 }
