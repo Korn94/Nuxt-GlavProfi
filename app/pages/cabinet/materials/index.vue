@@ -88,7 +88,12 @@
   <!-- Таблица материалов -->
   <Card bordered elevated no-padding-body class="cabinet-page">
     <template #header>
-      <h3>Материалы ({{ materials.length }})</h3>
+      <h3>
+        Материалы ({{ materials.length }})
+        <span v-if="materialsWithoutReceipt > 0" class="badge badge-warning">
+          Без чека: {{ materialsWithoutReceipt }}
+        </span>
+      </h3>
     </template>
     <div class="table-section">
       <table>
@@ -314,6 +319,11 @@ const getObjectById = (id) => {
 const formatAmount = (amount) => {
   return Number(amount).toLocaleString('ru-RU')
 }
+
+// Вычисляемое свойство: количество материалов без чека (hasReceipt === false)
+const materialsWithoutReceipt = computed(() => {
+  return filteredMaterials.value.filter(m => m.type === 'outgoing' && !m.hasReceipt).length
+})
 
 // Форматирование даты
 function formatDate(dateString) {
@@ -730,6 +740,18 @@ useHead(() => ({
         }
       }
     }
+  }
+}
+
+.badge {
+  padding: 0.3em 0.6em;
+  border-radius: $border-radius;
+  font-size: 0.85em;
+  font-weight: 500;
+  margin-left: 1em;
+  &.badge-warning {
+    background-color: $background-light;
+    color: $text-dark;
   }
 }
 

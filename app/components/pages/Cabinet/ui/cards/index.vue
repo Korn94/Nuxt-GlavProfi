@@ -1,4 +1,4 @@
-<!-- /components/Card.vue -->
+<!-- app/components/pages/cabinet/ui/cards/index.vue -->
 <template>
   <div class="card" :class="{ 'card--elevated': elevated, 'card--bordered': bordered, 'card--loading': loading }">
     <!-- Заголовок -->
@@ -60,15 +60,6 @@ const props = defineProps({
 </script>
 
 <style lang="scss" scoped>
-$primary-color: #2c5f91;
-$secondary-color: #6c757d;
-$border-color: #dee2e6;
-$bg-color: #ffffff;
-$text-color: #212529;
-$radius: 12px;
-$shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
-$shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-$shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
 
 .card {
   background-color: $bg-color;

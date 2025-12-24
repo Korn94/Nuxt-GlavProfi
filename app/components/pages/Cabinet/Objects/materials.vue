@@ -6,7 +6,7 @@
       <div class="balance-card">
         <div class="card-header">
           <span>Приходы</span>
-          <Icon name="fa6-solid:arrow-up" width="20" height="20" />
+          <Icon name="mdi:arrow-left" width="20" height="20" />
         </div>
         <div class="card-body">
           <p>{{ incomingTotal }} ₽</p>
@@ -15,7 +15,7 @@
       <div class="balance-card">
         <div class="card-header">
           <span>Расходы</span>
-          <Icon name="fa6-solid:arrow-down" width="20" height="20" />
+          <Icon name="mdi:arrow-right" width="20" height="20" />
         </div>
         <div class="card-body">
           <p>{{ outgoingTotal }} ₽</p>
@@ -24,7 +24,7 @@
       <div class="balance-card total">
         <div class="card-header">
           <span>Итого</span>
-          <Icon name="fa6-solid:balance-scale" width="20" height="20" />
+          <Icon name="mdi:scale-balance" width="20" height="20" />
         </div>
         <div class="card-body">
           <p :class="{ 'positive': Number(totalBalance) >= 0, 'negative': Number(totalBalance) < 0 }">

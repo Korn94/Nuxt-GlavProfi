@@ -18,13 +18,13 @@
 
         <!-- Информация о контрагенте (если есть) -->
         <div v-if="contractorData" class="contractor-section">
-          <h3 class="section-title">Информация о контрагенте</h3>
+          <!-- <h3 class="section-title">Информация о контрагенте</h3> -->
           <ul class="info-list">
-            <li><strong>Тип:</strong> {{ formatContractorType(contractorData.type) }}</li>
-            <li><strong>Имя:</strong> {{ contractorData.name }}</li>
-            <li><strong>Телефон:</strong> {{ contractorData.phone || 'Не указан' }}</li>
+            <!-- <li><strong>Тип:</strong> {{ formatContractorType(contractorData.type) }}</li> -->
+            <!-- <li><strong>Имя:</strong> {{ contractorData.name }}</li> -->
+            <!-- <li><strong>Телефон:</strong> {{ contractorData.phone || 'Не указан' }}</li> -->
             <li>
-              <strong>Баланс:</strong>
+              <strong></strong>
               <span class="balance">{{ formatBalance(contractorData.balance) }} ₽</span>
             </li>
           </ul>
@@ -55,6 +55,18 @@
         Последнее обновление: {{ new Date().toLocaleString('ru-RU') }}
       </template>
     </Card>
+
+    <!-- Сетка с компонентами -->
+    <div class="cabinet-page__grid">
+      <div class="top-section">
+        <PagesCabinetHomePageFinanceSummaryCard class="finance-summary" />
+        <PagesCabinetHomePageRecentOperationsCard class="recent-operations" />
+      </div>
+      
+      <div class="bottom-section">
+        <PagesCabinetHomePageObjectStatusCard />
+      </div>
+    </div>
   </div>
 </template>
 
@@ -144,7 +156,7 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .profile-card {
-  width: 900px;
+  // width: 900px;
   :deep(.card__body) {
     display: flex;
     flex-direction: column;
