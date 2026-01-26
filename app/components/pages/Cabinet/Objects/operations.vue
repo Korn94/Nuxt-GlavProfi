@@ -7,7 +7,7 @@
       <div class="balance-card">
         <div class="card-header">
           <span>Баланс объекта</span>
-          <Icon name="fa6-solid:coins" width="24" height="24" />
+          <Icon name="mdi:attach-money" size="20" />
         </div>
         <div class="card-body">
           <p>{{ formatAmount(objectBalance) }} ₽</p>
@@ -18,7 +18,7 @@
       <div class="balance-card">
         <div class="card-header">
           <span>Сумма работ в работе</span>
-          <Icon name="fa6-solid:clock" width="24" height="24" />
+          <Icon name="mdi:clock-time-eight-outline" size="20" />
         </div>
         <div class="card-body">
           <p>{{ formatAmount(pendingWorksTotal) }} ₽</p>
@@ -35,7 +35,7 @@
 
     <!-- Таблица приходов -->
     <div class="table-section">
-      <h3><Icon name="fa6-solid:arrow-down" width="24" height="24" /> Приходы</h3>
+      <h3><Icon name="mdi:arrow-left" width="24" height="24" /> Приходы</h3>
       <div class="table-wrapper">
         <table>
           <thead>
@@ -58,7 +58,7 @@
 
     <!-- Таблица работ -->
     <div class="table-section">
-      <h3><Icon name="fa6-solid:toolbox" width="24" height="24" /> Работы</h3>
+      <h3><Icon name="mdi:work-outline" width="24" height="24" /> Работы</h3>
       <button class="btn btn-secondary" @click="refreshData">
         <Icon name="mdi:refresh" size="18" />
         Обновить
@@ -118,11 +118,11 @@
 
     <!-- Уведомления -->
     <div v-if="successMessage" class="notification success">
-      <Icon name="fa6-solid:check-circle" width="24" height="24" />
+      <Icon name="mdi:check-circle-outline" width="24" height="24" />
       {{ successMessage }}
     </div>
     <div v-if="errorMessage" class="notification error">
-      <Icon name="fa6-solid:exclamation-circle" width="24" height="24" />
+      <Icon name="mdi:exclamation" width="24" height="24" />
       {{ errorMessage }}
     </div>
 
@@ -231,6 +231,11 @@
             </div>
 
             <div class="form-group">
+              <label>Дата операции</label>
+              <input type="date" v-model="newWork.operationDate" class="form-input" />
+            </div>
+
+            <div class="form-group">
               <label>Выберите вид работы</label>
               <select v-model="newWork.workType">
                 <option value="">Выберите вид работы</option>
@@ -290,9 +295,9 @@ const works = ref([])
 
 // Справочник видов работ
 const workTypes = [
-  'Отделка', 'Электрика', 'Плитка', 'Сантехника', 'Перегородки ГКЛ',
-  'Сварка', 'Бетонные работы', 'Кровля', 'Фасад', 'Перегородки Камень',
-  'Демонтаж', 'Мусор', 'Прочее'
+    'Отделка', 'Электрика', 'Плитка', 'Сантехника', 'Перегородки ГКЛ',
+    'Сварка', 'Бетонные работы', 'Кровля', 'Фасад', 'Перегородки Камень',
+    'Демонтаж', 'Мусор', 'Разнорабочий', 'Смежники', 'Прочее'
 ]
 
 // Формы
@@ -305,6 +310,7 @@ const newWork = ref({
   objectId,
   acceptedByClient: false, // Принято заказчиком
   rejectionComment: null, // Комментарий при отклонении
+  operationDate: new Date().toISOString().split('T')[0],
   workType: '', // Вид работы
   supervisorId: null, // ID прораба
   immediatePayment: false // Немедленная оплата
@@ -638,6 +644,10 @@ async function addWork() {
 
   try {
     let result;
+    // Форматируем дату операции
+    const operationDate = newWork.value.operationDate 
+      ? new Date(newWork.value.operationDate).toISOString() 
+      : new Date().toISOString();
     
     if (newWork.value.immediatePayment) {
       // Используем новое API для создания и немедленной оплаты
@@ -650,7 +660,8 @@ async function addWork() {
           workTypes: newWork.value.workType,
           foremanId: newWork.value.supervisorId || null,
           comment: newWork.value.comment || '',
-          objectId
+          objectId,
+          operationDate
         },
         credentials: 'include'
       });
@@ -664,7 +675,7 @@ async function addWork() {
         comment: newWork.value.comment || '',
         paid: false,
         paymentDate: null,
-        operationDate: new Date().toISOString(),
+        operationDate,
         objectId,
         contractorType: selectedCategory.value
       }

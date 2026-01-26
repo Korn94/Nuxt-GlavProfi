@@ -244,7 +244,7 @@ onMounted(() => {
   object-fit: cover;
 
   &:hover {
-    filter: brightness(60%)
+    filter: brightness(120%)
   }
 }
 

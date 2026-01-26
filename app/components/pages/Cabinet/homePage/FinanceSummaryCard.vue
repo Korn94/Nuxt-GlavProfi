@@ -85,7 +85,7 @@
 
     <template #footer>
       <div class="footer-content">
-        <span>Данные за {{ currentMonth }}</span>
+        <span>Данные за <span>{{ currentMonth }}</span></span>
         <button class="btn btn-sm btn-link" @click="showDateRange = !showDateRange">
           {{ showDateRange ? 'Скрыть' : 'Изменить' }}
         </button>
@@ -307,15 +307,15 @@ const resetDateRange = () => {
 }
 
 // Обновление каждые 5 минут
-let refreshInterval
+// let refreshInterval
 onMounted(() => {
   fetchData()
-  refreshInterval = setInterval(refreshData, 5 * 60 * 1000)
+  // refreshInterval = setInterval(refreshData, 5 * 60 * 1000)
 })
 
-onBeforeUnmount(() => {
-  clearInterval(refreshInterval)
-})
+// onBeforeUnmount(() => {
+//   clearInterval(refreshInterval)
+// })
 
 // Следим за изменениями дат
 watch([localStartDate, localEndDate], () => {
@@ -533,6 +533,12 @@ watch([localStartDate, localEndDate], () => {
   justify-content: space-between;
   align-items: center;
   width: 100%;
+  span {
+    color: $color-muted;
+    span {
+      color: $blue;
+    }
+  }
 }
 
 .date-range-selector {

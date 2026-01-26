@@ -3,7 +3,7 @@
     <!-- Заголовок -->
 
     <!-- Динамический подзаголовок -->
-    <h1>Актуальные цены на <span>{{ activeCategoryTitle }}</span> - 2025 год</h1>
+    <h1>Актуальные цены на <span>{{ activeCategoryTitle }}</span> - 2026 год</h1>
 
     <!-- Навигация -->
     <PagesPublicPricesUiNavigation

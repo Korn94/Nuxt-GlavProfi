@@ -376,7 +376,15 @@ function handleUpdated(updatedObject) {
 
 function handleCompleted(updatedObject) {
   object.value = updatedObject
-  successMessage.value = `Объект ${updatedObject.status === 'completed' ? 'завершён' : 'возобновлён'}`
+  let message = ''
+  if (updatedObject.status === 'completed') {
+    message = 'Объект завершён'
+  } else if (updatedObject.status === 'canceled') {
+    message = 'Объект отклонен'
+  } else {
+    message = 'Объект возобновлён'
+  }
+  successMessage.value = message
   setTimeout(() => (successMessage.value = ''), 3000)
 }
 
@@ -471,7 +479,7 @@ const formatCurrency = (value) => {
 
 const objectStatusText = computed(() => {
   if (!object.value?.status) return '—'
-  const map = { active: 'Активный', completed: 'Завершён', waiting: 'Ожидание' }
+  const map = { active: 'Активный', completed: 'Завершён', waiting: 'Ожидание', canceled: 'Отклонен' }
   return map[object.value.status] || object.value.status
 })
 
@@ -655,6 +663,10 @@ useHead(() => ({
   &.status-waiting {
     background-color: #fff8e1;
     color: #f57f17;
+  }
+  &.status-canceled {
+    background-color: #ffebee;
+    color: #c62828;
   }
 }
 

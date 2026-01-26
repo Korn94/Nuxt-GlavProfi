@@ -522,11 +522,11 @@ onBeforeUnmount(() => {
   }
   
   .count-badge {
-    background: $color-muted;
-    color: white;
     font-size: 0.8rem;
     padding: 0.2rem 0.5rem;
+    border: 1px solid $border-color;
     border-radius: $border-radius;
+    color: $color-dark;
     font-weight: 600;
   }
 }

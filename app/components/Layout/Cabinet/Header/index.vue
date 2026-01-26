@@ -78,6 +78,8 @@ const menuItems = [
   { title: 'Объекты', path: '/cabinet/objects', roles: ['admin', 'foreman', 'master', 'worker'] },
   { title: 'Чеки', path: '/cabinet/materials', roles: ['admin'] },
   { title: 'Операции', path: '/cabinet/operation', roles: ['admin'] },
+  { title: 'Онлайн', path: '/cabinet/online', roles: ['admin'] },
+  { title: 'Тест', path: '/cabinet/testpage', roles: ['admin'] },
   { divider: true }, // Разделитель после "Операции"
   { title: 'На сайт', path: '/', roles: ['admin', 'manager', 'foreman', 'master', 'worker'] },
   { title: 'Новый кейс', path: '/projects/create', roles: ['admin', 'manager'] },

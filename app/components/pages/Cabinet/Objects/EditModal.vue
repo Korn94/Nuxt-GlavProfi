@@ -87,9 +87,33 @@
             v-if="object.status === 'active'"
             type="button"
             @click="confirmComplete"
-            class="btn btn-warning btn-sm"
+            class="btn btn-success btn-sm"
           >
             Завершить
+          </button>
+          <button
+            v-if="object.status === 'active'"
+            type="button"
+            @click="setWaitingStatus"
+            class="btn btn-info btn-sm"
+          >
+            В ожидание
+          </button>
+          <button
+            v-else-if="object.status === 'waiting'"
+            type="button"
+            @click="reactivateObject"
+            class="btn btn-success btn-sm"
+          >
+            Возобновить
+          </button>
+          <button
+            v-else-if="object.status === 'canceled'"
+            type="button"
+            @click="reactivateObject"
+            class="btn btn-success btn-sm"
+          >
+            Возобновить
           </button>
           <button
             v-else
@@ -100,6 +124,15 @@
             Возобновить
           </button>
 
+          <button
+            v-if="object.status !== 'canceled'"
+            type="button"
+            @click="confirmCancel"
+            class="btn btn-danger btn-sm"
+          >
+            Отменить
+          </button>
+          
           <button
             type="button"
             @click="confirmDelete"
@@ -190,7 +223,16 @@ async function handleSubmit() {
 }
 
 async function toggleStatus() {
-  const newStatus = props.object.status === 'active' ? 'completed' : 'active'
+  let newStatus
+  if (props.object.status === 'active') {
+    newStatus = 'completed'
+  } else if (props.object.status === 'completed') {
+    newStatus = 'active'
+  } else {
+    // Для других статусов (waiting, canceled) возвращаем в активный
+    newStatus = 'active'
+  }
+  
   try {
     const updated = await $fetch(`/api/objects/${props.object.id}`, {
       method: 'PUT',
@@ -203,6 +245,59 @@ async function toggleStatus() {
   } catch (error) {
     console.error('Ошибка изменения статуса:', error)
     alert('Не удалось изменить статус')
+  }
+}
+
+function confirmCancel() {
+  const confirmed = window.confirm('Вы уверены, что хотите отменить этот объект?')
+  if (confirmed) cancelObject()
+}
+
+async function cancelObject() {
+  try {
+    const updated = await $fetch(`/api/objects/${props.object.id}`, {
+      method: 'PUT',
+      body: { status: 'canceled' },
+      credentials: 'include'
+    })
+    
+    emit('updated', updated)
+    emit('completed', updated)
+  } catch (error) {
+    console.error('Ошибка отмены объекта:', error)
+    alert('Не удалось отменить объект')
+  }
+}
+
+async function reactivateObject() {
+  try {
+    const updated = await $fetch(`/api/objects/${props.object.id}`, {
+      method: 'PUT',
+      body: { status: 'active' },
+      credentials: 'include'
+    })
+    
+    emit('updated', updated)
+    emit('completed', updated)
+  } catch (error) {
+    console.error('Ошибка возобновления объекта:', error)
+    alert('Не удалось возобновить объект')
+  }
+}
+
+async function setWaitingStatus() {
+  try {
+    const updated = await $fetch(`/api/objects/${props.object.id}`, {
+      method: 'PUT',
+      body: { status: 'waiting' },
+      credentials: 'include'
+    })
+    
+    emit('updated', updated)
+    emit('completed', updated)
+  } catch (error) {
+    console.error('Ошибка перевода в ожидание:', error)
+    alert('Не удалось перевести объект в ожидание')
   }
 }
 
@@ -282,7 +377,7 @@ async function deleteObject() {
     }
 
     &::placeholder {
-      color: $color-muted;
+      color: $blue;
       opacity: 0.7;
     }
   }
@@ -353,7 +448,7 @@ async function deleteObject() {
     color: $text-dark;
 
     &:hover:not(:disabled) {
-      background: $color-muted;
+      background: $blue;
     }
   }
 
@@ -362,25 +457,24 @@ async function deleteObject() {
     color: white;
 
     &:hover:not(:disabled) {
-      background: $color-muted;
+      background: $blue;
     }
   }
 
-  &.btn-warning {
+  &.btn-info {
     background: $yellow;
     color: white;
-
     &:hover:not(:disabled) {
-      background: $color-muted;
+      background: $blue;
     }
   }
 
   &.btn-success {
-    background: $green;
+    background: $color-success;
     color: white;
 
     &:hover:not(:disabled) {
-      background: $color-muted;
+      background: $blue;
     }
   }
 
@@ -389,7 +483,7 @@ async function deleteObject() {
     color: white;
 
     &:hover:not(:disabled) {
-      background: $color-muted;
+      background: $blue;
     }
   }
 

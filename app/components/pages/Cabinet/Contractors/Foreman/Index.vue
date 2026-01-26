@@ -1,5 +1,5 @@
 <template>
-  <PagesCabinetContractorsCommonIndex
+  <CommonIndex
     :contractor="contractor"
     :salary-deductions="salaryDeductions"
     :pending-total="pendingTotal"
@@ -20,10 +20,12 @@
     <template #right-column>
       <!-- Здесь можно добавить специфичные для прораба элементы -->
     </template>
-  </PagesCabinetContractorsCommonIndex>
+  </CommonIndex>
 </template>
 
 <script setup>
+import CommonIndex from '/components/pages/Cabinet/Contractors/Common/Index.vue'
+
 const contractorType = 'foreman';
 
 // Пропсы, которые мы ожидаем получить от родительского компонента

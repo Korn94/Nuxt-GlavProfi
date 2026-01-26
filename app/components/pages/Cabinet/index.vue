@@ -65,6 +65,7 @@
       
       <div class="bottom-section">
         <PagesCabinetHomePageObjectStatusCard />
+        <PagesCabinetHomePageContractorFinanceCard />
       </div>
     </div>
   </div>

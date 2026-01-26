@@ -23,6 +23,11 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    // Используем переданную дату операции или текущую, если не передана
+    const operationDate = body.operationDate 
+      ? new Date(body.operationDate) 
+      : new Date();
+
     // Начинаем транзакцию для всех операций
     return await db.transaction(async (tx) => {
       const now = new Date()
@@ -40,7 +45,7 @@ export default defineEventHandler(async (event) => {
         rejectedReason: null,
         paid: true,
         paymentDate: now,
-        operationDate: now,
+        operationDate: operationDate,
         objectId: body.objectId
       }).$returningId()
 

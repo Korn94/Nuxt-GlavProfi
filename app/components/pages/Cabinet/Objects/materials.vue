@@ -113,11 +113,11 @@
 
     <!-- Сообщения -->
     <div v-if="successMessage" class="notification success">
-      <Icon name="fa6-solid:check-circle" width="24" height="24" />
+      <Icon name="mdi:check-circle-outline" width="24" height="24" />
       {{ successMessage }}
     </div>
     <div v-if="errorMessage" class="notification error">
-      <Icon name="fa6-solid:exclamation-circle" width="24" height="24" />
+      <Icon name="mdi:exclamation" width="24" height="24" />
       {{ errorMessage }}
     </div>
 

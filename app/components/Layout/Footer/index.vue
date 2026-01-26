@@ -34,6 +34,7 @@
           <li><NuxtLink href="/privacy-policy">Политика конфиденциальности</NuxtLink></li>
           <li><NuxtLink href="/terms-of-service">Условия использования</NuxtLink></li>
           <li><NuxtLink href="/login">Войти</NuxtLink></li>
+          <li><NuxtLink href="/telegram">Вход через ТГ</NuxtLink></li>
         </ul>
       </div>
 

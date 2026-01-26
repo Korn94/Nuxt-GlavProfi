@@ -37,7 +37,7 @@
       <!-- Счётчик "X / Y" справа -->
       <template #actions>
         <div class="card-tab-counter" title="Активные / Завершённые">
-          {{ counts.active }} / {{ counts.completed }}
+          {{ counts.active }} / {{ counts.waiting }} / {{ counts.completed }} / {{ counts.canceled }}
         </div>
       </template>
 
@@ -153,7 +153,9 @@ const successMessage = ref('')
 // Вкладки
 const tabs = [
   { label: 'В работе', value: 'active' },
-  { label: 'Завершённые', value: 'completed' }
+  { label: 'Ожидают', value: 'waiting' },
+  { label: 'Завершённые', value: 'completed' },
+  { label: 'Отклонены', value: 'canceled' }
 ]
 
 // Вычисляем активную вкладку для отображения
@@ -164,13 +166,41 @@ const currentTabLabel = computed(() => {
 // Подсчёты по статусам
 const counts = computed(() => {
   const active = objects.value.filter(obj => obj.status === 'active').length
+  const waiting = objects.value.filter(obj => obj.status === 'waiting').length
   const completed = objects.value.filter(obj => obj.status === 'completed').length
-  return { active, completed }
+  const canceled = objects.value.filter(obj => obj.status === 'canceled').length
+  return { active, waiting, completed, canceled }
 })
 
 // Отфильтрованные объекты (для текущей вкладки)
 const filteredObjects = computed(() => {
-  return objects.value.filter(obj => obj.status === currentTab.value)
+  const filtered = objects.value.filter(obj => obj.status === currentTab.value)
+  
+  // Для статусов waiting, completed, canceled сортируем по statusDate (новые сверху)
+  if (['waiting', 'completed', 'canceled'].includes(currentTab.value)) {
+    return [...filtered].sort((a, b) => {
+      // Объекты с null statusDate идут в конец
+      if (!a.statusDate) return 1
+      if (!b.statusDate) return -1
+      
+      // Сравниваем даты
+      return new Date(b.statusDate) - new Date(a.statusDate)
+    })
+  }
+  // Для статуса active сортируем по createdAt (новые сверху)
+  else if (currentTab.value === 'active') {
+    return [...filtered].sort((a, b) => {
+      // Убедимся, что даты корректны
+      const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0)
+      const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0)
+      
+      // Новые объекты сверху
+      return dateB - dateA
+    })
+  }
+  
+  // Для других статусов (если они появятся) возвращаем как есть
+  return filtered
 })
 
 // Ошибки

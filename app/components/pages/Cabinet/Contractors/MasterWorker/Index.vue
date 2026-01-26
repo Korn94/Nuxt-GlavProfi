@@ -34,9 +34,9 @@
 </template>
 
 <script setup>
-import CommonIndex from '@/components/pages/Cabinet/Contractors/Common/Index.vue'
-import WorksTable from '@/components/pages/Cabinet/Contractors/MasterWorker/WorksTable.vue'
-import WorkForm from '@/components/pages/Cabinet/Contractors/MasterWorker/WorkForm.vue'
+import CommonIndex from '/components/pages/Cabinet/Contractors/Common/Index.vue'
+import WorksTable from '/components/pages/Cabinet/Contractors/MasterWorker/WorksTable.vue'
+import WorkForm from '/components/pages/Cabinet/Contractors/MasterWorker/WorkForm.vue'
 
 // Определяем типы работ, которые используются в системе
 const workTypes = [

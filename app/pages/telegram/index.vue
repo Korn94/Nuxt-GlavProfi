@@ -1,75 +1,136 @@
 <template>
-  <div class="container">
-    <h1>Привязка аккаунта</h1>
-    <p v-if="userData">Привет, {{ userData.firstName }}!</p>
-    <button @click="bindAccount" :disabled="isBinding">Привязать аккаунт</button>
-    <p v-if="message">{{ message }}</p>
+  <div v-if="loading" class="loading">
+    <p>Авторизация через Telegram...</p>
+    <div class="spinner"></div>
+  </div>
+
+  <div v-else-if="error" class="error">
+    <p><strong>❌ Ошибка:</strong> {{ error }}</p>
+    <button @click="retry">Попробовать снова</button>
+  </div>
+
+  <div v-else>
+    <p>✅ Вы успешно вошли в систему!</p>
+    <button @click="goToCabinet">Перейти в кабинет</button>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 
-const userData = ref(null);
-const isBinding = ref(false);
-const message = ref('');
+const loading = ref(true);
+const error = ref(null);
+const router = useRouter();
 
-onMounted(() => {
-  if (window.Telegram && window.Telegram.WebApp) {
-    const tg = window.Telegram.WebApp;
-
-    // Расширяем окно на весь экран
-    tg.expand();
+onMounted(async () => {
+  try {
+    // Проверяем наличие Telegram SDK
+    if (!window.Telegram) {
+      throw new Error('Telegram WebApp SDK недоступен');
+    }
 
     // Получаем данные пользователя
-    userData.value = tg.initDataUnsafe?.user;
-  }
-});
+    const { initDataUnsafe } = window.Telegram;
+    
+    if (!initDataUnsafe || !initDataUnsafe.user) {
+      throw new Error('Данные пользователя не получены');
+    }
 
-async function bindAccount() {
-  if (!userData.value) {
-    message.value = 'Ошибка: Данные пользователя не найдены';
-    return;
-  }
-
-  isBinding.value = true;
-
-  try {
-    const response = await fetch('/api/bind-telegram', {
+    // Отправляем запрос на авторизацию
+    const response = await fetch('/api/auth/telegram', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        telegramId: userData.value.id,
-        username: userData.value.first_name
+      body: JSON.stringify({ 
+        telegramId: Number(initDataUnsafe.user.id),
+        hash: initDataUnsafe.hash
       })
     });
 
-    const result = await response.json();
-
-    if (result.success) {
-      message.value = result.message;
-    } else {
-      message.value = result.message || 'Ошибка при привязке аккаунта';
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.statusMessage || 'Ошибка авторизации');
     }
-  } catch (error) {
-    message.value = 'Произошла ошибка при отправке запроса';
+
+    // Сохраняем токен и перенаправляем
+    const { token } = await response.json();
+    useCookie('token').value = token;
+    
+    router.push('/cabinet');
+  } catch (err) {
+    error.value = err.message;
   } finally {
-    isBinding.value = false;
+    loading.value = false;
   }
+});
+
+function retry() {
+  location.reload();
 }
 
-useHead({
-  title: 'Авторизации в CRM-систему через Telegram',
-  meta: [
-    { name: 'description', content: 'Страница авторизации в CRM-систему через Telegram' },
-    { property: 'og:title', content: 'Авторизации в CRM-систему через Telegram' },
-    { property: 'og:description', content: 'Страница авторизации в CRM-систему через Telegram' },
-  ]
-})
+function goToCabinet() {
+  router.push('/cabinet');
+}
 </script>
 
-<style lang="scss" scoped>
-.container {
-  margin-top: 5em;
+<style scoped>
+.loading, .error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  text-align: center;
+  padding: 20px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(0, 123, 255, 0.3);
+  border-top: 4px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-top: 15px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.error {
+  background: #fff8f8;
+  color: #d9534f;
+}
+
+.error button {
+  margin-top: 15px;
+  padding: 10px 20px;
+  background: #d9534f;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.error button:hover {
+  background: #c9302c;
+}
+
+button {
+  padding: 10px 20px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  margin-top: 15px;
+}
+
+button:hover {
+  background: #0069d9;
 }
 </style>

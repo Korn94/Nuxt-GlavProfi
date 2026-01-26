@@ -18,7 +18,7 @@ import { eq, and, like } from 'drizzle-orm'
 import { calculateObjectFinance } from '../../utils/calculateObjectFinance'
 
 // Разрешённые статусы
-const VALID_STATUSES = ['active', 'waiting', 'completed'] as const
+const VALID_STATUSES = ['active', 'waiting', 'completed', 'canceled'] as const
 type ObjectStatus = typeof VALID_STATUSES[number]
 
 function isValidStatus(status: string): status is ObjectStatus {

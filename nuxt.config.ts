@@ -71,6 +71,7 @@ export default defineNuxtConfig({
   modules: [
     '@nuxt/icon', // Иконки
     '@nuxtjs/sitemap', // Карта сайта
+    '@pinia/nuxt',
   ],
 
   // chartjs: {
@@ -106,6 +107,9 @@ export default defineNuxtConfig({
   },
 
   nitro: {
+    experimental: {
+      websocket: true
+    },
     typescript: {
       // Можно указать другие настройки, если нужно
       strict: true,
@@ -158,6 +162,7 @@ export default defineNuxtConfig({
   plugins: [
     '~/plugins/yandexMetrica.js', // Подключение Яндекс.Метрики
     // '~/plugins/auth.client.ts'
+    '~/plugins/telegram.client.ts'
   ],
 
   // Настройка переменных окружения

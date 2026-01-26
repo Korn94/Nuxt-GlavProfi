@@ -11,6 +11,11 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 400, message: 'Название и статус обязательны' })
     }
 
+    // Проверка на допустимый статус
+    if (!['active', 'waiting', 'completed', 'canceled'].includes(body.status)) {
+      throw createError({ statusCode: 400, message: 'Недопустимый статус объекта' })
+    }
+
     await db.insert(objects).values({
       name: body.name,
       status: body.status,

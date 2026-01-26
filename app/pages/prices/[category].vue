@@ -49,14 +49,14 @@ if (pagesError?.value) {
 
 // --- НОВОЕ: Жестко заданный маппинг URL -> Title ---
 const categoryTitles = {
-  'otdelochnye-raboty': 'Цены на отделочные работы 2025 — Рязань и область',
-  'plumbing': 'Цены на работы по сантехнике 2025 — Рязань и область',
-  'electricity': 'Цены на электромонтаж 2025 — Рязань и область',
+  'otdelochnye-raboty': 'Цены на отделочные работы 2026 — Рязань и область',
+  'plumbing': 'Цены на работы по сантехнике 2026 — Рязань и область',
+  'electricity': 'Цены на электромонтаж 2026 — Рязань и область',
 }
 
 // Получаем title для текущей категории
 const pageTitle = computed(() => {
-  return categoryTitles[route.params.category] || 'Цены на ремонт помещений - 2025 | ГлавПрофи'
+  return categoryTitles[route.params.category] || 'Цены на ремонт помещений - 2026 | ГлавПрофи'
 })
 // --- КОНЕЦ НОВОГО КОДА ---
 
@@ -89,9 +89,9 @@ useHead({
   title: pageTitle.value,
   meta: [
     // Используем описание из API, если есть, иначе fallback
-    { name: 'description', content: currentCategory.value?.metaDescription || 'Актуальные цены 2025 на ремонт помещений.' },
+    { name: 'description', content: currentCategory.value?.metaDescription || 'Актуальные цены 2026 на ремонт помещений.' },
     { property: 'og:title', content: pageTitle.value },
-    { property: 'og:description', content: currentCategory.value?.metaDescription || 'Актуальные цены 2025 на ремонт помещений.' },
+    { property: 'og:description', content: currentCategory.value?.metaDescription || 'Актуальные цены 2026 на ремонт помещений.' },
     { property: 'og:image', content: currentCategory.value?.image || 'https://glavprofi.ru/images/og-image.jpg' },
         { name: 'keywords', content: 'ремонт, отделка, коммерческие помещения, Рязань, ' + 
       (currentCategory.value?.title ? currentCategory.value.title.toLowerCase() : '') }
@@ -145,7 +145,7 @@ useHead({
           '@type': 'Service',
           'serviceType': 'Ремонтные работы',
           'name': pageTitle.value, // Используем статичный title
-          'description': currentCategory.value?.metaDescription || 'Актуальные цены 2025 на ремонт помещений. Составим смету бесплатно.',
+          'description': currentCategory.value?.metaDescription || 'Актуальные цены 2026 на ремонт помещений. Составим смету бесплатно.',
           'provider': { '@type': 'Organization', 'name': 'ГлавПрофи' },
           'areaServed': 'Россия, Рязань',
           'hasOfferCatalog': {

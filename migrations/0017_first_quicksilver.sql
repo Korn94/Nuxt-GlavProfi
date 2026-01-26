@@ -1,0 +1,1 @@
+ALTER TABLE `objects` ADD `status_date` datetime;

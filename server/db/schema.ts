@@ -28,7 +28,7 @@ export const objects = mysqlTable('objects', {
   name: varchar('name', { length: 255 }).notNull(),
   status: varchar('status', {
     length: 50,
-    enum: ['active', 'waiting', 'completed']
+    enum: ['active', 'waiting', 'completed', 'canceled']
   }).default('active').notNull(),
 
   address: text('address'), // Адрес объекта
@@ -36,6 +36,7 @@ export const objects = mysqlTable('objects', {
   startDate: datetime('start_date', { mode: 'string' }), // Дата начала (можно хранить как DATE или DATETIME)
   plannedEndDate: datetime('planned_end_date', { mode: 'string' }), // Плановая дата завершения
   completedDate: datetime('completed_date', { mode: 'string' }), // Фактическая дата завершения
+  statusDate: datetime('status_date', { mode: 'string' }), // Автоматическое присвоение даты при нажатии на кнопку изменения статуса
   source: varchar('source', {
     length: 50,
     enum: [
@@ -317,7 +318,7 @@ export const works = mysqlTable('works', {
     enum: [
       'Отделка', 'Электрика', 'Плитка', 'Сантехника', 'Перегородки ГКЛ',
       'Сварка', 'Бетонные работы', 'Кровля', 'Фасад', 'Перегородки Камень',
-      'Демонтаж', 'Мусор', 'Прочее'
+      'Демонтаж', 'Мусор', 'Разнорабочий', 'Смежники', 'Прочее'
     ]
   }).default('Прочее'),
   foremanId: int('foreman_id'),                                                                 // Ссылка на прораба

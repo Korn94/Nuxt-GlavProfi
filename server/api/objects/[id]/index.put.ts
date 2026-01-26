@@ -11,9 +11,23 @@ export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event)
 
+    // Получаем текущий объект для проверки изменения статуса
+    const [currentObject] = await db.select().from(objects).where(eq(objects.id, id))
+    if (!currentObject) {
+      throw createError({ statusCode: 404, message: 'Объект не найден' })
+    }
+
     const updates: any = {}
     if (body.name !== undefined) updates.name = body.name
-    if (body.status !== undefined) updates.status = body.status
+        if (body.status !== undefined) {
+      // Проверяем, изменился ли статус
+      if (body.status !== currentObject.status) {
+        updates.status = body.status
+        // Устанавливаем текущую дату для statusDate в MySQL-совместимом формате
+        const now = new Date()
+        updates.statusDate = now.toISOString().slice(0, 19).replace('T', ' ')
+      }
+    }
     if (body.address !== undefined) updates.address = body.address
     if (body.startDate !== undefined) updates.startDate = body.startDate
     if (body.plannedEndDate !== undefined) updates.plannedEndDate = body.plannedEndDate
