@@ -55,8 +55,10 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '~~/stores/auth' // Импортируем authStore
 
 const router = useRouter()
+const authStore = useAuthStore() // Используем authStore
 
 const user = ref(null)
 const sidebarOpen = ref(false)
@@ -153,8 +155,13 @@ function closeSidebarOnMobile() {
 }
 
 function handleLogout() {
-  document.cookie = 'token=; path=/; max-age=0'
+  // Правильный способ выхода - через authStore
+  authStore.logout()
+  
+  // Удаляем данные пользователя локально
   user.value = null
+  
+  // Перенаправляем
   router.push('/')
 }
 </script>

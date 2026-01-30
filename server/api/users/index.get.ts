@@ -6,7 +6,7 @@ import { verifyToken } from '../../utils/jwt'
 import { getCookie, getRequestHeader, createError } from 'h3'
 
 export default eventHandler(async (event) => {
-  const token = getCookie(event, 'token') || getRequestHeader(event, 'Authorization')?.split(' ')[1]
+  const token = getCookie(event, 'auth_token') || getRequestHeader(event, 'Authorization')?.split(' ')[1]
 
   if (!token) {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })

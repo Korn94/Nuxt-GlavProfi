@@ -1,4 +1,5 @@
 import { defineNuxtConfig } from 'nuxt/config';
+import tsconfigPaths from 'vite-tsconfig-paths'
 
 export default defineNuxtConfig({
   app: {
@@ -58,6 +59,7 @@ export default defineNuxtConfig({
   ],
 
   vite: {
+    plugins: [tsconfigPaths()],
     css: {
       preprocessorOptions: {
         scss: {
@@ -107,9 +109,6 @@ export default defineNuxtConfig({
   },
 
   nitro: {
-    experimental: {
-      websocket: true
-    },
     typescript: {
       // Можно указать другие настройки, если нужно
       strict: true,
@@ -122,6 +121,13 @@ export default defineNuxtConfig({
           'Access-Control-Allow-Credentials': 'true',
           // 'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
           // 'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+        }
+      },
+      '/socket.io/**': {
+        cors: true,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Credentials': 'true'
         }
       },
       '/cabinet': {
@@ -161,8 +167,8 @@ export default defineNuxtConfig({
   // Настройка плагинов
   plugins: [
     '~/plugins/yandexMetrica.js', // Подключение Яндекс.Метрики
-    // '~/plugins/auth.client.ts'
-    '~/plugins/telegram.client.ts'
+    '~/plugins/telegram.client.ts',
+    '~/plugins/socket.client.ts',
   ],
 
   // Настройка переменных окружения

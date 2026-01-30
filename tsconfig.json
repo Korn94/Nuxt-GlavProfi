@@ -3,6 +3,13 @@
   "include": ["**/*.ts", "**/*.tsx", "**/*.vue"],
   "exclude": ["node_modules", ".nuxt", "dist", ".git", ".output"],
   "compilerOptions": {
-    "types": ["nuxt", "vite/client"]
+    "types": ["nuxt", "vite/client"],
+    "baseUrl": ".",
+    "paths": {
+      "~/*": ["./app/*"],
+      "@/*": ["./app/*"],
+      "~~/*": ["./"],
+      "@@/*": ["./"]
+    }
   }
 }

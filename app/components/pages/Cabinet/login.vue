@@ -25,10 +25,13 @@
       </div>
 
       <!-- Сообщение об ошибке -->
-      <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
+      <p v-if="authStore.error" class="error">{{ authStore.error }}</p>
 
       <!-- Кнопка входа -->
-      <button @click="handleLogin">Войти</button>
+      <button @click="handleLogin" :disabled="authStore.isChecking">
+        <span v-if="authStore.isChecking">Вход...</span>
+        <span v-else>Войти</span>
+      </button>
     </div>
   </div>
 </template>
@@ -36,41 +39,28 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '~~/stores/auth'
 
 const router = useRouter()
+const authStore = useAuthStore()
 const login = ref('')
 const password = ref('')
 const showPassword = ref(false)
-const errorMessage = ref(null)
+
+// Инициализируем хранилище при монтировании компонента
+authStore.init()
 
 async function handleLogin() {
-  errorMessage.value = null
-  const loading = ref(true)
-
   try {
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ login: login.value, password: password.value }),
-      credentials: 'include'
+    // Полностью полагаемся на authStore для аутентификации
+    await authStore.login({
+      login: login.value,
+      password: password.value
     })
-
-    if (!response.ok) {
-      const errorData = await response.json()
-      errorMessage.value = errorData.statusMessage || errorData.message || 'Неверный логин или пароль'
-      return
-    }
-
-    const data = await response.json()
-    const token = useCookie('token')
-    token.value = data.token
-
-    router.push('/cabinet')
+    
+    // Если аутентификация успешна, authStore автоматически перенаправит
   } catch (error) {
     console.error('Ошибка при входе:', error)
-    errorMessage.value = 'Произошла ошибка при входе'
-  } finally {
-    loading.value = false
   }
 }
 

@@ -3,7 +3,7 @@ import { defineNuxtRouteMiddleware, useCookie, navigateTo } from '#app'
 import type { RouteLocationNormalized } from 'vue-router'
 
 export default defineNuxtRouteMiddleware(async (to: RouteLocationNormalized) => {
-  const token = useCookie('token')
+  const token = useCookie('auth_token')
 
   // Проверка: авторизован ли пользователь
   if (!token.value) {

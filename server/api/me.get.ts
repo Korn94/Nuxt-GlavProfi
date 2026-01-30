@@ -7,7 +7,7 @@ import { eq } from 'drizzle-orm'
 import { verifyToken } from '../utils/jwt'
 
 export default eventHandler(async (event) => {
-  const token = getCookie(event, 'token') || getRequestHeader(event, 'Authorization')?.split(' ')[1]
+  const token = getCookie(event, 'auth_token') || getRequestHeader(event, 'Authorization')?.split(' ')[1]
 
   if (!token) {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
