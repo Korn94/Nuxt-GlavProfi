@@ -6,7 +6,7 @@ export interface User {
   id: number
   email: string
   name: string
-  role: 'admin' | 'moderator' | 'user'
+  role: 'admin' | 'manager' | 'foreman' | 'master' | 'worker'
   avatar?: string | null
   createdAt: string
   updatedAt: string
@@ -31,6 +31,30 @@ export interface TelegramAuthData {
   photo_url: string | null
   auth_date: number
   hash: string
+}
+
+/**
+ * Типы для онлайн-пользователей
+ */
+export interface OnlineUser {
+  id: number
+  userId: number
+  sessionId: string
+  status: 'online' | 'afk' | 'offline'
+  lastActivity: string
+  startedAt: string
+  ipAddress?: string
+  user?: {
+    name: string
+    role: 'admin' | 'manager' | 'foreman' | 'master' | 'worker'
+  }
+}
+
+export interface OnlineStats {
+  total: number
+  online: number
+  afk: number
+  offline: number
 }
 
 /**

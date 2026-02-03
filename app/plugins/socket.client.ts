@@ -1,15 +1,18 @@
 // plugins/socket.client.ts
-import { defineNuxtPlugin } from "nuxt/app"
-import { useSocketStore } from "stores/socket"
+import { defineNuxtPlugin } from 'nuxt/app'
+import { useSocketStore } from '../../stores/socket'
 
-export default defineNuxtPlugin(async () => {
-  // Инициализируем хранилище с задержкой
-  await new Promise(resolve => setTimeout(resolve, 100))
+export default defineNuxtPlugin(async (nuxtApp) => {
+  // if (process.server) return
   
-  const socketStore = useSocketStore()
+  // const socketStore = useSocketStore()
   
-  // Проверяем, что хранилище готово
-  if (typeof socketStore.init === 'function') {
-    socketStore.init()
-  }
+  // console.log('[SocketPlugin] Initializing socket...')
+  
+  // try {
+  //   await socketStore.init()
+  //   console.log('[SocketPlugin] Socket initialized successfully')
+  // } catch (error) {
+  //   console.error('[SocketPlugin] Socket initialization failed:', error)
+  // }
 })

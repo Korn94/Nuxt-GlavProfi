@@ -22,6 +22,33 @@ export const users = mysqlTable('users', {
   updatedAt: datetime('updated_at') .default(sql`CURRENT_TIMESTAMP`) .notNull() .$type<Date>()
 })
 
+// Таблица сессий пользователей для отслеживания онлайн-статуса
+export const userSessions = mysqlTable('user_sessions', {
+  id: serial('id').primaryKey(),
+  userId: bigint('user_id', { mode: 'number', unsigned: true })
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  sessionId: varchar('session_id', { length: 255 }).unique().notNull(),
+  status: varchar('status', {
+    length: 20,
+    enum: ['online', 'afk', 'offline']
+  }).default('online').notNull(),
+  lastActivity: datetime('last_activity', { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+  startedAt: datetime('started_at', { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`), // Добавлен mode: 'string'
+  endedAt: datetime('ended_at', { mode: 'string' }),
+  ipAddress: varchar('ip_address', { length: 45 }), // IPv6 максимум 45 символов
+  userAgent: text('user_agent'),
+  createdAt: datetime('created_at', { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`), // Добавлен mode: 'string'
+  updatedAt: datetime('updated_at', { mode: 'string' }) // Добавлен mode: 'string'
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull()
+    .$type<string>() // Изменен тип с Date на string
+}, (table) => ({
+  userIndex: index('user_idx').on(table.userId),
+  statusIndex: index('status_idx').on(table.status),
+  lastActivityIndex: index('last_activity_idx').on(table.lastActivity)
+}))
+
 // Таблица объектов
 export const objects = mysqlTable('objects', {
   id: serial('id').primaryKey(),

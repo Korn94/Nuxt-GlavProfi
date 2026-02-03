@@ -18,5 +18,10 @@ const pool = mysql.createPool({
   idleTimeout: 60000         // Время простоя перед закрытием (60 сек)
 })
 
+// Устанавливаем часовой пояс сессии на Московское время (UTC+3)
+pool.on('connection', (connection) => {
+  connection.query("SET time_zone = '+03:00'")
+})
+
 // Инициализируем Drizzle ORM
 export const db = drizzle(pool, { schema, mode: 'default' })

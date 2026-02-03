@@ -4,8 +4,9 @@ import { users } from '../../db/schema'
 import { eq } from 'drizzle-orm'
 import { generateToken } from '../../utils/jwt'
 import bcryptjs from 'bcryptjs'
-import { eventHandler, readBody, createError } from 'h3'
+import { eventHandler, readBody, createError, getRequestHeader, getRequestIP } from 'h3'
 import { getObjectsByUser } from '../../utils/objects'
+import { createSession } from '../../utils/sessions'
 
 interface LoginBody {
   login: string
@@ -16,6 +17,11 @@ interface LoginBody {
 
 export default eventHandler(async (event) => {
   const body = await readBody<LoginBody>(event)
+  
+  // Получаем информацию о запросе для сессии
+  const ipAddress = getRequestIP(event, { xForwardedFor: true })
+  const userAgent = getRequestHeader(event, 'user-agent') || undefined
+
   const [user] = await db.select().from(users).where(eq(users.login, body.login))
 
   if (!user) {
@@ -36,5 +42,21 @@ export default eventHandler(async (event) => {
     objects: objects.map(o => ({ id: o.id }))
   })
 
-  return { token }
+  // Создаем сессию пользователя
+  const session = await createSession(user.id, ipAddress, userAgent)
+
+  // Возвращаем и токен, и данные пользователя
+  return { 
+    token,
+    user: {
+      id: user.id,
+      email: user.login,
+      name: user.name || user.login,
+      role: user.role,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      isVerified: true
+    },
+    sessionId: session?.sessionId // Возвращаем ID сессии
+  }
 })

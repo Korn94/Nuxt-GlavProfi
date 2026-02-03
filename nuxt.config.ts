@@ -109,6 +109,9 @@ export default defineNuxtConfig({
   },
 
   nitro: {
+    plugins: [
+      '../server/plugins/socket.io.ts'
+    ],
     typescript: {
       // Можно указать другие настройки, если нужно
       strict: true,
