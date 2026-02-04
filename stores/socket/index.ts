@@ -80,11 +80,13 @@ export const useSocketStore = defineStore('socket', {
         // Создаем сокет
         const socket = io(baseUrl, {
           auth: { auth_token: token },
-          transports: ['websocket', 'polling'],
+          transports: ['polling', 'websocket'], // Сначала polling, потом upgrade
           reconnection: true,
           reconnectionAttempts: this.maxReconnectAttempts,
           reconnectionDelay: this.reconnectInterval,
-          withCredentials: true
+          withCredentials: true,
+          upgrade: true, // Разрешаем upgrade с polling на websocket
+          rememberUpgrade: true
         })
         
         // Обработчики событий

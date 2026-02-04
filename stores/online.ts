@@ -57,9 +57,15 @@ export const useOnlineStore = defineStore('online', {
     subscribeToUpdates() {
       const socketStore = useSocketStore()
       
+      // ✅ Проверяем, что сокет подключен
+      if (!socketStore.isConnected) {
+        console.warn('[OnlineStore] Socket not connected, retrying...')
+        setTimeout(() => this.subscribeToUpdates(), 1000)
+        return
+      }
+
       console.log('[OnlineStore] Subscribing to socket updates...')
       
-      // Подписываемся на событие
       socketStore.on('online-users:update', (users: OnlineUser[]) => {
         console.log('[OnlineStore] Received socket update:', users)
         this.updateUsers(users)
