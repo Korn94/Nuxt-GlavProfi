@@ -24,7 +24,7 @@ export function emit<K extends keyof any>(
   try {
     // @ts-ignore - Socket.IO имеет сложную типизацию для emit
     this.socket.emit(event, ...args)
-    console.log(`[SocketStore] ✉️ Emitted "${String(event)}"`, args)
+    // console.log(`[SocketStore] ✉️ Emitted "${String(event)}"`, args)
   } catch (error) {
     console.error(`[SocketStore] Error emitting "${String(event)}":`, error)
   }

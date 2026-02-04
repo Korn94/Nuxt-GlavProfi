@@ -57,7 +57,7 @@
               <OnlineStatus :status="session.status" :show-text="true" />
             </td>
             <td>
-              {{ formatDuration(session.startedAt) }}
+              {{ getDuration(session.startedAt) }}
             </td>
             <td>
               {{ formatTime(session.lastActivity) }}
@@ -73,7 +73,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useOnlineStore } from '../../../stores/online'
 import { useAuthStore } from '../../../stores/auth'
 import OnlineStatus from '~/components/ui/status/OnlineStatus.vue'
@@ -94,7 +94,13 @@ const roleLabels = {
   worker: 'Рабочий'
 }
 
-// Форматирование времени
+// ✅ Реактивное текущее время (обновляется каждую секунду)
+const currentTime = ref(Date.now())
+
+// ✅ Интервал для обновления времени
+let timeInterval: NodeJS.Timeout | null = null
+
+// Форматирование времени последней активности
 const formatTime = (dateString: string) => {
   const date = new Date(dateString)
   return date.toLocaleTimeString('ru-RU', {
@@ -103,11 +109,10 @@ const formatTime = (dateString: string) => {
   })
 }
 
-// Форматирование длительности
-const formatDuration = (dateString: string) => {
-  const startDate = new Date(dateString)
-  const now = new Date()
-  const diff = now.getTime() - startDate.getTime()
+// ✅ Вычисляемая длительность через currentTime (реактивно!)
+const getDuration = (startedAt: string) => {
+  const startDate = new Date(startedAt)
+  const diff = currentTime.value - startDate.getTime()
   const hours = Math.floor(diff / (1000 * 60 * 60))
   const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
   
@@ -117,6 +122,7 @@ const formatDuration = (dateString: string) => {
   return `${minutes}м`
 }
 
+// ✅ Запуск интервала при монтировании
 onMounted(() => {
   console.log('[OnlinePage] Mounted')
   
@@ -125,16 +131,28 @@ onMounted(() => {
   
   // Подписываемся на сокет-обновления
   onlineStore.subscribeToUpdates()
+  
+  // ✅ Запускаем интервал для обновления времени каждую секунду
+  timeInterval = setInterval(() => {
+    currentTime.value = Date.now()
+  }, 1000)
 })
 
+// ✅ Очистка при размонтировании
 onUnmounted(() => {
   console.log('[OnlinePage] Unmounted')
   
   // Отписываемся от сокетов
   onlineStore.unsubscribeFromUpdates()
+  
+  // ✅ Очищаем интервал
+  if (timeInterval) {
+    clearInterval(timeInterval)
+    timeInterval = null
+  }
 })
 
-// Добавьте отслеживание изменений
+// Отслеживание изменений пользователей
 watch(
   () => onlineStore.getOnlineUsers,
   (newUsers) => {
