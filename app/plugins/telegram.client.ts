@@ -1,6 +1,6 @@
 // plugins/telegram.client.ts
 
-import { defineNuxtPlugin } from '#imports';
+import { defineNuxtPlugin } from 'nuxt/app';
 import { init, isTMA } from '@telegram-apps/sdk';
 
 // Добавляем типизацию для Telegram WebApp SDK

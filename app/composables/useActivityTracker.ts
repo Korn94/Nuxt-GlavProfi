@@ -30,7 +30,7 @@ export function useActivityTracker() {
     
     const ipAddress = window.location.hostname
     
-    socketStore.sendMessage('activity', {
+    socketStore.emit('activity', {
       sessionId: sessionIdCookie.value,
       status,
       ipAddress
@@ -48,7 +48,7 @@ export function useActivityTracker() {
       isAFK.value = false
       
       if (socketStore.isConnected && sessionIdCookie.value) {
-        socketStore.sendMessage('activity:resume', {
+        socketStore.emit('activity:resume', {
           sessionId: sessionIdCookie.value,
           ipAddress: window.location.hostname
         })
@@ -74,7 +74,7 @@ export function useActivityTracker() {
       isAFK.value = true
       
       if (sessionIdCookie.value) {
-        socketStore.sendMessage('activity:afk', {
+        socketStore.emit('activity:afk', {
           sessionId: sessionIdCookie.value,
           ipAddress: window.location.hostname
         })
@@ -123,7 +123,7 @@ export function useActivityTracker() {
     
     // Отправляем событие выхода
     if (socketStore.isConnected && sessionIdCookie.value) {
-      socketStore.sendMessage('activity', {
+      socketStore.emit('activity', {
         sessionId: sessionIdCookie.value,
         status: 'offline'
       })

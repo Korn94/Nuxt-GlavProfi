@@ -47,21 +47,24 @@ export async function authenticateUser(token: string) {
  */
 export async function socketAuthMiddleware(socket: Socket, next: (err?: Error) => void) {
   try {
-    // Получаем токен из параметров подключения
-    const token = socket.handshake.auth.auth_token || socket.handshake.auth.token
+    // More robust token extraction
+    let token = socket.handshake.auth.token || socket.handshake.auth.auth_token;
     
-    if (!token) {
-      throw new Error('No token provided')
+    // Also check query parameters for token (for initial connection)
+    if (!token && socket.handshake.query && socket.handshake.query.token) {
+      token = socket.handshake.query.token as string;
     }
     
-    // Аутентифицируем пользователя
-    const user = await authenticateUser(token)
+    if (!token) {
+      throw new Error('No token provided');
+    }
     
-    // Сохраняем пользователя в данных сокета
-    ;(socket as any).user = user
-    
-    next()
+    // Verify token
+    const user = await authenticateUser(token);
+    (socket as any).user = user;
+    next();
   } catch (error) {
-    next(error instanceof Error ? error : new Error('Authentication failed'))
+    console.error('Socket authentication failed:', error);
+    next(error instanceof Error ? error : new Error('Authentication failed'));
   }
 }

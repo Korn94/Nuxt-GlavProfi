@@ -11,8 +11,17 @@ import { createSession } from '../../utils/sessions'
 export default eventHandler(async (event) => {
   const body = await readBody(event)
   
+  const botToken = process.env.TELEGRAM_BOT_TOKEN
+  
+  if (!botToken) {
+    throw createError({ 
+      statusCode: 500, 
+      statusMessage: 'Telegram bot token not configured' 
+    })
+  }
+  
   // Проверяем подлинность данных из Telegram
-  if (!verifyTelegramHash(body)) {
+  if (!verifyTelegramHash(body, botToken)) {
     throw createError({ statusCode: 401, statusMessage: 'Invalid Telegram data' })
   }
 

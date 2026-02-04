@@ -32,7 +32,7 @@ export default defineNuxtConfig({
           processTemplateParams: true // Правильное имя свойства (без вложенного объекта)
         }
       ],
-      
+
       // ПРАВИЛЬНЫЙ ФОРМАТ ДЛЯ NOSCRIPT
       noscript: [
         {
@@ -43,7 +43,7 @@ export default defineNuxtConfig({
       ]
     }
   },
-  
+
   // Включаем SSR
   ssr: true,
 
@@ -84,7 +84,7 @@ export default defineNuxtConfig({
   sitemap: {
     hostname: process.env.NUXT_PUBLIC_SITE_URL,
     gzip: true,
-      exclude: [
+    exclude: [
       '/cabinet',
       '/cabinet/**',
       '/login',
@@ -94,26 +94,34 @@ export default defineNuxtConfig({
       '/telegram',
       '/projects/create',
     ],
-      routes: [
-    '/',
-    '/about',
-    '/services',
-    '/projects',
-    '/contacts',
-    '/privacy-policy',
-    '/terms-of-service',
-    // Страницы с ценами
-    '/prices/otdelochnye-raboty',
-    '/prices/plumbing'
-  ],
+    routes: [
+      '/',
+      '/about',
+      '/services',
+      '/projects',
+      '/contacts',
+      '/privacy-policy',
+      '/terms-of-service',
+      // Страницы с ценами
+      '/prices/otdelochnye-raboty',
+      '/prices/plumbing'
+    ],
   },
 
   nitro: {
+    experimental: {
+      websocket: true,
+    },
     plugins: [
       './plugins/socket.io.ts'
     ],
-    experimental: {
-      websocket: true,
+    devErrorHandler: (error: { status: number; }, event: { path: string; }) => {
+      // Игнорируем ошибки 404 для /_nuxt/
+      if (event.path.startsWith('/_nuxt/') && error.status === 404) {
+        return
+      }
+      // Стандартная обработка
+      return defaultErrorHandler(error, event)
     },
     typescript: {
       // Можно указать другие настройки, если нужно
@@ -205,3 +213,7 @@ export default defineNuxtConfig({
     },
   },
 });
+function defaultErrorHandler(error: { status: number; }, event: { path: string; }) {
+  throw new Error('Function not implemented.');
+}
+

@@ -54,7 +54,7 @@
               </div>
             </td>
             <td>
-              <UiStatusOnlineStatus :status="session.status" :show-text="true" />
+              <OnlineStatus :status="session.status" :show-text="true" />
             </td>
             <td>
               {{ formatDuration(session.startedAt) }}
@@ -76,6 +76,7 @@
 import { onMounted, onUnmounted } from 'vue'
 import { useOnlineStore } from '../../../stores/online'
 import { useAuthStore } from '../../../stores/auth'
+import OnlineStatus from '~/components/ui/status/OnlineStatus.vue'
 
 definePageMeta({
   layout: 'cabinet',
@@ -132,6 +133,27 @@ onUnmounted(() => {
   // Отписываемся от сокетов
   onlineStore.unsubscribeFromUpdates()
 })
+
+// Добавьте отслеживание изменений
+watch(
+  () => onlineStore.getOnlineUsers,
+  (newUsers) => {
+    console.log('[OnlinePage] Users changed:', {
+      count: newUsers.length,
+      users: newUsers.map(u => ({
+        id: u.id,
+        userId: u.userId,
+        sessionId: u.sessionId,
+        status: u.status,
+        hasUser: !!u.user,
+        userName: u.user?.name,
+        userRole: u.user?.role,
+        raw: u
+      }))
+    })
+  },
+  { deep: true }
+)
 </script>
 
 <style lang="scss" scoped>
