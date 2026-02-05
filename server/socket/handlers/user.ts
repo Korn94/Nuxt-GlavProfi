@@ -2,7 +2,7 @@
 import { Socket } from 'socket.io'
 import { db } from '../../db'
 import { users, userSessions } from '../../db/schema'
-import { eq, or, desc } from 'drizzle-orm'
+import { eq, and, or, desc, sql } from 'drizzle-orm'
 import type { Server } from 'socket.io'
 import { createSession, updateSessionStatus } from '../../utils/sessions'
 
@@ -28,60 +28,65 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
   console.log(`   IP: ${ipAddress}`)
 
   // ============================================
-  // ВОССТАНОВЛЕНИЕ ИЛИ СОЗДАНИЕ СЕССИИ
+  // ВОССТАНОВЛЕНИЕ ИЛИ СОЗДАНИЕ СЕССИИ ПО ПОЛЬЗОВАТЕЛЮ
   // ============================================
   ;(async () => {
     try {
       const userAgent = socket.handshake.headers['user-agent'] || 'Unknown'
-      
-      // Получаем sessionId из кук (переданных при подключении)
-      let sessionIdCookie: string | undefined = undefined
-      
-      if (socket.handshake.headers.cookie) {
-        const sessionCookie = socket.handshake.headers.cookie
-          .split(';')
-          .map(c => c.trim())
-          .find(c => c.startsWith('session_id='))
-        
-        if (sessionCookie) {
-          const parts = sessionCookie.split('=')
-          sessionIdCookie = parts.length > 1 ? parts[1] : undefined
-        }
-      }
 
-      console.log(`   ID сессии из кук: ${sessionIdCookie || 'нет'}`)
+      console.log(`   Ищу последнюю сессию пользователя ${user.id}...`)
 
       let session = null
 
-      // Если есть существующая сессия - пытаемся её восстановить
-      if (sessionIdCookie) {
-        // Проверяем, существует ли сессия в БД
-        const [existingSession] = await db
-          .select()
-          .from(userSessions)
-          .where(eq(userSessions.sessionId, sessionIdCookie))
+      // ============================================
+      // ✅ ИЩЕМ ПОСЛЕДНЮЮ СЕССИЮ ПОЛЬЗОВАТЕЛЯ (независимо от статуса)
+      // ============================================
+      const [existingSession] = await db
+        .select()
+        .from(userSessions)
+        .where(eq(userSessions.userId, user.id))
+        .orderBy(desc(userSessions.lastActivity))
+        .limit(1)
 
-        if (existingSession) {
-          console.log(`   ✅ Найдена существующая сессия: ${sessionIdCookie}`)
-          
-          // Обновляем существующую сессию
-          session = await updateSessionStatus(sessionIdCookie, 'online', ipAddress)
-          
-          console.log(`   ✅ Сессия ${sessionIdCookie} восстановлена и обновлена`)
+      // Проверяем, была ли сессия активна недавно (в последние 5 минут)
+      if (existingSession) {
+        const lastActivityTime = new Date(existingSession.lastActivity).getTime()
+        const now = Date.now()
+        const timeDiff = now - lastActivityTime
+        const FIVE_MINUTES = 5 * 60 * 1000
+
+        // Если сессия была активна недавно - восстанавливаем её
+        if (timeDiff < FIVE_MINUTES) {
+          console.log(`   ✅ Нашли недавнюю сессию: ${existingSession.sessionId}`)
+          console.log(`   Статус: ${existingSession.status}`)
+          console.log(`   Последняя активность: ${existingSession.lastActivity}`)
+          console.log(`   Время простоя: ${Math.round(timeDiff / 1000)}с`)
+
+          // Обновляем статус на "онлайн" и обновляем время активности
+          session = await updateSessionStatus(existingSession.sessionId, 'online', ipAddress)
+
+          console.log(`   ✅ Сессия ${existingSession.sessionId} восстановлена и обновлена`)
         } else {
-          console.log(`   ⚠️ Сессия ${sessionIdCookie} не найдена в базе данных, создаю новую...`)
+          console.log(`   ⏰ Старая сессия найдена, но слишком долго неактивна (${Math.round(timeDiff / 1000)}с)`)
+          console.log(`   🆕 Создаю новую сессию...`)
+          
+          session = await createSession(user.id, ipAddress, userAgent)
+          
+          if (!session) {
+            throw new Error('Не удалось создать сессию')
+          }
+          
+          console.log(`   ✅ Новая сессия создана: ${session.sessionId}`)
         }
-      }
-
-      // Если сессии нет или она не найдена - создаем новую
-      if (!session) {
-        console.log(`   Создаю новую сессию для пользователя ${user.id}...`)
+      } else {
+        // Если сессий вообще нет - создаем новую
+        console.log(`   🆕 Сессий не найдено, создаю новую...`)
         session = await createSession(user.id, ipAddress, userAgent)
-        
+
         if (!session) {
           throw new Error('Не удалось создать сессию')
         }
-        
+
         console.log(`   ✅ Новая сессия создана: ${session.sessionId}`)
       }
 
@@ -91,7 +96,7 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
       // ============================================
       // ✅ ПОЛУЧАЕМ ПОЛНЫЕ ДАННЫЕ ОНЛАЙН-ПОЛЬЗОВАТЕЛЕЙ С ИНФОРМАЦИЕЙ О ПОЛЬЗОВАТЕЛЯХ
       // ============================================
-      const onlineUsers = await getOnlineUsersWithUserData()
+      const onlineUsers = await getOnlineUsers()
 
       // Отправляем обновленный список ВСЕМ подключенным клиентам
       io.emit('online-users:update', onlineUsers)
@@ -101,7 +106,7 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
         sessionId: session.sessionId,
         userId: user.id,
         status: 'online',
-        restored: !!sessionIdCookie // Флаг, что сессия восстановлена
+        restored: !!existingSession // Флаг, что сессия восстановлена
       })
 
       console.log(`   📡 Список онлайн-пользователей отправлен (${onlineUsers.length} пользователей)`)
@@ -113,7 +118,7 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
   // ============================================
   // ОБНОВЛЕНИЕ ДАННЫХ СЕССИИ (опционально)
   // ============================================
-  socket.on('session:update', async (data) => {
+  socket.on('session:update', async (data: any) => {
     try {
       const { ipAddress: newIp, userAgent } = data
       const sessionId = (socket as any).sessionId
@@ -133,7 +138,7 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
       // ============================================
       // ✅ ОТПРАВЛЯЕМ ПОЛНЫЕ ДАННЫЕ ПРИ ОБНОВЛЕНИИ СЕССИИ
       // ============================================
-      const onlineUsers = await getOnlineUsersWithUserData()
+      const onlineUsers = await getOnlineUsers()
       io.emit('online-users:update', onlineUsers)
     } catch (error) {
       console.error('Ошибка обновления сессии:', error)
@@ -143,7 +148,7 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
   // ============================================
   // ОБНОВЛЕНИЕ ДАННЫХ ПОЛЬЗОВАТЕЛЯ
   // ============================================
-  socket.on('user:update', async (updatedData) => {
+  socket.on('user:update', async (updatedData: any) => {
     try {
       console.log(`   Обновляю данные пользователя ${user.id}...`)
 
@@ -154,7 +159,6 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
 
       // Обновляем только разрешенные поля
       const updateFields: any = {}
-      
       if (updatedData.name && typeof updatedData.name === 'string') {
         updateFields.name = updatedData.name.trim()
       }
@@ -200,7 +204,7 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
       // ============================================
       // ✅ ОБНОВЛЯЕМ СПИСОК ОНЛАЙН-ПОЛЬЗОВАТЕЛЕЙ ПОСЛЕ ИЗМЕНЕНИЯ ДАННЫХ
       // ============================================
-      const onlineUsers = await getOnlineUsersWithUserData()
+      const onlineUsers = await getOnlineUsers()
       io.emit('online-users:update', onlineUsers)
     } catch (error) {
       console.error('❌ Ошибка обновления пользователя:', error)
@@ -226,7 +230,7 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
   // ============================================
   // ОБРАБОТКА ОТКЛЮЧЕНИЯ
   // ============================================
-  socket.on('disconnect', async (reason) => {
+  socket.on('disconnect', async (reason: string) => {
     console.log(`👋 Пользователь отключился: ${user.id} (${user.name || user.login})`)
     console.log(`   Причина: ${reason}`)
     console.log(`   ID сокета: ${socket.id}`)
@@ -238,7 +242,8 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
       if (sessionId) {
         console.log(`   Помечаю сессию ${sessionId} как оффлайн...`)
 
-        // Обновляем статус на оффлайн
+        // ✅ НЕ ЗАВЕРШАЕМ СЕССИЮ СРАЗУ - просто помечаем как offline
+        // Это позволит восстановить её при быстром переподключении
         await updateSessionStatus(sessionId, 'offline')
 
         console.log(`   ✅ Сессия ${sessionId} помечена как оффлайн`)
@@ -246,9 +251,8 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
         // ============================================
         // ✅ ОТПРАВЛЯЕМ ОБНОВЛЕННЫЙ СПИСОК ПОСЛЕ ОТКЛЮЧЕНИЯ
         // ============================================
-        const onlineUsers = await getOnlineUsersWithUserData()
+        const onlineUsers = await getOnlineUsers()
         io.emit('online-users:update', onlineUsers)
-
         console.log(`   📡 Список онлайн-пользователей отправлен (${onlineUsers.length} пользователей)`)
       } else {
         console.warn('   ID сессии не найден для отключившегося пользователя')
@@ -261,31 +265,30 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
   // ============================================
   // ОБРАБОТКА ОШИБОК СОКЕТА
   // ============================================
-  socket.on('error', (error) => {
-    console.error(`❌ Socket error for user ${user.id}:`, error);
-    
+  socket.on('error', (error: any) => {
+    console.error(`❌ Socket error for user ${user.id}:`, error)
     // Try to recover from common errors
     if (error.message.includes('timeout')) {
-      console.log('Handling timeout error, attempting to reconnect...');
-      socket.disconnect();
+      console.log('Handling timeout error, attempting to reconnect...')
+      socket.disconnect()
     }
-  });
+  })
 
   // Add this to handle connection errors better
-  socket.on('connect_error', (error) => {
-    console.error('Connect error:', error);
+  socket.on('connect_error', (error: any) => {
+    console.error('Connect error:', error)
     // Handle specific errors
     if (error.message === 'Unauthorized') {
-      console.log('Authentication failed, disconnecting');
-      socket.disconnect();
+      console.log('Authentication failed, disconnecting')
+      socket.disconnect()
     }
-  });
+  })
 }
 
 // ============================================
 // ✅ ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ: ПОЛУЧЕНИЕ ОНЛАЙН-ПОЛЬЗОВАТЕЛЕЙ С ДАННЫМИ ПОЛЬЗОВАТЕЛЕЙ
 // ============================================
-async function getOnlineUsersWithUserData() {
+async function getOnlineUsers() {
   // Получаем активные сессии
   const sessions = await db
     .select({
@@ -320,10 +323,17 @@ async function getOnlineUsersWithUserData() {
 
       return {
         ...session,
-        user: userData || undefined // Возвращаем undefined вместо пустого объекта
+        user: userData || undefined
       }
     })
   )
 
-  return sessionsWithUsers
+  // ✅ ФИЛЬТРУЕМ СЕССИИ БЕЗ ПОЛЬЗОВАТЕЛЯ
+  const validSessions = sessionsWithUsers.filter(
+    (session) => session.user !== undefined && session.user !== null
+  )
+
+  // console.log(`📊 Онлайн пользователей: ${validSessions.length} (отфильтровано ${sessionsWithUsers.length - validSessions.length} без данных)`)
+
+  return validSessions
 }

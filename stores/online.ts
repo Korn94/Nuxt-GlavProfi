@@ -47,7 +47,7 @@ export const useOnlineStore = defineStore('online', {
      * Обновление списка пользователей
      */
     updateUsers(users: OnlineUser[]) {
-      console.log('[OnlineStore] Updating users via socket:', users.length)
+      // console.log('[OnlineStore] Updating users via socket:', users.length)
       this.users = users || []
     },
     
@@ -67,7 +67,7 @@ export const useOnlineStore = defineStore('online', {
       console.log('[OnlineStore] Subscribing to socket updates...')
       
       socketStore.on('online-users:update', (users: OnlineUser[]) => {
-        console.log('[OnlineStore] Received socket update:', users)
+        // console.log('[OnlineStore] Received socket update:', users)
         this.updateUsers(users)
       })
       

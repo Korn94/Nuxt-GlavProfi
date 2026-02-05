@@ -115,14 +115,14 @@ export default defineNuxtConfig({
     plugins: [
       './plugins/socket.io.ts'
     ],
-    devErrorHandler: (error: { status: number; }, event: { path: string; }) => {
-      // Игнорируем ошибки 404 для /_nuxt/
-      if (event.path.startsWith('/_nuxt/') && error.status === 404) {
-        return
-      }
-      // Стандартная обработка
-      return defaultErrorHandler(error, event)
-    },
+    // devErrorHandler: (error: { status: number; }, event: { path: string; }) => {
+    //   // Игнорируем ошибки 404 для /_nuxt/
+    //   if (event.path.startsWith('/_nuxt/') && error.status === 404) {
+    //     return
+    //   }
+    //   // Стандартная обработка
+    //   return defaultErrorHandler(error, event)
+    // },
     typescript: {
       // Можно указать другие настройки, если нужно
       strict: true,

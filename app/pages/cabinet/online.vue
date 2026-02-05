@@ -151,27 +151,6 @@ onUnmounted(() => {
     timeInterval = null
   }
 })
-
-// Отслеживание изменений пользователей
-watch(
-  () => onlineStore.getOnlineUsers,
-  (newUsers) => {
-    console.log('[OnlinePage] Users changed:', {
-      count: newUsers.length,
-      users: newUsers.map(u => ({
-        id: u.id,
-        userId: u.userId,
-        sessionId: u.sessionId,
-        status: u.status,
-        hasUser: !!u.user,
-        userName: u.user?.name,
-        userRole: u.user?.role,
-        raw: u
-      }))
-    })
-  },
-  { deep: true }
-)
 </script>
 
 <style lang="scss" scoped>

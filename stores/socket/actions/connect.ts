@@ -1,6 +1,6 @@
 // stores/socket/actions/connect.ts
 import { io } from 'socket.io-client'
-import { useCookie } from "nuxt/app"
+import { useCookie, useRuntimeConfig } from "nuxt/app"
 import type { TypedClientSocket } from '../types'
 
 export async function connect(this: any) {

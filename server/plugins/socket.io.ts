@@ -8,13 +8,14 @@ export default defineNitroPlugin((nitroApp) => {
   console.log('[SocketPlugin] Initializing Socket.IO...')
 
   let io: import('socket.io').Server | null = null
+  let socketHttpServer: import('node:http').Server | null = null // ✅ Сохраняем ссылку на сервер
 
   // ✅ Проверяем, запущен ли режим разработки
   const isDev = process.env.NODE_ENV !== 'production'
 
   if (isDev) {
     // В dev-режиме создаём отдельный HTTP-сервер для Socket.IO
-    const socketHttpServer = createServer()
+    socketHttpServer = createServer()
     io = new Server(socketHttpServer, {
       path: '/socket.io',
       cors: {
@@ -44,9 +45,22 @@ export default defineNitroPlugin((nitroApp) => {
     // Закрытие при завершении работы
     nitroApp.hooks.hook('close', async () => {
       console.log('[SocketPlugin] Closing Socket.IO server...')
-      if (io) {
-        await io.close()
-        console.log('[SocketPlugin] ✅ Socket.IO server closed')
+      try {
+        if (io) {
+          await io.close()
+          console.log('[SocketPlugin] ✅ Socket.IO server closed')
+        }
+        // ✅ Закрываем и сам HTTP сервер
+        if (socketHttpServer) {
+          await new Promise<void>((resolve) => {
+            socketHttpServer!.close(() => {
+              console.log('[SocketPlugin] ✅ HTTP server closed')
+              resolve()
+            })
+          })
+        }
+      } catch (error) {
+        console.error('[SocketPlugin] ❌ Error closing servers:', error)
       }
     })
 
@@ -79,9 +93,13 @@ export default defineNitroPlugin((nitroApp) => {
 
     nitroApp.hooks.hook('close', async () => {
       console.log('[SocketPlugin] Closing Socket.IO server...')
-      if (io) {
-        await io.close()
-        console.log('[SocketPlugin] ✅ Socket.IO server closed')
+      try {
+        if (io) {
+          await io.close()
+          console.log('[SocketPlugin] ✅ Socket.IO server closed')
+        }
+      } catch (error) {
+        console.error('[SocketPlugin] ❌ Error closing Socket.IO server:', error)
       }
     })
   }
