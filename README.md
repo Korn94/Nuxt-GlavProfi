@@ -33,3 +33,58 @@
 
 #### Страница "Цены"
 - **Форма отправки из модального окна** разделение на форму и мессенджеры.
+
+# Доска
+server/api/
+├── boards/
+│   ├── index.get.ts              ← Получить все доски
+│   ├── index.post.ts             ← Создать доску
+│   ├── [id]/
+│   │   ├── index.get.ts          ← Получить доску по ID
+│   │   ├── index.put.ts          ← Обновить доску
+│   │   ├── index.delete.ts       ← Удалить доску
+│   │   └── tasks/
+│   │       ├── index.get.ts      ← Получить задачи доски
+│   │       └── index.post.ts     ← Создать задачу в доске
+│   │
+├── tasks/
+│   ├── [id]/
+│   │   ├── index.get.ts          ← Получить задачу по ID
+│   │   ├── index.put.ts          ← Обновить задачу
+│   │   ├── index.delete.ts       ← Удалить задачу
+│   │   ├── subtasks/
+│   │   │   ├── index.get.ts      ← Получить подзадачи задачи
+│   │   │   └── index.post.ts     ← Создать подзадачу
+│   │   ├── tags/
+│   │   │   ├── index.get.ts      ← Получить теги задачи
+│   │   │   ├── index.post.ts     ← Добавить теги к задаче
+│   │   │   └── [tagId]/
+│   │   │       └── index.delete.ts ← Удалить тег из задачи
+│   │   ├── comments/
+│   │   │   ├── index.get.ts      ← Получить комментарии задачи
+│   │   │   └── index.post.ts     ← Создать комментарий
+│   │   └── attachments/
+│   │       ├── index.get.ts      ← Получить вложения задачи
+│   │       └── index.post.ts     ← Загрузить вложение
+│   │
+├── subtasks/
+│   ├── [id]/
+│   │   ├── index.put.ts          ← Обновить подзадачу
+│   │   ├── index.delete.ts       ← Удалить подзадачу
+│   │   └── complete.put.ts       ← Завершить/развернуть подзадачу
+│   │
+├── tags/
+│   ├── index.get.ts              ← Получить все теги
+│   ├── index.post.ts             ← Создать тег
+│   ├── [id]/
+│   │   ├── index.put.ts          ← Обновить тег
+│   │   └── index.delete.ts       ← Удалить тег
+│   │
+├── comments/
+│   ├── [id]/
+│   │   ├── index.put.ts          ← Обновить комментарий
+│   │   └── index.delete.ts       ← Удалить комментарий
+│   │
+└── attachments/
+    └── [id]/
+        └── index.delete.ts       ← Удалить вложение

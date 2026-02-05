@@ -568,3 +568,172 @@ export const portfoCaseWorks = mysqlTable('portfolio_case_works', {
 }, (table) => ({
   caseIdIndex: index('case_id_index').on(table.caseId)
 }))
+
+// ============================================
+// BOARDS MODULE - ДОСКА ЗАДАЧ
+// ============================================
+
+// 1. Доски задач
+export const boards = mysqlTable('boards', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(), // Название доски
+  description: text('description'), // Описание доски
+  type: varchar('type', {
+    length: 20,
+    enum: ['object', 'general']
+  }).default('general').notNull(), // Тип: привязана к объекту или общая
+  objectId: bigint('object_id', { mode: 'number', unsigned: true })
+    .references(() => objects.id, { onDelete: 'cascade' }), // Ссылка на объект (опционально)
+  createdBy: bigint('created_by', { mode: 'number', unsigned: true })
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }), // Кто создал
+  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: datetime('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull().$type<Date>()
+}, (table) => ({
+  typeIndex: index('type_idx').on(table.type),
+  objectIndex: index('object_idx').on(table.objectId)
+}))
+
+// 2. Основные задачи
+export const boardsTasks = mysqlTable('boards_tasks', {
+  id: serial('id').primaryKey(),
+  boardId: bigint('board_id', { mode: 'number', unsigned: true })
+    .notNull()
+    .references(() => boards.id, { onDelete: 'cascade' }), // Ссылка на доску
+  title: varchar('title', { length: 255 }).notNull(), // Название задачи
+  description: text('description'), // Описание задачи
+  status: varchar('status', {
+    length: 20,
+    enum: ['todo', 'in_progress', 'review', 'done', 'blocked', 'cancelled']
+  }).default('todo').notNull(), // Статус задачи
+  priority: varchar('priority', {
+    length: 20,
+    enum: ['low', 'medium', 'high', 'urgent']
+  }).default('medium').notNull(), // Приоритет
+  assignedTo: bigint('assigned_to', { mode: 'number', unsigned: true })
+    .references(() => users.id, { onDelete: 'set null' }), // Назначенный исполнитель
+  dueDate: datetime('due_date', { mode: 'string' }), // Срок выполнения
+  completedDate: datetime('completed_date', { mode: 'string' }), // Дата завершения
+  order: int('order').default(0).notNull(), // Порядок сортировки (по важности)
+  createdBy: bigint('created_by', { mode: 'number', unsigned: true })
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }), // Кто создал
+  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: datetime('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull().$type<Date>()
+}, (table) => ({
+  boardIndex: index('board_idx').on(table.boardId),
+  statusIndex: index('status_idx').on(table.status),
+  priorityIndex: index('priority_idx').on(table.priority),
+  assignedIndex: index('assigned_idx').on(table.assignedTo),
+  orderIndex: index('order_idx').on(table.boardId, table.order)
+}))
+
+// 3. Подзадачи (древовидная структура)
+export const boardsSubtasks = mysqlTable('boards_subtasks', {
+  id: serial('id').primaryKey(),
+  taskId: bigint('task_id', { mode: 'number', unsigned: true })
+    .notNull()
+    .references(() => boardsTasks.id, { onDelete: 'cascade' }), // Ссылка на задачу
+  parentId: bigint('parent_id', { mode: 'number', unsigned: true })
+    .references((): any => boardsSubtasks.id, { onDelete: 'cascade' }), // Самоссылка (для вложенности)
+  title: varchar('title', { length: 255 }).notNull(), // Название подзадачи
+  description: text('description'), // Описание подзадачи
+  isCompleted: boolean('is_completed').default(false).notNull(), // Завершена ли
+  completedAt: datetime('completed_at', { mode: 'string' }), // Время завершения
+  order: int('order').default(0).notNull(), // Порядок внутри уровня
+  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: datetime('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull().$type<Date>()
+}, (table) => ({
+  taskIndex: index('task_idx').on(table.taskId),
+  parentIndex: index('parent_idx').on(table.parentId),
+  completedIndex: index('completed_idx').on(table.isCompleted),
+  orderIndex: index('subtask_order_idx').on(table.taskId, table.parentId, table.order)
+}))
+
+// 4. Теги
+export const boardsTags = mysqlTable('boards_tags', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 50 }).notNull(), // Название тега (например: "срочное")
+  color: varchar('color', { length: 7 }).default('#6c757d').notNull(), // HEX цвет (#RRGGBB)
+  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`)
+}, (table) => ({
+  nameIndex: index('name_idx').on(table.name)
+}))
+
+// 5. Связь задач с тегами (многие-ко-многим)
+export const boardsTasksTags = mysqlTable('boards_tasks_tags', {
+  id: serial('id').primaryKey(),
+  taskId: bigint('task_id', { mode: 'number', unsigned: true })
+    .notNull()
+    .references(() => boardsTasks.id, { onDelete: 'cascade' }), // Ссылка на задачу
+  tagId: bigint('tag_id', { mode: 'number', unsigned: true })
+    .notNull()
+    .references(() => boardsTags.id, { onDelete: 'cascade' }) // Ссылка на тег
+}, (table) => ({
+  taskTagIndex: index('task_tag_idx').on(table.taskId, table.tagId),
+  tagIndex: index('tag_idx').on(table.tagId)
+}))
+
+// 6. Вложения (файлы/изображения)
+export const boardsAttachments = mysqlTable('boards_attachments', {
+  id: serial('id').primaryKey(),
+  taskId: bigint('task_id', { mode: 'number', unsigned: true })
+    .notNull()
+    .references(() => boardsTasks.id, { onDelete: 'cascade' }), // Ссылка на задачу
+  fileUrl: varchar('file_url', { length: 500 }).notNull(), // Путь к файлу
+  fileType: varchar('file_type', {
+    length: 20,
+    enum: ['image', 'document', 'video', 'other']
+  }).default('other').notNull(), // Тип файла
+  fileName: varchar('file_name', { length: 255 }).notNull(), // Имя файла
+  fileSize: bigint('file_size', { mode: 'number', unsigned: true }).default(0).notNull(), // Размер в байтах
+  uploadedBy: bigint('uploaded_by', { mode: 'number', unsigned: true })
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }), // Кто загрузил
+  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`)
+}, (table) => ({
+  taskIndex: index('attachment_task_idx').on(table.taskId),
+  typeIndex: index('attachment_type_idx').on(table.fileType)
+}))
+
+// 7. Комментарии
+export const boardsComments = mysqlTable('boards_comments', {
+  id: serial('id').primaryKey(),
+  taskId: bigint('task_id', { mode: 'number', unsigned: true })
+    .notNull()
+    .references(() => boardsTasks.id, { onDelete: 'cascade' }), // Ссылка на задачу
+  userId: bigint('user_id', { mode: 'number', unsigned: true })
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }), // Автор комментария
+  comment: text('comment').notNull(), // Текст комментария
+  parentId: bigint('parent_id', { mode: 'number', unsigned: true })
+    .references((): any => boardsComments.id, { onDelete: 'cascade' }), // Самоссылка (для ответов)
+  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: datetime('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull().$type<Date>()
+}, (table) => ({
+  taskIndex: index('comment_task_idx').on(table.taskId),
+  userIndex: index('comment_user_idx').on(table.userId),
+  parentIndex: index('comment_parent_idx').on(table.parentId)
+}))
+
+// 8. История изменений (лог активности)
+export const boardsActivityLog = mysqlTable('boards_activity_log', {
+  id: serial('id').primaryKey(),
+  taskId: bigint('task_id', { mode: 'number', unsigned: true })
+    .notNull()
+    .references(() => boardsTasks.id, { onDelete: 'cascade' }), // Ссылка на задачу
+  userId: bigint('user_id', { mode: 'number', unsigned: true })
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }), // Кто совершил действие
+  action: varchar('action', {
+    length: 50,
+    enum: ['created', 'updated', 'deleted', 'status_changed', 'assigned', 'commented', 'completed', 'priority_changed']
+  }).notNull(), // Тип действия
+  changes: text('changes'), // JSON с изменениями
+  timestamp: datetime('timestamp').default(sql`CURRENT_TIMESTAMP`).notNull()
+}, (table) => ({
+  taskIndex: index('activity_task_idx').on(table.taskId),
+  userIndex: index('activity_user_idx').on(table.userId),
+  actionIndex: index('activity_action_idx').on(table.action),
+  timestampIndex: index('activity_timestamp_idx').on(table.timestamp)
+}))

@@ -134,6 +134,13 @@
       "when": 1770109981289,
       "tag": "0018_loose_wind_dancer",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "5",
+      "when": 1770299405980,
+      "tag": "0019_smooth_chimera",
+      "breakpoints": true
     }
   ]
 }

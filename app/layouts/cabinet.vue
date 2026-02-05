@@ -7,23 +7,26 @@
   </main>
 </template>
 
-<!-- app/layouts/cabinet.vue -->
 <script setup lang="ts">
 import { onMounted, watch } from 'vue'
 import { useAuthStore } from '../../stores/auth'
 import { useSocketStore } from '../../stores/socket'
 import { useActivityTracker } from '~/composables/useActivityTracker'
+import { useUserStatusNotifications } from '~/composables/notifications/useUserStatus'
 import Container from '~/components/ui/notifications/Container.vue'
 
 const authStore = useAuthStore()
 const socketStore = useSocketStore()
 const activityTracker = useActivityTracker()
 
+// ✅ ИНИЦИАЛИЗИРУЕМ ОТСЛЕЖИВАНИЕ СТАТУСОВ ДРУГИХ ПОЛЬЗОВАТЕЛЕЙ
+const userStatusNotifications = useUserStatusNotifications()
+
 onMounted(() => {
   authStore.init()
 })
 
-// ✅ Останавливаем трекер при отключении сокета
+// Останавливаем трекер при отключении сокета
 watch(
   () => socketStore.isConnected,
   (isConnected) => {

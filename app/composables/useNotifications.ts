@@ -1,61 +1,39 @@
 // composables/useNotifications.ts
 import { useNotificationStore } from '../../stores/notifications'
 
+/**
+ * Универсальный композабл для работы с уведомлениями
+ */
 export function useNotifications() {
   const notificationStore = useNotificationStore()
-  
+
   return {
-    /**
-     * Показать уведомление об успехе
-     */
-    success: (message: string, title?: string) => {
-      notificationStore.success(message, title)
+    // Быстрые методы
+    success: (message: string, title = 'Успех') => {
+      return notificationStore.success(message, title)
     },
     
-    /**
-     * Показать уведомление об ошибке
-     */
-    error: (message: string, title?: string) => {
-      notificationStore.error(message, title)
+    error: (message: string, title = 'Ошибка') => {
+      return notificationStore.error(message, title)
     },
     
-    /**
-     * Показать предупреждение
-     */
-    warning: (message: string, title?: string) => {
-      notificationStore.warning(message, title)
+    warning: (message: string, title = 'Внимание') => {
+      return notificationStore.warning(message, title)
     },
     
-    /**
-     * Показать информационное уведомление
-     */
-    info: (message: string, title?: string) => {
-      notificationStore.info(message, title)
+    info: (message: string, title = 'Информация') => {
+      return notificationStore.info(message, title)
     },
     
-    /**
-     * Показать кастомное уведомление
-     */
-    show: (notification: {
-      type: 'success' | 'error' | 'warning' | 'info'
-      title: string
-      message: string
-      duration?: number
-      actions?: Array<{
-        text: string
-        class?: string
-        closeOnAction?: boolean
-        onClick?: () => void
-      }>
-    }) => {
-      notificationStore.show(notification)
-    },
+    // Полный метод
+    show: notificationStore.show.bind(notificationStore),
     
-    /**
-     * Очистить все уведомления
-     */
-    clear: () => {
-      notificationStore.clear()
+    // Управление
+    clear: notificationStore.clear.bind(notificationStore),
+    
+    // Статус
+    get notifications() {
+      return notificationStore.notifications
     }
   }
 }
