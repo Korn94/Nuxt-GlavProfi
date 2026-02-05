@@ -1,8 +1,7 @@
 // server/api/tasks/[id]/index.put.ts
 import { eventHandler, createError, readBody } from 'h3'
-import { db } from '../../../db'
-import { boardsTasks, boardsTasksTags } from '../../../db/schema'
-import { eq, and } from 'drizzle-orm'
+import { db, boardsTasks, boardsTasksTags } from '../../../db'
+import { eq } from 'drizzle-orm'
 import { verifyAuth } from '../../../utils/auth'
 
 export default eventHandler(async (event) => {
@@ -130,11 +129,16 @@ export default eventHandler(async (event) => {
     }
 
     // Обновляем задачу
-    const [updatedTask] = await db
+    await db
       .update(boardsTasks)
       .set(updateData)
       .where(eq(boardsTasks.id, taskId))
-      .returning()
+
+    // Получаем обновлённую задачу
+    const [updatedTask] = await db
+      .select()
+      .from(boardsTasks)
+      .where(eq(boardsTasks.id, taskId))
 
     // Если переданы теги, обновляем их
     if (body.tags !== undefined) {
@@ -170,7 +174,7 @@ export default eventHandler(async (event) => {
   } catch (error) {
     console.error('Error updating task:', error)
     
-    if ('statusCode' in error) {
+    if (error instanceof Error && 'statusCode' in error) {
       throw error
     }
     

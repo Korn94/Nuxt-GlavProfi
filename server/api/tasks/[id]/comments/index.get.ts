@@ -1,9 +1,28 @@
 // server/api/tasks/[id]/comments/index.get.ts
 import { eventHandler, createError } from 'h3'
-import { db } from '../../../../db'
-import { boardsComments, users } from '../../../../db/schema'
-import { eq, and, asc } from 'drizzle-orm'
+import { db, boardsTasks, boardsComments, users } from '../../../../db'
+import { eq, and, asc, isNull } from 'drizzle-orm'
 import { verifyAuth } from '../../../../utils/auth'
+
+// Тип для пользователя в комментарии
+interface CommentUser {
+  id: number
+  name: string
+  login: string
+}
+
+// Тип для комментария с пользователем и ответами
+interface CommentWithReplies {
+  id: number
+  taskId: number
+  userId: number
+  comment: string
+  parentId: number | null
+  createdAt: Date | null
+  updatedAt: Date
+  user: CommentUser | null
+  replies: CommentWithReplies[]
+}
 
 export default eventHandler(async (event) => {
   try {
@@ -25,8 +44,8 @@ export default eventHandler(async (event) => {
     // Проверяем, существует ли задача
     const [task] = await db
       .select()
-      .from(db.boardsTasks)
-      .where(eq(db.boardsTasks.id, taskId))
+      .from(boardsTasks)
+      .where(eq(boardsTasks.id, taskId))
 
     if (!task) {
       throw createError({
@@ -45,7 +64,7 @@ export default eventHandler(async (event) => {
   } catch (error) {
     console.error('Error fetching comments:', error)
     
-    if ('statusCode' in error) {
+    if (error instanceof Error && 'statusCode' in error) {
       throw error
     }
     
@@ -57,7 +76,7 @@ export default eventHandler(async (event) => {
 })
 
 // Вспомогательная функция для рекурсивного получения комментариев
-async function getCommentsForTask(taskId: number, parentId: number | null = null) {
+async function getCommentsForTask(taskId: number, parentId: number | null = null): Promise<CommentWithReplies[]> {
   const comments = await db
     .select({
       id: boardsComments.id,
@@ -71,7 +90,7 @@ async function getCommentsForTask(taskId: number, parentId: number | null = null
     .from(boardsComments)
     .where(and(
       eq(boardsComments.taskId, taskId),
-      parentId ? eq(boardsComments.parentId, parentId) : eq(boardsComments.parentId, null)
+      parentId !== null ? eq(boardsComments.parentId, parentId) : isNull(boardsComments.parentId)
     ))
     .orderBy(asc(boardsComments.createdAt))
 
@@ -95,9 +114,9 @@ async function getCommentsForTask(taskId: number, parentId: number | null = null
   )
 
   // Рекурсивно получаем дочерние комментарии (ответы)
-  const commentsWithReplies = await Promise.all(
+  const commentsWithReplies: CommentWithReplies[] = await Promise.all(
     commentsWithUsers.map(async (comment) => {
-      const replies = await getCommentsForTask(taskId, comment.id)
+      const replies: CommentWithReplies[] = await getCommentsForTask(taskId, comment.id)
       return {
         ...comment,
         replies
@@ -109,7 +128,7 @@ async function getCommentsForTask(taskId: number, parentId: number | null = null
 }
 
 // Вспомогательная функция для подсчёта всех комментариев (включая ответы)
-function countComments(comments: any[]): number {
+function countComments(comments: CommentWithReplies[]): number {
   return comments.reduce((count, comment) => {
     return count + 1 + (comment.replies ? countComments(comment.replies) : 0)
   }, 0)

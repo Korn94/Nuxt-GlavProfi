@@ -64,7 +64,7 @@ export default eventHandler(async (event) => {
     console.error('Error creating board:', error)
     
     // Если это уже созданный error из h3, пробрасываем его
-    if ('statusCode' in error) {
+    if (error instanceof Error && 'statusCode' in error) {
       throw error
     }
     

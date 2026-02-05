@@ -1,7 +1,6 @@
 // server/api/comments/[id]/index.put.ts
 import { eventHandler, createError, readBody } from 'h3'
-import { db } from '../../../db'
-import { boardsComments } from '../../../db/schema'
+import { db, boardsComments } from '../../../db'
 import { eq } from 'drizzle-orm'
 import { verifyAuth } from '../../../utils/auth'
 
@@ -55,13 +54,18 @@ export default eventHandler(async (event) => {
     }
 
     // Обновляем комментарий
-    const [updatedComment] = await db
+    await db
       .update(boardsComments)
       .set({
         comment: body.comment.trim()
       })
       .where(eq(boardsComments.id, commentId))
-      .returning()
+
+    // Получаем обновлённый комментарий
+    const [updatedComment] = await db
+      .select()
+      .from(boardsComments)
+      .where(eq(boardsComments.id, commentId))
 
     return {
       success: true,
@@ -70,7 +74,7 @@ export default eventHandler(async (event) => {
   } catch (error) {
     console.error('Error updating comment:', error)
     
-    if ('statusCode' in error) {
+    if (error instanceof Error && 'statusCode' in error) {
       throw error
     }
     

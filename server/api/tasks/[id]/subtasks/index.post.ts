@@ -1,7 +1,6 @@
 // server/api/tasks/[id]/subtasks/index.post.ts
 import { eventHandler, createError, readBody } from 'h3'
-import { db } from '../../../../db'
-import { boardsSubtasks } from '../../../../db/schema'
+import { db, boardsTasks, boardsSubtasks } from '../../../../db'
 import { eq } from 'drizzle-orm'
 import { verifyAuth } from '../../../../utils/auth'
 
@@ -25,8 +24,8 @@ export default eventHandler(async (event) => {
     // Проверяем, существует ли задача
     const [task] = await db
       .select()
-      .from(db.boardsTasks)
-      .where(eq(db.boardsTasks.id, taskId))
+      .from(boardsTasks)
+      .where(eq(boardsTasks.id, taskId))
 
     if (!task) {
       throw createError({
@@ -57,10 +56,19 @@ export default eventHandler(async (event) => {
     }
 
     // Создаём подзадачу
-    const [newSubtask] = await db
+    await db
       .insert(boardsSubtasks)
       .values(subtaskData)
-      .returning()
+
+    // Получаем только что созданную подзадачу
+    const newSubtasks = await db
+      .select()
+      .from(boardsSubtasks)
+      .where(eq(boardsSubtasks.taskId, taskId))
+      .orderBy(boardsSubtasks.id)
+      .limit(1)
+
+    const newSubtask = newSubtasks[0]
 
     return {
       success: true,
@@ -69,7 +77,7 @@ export default eventHandler(async (event) => {
   } catch (error) {
     console.error('Error creating subtask:', error)
     
-    if ('statusCode' in error) {
+    if (error instanceof Error && 'statusCode' in error) {
       throw error
     }
     

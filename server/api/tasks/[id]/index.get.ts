@@ -1,9 +1,35 @@
 // server/api/tasks/[id]/index.get.ts
 import { eventHandler, createError } from 'h3'
-import { db } from '../../../db'
-import { boardsTasks, boardsSubtasks, boardsTasksTags, boardsTags, boardsAttachments, boardsComments } from '../../../db/schema'
-import { eq, and, asc } from 'drizzle-orm'
+import { db, boardsTasks, boardsSubtasks, boardsTasksTags, boardsTags, boardsAttachments, boardsComments } from '../../../db'
+import { eq, and, asc, isNull } from 'drizzle-orm'
 import { verifyAuth } from '../../../utils/auth'
+
+// Тип для подзадачи с вложенными подзадачами
+interface SubtaskWithChildren {
+  id: number
+  taskId: number
+  parentId: number | null
+  title: string
+  description: string | null
+  isCompleted: boolean
+  completedAt: string | null
+  order: number
+  createdAt: Date | null
+  updatedAt: Date
+  subtasks: SubtaskWithChildren[]
+}
+
+// Тип для комментария с ответами
+interface CommentWithReplies {
+  id: number
+  taskId: number
+  userId: number
+  comment: string
+  parentId: number | null
+  createdAt: Date | null
+  updatedAt: Date
+  replies: CommentWithReplies[]
+}
 
 export default eventHandler(async (event) => {
   try {
@@ -94,7 +120,7 @@ export default eventHandler(async (event) => {
   } catch (error) {
     console.error('Error fetching task:', error)
     
-    if ('statusCode' in error) {
+    if (error instanceof Error && 'statusCode' in error) {
       throw error
     }
     
@@ -106,7 +132,7 @@ export default eventHandler(async (event) => {
 })
 
 // Вспомогательная функция для рекурсивного получения подзадач
-async function getSubtasksForTask(taskId: number, parentId: number | null = null) {
+async function getSubtasksForTask(taskId: number, parentId: number | null = null): Promise<SubtaskWithChildren[]> {
   const subtasks = await db
     .select({
       id: boardsSubtasks.id,
@@ -123,14 +149,14 @@ async function getSubtasksForTask(taskId: number, parentId: number | null = null
     .from(boardsSubtasks)
     .where(and(
       eq(boardsSubtasks.taskId, taskId),
-      parentId ? eq(boardsSubtasks.parentId, parentId) : eq(boardsSubtasks.parentId, null)
+      parentId !== null ? eq(boardsSubtasks.parentId, parentId) : isNull(boardsSubtasks.parentId)
     ))
     .orderBy(asc(boardsSubtasks.order))
 
   // Рекурсивно получаем дочерние подзадачи
-  const subtasksWithChildren = await Promise.all(
+  const subtasksWithChildren: SubtaskWithChildren[] = await Promise.all(
     subtasks.map(async (subtask) => {
-      const children = await getSubtasksForTask(taskId, subtask.id)
+      const children: SubtaskWithChildren[] = await getSubtasksForTask(taskId, subtask.id)
       return {
         ...subtask,
         subtasks: children
@@ -142,7 +168,7 @@ async function getSubtasksForTask(taskId: number, parentId: number | null = null
 }
 
 // Вспомогательная функция для рекурсивного получения комментариев
-async function getCommentsForTask(taskId: number, parentId: number | null = null) {
+async function getCommentsForTask(taskId: number, parentId: number | null = null): Promise<CommentWithReplies[]> {
   const comments = await db
     .select({
       id: boardsComments.id,
@@ -156,14 +182,14 @@ async function getCommentsForTask(taskId: number, parentId: number | null = null
     .from(boardsComments)
     .where(and(
       eq(boardsComments.taskId, taskId),
-      parentId ? eq(boardsComments.parentId, parentId) : eq(boardsComments.parentId, null)
+      parentId !== null ? eq(boardsComments.parentId, parentId) : isNull(boardsComments.parentId)
     ))
     .orderBy(asc(boardsComments.createdAt))
 
   // Рекурсивно получаем дочерние комментарии (ответы)
-  const commentsWithReplies = await Promise.all(
+  const commentsWithReplies: CommentWithReplies[] = await Promise.all(
     comments.map(async (comment) => {
-      const replies = await getCommentsForTask(taskId, comment.id)
+      const replies: CommentWithReplies[] = await getCommentsForTask(taskId, comment.id)
       return {
         ...comment,
         replies

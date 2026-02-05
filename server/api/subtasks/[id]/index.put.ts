@@ -1,7 +1,6 @@
 // server/api/subtasks/[id]/index.put.ts
 import { eventHandler, createError, readBody } from 'h3'
-import { db } from '../../../db'
-import { boardsSubtasks } from '../../../db/schema'
+import { db, boardsSubtasks } from '../../../db'
 import { eq } from 'drizzle-orm'
 import { verifyAuth } from '../../../utils/auth'
 
@@ -121,11 +120,16 @@ export default eventHandler(async (event) => {
     }
 
     // Обновляем подзадачу
-    const [updatedSubtask] = await db
+    await db
       .update(boardsSubtasks)
       .set(updateData)
       .where(eq(boardsSubtasks.id, subtaskId))
-      .returning()
+
+    // Получаем обновлённую подзадачу
+    const [updatedSubtask] = await db
+      .select()
+      .from(boardsSubtasks)
+      .where(eq(boardsSubtasks.id, subtaskId))
 
     return {
       success: true,
@@ -134,7 +138,7 @@ export default eventHandler(async (event) => {
   } catch (error) {
     console.error('Error updating subtask:', error)
     
-    if ('statusCode' in error) {
+    if (error instanceof Error && 'statusCode' in error) {
       throw error
     }
     

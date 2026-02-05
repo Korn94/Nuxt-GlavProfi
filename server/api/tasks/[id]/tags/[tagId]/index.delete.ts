@@ -1,6 +1,6 @@
 // server/api/tasks/[id]/tags/[tagId]/index.delete.ts
 import { eventHandler, createError } from 'h3'
-import { db } from '../../../../../db'
+import { db, boardsTasks } from '../../../../../db'
 import { boardsTasksTags } from '../../../../../db/schema'
 import { eq, and } from 'drizzle-orm'
 import { verifyAuth } from '../../../../../utils/auth'
@@ -32,10 +32,7 @@ export default eventHandler(async (event) => {
     const tagId = Number(tagIdParam)
 
     // Проверяем, существует ли задача
-    const [task] = await db
-      .select()
-      .from(db.boardsTasks)
-      .where(eq(db.boardsTasks.id, taskId))
+    const [task] = await db.select().from(boardsTasks).where(eq(boardsTasks.id, taskId))
 
     if (!task) {
       throw createError({
@@ -75,7 +72,7 @@ export default eventHandler(async (event) => {
   } catch (error) {
     console.error('Error removing tag from task:', error)
     
-    if ('statusCode' in error) {
+    if (error instanceof Error && 'statusCode' in error) {
       throw error
     }
     

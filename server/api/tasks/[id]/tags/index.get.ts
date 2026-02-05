@@ -1,6 +1,6 @@
 // server/api/tasks/[id]/tags/index.get.ts
 import { eventHandler, createError } from 'h3'
-import { db } from '../../../../db'
+import { db, boardsTasks } from '../../../../db'
 import { boardsTasksTags, boardsTags } from '../../../../db/schema'
 import { eq } from 'drizzle-orm'
 import { verifyAuth } from '../../../../utils/auth'
@@ -23,10 +23,7 @@ export default eventHandler(async (event) => {
     const taskIdNum = Number(taskId)
 
     // Проверяем, существует ли задача
-    const [task] = await db
-      .select()
-      .from(db.boardsTasks)
-      .where(eq(db.boardsTasks.id, taskIdNum))
+    const [task] = await db.select().from(boardsTasks).where(eq(boardsTasks.id, taskIdNum))
 
     if (!task) {
       throw createError({
@@ -54,7 +51,7 @@ export default eventHandler(async (event) => {
   } catch (error) {
     console.error('Error fetching task tags:', error)
     
-    if ('statusCode' in error) {
+    if (error instanceof Error && 'statusCode' in error) {
       throw error
     }
     

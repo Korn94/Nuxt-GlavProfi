@@ -1,7 +1,7 @@
 // server/api/tags/index.post.ts
 import { eventHandler, createError, readBody } from 'h3'
-import { db } from '../../db'
-import { boardsTags } from '../../db/schema'
+import { db, boardsTags } from '../../db'
+import { eq } from 'drizzle-orm'
 import { verifyAuth } from '../../utils/auth'
 
 export default eventHandler(async (event) => {
@@ -24,7 +24,7 @@ export default eventHandler(async (event) => {
     const existingTags = await db
       .select()
       .from(boardsTags)
-      .where(db.boardsTags.name === body.name.trim())
+      .where(eq(boardsTags.name, body.name.trim()))
 
     if (existingTags.length > 0) {
       throw createError({
@@ -47,13 +47,22 @@ export default eventHandler(async (event) => {
     }
 
     // Создаём тег
-    const [newTag] = await db
+    await db
       .insert(boardsTags)
       .values({
         name: body.name.trim(),
         color: color
       })
-      .returning()
+
+    // Получаем только что созданный тег
+    const newTags = await db
+      .select()
+      .from(boardsTags)
+      .where(eq(boardsTags.name, body.name.trim()))
+      .orderBy(boardsTags.id)
+      .limit(1)
+
+    const newTag = newTags[0]
 
     return {
       success: true,
@@ -62,7 +71,7 @@ export default eventHandler(async (event) => {
   } catch (error) {
     console.error('Error creating tag:', error)
     
-    if ('statusCode' in error) {
+    if (error instanceof Error && 'statusCode' in error) {
       throw error
     }
     

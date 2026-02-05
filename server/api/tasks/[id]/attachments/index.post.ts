@@ -1,8 +1,7 @@
 // server/api/tasks/[id]/attachments/index.post.ts
-import { eventHandler, createError } from 'h3'
-import { db } from '../../../../db'
-import { boardsAttachments } from '../../../../db/schema'
-import { eq } from 'drizzle-orm'
+import { eventHandler, createError, readMultipartFormData } from 'h3'
+import { db, boardsTasks, boardsAttachments } from '../../../../db'
+import { eq, desc } from 'drizzle-orm'
 import { verifyAuth } from '../../../../utils/auth'
 import fs from 'fs'
 import path from 'path'
@@ -47,8 +46,8 @@ export default eventHandler(async (event) => {
     // Проверяем, существует ли задача
     const [task] = await db
       .select()
-      .from(db.boardsTasks)
-      .where(eq(db.boardsTasks.id, taskId))
+      .from(boardsTasks)
+      .where(eq(boardsTasks.id, taskId))
 
     if (!task) {
       throw createError({
@@ -125,7 +124,7 @@ export default eventHandler(async (event) => {
       const fileUrl = `/uploads/boards/${fileType}/${safeFilename}`
 
       // Создаём запись в базе данных
-      const [attachment] = await db
+      await db
         .insert(boardsAttachments)
         .values({
           taskId: taskId,
@@ -135,7 +134,16 @@ export default eventHandler(async (event) => {
           fileSize: fileBuffer.length,
           uploadedBy: user.id
         })
-        .returning()
+
+      // Получаем только что созданное вложение
+      const newAttachments = await db
+        .select()
+        .from(boardsAttachments)
+        .where(eq(boardsAttachments.taskId, taskId))
+        .orderBy(desc(boardsAttachments.id))
+        .limit(1)
+
+      const attachment = newAttachments[0]
 
       uploadedFiles.push({
         ...attachment,
@@ -158,7 +166,7 @@ export default eventHandler(async (event) => {
   } catch (error) {
     console.error('Error uploading attachments:', error)
     
-    if ('statusCode' in error) {
+    if (error instanceof Error && 'statusCode' in error) {
       throw error
     }
     

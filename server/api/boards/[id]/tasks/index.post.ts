@@ -1,8 +1,7 @@
 // server/api/boards/[id]/tasks/index.post.ts
 import { eventHandler, createError, readBody } from 'h3'
-import { db } from '../../../../db'
-import { boardsTasks, boardsTasksTags } from '../../../../db/schema'
-import { eq } from 'drizzle-orm'
+import { db, boards, boardsTasks, boardsTasksTags } from '../../../../db'
+import { eq, desc } from 'drizzle-orm'
 import { verifyAuth } from '../../../../utils/auth'
 
 export default eventHandler(async (event) => {
@@ -25,8 +24,8 @@ export default eventHandler(async (event) => {
     // Проверяем, существует ли доска
     const [board] = await db
       .select()
-      .from(db.boards)
-      .where(eq(db.boards.id, boardId))
+      .from(boards)
+      .where(eq(boards.id, boardId))
 
     if (!board) {
       throw createError({
@@ -78,10 +77,26 @@ export default eventHandler(async (event) => {
     }
 
     // Создаём задачу
-    const [newTask] = await db
+    await db
       .insert(boardsTasks)
       .values(taskData)
-      .returning()
+
+    // Получаем только что созданную задачу
+    const newTasks = await db
+      .select()
+      .from(boardsTasks)
+      .where(eq(boardsTasks.boardId, boardId))
+      .orderBy(desc(boardsTasks.id))
+      .limit(1)
+
+    const newTask = newTasks[0]
+
+    if (!newTask) {
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Не удалось создать задачу'
+      })
+    }
 
     // Если переданы теги, добавляем их
     if (body.tags && Array.isArray(body.tags) && body.tags.length > 0) {
@@ -102,7 +117,7 @@ export default eventHandler(async (event) => {
   } catch (error) {
     console.error('Error creating task:', error)
     
-    if ('statusCode' in error) {
+    if (error instanceof Error && 'statusCode' in error) {
       throw error
     }
     

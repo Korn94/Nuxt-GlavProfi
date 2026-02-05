@@ -1,8 +1,7 @@
 // server/api/tasks/[id]/comments/index.post.ts
 import { eventHandler, createError, readBody } from 'h3'
-import { db } from '../../../../db'
-import { boardsComments } from '../../../../db/schema'
-import { eq } from 'drizzle-orm'
+import { db, boardsTasks, boardsComments } from '../../../../db'
+import { eq, desc } from 'drizzle-orm'
 import { verifyAuth } from '../../../../utils/auth'
 
 export default eventHandler(async (event) => {
@@ -25,8 +24,8 @@ export default eventHandler(async (event) => {
     // Проверяем, существует ли задача
     const [task] = await db
       .select()
-      .from(db.boardsTasks)
-      .where(eq(db.boardsTasks.id, taskId))
+      .from(boardsTasks)
+      .where(eq(boardsTasks.id, taskId))
 
     if (!task) {
       throw createError({
@@ -78,10 +77,19 @@ export default eventHandler(async (event) => {
     }
 
     // Создаём комментарий
-    const [newComment] = await db
+    await db
       .insert(boardsComments)
       .values(commentData)
-      .returning()
+
+    // Получаем только что созданный комментарий
+    const newComments = await db
+      .select()
+      .from(boardsComments)
+      .where(eq(boardsComments.taskId, taskId))
+      .orderBy(desc(boardsComments.id))
+      .limit(1)
+
+    const newComment = newComments[0]
 
     return {
       success: true,
@@ -90,7 +98,7 @@ export default eventHandler(async (event) => {
   } catch (error) {
     console.error('Error creating comment:', error)
     
-    if ('statusCode' in error) {
+    if (error instanceof Error && 'statusCode' in error) {
       throw error
     }
     

@@ -60,7 +60,7 @@ export default eventHandler(async (event) => {
   } catch (error) {
     console.error('Error deleting tag:', error)
     
-    if ('statusCode' in error) {
+    if (error instanceof Error && 'statusCode' in error) {
       throw error
     }
     

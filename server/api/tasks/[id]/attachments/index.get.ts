@@ -1,7 +1,6 @@
 // server/api/tasks/[id]/attachments/index.get.ts
 import { eventHandler, createError } from 'h3'
-import { db } from '../../../../db'
-import { boardsAttachments, users } from '../../../../db/schema'
+import { db, boardsTasks, boardsAttachments, users } from '../../../../db'
 import { eq, asc } from 'drizzle-orm'
 import { verifyAuth } from '../../../../utils/auth'
 
@@ -25,8 +24,8 @@ export default eventHandler(async (event) => {
     // Проверяем, существует ли задача
     const [task] = await db
       .select()
-      .from(db.boardsTasks)
-      .where(eq(db.boardsTasks.id, taskId))
+      .from(boardsTasks)
+      .where(eq(boardsTasks.id, taskId))
 
     if (!task) {
       throw createError({
@@ -77,7 +76,7 @@ export default eventHandler(async (event) => {
   } catch (error) {
     console.error('Error fetching attachments:', error)
     
-    if ('statusCode' in error) {
+    if (error instanceof Error && 'statusCode' in error) {
       throw error
     }
     

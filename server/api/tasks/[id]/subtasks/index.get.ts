@@ -1,9 +1,23 @@
 // server/api/tasks/[id]/subtasks/index.get.ts
 import { eventHandler, createError } from 'h3'
-import { db } from '../../../../db'
-import { boardsSubtasks } from '../../../../db/schema'
-import { eq, and, asc } from 'drizzle-orm'
+import { db, boardsTasks, boardsSubtasks } from '../../../../db'
+import { eq, and, asc, isNull } from 'drizzle-orm'
 import { verifyAuth } from '../../../../utils/auth'
+
+// Тип для подзадачи с вложенными подзадачами
+interface SubtaskWithChildren {
+  id: number
+  taskId: number
+  parentId: number | null
+  title: string
+  description: string | null
+  isCompleted: boolean
+  completedAt: string | null
+  order: number
+  createdAt: Date | null
+  updatedAt: Date
+  subtasks: SubtaskWithChildren[]
+}
 
 export default eventHandler(async (event) => {
   try {
@@ -25,8 +39,8 @@ export default eventHandler(async (event) => {
     // Проверяем, существует ли задача
     const [task] = await db
       .select()
-      .from(db.boardsTasks)
-      .where(eq(db.boardsTasks.id, taskId))
+      .from(boardsTasks)
+      .where(eq(boardsTasks.id, taskId))
 
     if (!task) {
       throw createError({
@@ -45,7 +59,7 @@ export default eventHandler(async (event) => {
   } catch (error) {
     console.error('Error fetching subtasks:', error)
     
-    if ('statusCode' in error) {
+    if (error instanceof Error && 'statusCode' in error) {
       throw error
     }
     
@@ -57,7 +71,7 @@ export default eventHandler(async (event) => {
 })
 
 // Вспомогательная функция для рекурсивного получения подзадач
-async function getSubtasksForTask(taskId: number, parentId: number | null = null) {
+async function getSubtasksForTask(taskId: number, parentId: number | null = null): Promise<SubtaskWithChildren[]> {
   const subtasks = await db
     .select({
       id: boardsSubtasks.id,
@@ -74,14 +88,14 @@ async function getSubtasksForTask(taskId: number, parentId: number | null = null
     .from(boardsSubtasks)
     .where(and(
       eq(boardsSubtasks.taskId, taskId),
-      parentId ? eq(boardsSubtasks.parentId, parentId) : eq(boardsSubtasks.parentId, null)
+      parentId !== null ? eq(boardsSubtasks.parentId, parentId) : isNull(boardsSubtasks.parentId)
     ))
     .orderBy(asc(boardsSubtasks.order))
 
   // Рекурсивно получаем дочерние подзадачи
-  const subtasksWithChildren = await Promise.all(
+  const subtasksWithChildren: SubtaskWithChildren[] = await Promise.all(
     subtasks.map(async (subtask) => {
-      const children = await getSubtasksForTask(taskId, subtask.id)
+      const children: SubtaskWithChildren[] = await getSubtasksForTask(taskId, subtask.id)
       return {
         ...subtask,
         subtasks: children
@@ -93,7 +107,7 @@ async function getSubtasksForTask(taskId: number, parentId: number | null = null
 }
 
 // Вспомогательная функция для подсчёта всех подзадач (включая вложенные)
-function countSubtasks(subtasks: any[]): number {
+function countSubtasks(subtasks: SubtaskWithChildren[]): number {
   return subtasks.reduce((count, subtask) => {
     return count + 1 + (subtask.subtasks ? countSubtasks(subtask.subtasks) : 0)
   }, 0)

@@ -1,8 +1,7 @@
 // server/api/tasks/[id]/tags/index.post.ts
 import { eventHandler, createError, readBody } from 'h3'
-import { db } from '../../../../db'
-import { boardsTasksTags } from '../../../../db/schema'
-import { eq } from 'drizzle-orm'
+import { db, boardsTasks, boardsTags, boardsTasksTags } from '../../../../db'
+import { eq, inArray } from 'drizzle-orm'
 import { verifyAuth } from '../../../../utils/auth'
 
 export default eventHandler(async (event) => {
@@ -25,8 +24,8 @@ export default eventHandler(async (event) => {
     // Проверяем, существует ли задача
     const [task] = await db
       .select()
-      .from(db.boardsTasks)
-      .where(eq(db.boardsTasks.id, taskIdNum))
+      .from(boardsTasks)
+      .where(eq(boardsTasks.id, taskIdNum))
 
     if (!task) {
       throw createError({
@@ -49,8 +48,8 @@ export default eventHandler(async (event) => {
     // Проверяем, что все теги существуют
     const existingTags = await db
       .select()
-      .from(db.boardsTags)
-      .where(db.boardsTags.id.inArray(body.tagIds))
+      .from(boardsTags)
+      .where(inArray(boardsTags.id, body.tagIds))
 
     if (existingTags.length !== body.tagIds.length) {
       throw createError({
@@ -68,7 +67,6 @@ export default eventHandler(async (event) => {
     await db
       .insert(boardsTasksTags)
       .values(tagRelations)
-      .onDuplicateKeyUpdate({ set: { taskId: taskIdNum, tagId: boardsTasksTags.tagId } })
 
     return {
       success: true,
@@ -77,7 +75,7 @@ export default eventHandler(async (event) => {
   } catch (error) {
     console.error('Error adding tags to task:', error)
     
-    if ('statusCode' in error) {
+    if (error instanceof Error && 'statusCode' in error) {
       throw error
     }
     

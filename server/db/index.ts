@@ -25,3 +25,41 @@ pool.on('connection', (connection) => {
 
 // Инициализируем Drizzle ORM
 export const db = drizzle(pool, { schema, mode: 'default' })
+
+// Экспортируем все таблицы из схемы для удобного использования
+export const {
+  users,
+  userSessions,
+  objects,
+  objectContracts,
+  objectBudget,
+  objectActs,
+  objectInvoices,
+  materials,
+  comings,
+  expenses,
+  works,
+  masters,
+  workers,
+  foremans,
+  offices,
+  salaryDeductions,
+  pricePages,
+  priceCategories,
+  priceSubCategories,
+  priceItems,
+  priceItemDetails,
+  priceAdditionalItems,
+  portfolioCases,
+  portfolioImages,
+  portfoCaseWorks,
+  // Новые таблицы доски задач
+  boards,
+  boardsTasks,
+  boardsSubtasks,
+  boardsTags,
+  boardsTasksTags,
+  boardsAttachments,
+  boardsComments,
+  boardsActivityLog
+} = schema

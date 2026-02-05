@@ -1,7 +1,6 @@
 // server/api/tags/[id]/index.put.ts
 import { eventHandler, createError, readBody } from 'h3'
-import { db } from '../../../db'
-import { boardsTags } from '../../../db/schema'
+import { db, boardsTags } from '../../../db'
 import { eq } from 'drizzle-orm'
 import { verifyAuth } from '../../../utils/auth'
 
@@ -87,11 +86,16 @@ export default eventHandler(async (event) => {
     }
 
     // Обновляем тег
-    const [updatedTag] = await db
+    await db
       .update(boardsTags)
       .set(updateData)
       .where(eq(boardsTags.id, tagId))
-      .returning()
+
+    // Получаем обновлённый тег
+    const [updatedTag] = await db
+      .select()
+      .from(boardsTags)
+      .where(eq(boardsTags.id, tagId))
 
     return {
       success: true,
@@ -100,7 +104,7 @@ export default eventHandler(async (event) => {
   } catch (error) {
     console.error('Error updating tag:', error)
     
-    if ('statusCode' in error) {
+    if (error instanceof Error && 'statusCode' in error) {
       throw error
     }
     

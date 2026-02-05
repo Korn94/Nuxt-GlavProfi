@@ -1,7 +1,6 @@
 // server/api/boards/[id]/index.put.ts
 import { eventHandler, createError, readBody } from 'h3'
-import { db } from '../../../db'
-import { boards } from '../../../db/schema'
+import { db, boards } from '../../../db'
 import { eq } from 'drizzle-orm'
 import { verifyAuth } from '../../../utils/auth'
 
@@ -92,11 +91,16 @@ export default eventHandler(async (event) => {
     }
 
     // Обновляем доску
-    const [updatedBoard] = await db
+    await db
       .update(boards)
       .set(updateData)
       .where(eq(boards.id, boardId))
-      .returning()
+
+    // Получаем обновлённую доску
+    const [updatedBoard] = await db
+      .select()
+      .from(boards)
+      .where(eq(boards.id, boardId))
 
     return {
       success: true,
@@ -105,7 +109,7 @@ export default eventHandler(async (event) => {
   } catch (error) {
     console.error('Error updating board:', error)
     
-    if ('statusCode' in error) {
+    if (error instanceof Error && 'statusCode' in error) {
       throw error
     }
     
