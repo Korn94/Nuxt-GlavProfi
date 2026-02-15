@@ -2,6 +2,10 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Board, CreateBoardData, UpdateBoardData } from '~/types/boards'
+export { useTasksStore } from './tasks'
+export { useSubtasksStore } from './subtasks'
+export { useTagsStore } from './tags'
+export { useTaskModalStore } from './taskModal'
 
 export const useBoardsStore = defineStore('boards', () => {
   // ============ STATE ============

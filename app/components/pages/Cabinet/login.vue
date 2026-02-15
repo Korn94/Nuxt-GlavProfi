@@ -1,3 +1,4 @@
+<!-- app\components\pages\Cabinet\login.vue -->
 <template>
   <div class="background">
     <img src="/main/login2.jpg" alt="Фон для входа" class="background-image" />

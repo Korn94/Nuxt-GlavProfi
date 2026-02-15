@@ -1,13 +1,57 @@
 // app/composables/boards/useSubtasks.ts
 import { useSubtasksStore } from '../../../stores/boards/subtasks'
+import { useSocketStore } from '../../../stores/socket'
 
 export function useSubtasks() {
   const subtasksStore = useSubtasksStore()
+  const socketStore = useSocketStore()
 
-  // Получить все подзадачи задачи
+  // ✅ ПОДПИСКА НА СОКЕТ-СОБЫТИЯ
+  const subscribeToTask = (taskId: number) => {
+    console.log(`[Subtasks] Subscribing to task ${taskId}`)
+    
+    socketStore.on(`task:${taskId}:subtask:created`, (data: { subtask: any }) => {
+      console.log('[Subtasks] 🆕 Subtask created via socket:', data.subtask.id)
+      subtasksStore.subtasks.push(data.subtask)
+    })
+
+    socketStore.on(`task:${taskId}:subtask:updated`, (data: { subtaskId: number; subtask: any }) => {
+      console.log('[Subtasks] 🔄 Subtask updated via socket:', data.subtaskId)
+      const index = subtasksStore.subtasks.findIndex(s => s.id === data.subtaskId)
+      if (index !== -1) {
+        subtasksStore.subtasks[index] = { ...data.subtask }
+      }
+    })
+
+    socketStore.on(`task:${taskId}:subtask:deleted`, (data: { subtaskId: number }) => {
+      console.log('[Subtasks] 🗑️ Subtask deleted via socket:', data.subtaskId)
+      // Удаляем подзадачу и все её дочерние
+      const getAllChildrenIds = (parentId: number): number[] => {
+        const children = subtasksStore.subtasks.filter(s => s.parentId === parentId)
+        return children.reduce((ids, child) => {
+          return [...ids, child.id, ...getAllChildrenIds(child.id)]
+        }, [] as number[])
+      }
+      const childrenIds = getAllChildrenIds(data.subtaskId)
+      subtasksStore.subtasks = subtasksStore.subtasks.filter(
+        s => s.id !== data.subtaskId && !childrenIds.includes(s.id)
+      )
+    })
+  }
+
+  // ✅ ОТПИСКА
+  const unsubscribeFromTask = (taskId: number) => {
+    console.log(`[Subtasks] Unsubscribing from task ${taskId}`)
+    socketStore.off(`task:${taskId}:subtask:created`)
+    socketStore.off(`task:${taskId}:subtask:updated`)
+    socketStore.off(`task:${taskId}:subtask:deleted`)
+  }
+
+  // ✅ Получить все подзадачи задачи (с подпиской на сокеты)
   const fetchSubtasks = async (taskId: number) => {
     try {
       await subtasksStore.fetchSubtasks(taskId)
+      subscribeToTask(taskId) // ← Подписываемся после загрузки
       return subtasksStore.allSubtasks
     } catch (error) {
       console.error('Error fetching subtasks:', error)
@@ -115,6 +159,9 @@ export function useSubtasks() {
     getSubtasksByTaskId,
     getRootSubtasks,
     getAllChildSubtasks,
-    clearSubtasks
+    clearSubtasks,
+    // ✅ СОКЕТЫ
+    subscribeToTask,
+    unsubscribeFromTask
   }
 }

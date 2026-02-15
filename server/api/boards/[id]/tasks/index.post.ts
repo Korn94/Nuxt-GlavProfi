@@ -3,6 +3,7 @@ import { eventHandler, createError, readBody } from 'h3'
 import { db, boards, boardsTasks, boardsTasksTags } from '../../../../db'
 import { eq, desc } from 'drizzle-orm'
 import { verifyAuth } from '../../../../utils/auth'
+import { handleTaskCreate } from '../../../../socket/handlers/tasks'
 
 export default eventHandler(async (event) => {
   try {
@@ -77,19 +78,18 @@ export default eventHandler(async (event) => {
     }
 
     // Создаём задачу
+    // ✅ ПРОСТО ВСТАВЛЯЕМ ЗАДАЧУ
     await db
       .insert(boardsTasks)
       .values(taskData)
 
-    // Получаем только что созданную задачу
-    const newTasks = await db
+    // ✅ ПОЛУЧАЕМ СОЗДАННУЮ ЗАДАЧУ ПО ПОСЛЕДНЕМУ ID
+    const [newTask] = await db
       .select()
       .from(boardsTasks)
       .where(eq(boardsTasks.boardId, boardId))
       .orderBy(desc(boardsTasks.id))
       .limit(1)
-
-    const newTask = newTasks[0]
 
     if (!newTask) {
       throw createError({
@@ -110,9 +110,28 @@ export default eventHandler(async (event) => {
         .values(tagRelations)
     }
 
+    // ✅ КОНВЕРТИРУЕМ ДАТЫ В СТРОКИ И ГАРАНТИРУЕМ НЕ-NULL ЗНАЧЕНИЯ
+    const taskForResponse = {
+      ...newTask,
+      createdAt: newTask.createdAt 
+        ? new Date(newTask.createdAt).toISOString() 
+        : new Date().toISOString(),
+      updatedAt: newTask.updatedAt 
+        ? new Date(newTask.updatedAt).toISOString() 
+        : new Date().toISOString(),
+      completedDate: newTask.completedDate || null,
+      dueDate: newTask.dueDate || null
+    }
+
+    // ✅ ОТПРАВЛЯЕМ СОКЕТ-СОБЫТИЕ
+    const io = event.context.nitro?.io
+    if (io) {
+      handleTaskCreate(io, newTask.id, taskForResponse, boardId)
+    }
+
     return {
       success: true,
-      task: newTask
+      task: taskForResponse
     }
   } catch (error) {
     console.error('Error creating task:', error)

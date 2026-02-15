@@ -3,6 +3,7 @@ import { Server, type Socket } from 'socket.io'
 import { socketAuthMiddleware } from './middleware/auth'
 import { setupUserHandlers, setupActivityHandlers } from './handlers'
 import { setupStatusHandlers } from './handlers/status'
+import { registerTaskHandlers } from './handlers/tasks' // ← Новый импорт
 
 // Глобальное хранилище активных подключений
 const activeSockets = new Map<number, Socket>()
@@ -12,6 +13,9 @@ const activeSockets = new Map<number, Socket>()
  * @param io Экземпляр сервера Socket.IO
  */
 export function setupSocketServer(io: Server) {
+  // Регистрируем обработчики задач ДО подключения клиентов
+  registerTaskHandlers(io)
+  
   // Регистрируем middleware для аутентификации
   io.use(socketAuthMiddleware)
   
@@ -32,6 +36,13 @@ export function setupSocketServer(io: Server) {
       console.error('Connection error:', error)
       socket.disconnect(true)
     }
+
+      // ✅ отладочный обработчик
+      socket.on('debug:rooms', () => {
+      const rooms = Array.from(socket.rooms)
+      console.log(`[Socket] User ${socket.id} rooms:`, rooms)
+      socket.emit('debug:rooms', { rooms })
+    })
   })
   
   console.log('Socket.IO handlers registered')

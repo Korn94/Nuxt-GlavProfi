@@ -83,6 +83,8 @@ const menuItems = [
   { title: 'Онлайн', path: '/cabinet/online', roles: ['admin'] },
   { title: 'Тест', path: '/cabinet/testpage', roles: ['admin'] },
   { divider: true }, // Разделитель после "Операции"
+  { title: 'Доска', path: '/cabinet/boards', roles: ['admin'] },
+  { divider: true }, // Разделитель после "Операции"
   { title: 'На сайт', path: '/', roles: ['admin', 'manager', 'foreman', 'master', 'worker'] },
   { title: 'Новый кейс', path: '/projects/create', roles: ['admin', 'manager'] },
   { title: 'Прайс', path: '/prices/floor', roles: ['admin', 'manager'] },

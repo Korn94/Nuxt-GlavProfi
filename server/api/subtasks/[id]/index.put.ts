@@ -3,43 +3,46 @@ import { eventHandler, createError, readBody } from 'h3'
 import { db, boardsSubtasks } from '../../../db'
 import { eq } from 'drizzle-orm'
 import { verifyAuth } from '../../../utils/auth'
+import { handleSubtaskUpdate } from '../../../socket/handlers/subtasks'
+import { getIO } from '../../../plugins/socket.io'
 
 export default eventHandler(async (event) => {
   try {
     // Проверяем аутентификацию
     const user = await verifyAuth(event)
-
+    
     // Получаем ID подзадачи из параметров
     const id = event.context.params?.id
-
     if (!id || isNaN(Number(id))) {
       throw createError({
         statusCode: 400,
         statusMessage: 'Некорректный ID подзадачи'
       })
     }
-
     const subtaskId = Number(id)
-
+    
     // Проверяем, существует ли подзадача
     const [existingSubtask] = await db
       .select()
       .from(boardsSubtasks)
       .where(eq(boardsSubtasks.id, subtaskId))
-
+    
     if (!existingSubtask) {
       throw createError({
         statusCode: 404,
         statusMessage: 'Подзадача не найдена'
       })
     }
-
+    
+    // ✅ СОХРАНЯЕМ ДАННЫЕ ДЛЯ СОКЕТА
+    const taskId = existingSubtask.taskId
+    
     // Читаем тело запроса
     const body = await readBody(event)
-
+    
     // Подготавливаем данные для обновления
     const updateData: any = {}
-
+    
     // Обновляем название, если передано
     if (body.title !== undefined) {
       if (typeof body.title !== 'string' || body.title.trim().length === 0) {
@@ -50,12 +53,12 @@ export default eventHandler(async (event) => {
       }
       updateData.title = body.title.trim()
     }
-
+    
     // Обновляем описание, если передано
     if (body.description !== undefined) {
       updateData.description = body.description
     }
-
+    
     // Обновляем родительскую подзадачу, если передано
     if (body.parentId !== undefined) {
       if (body.parentId === null) {
@@ -66,14 +69,14 @@ export default eventHandler(async (event) => {
           .select()
           .from(boardsSubtasks)
           .where(eq(boardsSubtasks.id, body.parentId))
-
+        
         if (!parentSubtask) {
           throw createError({
             statusCode: 400,
             statusMessage: 'Родительская подзадача не найдена'
           })
         }
-
+        
         // Проверяем, что родительская подзадача принадлежит той же задаче
         if (parentSubtask.taskId !== existingSubtask.taskId) {
           throw createError({
@@ -81,7 +84,7 @@ export default eventHandler(async (event) => {
             statusMessage: 'Родительская подзадача должна принадлежать той же задаче'
           })
         }
-
+        
         // Проверяем на циклическую зависимость
         if (await hasCircularDependency(subtaskId, body.parentId)) {
           throw createError({
@@ -89,7 +92,7 @@ export default eventHandler(async (event) => {
             statusMessage: 'Обнаружена циклическая зависимость'
           })
         }
-
+        
         updateData.parentId = body.parentId
       } else {
         throw createError({
@@ -98,7 +101,7 @@ export default eventHandler(async (event) => {
         })
       }
     }
-
+    
     // Обновляем порядок, если передано
     if (body.order !== undefined) {
       if (typeof body.order === 'number') {
@@ -110,7 +113,7 @@ export default eventHandler(async (event) => {
         })
       }
     }
-
+    
     // Если нет данных для обновления
     if (Object.keys(updateData).length === 0) {
       throw createError({
@@ -118,30 +121,53 @@ export default eventHandler(async (event) => {
         statusMessage: 'Нет данных для обновления'
       })
     }
-
-    // Обновляем подзадачу
+    
+    // ✅ ОБНОВЛЯЕМ ПОДЗАДАЧУ
     await db
       .update(boardsSubtasks)
       .set(updateData)
       .where(eq(boardsSubtasks.id, subtaskId))
-
-    // Получаем обновлённую подзадачу
+    
+    // ✅ ПОЛУЧАЕМ ОБНОВЛЁННУЮ ПОДЗАДАЧУ ОТДЕЛЬНЫМ ЗАПРОСОМ
     const [updatedSubtask] = await db
       .select()
       .from(boardsSubtasks)
       .where(eq(boardsSubtasks.id, subtaskId))
-
+    
+    if (!updatedSubtask) {
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Не удалось получить обновлённую подзадачу'
+      })
+    }
+    
+    // ✅ КОНВЕРТИРУЕМ ДАТЫ В СТРОКИ И ГАРАНТИРУЕМ НЕ-NULL ЗНАЧЕНИЯ
+    const subtaskForResponse = {
+      ...updatedSubtask,
+      createdAt: updatedSubtask.createdAt
+        ? new Date(updatedSubtask.createdAt).toISOString()
+        : new Date().toISOString(),
+      updatedAt: updatedSubtask.updatedAt
+        ? new Date(updatedSubtask.updatedAt).toISOString()
+        : new Date().toISOString(),
+      completedAt: updatedSubtask.completedAt || null
+    }
+    
+    // ✅ ОТПРАВЛЯЕМ СОКЕТ-СОБЫТИЕ
+    const io = getIO()
+    if (io) {
+      handleSubtaskUpdate(io, subtaskId, subtaskForResponse, taskId)
+    }
+    
     return {
       success: true,
-      subtask: updatedSubtask
+      subtask: subtaskForResponse
     }
   } catch (error) {
     console.error('Error updating subtask:', error)
-    
     if (error instanceof Error && 'statusCode' in error) {
       throw error
     }
-    
     throw createError({
       statusCode: 500,
       statusMessage: 'Failed to update subtask'
@@ -157,19 +183,19 @@ async function hasCircularDependency(subtaskId: number, potentialParentId: numbe
       .select()
       .from(boardsSubtasks)
       .where(eq(boardsSubtasks.id, currentId))
-
+    
     if (!currentSubtask) return false
-
+    
     if (currentSubtask.parentId === subtaskId) {
       return true // Цикл обнаружен
     }
-
+    
     if (currentSubtask.parentId) {
       return await checkAncestors(currentSubtask.parentId)
     }
-
+    
     return false
   }
-
+  
   return await checkAncestors(potentialParentId)
 }

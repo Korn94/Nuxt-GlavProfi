@@ -3,6 +3,8 @@ import { eventHandler, createError, readBody } from 'h3'
 import { db, boardsTasks, boardsTasksTags } from '../../../db'
 import { eq } from 'drizzle-orm'
 import { verifyAuth } from '../../../utils/auth'
+import { handleTaskUpdate } from '../../../socket/handlers/tasks'
+import { getIO } from '../../../plugins/socket.io' // ✅ ИМПОРТИРУЕМ ФУНКЦИЮ
 
 export default eventHandler(async (event) => {
   try {
@@ -33,6 +35,9 @@ export default eventHandler(async (event) => {
         statusMessage: 'Задача не найдена'
       })
     }
+
+    // ✅ СОХРАНЯЕМ boardId ДО обновления
+    const boardId = existingTask.boardId
 
     // Читаем тело запроса
     const body = await readBody(event)
@@ -134,11 +139,18 @@ export default eventHandler(async (event) => {
       .set(updateData)
       .where(eq(boardsTasks.id, taskId))
 
-    // Получаем обновлённую задачу
+    // ✅ ПОЛУЧАЕМ ОБНОВЛЁННУЮ ЗАДАЧУ ОТДЕЛЬНЫМ ЗАПРОСОМ
     const [updatedTask] = await db
       .select()
       .from(boardsTasks)
       .where(eq(boardsTasks.id, taskId))
+
+    if (!updatedTask) {
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Не удалось получить обновлённую задачу'
+      })
+    }
 
     // Если переданы теги, обновляем их
     if (body.tags !== undefined) {
@@ -167,9 +179,31 @@ export default eventHandler(async (event) => {
       }
     }
 
+    // ✅ КОНВЕРТИРУЕМ ДАТЫ В СТРОКИ И ГАРАНТИРУЕМ НЕ-NULL ЗНАЧЕНИЯ
+    const taskForResponse = {
+      ...updatedTask,
+      createdAt: updatedTask.createdAt 
+        ? new Date(updatedTask.createdAt).toISOString() 
+        : new Date().toISOString(),
+      updatedAt: updatedTask.updatedAt 
+        ? new Date(updatedTask.updatedAt).toISOString() 
+        : new Date().toISOString(),
+      completedDate: updatedTask.completedDate || null,
+      dueDate: updatedTask.dueDate || null
+    }
+
+    // ✅ ОТПРАВЛЯЕМ СОКЕТ-СОБЫТИЕ ЧЕРЕЗ ГЛОБАЛЬНУЮ ФУНКЦИЮ
+    const io = getIO()
+    if (io) {
+      console.log(`[API] 📡 Sending socket event for task ${taskId} on board ${boardId}`)
+      handleTaskUpdate(io, taskId, taskForResponse, boardId)
+    } else {
+      console.error('[API] ❌ Socket.IO not available!')
+    }
+
     return {
       success: true,
-      task: updatedTask
+      task: taskForResponse
     }
   } catch (error) {
     console.error('Error updating task:', error)
