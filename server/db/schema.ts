@@ -33,20 +33,25 @@ export const userSessions = mysqlTable('user_sessions', {
     length: 20,
     enum: ['online', 'afk', 'offline']
   }).default('online').notNull(),
+  isActiveTab: boolean('is_active_tab').default(false).notNull(), // Флаг активной вкладки
+  tabId: varchar('tab_id', { length: 255 }), // Уникальный ID вкладки
+  currentPath: varchar('current_path', { length: 500 }), // Текущий путь страницы
   lastActivity: datetime('last_activity', { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
-  startedAt: datetime('started_at', { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`), // Добавлен mode: 'string'
+  startedAt: datetime('started_at', { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
   endedAt: datetime('ended_at', { mode: 'string' }),
   ipAddress: varchar('ip_address', { length: 45 }), // IPv6 максимум 45 символов
   userAgent: text('user_agent'),
-  createdAt: datetime('created_at', { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`), // Добавлен mode: 'string'
-  updatedAt: datetime('updated_at', { mode: 'string' }) // Добавлен mode: 'string'
+  createdAt: datetime('created_at', { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: datetime('updated_at', { mode: 'string' })
     .default(sql`CURRENT_TIMESTAMP`)
     .notNull()
-    .$type<string>() // Изменен тип с Date на string
+    .$type<string>()
 }, (table) => ({
   userIndex: index('user_idx').on(table.userId),
   statusIndex: index('status_idx').on(table.status),
-  lastActivityIndex: index('last_activity_idx').on(table.lastActivity)
+  lastActivityIndex: index('last_activity_idx').on(table.lastActivity),
+  activeTabIndex: index('active_tab_idx').on(table.userId, table.isActiveTab), // Быстрый поиск активной вкладки пользователя
+  tabIdIndex: index('tab_id_idx').on(table.tabId) // Поиск по ID вкладки
 }))
 
 // Таблица объектов

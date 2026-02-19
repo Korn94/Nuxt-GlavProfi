@@ -1,3 +1,4 @@
+<!-- app\pages\login.vue -->
 <template>
   <PagesCabinetLogin />
 </template>

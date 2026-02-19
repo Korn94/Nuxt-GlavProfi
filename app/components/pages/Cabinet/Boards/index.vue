@@ -1,7 +1,7 @@
 <!-- app/components/pages/cabinet/Boards/index.vue -->
  <template>
   <div class="boards-page">
-    <div class="boards-header">
+    <!-- <div class="boards-header">
       <h1 class="boards-title">Доска задач</h1>
       
       <div class="boards-header-actions">
@@ -10,7 +10,7 @@
           Создать доску
         </button>
       </div>
-    </div>
+    </div> -->
 
     <div class="boards-content">
       <!-- Список досок -->

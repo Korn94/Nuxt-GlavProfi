@@ -1,6 +1,6 @@
 // stores/online.ts
 import { defineStore } from 'pinia'
-import { useSocketStore } from './socket'
+import { useSocketStore } from '../stores/socket'
 import type { OnlineUser } from '~/types'
 
 interface OnlineState {
@@ -15,16 +15,34 @@ export const useOnlineStore = defineStore('online', {
     isLoading: false,
     error: null
   }),
-  
+
   getters: {
+    // ✅ Основные геттеры
     getOnlineUsers: (state) => state.users,
     getOnlineCount: (state) => state.users.length,
+    
+    // ✅ Фильтрация по статусу
     getActiveUsers: (state) => state.users.filter(u => u.status === 'online'),
     getAFKUsers: (state) => state.users.filter(u => u.status === 'afk'),
+    
+    // ✅ Статистика по вкладкам
+    getTotalTabsCount: (state) => state.users.reduce((sum, user) => sum + user.tabsCount, 0),
+    
+    // ✅ Статус загрузки и ошибок
     isLoadingUsers: (state) => state.isLoading,
-    hasError: (state) => !!state.error
+    hasError: (state) => !!state.error,
+    
+    // ✅ Сортировка по количеству вкладок
+    getUsersByTabsDesc: (state) => [...state.users].sort((a, b) => b.tabsCount - a.tabsCount),
+    getUsersByTabsAsc: (state) => [...state.users].sort((a, b) => a.tabsCount - b.tabsCount),
+    
+    // ✅ Фильтрация по роли
+    getAdmins: (state) => state.users.filter(u => u.user.role === 'admin'),
+    getManagers: (state) => state.users.filter(u => u.user.role === 'manager'),
+    getForemans: (state) => state.users.filter(u => u.user.role === 'foreman'),
+    getWorkers: (state) => state.users.filter(u => u.user.role === 'worker')
   },
-  
+
   actions: {
     /**
      * Загрузка списка онлайн-пользователей
@@ -32,9 +50,17 @@ export const useOnlineStore = defineStore('online', {
     async fetchOnlineUsers() {
       this.isLoading = true
       this.error = null
+      
       try {
-        const response = await $fetch<{ users: OnlineUser[] }>('/api/online')
+        const response = await $fetch<{ 
+          users: OnlineUser[], 
+          total: number, 
+          online: number, 
+          afk: number 
+        }>('/api/online')
+        
         this.users = response.users || []
+        console.log(`[OnlineStore] Loaded ${this.users.length} online users`)
       } catch (error) {
         console.error('Error fetching online users:', error)
         this.error = 'Не удалось загрузить список онлайн-пользователей'
@@ -42,15 +68,22 @@ export const useOnlineStore = defineStore('online', {
         this.isLoading = false
       }
     },
-    
+
     /**
      * Обновление списка пользователей
      */
     updateUsers(users: OnlineUser[]) {
       // console.log('[OnlineStore] Updating users via socket:', users.length)
-      this.users = users || []
+      this.users = [...users]
     },
-    
+
+    /**
+     * Получение пользователя по ID
+     */
+    getUserById(userId: number) {
+      return this.users.find(user => user.userId === userId)
+    },
+
     /**
      * Подписка на обновления через сокеты
      */
@@ -63,7 +96,7 @@ export const useOnlineStore = defineStore('online', {
         setTimeout(() => this.subscribeToUpdates(), 1000)
         return
       }
-
+      
       console.log('[OnlineStore] Subscribing to socket updates...')
       
       socketStore.on('online-users:update', (users: OnlineUser[]) => {
@@ -73,7 +106,7 @@ export const useOnlineStore = defineStore('online', {
       
       console.log('[OnlineStore] Subscribed to socket updates')
     },
-    
+
     /**
      * Отписка от обновлений
      */
@@ -82,7 +115,7 @@ export const useOnlineStore = defineStore('online', {
       socketStore.off('online-users:update')
       console.log('[OnlineStore] Unsubscribed from socket updates')
     },
-    
+
     /**
      * Очистка состояния
      */

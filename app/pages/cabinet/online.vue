@@ -16,6 +16,10 @@
         <h3>В АФК</h3>
         <p class="stat-number">{{ onlineStore.getAFKUsers.length }}</p>
       </div>
+      <div class="stat-card">
+        <h3>Всего вкладок</h3>
+        <p class="stat-number">{{ onlineStore.getTotalTabsCount }}</p>
+      </div>
     </div>
     
     <div v-if="onlineStore.isLoadingUsers" class="loading">
@@ -38,32 +42,46 @@
         <thead>
           <tr>
             <th>Пользователь</th>
+            <th>Вкладки</th>
             <th>Статус</th>
             <th>В сети</th>
             <th>Последняя активность</th>
+            <th>Активная страница</th>
             <th>IP-адрес</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="session in onlineStore.getOnlineUsers" :key="session.id">
+          <tr v-for="user in onlineStore.getOnlineUsers" :key="user.userId">
             <td>
               <div class="user-info">
                 <Icon name="mdi:account" class="user-icon" />
-                <span>{{ session.user?.name || 'Неизвестный пользователь' }}</span>
-                <span class="user-role">{{ roleLabels[session.user?.role || 'worker'] }}</span>
+                <span>{{ user.user?.name || 'Неизвестный пользователь' }}</span>
+                <span class="user-role">{{ roleLabels[user.user?.role || 'worker'] }}</span>
               </div>
             </td>
             <td>
-              <OnlineStatus :status="session.status" :show-text="true" />
+              <div class="tabs-count">
+                <Icon name="mdi:window-restore" class="tabs-icon" />
+                <span>{{ user.tabsCount }}</span>
+              </div>
             </td>
             <td>
-              {{ getDuration(session.startedAt) }}
+              <OnlineStatus :status="user.status" :show-text="true" />
             </td>
             <td>
-              {{ formatTime(session.lastActivity) }}
+              {{ getDuration(user.startedAt) }}
             </td>
             <td>
-              {{ session.ipAddress || '—' }}
+              {{ formatTime(user.lastActivity) }}
+            </td>
+            <td>
+              <div class="page-path" :title="user.activePath">
+                <Icon name="mdi:web" class="page-icon" />
+                <span>{{ formatPath(user.activePath) }}</span>
+              </div>
+            </td>
+            <td>
+              {{ user.ipAddress || '—' }}
             </td>
           </tr>
         </tbody>
@@ -77,6 +95,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useOnlineStore } from '../../../stores/online'
 import { useAuthStore } from '../../../stores/auth'
 import OnlineStatus from '~/components/ui/status/OnlineStatus.vue'
+import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
 
 definePageMeta({
   layout: 'cabinet',
@@ -107,6 +126,40 @@ const formatTime = (dateString: string) => {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+// ✅ Форматирование пути для отображения
+const formatPath = (path: string) => {
+  if (!path || path === '/' || path === 'null') return '—'
+  
+  // Убираем начальный слеш
+  const cleanPath = path.replace(/^\/+/, '')
+  
+  // Словарь путей для красивого отображения
+  const pathLabels: Record<string, string> = {
+    'cabinet': 'Кабинет',
+    'cabinet/online': 'Онлайн',
+    'cabinet/tasks': 'Задачи',
+    'cabinet/boards': 'Доски',
+    'cabinet/objects': 'Объекты',
+    'cabinet/users': 'Пользователи',
+    'cabinet/profile': 'Профиль',
+    'login': 'Вход'
+  }
+  
+  // Проверяем точное совпадение
+  if (pathLabels[cleanPath]) {
+    return pathLabels[cleanPath]
+  }
+  
+  // Если путь начинается с cabinet/
+  if (cleanPath.startsWith('cabinet/')) {
+    const page = cleanPath.split('/')[1]
+    return page.charAt(0).toUpperCase() + page.slice(1)
+  }
+  
+  // Возвращаем укороченный путь
+  return cleanPath.length > 30 ? cleanPath.substring(0, 27) + '...' : cleanPath
 }
 
 // ✅ Вычисляемая длительность через currentTime (реактивно!)
@@ -166,7 +219,7 @@ onUnmounted(() => {
 
 .online-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 16px;
   margin-bottom: 24px;
 }
@@ -232,11 +285,13 @@ onUnmounted(() => {
     text-align: left;
     font-weight: 600;
     color: #fff;
-    font-size: 14px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
   
   td {
-    padding: 12px 16px;
+    padding: 14px 16px;
     border-top: 1px solid rgba(255, 255, 255, 0.05);
     color: #ccc;
     font-size: 14px;
@@ -259,11 +314,107 @@ onUnmounted(() => {
 }
 
 .user-role {
-  font-size: 12px;
+  font-size: 11px;
   color: #666;
   background: rgba(255, 255, 255, 0.05);
   padding: 2px 8px;
   border-radius: 4px;
   margin-left: 8px;
+  white-space: nowrap;
+}
+
+.tabs-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.tabs-icon {
+  color: #00c3f5;
+  font-size: 16px;
+}
+
+.page-path {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #ccc;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.page-icon {
+  color: #ffc107;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 1200px) {
+  .online-stats {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+  
+  .page-path {
+    max-width: 150px;
+  }
+}
+
+@media (max-width: 900px) {
+  .online-table {
+    font-size: 13px;
+    
+    th, td {
+      padding: 10px 12px;
+    }
+  }
+  
+  .tabs-count, .page-path {
+    font-size: 12px;
+    padding: 3px 8px;
+  }
+}
+
+@media (max-width: 768px) {
+  .online-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  // Скрываем менее важные колонки на мобильных
+  .online-table {
+    thead tr th:nth-child(6), /* Активная страница */
+    thead tr th:nth-child(7), /* IP-адрес */
+    tbody tr td:nth-child(6),
+    tbody tr td:nth-child(7) {
+      display: none;
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .online-stats {
+    grid-template-columns: 1fr;
+  }
+  
+  // Оставляем только основные колонки
+  .online-table {
+    thead tr th:nth-child(2), /* Вкладки */
+    thead tr th:nth-child(5), /* Последняя активность */
+    tbody tr td:nth-child(2),
+    tbody tr td:nth-child(5) {
+      display: none;
+    }
+  }
 }
 </style>

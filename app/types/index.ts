@@ -6,13 +6,10 @@ export interface User {
   id: number
   email: string
   name: string
-  role: 'admin' | 'manager' | 'foreman' | 'master' | 'worker'
-  avatar?: string | null
+  role: string
   createdAt: string
   updatedAt: string
-  telegramId?: number | null
   isVerified: boolean
-  lastLogin?: string | null
 }
 
 /**
@@ -34,27 +31,60 @@ export interface TelegramAuthData {
 }
 
 /**
- * Типы для онлайн-пользователей
+ * Интерфейс онлайн-пользователя (агрегированные данные)
+ * Теперь включает информацию о вкладках и текущей странице
  */
 export interface OnlineUser {
-  id: number
   userId: number
-  sessionId: string
-  status: 'online' | 'afk' | 'offline'
-  lastActivity: string
-  startedAt: string
-  ipAddress?: string
-  user?: {
+  user: {
+    id: number
     name: string
-    role: 'admin' | 'manager' | 'foreman' | 'master' | 'worker'
+    role: string
+    login: string
   }
+  tabsCount: number          // Общее количество открытых вкладок
+  activePath: string         // Путь активной/последней активной вкладки
+  status: 'online' | 'afk'   // Статус пользователя
+  lastActivity: string       // Время последней активности
+  startedAt: string          // Время начала сессии
+  ipAddress: string          // IP-адрес
 }
 
+/**
+ * Интерфейс сессии пользователя
+ */
+export interface UserSession {
+  id: number
+  sessionId: string
+  userId: number
+  status: 'online' | 'afk' | 'offline'
+  isActiveTab: boolean       // Флаг активной вкладки
+  tabId: string              // Уникальный идентификатор вкладки
+  currentPath: string        // Текущий путь страницы
+  lastActivity: string
+  startedAt: string
+  endedAt?: string
+  ipAddress?: string
+  userAgent?: string
+}
+
+/**
+ * Статистика онлайн-пользователей
+ */
 export interface OnlineStats {
   total: number
   online: number
   afk: number
-  offline: number
+}
+
+/**
+ * Ответ от /api/online
+ */
+export interface OnlineApiResponse {
+  users: OnlineUser[]
+  total: number
+  online: number
+  afk: number
 }
 
 /**

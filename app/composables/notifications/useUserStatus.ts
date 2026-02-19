@@ -1,5 +1,5 @@
 // app/composables/notifications/useUserStatus.ts
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useSocketStore } from '../../../stores/socket'
 import { useAuthStore } from '../../../stores/auth'
 import { useNotifications } from '../useNotifications'
@@ -12,32 +12,26 @@ export function useUserStatusNotifications() {
   const socketStore = useSocketStore()
   const authStore = useAuthStore()
   const notifications = useNotifications()
-  
   const isSubscribed = ref(false)
+  
+  // Кэш для предотвращения дублирования уведомлений
   const recentEvents = ref<Set<string>>(new Set())
   
-  // ✅ НАСТРОЙКИ ПРЯМО В КОМПОЗАБЛЕ (без отдельного стора)
-  const settings = {
+  // Настройки уведомлений
+  const settings = ref({
     enabled: true,
     showOnline: true,
     showOffline: true,
     showAFK: true,
     soundEnabled: false,
-    duration: 3000
-  }
-
-  // Отладка: логируем подключение
-  console.log('[UserStatus] Composable initialized', {
-    userId: authStore.getUser?.id,
-    userName: authStore.getUser?.name
+    duration: 5000 // 5 секунд
   })
 
   /**
-   * Фильтрация дублирующихся событий (защита от спама)
+   * Очистка кэша старых событий
    */
-  const isDuplicateEvent = (eventId: string): boolean => {
-    const MAX_AGE = 15000 // 15 секунд
-    
+  const cleanupOldEvents = () => {
+    const MAX_AGE = 30000 // 30 секунд
     const now = Date.now()
     const eventsToDelete: string[] = []
     
@@ -49,6 +43,13 @@ export function useUserStatusNotifications() {
     })
     
     eventsToDelete.forEach(id => recentEvents.value.delete(id))
+  }
+
+  /**
+   * Проверка дублирующихся событий
+   */
+  const isDuplicateEvent = (eventId: string): boolean => {
+    cleanupOldEvents()
     
     if (recentEvents.value.has(eventId)) {
       console.debug('[UserStatus] Duplicate event filtered:', eventId)
@@ -71,17 +72,17 @@ export function useUserStatusNotifications() {
    * Получение текста уведомления
    */
   const getStatusMessage = (data: UserStatusEvent): string => {
-    const userName: string = data.userName ?? 'Пользователь'
+    const userName: string = data.userName || 'Пользователь'
     
     switch (data.type) {
       case 'online':
         return data.fromAFK 
-          ? `${userName} вернулся в сеть`
-          : `${userName} зашел в сеть`
+          ? `👤 ${userName} вернулся в сеть`
+          : `👤 ${userName} зашел в сеть`
       case 'offline':
-        return `${userName} вышел из сети`
+        return `👋 ${userName} вышел из сети`
       case 'afk':
-        return `${userName} отсутствует`
+        return `🕒 ${userName} отсутствует`
       default:
         return `${userName} изменил статус`
     }
@@ -103,7 +104,7 @@ export function useUserStatusNotifications() {
    * Воспроизведение звука уведомления
    */
   const playNotificationSound = () => {
-    if (!settings.soundEnabled) return
+    if (!settings.value.soundEnabled) return
     
     try {
       const audio = new Audio('/sounds/notification.mp3')
@@ -115,20 +116,25 @@ export function useUserStatusNotifications() {
   }
 
   /**
-   * Обработчик события статуса - ОСНОВНАЯ ЛОГИКА
+   * Обработчик события статуса
    */
   const handleUserStatus = (data: UserStatusEvent) => {
-    console.log('[UserStatus] Received event:', data)
-    
-    // ✅ КРИТИЧЕСКИ ВАЖНО: Не показываем уведомления о самом себе
+    console.log('[UserStatus] Received event:', {
+      userId: data.userId,
+      type: data.type,
+      userName: data.userName
+    })
+
+    // Ждём загрузки данных пользователя
     const currentUserId = authStore.getUser?.id
     if (!currentUserId) {
-      console.warn('[UserStatus] Current user ID not available, skipping event')
+      console.warn('[UserStatus] Waiting for user data...')
       return
     }
-    
+
+    // Не показываем уведомления о самом себе
     if (data.userId === currentUserId) {
-      console.debug('[UserStatus] Skipping self event:', data.userId)
+      console.debug('[UserStatus] Skipping self event')
       return
     }
 
@@ -138,20 +144,14 @@ export function useUserStatusNotifications() {
       return
     }
 
-    // ✅ Проверяем настройки
-    if (!settings.enabled) {
-      console.debug('[UserStatus] Notifications disabled')
+    // Проверяем настройки для конкретного типа статуса
+    const showTypeKey = `show${data.type.charAt(0).toUpperCase() + data.type.slice(1)}` as keyof typeof settings.value
+    if (!settings.value[showTypeKey]) {
+      console.debug(`[UserStatus] Status type "${data.type}" disabled in settings`)
       return
     }
 
-    // Проверяем конкретный тип статуса
-    const showTypeKey = `show${data.type.charAt(0).toUpperCase() + data.type.slice(1)}` as keyof typeof settings
-    if (!settings[showTypeKey]) {
-      console.debug(`[UserStatus] Status type "${data.type}" disabled`)
-      return
-    }
-
-    // ✅ Показываем уведомление
+    // Показываем уведомление
     const message = getStatusMessage(data)
     const type = getNotificationType(data.type)
     
@@ -161,11 +161,11 @@ export function useUserStatusNotifications() {
       type,
       title: 'Статус пользователя',
       message,
-      duration: settings.duration
+      duration: settings.value.duration
     })
 
     // Воспроизводим звук
-    if (settings.soundEnabled) {
+    if (settings.value.soundEnabled) {
       playNotificationSound()
     }
   }
@@ -175,7 +175,7 @@ export function useUserStatusNotifications() {
    */
   const subscribe = () => {
     if (isSubscribed.value) return
-
+    
     socketStore.on('user:status', handleUserStatus)
     isSubscribed.value = true
     console.log('[UserStatus] ✅ Subscribed to user:status events')
@@ -186,7 +186,7 @@ export function useUserStatusNotifications() {
    */
   const unsubscribe = () => {
     if (!isSubscribed.value) return
-
+    
     socketStore.off('user:status', handleUserStatus)
     isSubscribed.value = false
     console.log('[UserStatus] ❌ Unsubscribed from user:status events')
@@ -206,8 +206,9 @@ export function useUserStatusNotifications() {
     isSubscribed,
     subscribe,
     unsubscribe,
-    settings, // ✅ Возвращаем настройки
+    settings,
     recentEvents,
+    // Методы для отладки
     debug: {
       handleEvent: handleUserStatus,
       clearCache: () => {

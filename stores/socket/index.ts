@@ -4,10 +4,36 @@ import { socketState } from './state'
 import { socketGetters } from './getters'
 import * as actions from './actions'
 import { setSessionId } from './helpers/sessionId'
-
-// ✅ ДОБАВЛЯЕМ setupConnectionHandlers СЮДА (без activityTracker)
+import { useCookie } from 'nuxt/app'
 import type { TypedClientSocket } from './types'
 
+/**
+ * Генерация уникального идентификатора вкладки
+ */
+function generateTabId(): string {
+  const tabIdCookie = useCookie('tab_id', {
+    maxAge: 60 * 60 * 24 * 90, // 90 дней
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/'
+  })
+  
+  // Если уже есть сохранённый tabId - используем его
+  if (tabIdCookie.value) {
+    return tabIdCookie.value
+  }
+  
+  // Генерируем новый уникальный идентификатор
+  const newTabId = `tab_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+  tabIdCookie.value = newTabId
+  
+  console.log('[SocketStore] Generated new tab ID:', newTabId)
+  return newTabId
+}
+
+/**
+ * Настройка обработчиков подключения
+ */
 function setupConnectionHandlers(this: any, socket: TypedClientSocket) {
   // ✅ ПОДКЛЮЧЕНИЕ
   socket.on('connect', () => {
@@ -16,7 +42,6 @@ function setupConnectionHandlers(this: any, socket: TypedClientSocket) {
     console.log('[SocketStore] ✅ Connected to server')
     console.log('[SocketStore] Socket ID:', socket.id)
     console.log('[SocketStore] Transport:', transport) // ✅ Добавлено
-    
     if (transport === 'websocket') {
       console.log('✅ WebSocket transport active - FAST MODE')
     } else {
@@ -27,6 +52,17 @@ function setupConnectionHandlers(this: any, socket: TypedClientSocket) {
     this.isConnecting = false
     this.error = null
     this.reconnectAttempts = 0
+    
+    // ✅ РЕГИСТРИРУЕМ ВКЛАДКУ ПРИ ПОДКЛЮЧЕНИИ
+    const tabId = generateTabId()
+    const currentPath = window.location.pathname
+    
+    socket.emit('tab:register', {
+      tabId,
+      currentPath
+    })
+    
+    console.log('[SocketStore] 📌 Tab registered:', tabId, 'at', currentPath)
     
     // ✅ ОТПРАВЛЯЕМ НАКОПЛЕННЫЕ СООБЩЕНИЯ ИЗ ОЧЕРЕДИ
     this.sendQueuedMessages()
@@ -53,12 +89,9 @@ function setupConnectionHandlers(this: any, socket: TypedClientSocket) {
     }
   })
   
-  // ✅ ОТКЛЮЧЕНИЕ - БЕЗ activityTracker
+  // ✅ ОТКЛЮЧЕНИЕ
   socket.on('disconnect', (reason: string) => {
     console.log('[SocketStore] Disconnected:', reason)
-    
-    // ❌ УДАЛЯЕМ stopActivityTracking() - это вызывало циклическую зависимость
-    
     this.isConnected = false
     this.isConnecting = false
     this.userId = null
@@ -81,6 +114,17 @@ function setupConnectionHandlers(this: any, socket: TypedClientSocket) {
     console.log(`[SocketStore] ✅ Reconnected after ${attempt} attempts`)
     this.reconnectAttempts = 0
     this.error = null
+    
+    // ✅ ПОВТОРНО РЕГИСТРИРУЕМ ВКЛАДКУ ПОСЛЕ ПЕРЕПОДКЛЮЧЕНИЯ
+    const tabId = generateTabId()
+    const currentPath = window.location.pathname
+    
+    socket.emit('tab:register', {
+      tabId,
+      currentPath
+    })
+    
+    console.log('[SocketStore] 🔄 Tab re-registered after reconnect:', tabId)
   })
   
   // ✅ НЕУДАЧНОЕ ПЕРЕПОДКЛЮЧЕНИЕ
@@ -101,10 +145,8 @@ function setupConnectionHandlers(this: any, socket: TypedClientSocket) {
   // @ts-ignore - Socket.IO типизация не поддерживает кастомные события
   socket.on('session:initialized', (data: { sessionId: string; userId: number }) => {
     console.log('[SocketStore] Session initialized:', data.sessionId)
-    
     // ✅ СОХРАНЯЕМ SESSION_ID В КУКИ
     setSessionId(data.sessionId)
-    
     // ✅ ОБНОВЛЯЕМ СОСТОЯНИЕ
     this.userId = data.userId
   })
@@ -116,6 +158,7 @@ export const useSocketStore = defineStore('socket', {
   getters: socketGetters,
   actions: {
     ...actions,
-    setupConnectionHandlers // ✅ Добавляем сюда
+    setupConnectionHandlers, // ✅ Добавляем сюда
+    generateTabId // ✅ Экспортируем для использования в других местах
   }
 })

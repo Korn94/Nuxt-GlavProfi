@@ -1,4 +1,4 @@
-<!-- app/components/Cabinet/Sidebar.vue -->
+<!-- app/components/Layout/Cabinet/Header/index.vue -->
 <template>
   <!-- Мобильный хедер -->
   <div class="mobile-header">
@@ -7,7 +7,7 @@
     </span>
     <h2>CRM</h2>
   </div>
-
+  
   <!-- Боковая панель -->
   <aside
     class="sidebar"
@@ -22,26 +22,34 @@
         <h2>CRM Система</h2>
         <p>Добро пожаловать, {{ user?.name || 'Загрузка...' }}!</p>
       </header>
-
-      <nav class="sidebar-nav">
-        <ul>
-          <template v-for="(item, index) in filteredMenu" :key="index">
-            <!-- Обычный пункт меню -->
-            <li v-if="!item.divider">
-              <NuxtLink :to="item.path" @click="closeSidebarOnMobile">
-                {{ item.title }}
-              </NuxtLink>
-            </li>
-
-            <!-- Разделитель -->
-            <li v-else class="divider">
-              <hr />
-            </li>
-          </template>
-        </ul>
-      </nav>
+      
+      <!-- Переключатель режимов меню -->
+      <div class="menu-mode-switcher">
+        <button
+          class="menu-mode-btn"
+          :class="{ active: menuMode === 'crm' }"
+          @click="setMenuMode('crm')"
+          title="Режим CRM"
+        >
+          <Icon name="mdi:database" size="18" />
+          <span>CRM</span>
+        </button>
+        <button
+          class="menu-mode-btn"
+          :class="{ active: menuMode === 'boards' }"
+          @click="setMenuMode('boards')"
+          title="Режим Досок"
+        >
+          <Icon name="mdi:clipboard-text-multiple-outline" size="18" />
+          <span>Доски</span>
+        </button>
+      </div>
+      
+      <!-- Динамическое меню в зависимости от режима -->
+      <CrmMenu v-if="menuMode === 'crm'" @close-sidebar="closeSidebarOnMobile" />
+      <BoardsMenu v-else-if="menuMode === 'boards'" @close-sidebar="closeSidebarOnMobile" />
     </div>
-
+    
     <!-- Кнопка "Выйти" в самом низу -->
     <div class="sidebar-footer">
       <div class="role">
@@ -52,72 +60,29 @@
   </aside>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '~~/stores/auth' // Импортируем authStore
+import { useAuthStore } from '~~/stores/auth'
+import CrmMenu from './ui/crm.vue'
+import BoardsMenu from './ui/boards.vue'
 
 const router = useRouter()
-const authStore = useAuthStore() // Используем authStore
+const authStore = useAuthStore()
 
-const user = ref(null)
+const user = ref<any>(null)
 const sidebarOpen = ref(false)
 const isMobile = ref(false)
+const menuMode = ref<'crm' | 'boards'>('crm') // Режим меню по умолчанию
 
 // --- Перевод ролей на русский ---
-const roleLabels = {
+const roleLabels: Record<string, string> = {
   admin: 'Админ',
   manager: 'Менеджер',
   foreman: 'Прораб',
   master: 'Мастер',
   worker: 'Рабочий'
 }
-
-// --- Меню с разделителем после "Операции" ---
-const menuItems = [
-  { title: 'Главная', path: '/cabinet', roles: ['admin', 'manager', 'foreman', 'master', 'worker'] },
-  { title: 'Сотрудники', path: '/cabinet/admin/contractors', roles: ['admin'] },
-  { title: 'Объекты', path: '/cabinet/objects', roles: ['admin', 'foreman', 'master', 'worker'] },
-  { title: 'Чеки', path: '/cabinet/materials', roles: ['admin'] },
-  { title: 'Операции', path: '/cabinet/operation', roles: ['admin'] },
-  { title: 'Онлайн', path: '/cabinet/online', roles: ['admin'] },
-  { title: 'Тест', path: '/cabinet/testpage', roles: ['admin'] },
-  { divider: true }, // Разделитель после "Операции"
-  { title: 'Доска', path: '/cabinet/boards', roles: ['admin'] },
-  { divider: true }, // Разделитель после "Операции"
-  { title: 'На сайт', path: '/', roles: ['admin', 'manager', 'foreman', 'master', 'worker'] },
-  { title: 'Новый кейс', path: '/projects/create', roles: ['admin', 'manager'] },
-  { title: 'Прайс', path: '/prices/floor', roles: ['admin', 'manager'] },
-  { divider: true }, // Разделитель после "Операции"
-  { title: 'Баланс', path: '/cabinet/balance', roles: ['admin'] },
-  { title: 'Аналитика', path: '/cabinet/analytics', roles: ['admin'] }
-]
-
-// --- Фильтрация меню с сохранением разделителей ---
-const filteredMenu = computed(() => {
-  if (!user.value) return []
-
-  const filtered = []
-  let previousItem = null
-
-  for (const item of menuItems) {
-    // Если это разделитель — добавляем только если перед ним был видимый пункт
-    if (item.divider) {
-      if (previousItem) {
-        filtered.push(item)
-      }
-      continue
-    }
-
-    // Обычный пункт меню — проверяем по ролям
-    if (!item.roles || item.roles.includes(user.value.role)) {
-      filtered.push(item)
-      previousItem = item
-    }
-  }
-
-  return filtered
-})
 
 // --- Загрузка данных пользователя ---
 async function fetchUserData() {
@@ -132,18 +97,17 @@ async function fetchUserData() {
   }
 }
 
+// --- Установка режима меню ---
+function setMenuMode(mode: 'crm' | 'boards') {
+  menuMode.value = mode
+}
+
 // --- Проверка мобильного устройства ---
 function checkIsMobile() {
   if (typeof window !== 'undefined') {
     isMobile.value = window.innerWidth < 768
   }
 }
-
-onMounted(() => {
-  checkIsMobile()
-  window.addEventListener('resize', checkIsMobile)
-  fetchUserData()
-})
 
 // --- Управление боковой панелью ---
 function toggleSidebar() {
@@ -156,16 +120,18 @@ function closeSidebarOnMobile() {
   }
 }
 
+// --- Обработка выхода из системы ---
 function handleLogout() {
-  // Правильный способ выхода - через authStore
   authStore.logout()
-  
-  // Удаляем данные пользователя локально
   user.value = null
-  
-  // Перенаправляем
   router.push('/')
 }
+
+onMounted(() => {
+  checkIsMobile()
+  window.addEventListener('resize', checkIsMobile)
+  fetchUserData()
+})
 </script>
 
 <style lang="scss" scoped>
@@ -182,14 +148,15 @@ function handleLogout() {
   width: 100%;
   z-index: 1000;
   box-shadow: $box-shadow;
-
+  
   h2 {
     margin: 0;
     font-size: 1.3rem;
   }
-
+  
   span {
     color: $color-light;
+    cursor: pointer;
   }
 }
 
@@ -205,78 +172,114 @@ function handleLogout() {
   transition: transform 0.3s ease;
   display: flex;
   flex-direction: column;
-
+  
   &.mobile {
     transform: translateX(-100%);
   }
-
+  
   &.open {
     transform: translateX(0);
   }
-
+  
   .sidebar-content {
     flex: 1;
     display: flex;
     flex-direction: column;
-
+    
     .sidebar-header {
       margin-bottom: 20px;
-
+      
       h2 {
         font-size: 1.5rem;
         margin: 0;
         color: #fff;
       }
-
+      
       p {
         margin: 0;
         font-size: 0.9rem;
         color: #7f8c8d;
       }
     }
-
-    .sidebar-nav {
-      ul {
-        list-style: none;
-        padding: 0;
-
-        li {
-          margin-bottom: 10px;
-
-          a {
-            display: block;
-            color: #eeeeee;
-            text-decoration: none;
-            padding: 10px;
-            border-radius: 5px;
-            transition: background-color 0.3s ease;
-
-            &:hover {
-              background-color: #00c3f5;
-              color: white;
-            }
-
-            &.router-link-active {
-              background-color: #34495e;
-              color: white;
-            }
-          }
-
-          &.divider {
-            margin: 12px 0;
-            pointer-events: none;
-
-            hr {
-              border: 0;
-              border-top: 1px solid #444;
-              margin: 0;
-            }
-          }
+    
+    // Переключатель режимов меню
+    .menu-mode-switcher {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 20px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 12px;
+      overflow: hidden;
+      padding: 4px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+    
+    .menu-mode-btn {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: rgba(255, 255, 255, 0.05);
+      border: none;
+      border-radius: 8px;
+      color: #aaa;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+      
+      &:hover {
+        background: rgba(0, 195, 245, 0.15);
+        color: #00c3f5;
+        transform: translateY(-1px);
+      }
+      
+      &.active {
+        color: white;
+        background: rgba(0, 195, 245, 0.2);
+        
+        &::before {
+          content: '';
+          position: absolute;
+          top: -50%;
+          left: -50%;
+          width: 200%;
+          height: 200%;
+          background: radial-gradient(circle, rgba(255, 255, 255, 0.2) 0%, transparent 70%);
+          animation: pulse-glow 2s ease-in-out infinite;
         }
+      }
+
+      span {
+        color: unset;
+      }
+      
+      .icon {
+        font-size: 18px;
+        transition: transform 0.3s ease;
+      }
+      
+      &.active .icon {
+        transform: scale(1.1);
+      }
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% {
+        opacity: 0.3;
+        transform: scale(1);
+      }
+      50% {
+        opacity: 0.6;
+        transform: scale(1.05);
       }
     }
   }
-
+  
   .sidebar-footer {
     margin-top: auto;
     
@@ -285,13 +288,13 @@ function handleLogout() {
       border-bottom: 1px solid #444;
       padding-bottom: 10px;
       margin-bottom: 10px;
-      font-size: .9rem;
       
       p {
         color: $color-light;
+        font-size: 0.9rem;
       }
     }
-
+    
     button {
       width: 100%;
       background: $color-danger;
@@ -302,7 +305,7 @@ function handleLogout() {
       color: white;
       border-radius: 5px;
       transition: background-color 0.3s ease;
-
+      
       &:hover {
         background-color: $red;
         color: white;
@@ -315,7 +318,7 @@ function handleLogout() {
   .mobile-header {
     display: flex;
   }
-
+  
   .sidebar {
     &.mobile {
       position: fixed;

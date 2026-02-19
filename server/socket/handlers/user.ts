@@ -2,9 +2,9 @@
 import { Socket } from 'socket.io'
 import { db } from '../../db'
 import { users, userSessions } from '../../db/schema'
-import { eq, and, or, desc, sql } from 'drizzle-orm'
+import { eq, and, or, desc, ne } from 'drizzle-orm'
 import type { Server } from 'socket.io'
-import { createSession, updateSessionStatus } from '../../utils/sessions'
+import { createSession, updateSessionStatus, getOnlineUsers } from '../../utils/sessions'
 import { broadcastStatus } from './status'
 
 /**
@@ -38,42 +38,56 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
     try {
       const userAgent = socket.handshake.headers['user-agent'] || 'Unknown'
       console.log(`   Ищу последнюю сессию пользователя ${user.id}...`)
-      
+
       // ============================================
-      // ✅ ИСПРАВЛЕНО: Ищем последнюю сессию пользователя
+      // ✅ ИЩЕМ АКТИВНУЮ ВКЛАДКУ ПОЛЬЗОВАТЕЛЯ
       // ============================================
-      const [existingSession] = await db
+      const [activeSession] = await db
         .select()
         .from(userSessions)
-        .where(eq(userSessions.userId, user.id))
+        .where(
+          and(
+            eq(userSessions.userId, user.id),
+            or(
+              eq(userSessions.status, 'online'),
+              eq(userSessions.status, 'afk')
+            )
+          )
+        )
         .orderBy(desc(userSessions.lastActivity))
         .limit(1)
-      
+
       let session = null
-      
+
       // Проверяем, была ли сессия активна недавно (в последние 5 минут)
-      if (existingSession) {
+      if (activeSession) {
         // ✅ ИСПРАВЛЕНО: Проверяем, что дата не null
-        const lastActivityTime = existingSession.lastActivity 
-          ? new Date(existingSession.lastActivity).getTime() 
+        const lastActivityTime = activeSession.lastActivity
+          ? new Date(activeSession.lastActivity).getTime()
           : 0
         const now = Date.now()
         const timeDiff = now - lastActivityTime
         const FIVE_MINUTES = 5 * 60 * 1000
-        
+
         // Если сессия была активна недавно - восстанавливаем её
         if (timeDiff < FIVE_MINUTES) {
-          console.log(`   ✅ Нашли недавнюю сессию: ${existingSession.sessionId}`)
-          console.log(`   Статус: ${existingSession.status}`)
-          console.log(`   Последняя активность: ${existingSession.lastActivity}`)
+          console.log(`   ✅ Нашли недавнюю сессию: ${activeSession.sessionId}`)
+          console.log(`   Статус: ${activeSession.status}`)
+          console.log(`   Последняя активность: ${activeSession.lastActivity}`)
           console.log(`   Время простоя: ${Math.round(timeDiff / 1000)}с`)
-          
+
           // Обновляем статус на "онлайн" и обновляем время активности
-          session = await updateSessionStatus(existingSession.sessionId, 'online', ipAddress)
-          console.log(`   ✅ Сессия ${existingSession.sessionId} восстановлена и обновлена`)
+          session = await updateSessionStatus(activeSession.sessionId, 'online', {
+            ipAddress,
+            isActiveTab: true, // ✅ Помечаем как активную вкладку
+            currentPath: activeSession.currentPath || '/'
+          })
+
+          console.log(`   ✅ Сессия ${activeSession.sessionId} восстановлена и обновлена`)
         } else {
           console.log(`   ⏰ Старая сессия найдена, но слишком долго неактивна (${Math.round(timeDiff / 1000)}с)`)
           console.log(`   🆕 Создаю новую сессию...`)
+          
           session = await createSession(user.id, ipAddress, userAgent)
           if (!session) {
             throw new Error('Не удалось создать сессию')
@@ -83,48 +97,125 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
       } else {
         // Если сессий вообще нет - создаем новую
         console.log(`   🆕 Сессий не найдено, создаю новую...`)
+        
         session = await createSession(user.id, ipAddress, userAgent)
         if (!session) {
           throw new Error('Не удалось создать сессию')
         }
         console.log(`   ✅ Новая сессия создана: ${session.sessionId}`)
       }
-      
+
       // ✅ ИСПРАВЛЕНО: Проверяем, что сессия существует
       if (!session) {
         console.error('❌ Не удалось создать или восстановить сессию')
         return
       }
-      
+
       // Сохраняем sessionId в сокете для последующих операций
       ;(socket as any).sessionId = session.sessionId
-      
+
       // ============================================
       // ✅ ПОЛУЧАЕМ ПОЛНЫЕ ДАННЫЕ ОНЛАЙН-ПОЛЬЗОВАТЕЛЕЙ С ИНФОРМАЦИЕЙ О ПОЛЬЗОВАТЕЛЯХ
       // ============================================
       const onlineUsers = await getOnlineUsers()
-      
+
+      // ✅ ИСПРАВЛЕНО: Проверяем, что онлайн-пользователи не undefined
+      const usersList = onlineUsers || []
+
       // Отправляем обновленный список ВСЕМ подключенным клиентам
-      io.emit('online-users:update', onlineUsers)
+      io.emit('online-users:update', usersList)
 
       // ✅ ОТПРАВЛЯЕМ УВЕДОМЛЕНИЕ О ВХОДЕ В СЕТЬ
       broadcastStatus(io, socket, user.id, userName, 'online', {
         sessionId: session.sessionId
       })
-      
+
       // Отправляем подтверждение клиенту
       socket.emit('session:initialized', {
         sessionId: session.sessionId,
         userId: user.id,
         status: 'online',
-        restored: !!existingSession // Флаг, что сессия восстановлена
+        restored: !!activeSession // Флаг, что сессия восстановлена
       })
-      
-      console.log(`   📡 Список онлайн-пользователей отправлен (${onlineUsers.length} пользователей)`)
+
+      console.log(`   📡 Список онлайн-пользователей отправлен (${usersList.length} пользователей)`)
     } catch (error) {
       console.error('❌ Ошибка инициализации сессии:', error)
     }
   })()
+
+  // ============================================
+  // РЕГИСТРАЦИЯ ВКЛАДКИ (НОВОЕ СОБЫТИЕ)
+  // ============================================
+  socket.on('tab:register', async (data: { tabId: string; currentPath?: string }) => {
+    try {
+      const { tabId, currentPath } = data
+      const sessionId = (socket as any).sessionId
+
+      if (!sessionId || !tabId) {
+        console.warn('Получена регистрация вкладки без sessionId или tabId')
+        return
+      }
+
+      console.log(`   📌 Регистрация вкладки: ${tabId}`)
+
+      // Помечаем все сессии пользователя КРОМЕ текущей как неактивные
+      await db
+        .update(userSessions)
+        .set({ isActiveTab: false })
+        .where(
+          and(
+            eq(userSessions.userId, user.id),
+            ne(userSessions.sessionId, sessionId)
+          )
+        )
+
+      // Обновляем текущую сессию
+      await updateSessionStatus(sessionId, 'online', {
+        tabId,
+        currentPath,
+        isActiveTab: true
+      })
+
+      console.log(`   ✅ Вкладка ${tabId} зарегистрирована как активная`)
+
+      // Обновляем список онлайн-пользователей
+      const onlineUsers = await getOnlineUsers()
+      const usersList = onlineUsers || []
+      io.emit('online-users:update', usersList)
+    } catch (error) {
+      console.error('Ошибка регистрации вкладки:', error)
+    }
+  })
+
+  // ============================================
+  // НАВИГАЦИЯ ПО СТРАНИЦАМ (НОВОЕ СОБЫТИЕ)
+  // ============================================
+  socket.on('tab:navigate', async (data: { currentPath: string }) => {
+    try {
+      const { currentPath } = data
+      const sessionId = (socket as any).sessionId
+
+      if (!sessionId || !currentPath) {
+        console.warn('Получено событие навигации без sessionId или currentPath')
+        return
+      }
+
+      console.log(`   🧭 Навигация: ${currentPath}`)
+
+      // Обновляем текущий путь сессии
+      await updateSessionStatus(sessionId, 'online', {
+        currentPath
+      })
+
+      // Обновляем список онлайн-пользователей
+      const onlineUsers = await getOnlineUsers()
+      const usersList = onlineUsers || []
+      io.emit('online-users:update', usersList)
+    } catch (error) {
+      console.error('Ошибка обработки навигации:', error)
+    }
+  })
 
   // ============================================
   // ОБНОВЛЕНИЕ ДАННЫХ СЕССИИ (опционально)
@@ -133,23 +224,27 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
     try {
       const { ipAddress: newIp, userAgent } = data
       const sessionId = (socket as any).sessionId
-      
+
       if (!sessionId) {
         console.warn('Получено обновление сессии без активной сессии')
         return
       }
-      
+
       console.log(`   Обновляю сессию ${sessionId}...`)
-      
+
       // Обновляем данные сессии через статус (это обновит последнюю активность)
-      await updateSessionStatus(sessionId, 'online', newIp || ipAddress)
+      await updateSessionStatus(sessionId, 'online', {
+        ipAddress: newIp || ipAddress
+      })
+
       console.log(`   ✅ Сессия ${sessionId} обновлена`)
-      
+
       // ============================================
       // ✅ ОТПРАВЛЯЕМ ПОЛНЫЕ ДАННЫЕ ПРИ ОБНОВЛЕНИИ СЕССИИ
       // ============================================
       const onlineUsers = await getOnlineUsers()
-      io.emit('online-users:update', onlineUsers)
+      const usersList = onlineUsers || []
+      io.emit('online-users:update', usersList)
     } catch (error) {
       console.error('Ошибка обновления сессии:', error)
     }
@@ -161,25 +256,26 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
   socket.on('user:update', async (updatedData: any) => {
     try {
       console.log(`   Обновляю данные пользователя ${user.id}...`)
-      
+
       // Валидация входных данных
       if (!updatedData || typeof updatedData !== 'object') {
         throw new Error('Неверные данные для обновления')
       }
-      
+
       // Обновляем только разрешенные поля
       const updateFields: any = {}
       if (updatedData.name && typeof updatedData.name === 'string') {
         updateFields.name = updatedData.name.trim()
       }
+
       if (Object.keys(updateFields).length === 0) {
         console.warn('Нет валидных полей для обновления')
         return
       }
-      
+
       // Обновляем данные пользователя в БД
       await db.update(users).set(updateFields).where(eq(users.id, user.id))
-      
+
       // Получаем обновленные данные пользователя
       const [updatedUser] = await db
         .select({
@@ -192,11 +288,11 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
         })
         .from(users)
         .where(eq(users.id, user.id))
-      
+
       if (!updatedUser) {
         throw new Error('Пользователь не найден после обновления')
       }
-      
+
       // Отправляем обновленные данные всем подключенным клиентам
       io.emit('user:update', {
         id: updatedUser.id,
@@ -207,14 +303,15 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
         updatedAt: updatedUser.updatedAt,
         isVerified: true
       })
-      
+
       console.log(`   ✅ Пользователь ${user.id} обновлен:`, updateFields)
-      
+
       // ============================================
       // ✅ ОБНОВЛЯЕМ СПИСОК ОНЛАЙН-ПОЛЬЗОВАТЕЛЕЙ ПОСЛЕ ИЗМЕНЕНИЯ ДАННЫХ
       // ============================================
       const onlineUsers = await getOnlineUsers()
-      io.emit('online-users:update', onlineUsers)
+      const usersList = onlineUsers || []
+      io.emit('online-users:update', usersList)
     } catch (error) {
       console.error('❌ Ошибка обновления пользователя:', error)
       socket.emit('error', {
@@ -231,7 +328,7 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
     // Просто подтверждаем получение heartbeat
     socket.emit('heartbeat:ack')
   })
-  
+
   socket.on('ping', () => {
     socket.emit('pong')
   })
@@ -243,31 +340,33 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
     console.log(`👋 Пользователь отключился: ${user.id} (${user.name || user.email})`)
     console.log(`   Причина: ${reason}`)
     console.log(`   ID сокета: ${socket.id}`)
-    
+
     try {
       // Получаем sessionId из сокета
       const sessionId = (socket as any).sessionId
-      
+
       if (sessionId) {
         console.log(`   Помечаю сессию ${sessionId} как оффлайн...`)
-        
+
         // ✅ НЕ ЗАВЕРШАЕМ СЕССИЮ СРАЗУ - просто помечаем как offline
         // Это позволит восстановить её при быстром переподключении
         await updateSessionStatus(sessionId, 'offline')
+
         console.log(`   ✅ Сессия ${sessionId} помечена как оффлайн`)
-        
+
         // ============================================
         // ✅ ОТПРАВЛЯЕМ ОБНОВЛЕННЫЙ СПИСОК ПОСЛЕ ОТКЛЮЧЕНИЯ
         // ============================================
         const onlineUsers = await getOnlineUsers()
-        io.emit('online-users:update', onlineUsers)
+        const usersList = onlineUsers || []
+        io.emit('online-users:update', usersList)
 
         // ✅ ОТПРАВЛЯЕМ УВЕДОМЛЕНИЕ О ВЫХОДЕ
         broadcastStatus(io, socket, user.id, userName, 'offline', {
           sessionId
         })
-  
-        console.log(`   📡 Список онлайн-пользователей отправлен (${onlineUsers.length} пользователей)`)
+
+        console.log(`   📡 Список онлайн-пользователей отправлен (${usersList.length} пользователей)`)
       } else {
         console.warn('   ID сессии не найден для отключившегося пользователя')
       }
@@ -287,7 +386,7 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
       socket.disconnect()
     }
   })
-  
+
   // Add this to handle connection errors better
   socket.on('connect_error', (error: any) => {
     console.error('Connect error:', error)
@@ -297,56 +396,4 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
       socket.disconnect()
     }
   })
-}
-
-// ============================================
-// ✅ ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ: ПОЛУЧЕНИЕ ОНЛАЙН-ПОЛЬЗОВАТЕЛЕЙ С ДАННЫМИ ПОЛЬЗОВАТЕЛЕЙ
-// ============================================
-async function getOnlineUsers() {
-  // Получаем активные сессии
-  const sessions = await db
-    .select({
-      id: userSessions.id,
-      userId: userSessions.userId,
-      sessionId: userSessions.sessionId,
-      status: userSessions.status,
-      lastActivity: userSessions.lastActivity,
-      startedAt: userSessions.startedAt,
-      ipAddress: userSessions.ipAddress
-    })
-    .from(userSessions)
-    .where(
-      or(
-        eq(userSessions.status, 'online'),
-        eq(userSessions.status, 'afk')
-      )
-    )
-    .orderBy(desc(userSessions.lastActivity))
-  
-  // Для каждой сессии получаем данные пользователя
-  const sessionsWithUsers = await Promise.all(
-    sessions.map(async (session) => {
-      const [userData] = await db
-        .select({
-          name: users.name,
-          role: users.role,
-          login: users.login
-        })
-        .from(users)
-        .where(eq(users.id, session.userId))
-      
-      return {
-        ...session,
-        user: userData || undefined
-      }
-    })
-  )
-  
-  // ✅ ФИЛЬТРУЕМ СЕССИИ БЕЗ ПОЛЬЗОВАТЕЛЯ
-  const validSessions = sessionsWithUsers.filter(
-    (session) => session.user !== undefined && session.user !== null
-  )
-  
-  // console.log(`📊 Онлайн пользователей: ${validSessions.length} (отфильтровано ${sessionsWithUsers.length - validSessions.length} без данных)`)
-  return validSessions
 }
