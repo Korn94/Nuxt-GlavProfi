@@ -19,7 +19,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useAuthStore } from '~~/stores/auth'
+import { useAuthStore } from 'stores/auth'
 
 // Emits
 const emit = defineEmits<{

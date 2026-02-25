@@ -1,6 +1,6 @@
-<!-- app/components/pages/cabinet/Boards/ui/BoardTaskDetails.vue -->
- <template>
-  <div class="board-task-details-modal">
+<!-- app/components/pages/cabinet/Boards/Kanban/TaskDetails/index.vue -->
+<template>
+  <div class="task-details-modal">
     <div class="modal-overlay" @click="$emit('close')">
       <div class="modal" @click.stop>
         <div class="modal-header">
@@ -14,9 +14,10 @@
                   {{ getStatusLabel(task.status) }}
                 </span>
               </div>
-              <button class="modal-close" @click="$emit('close')">✕</button>
+              <button class="modal-close" @click="$emit('close')" aria-label="Закрыть">
+                <Icon name="mdi:close" size="24" />
+              </button>
             </div>
-
             <h2 class="task-title">{{ task.title }}</h2>
           </div>
         </div>
@@ -28,11 +29,7 @@
               <div class="task-section">
                 <h3 class="task-section-title">Описание</h3>
                 <div v-if="editingDescription" class="task-description-edit">
-                  <textarea
-                    v-model="editedDescription"
-                    class="form-control"
-                    rows="4"
-                  ></textarea>
+                  <textarea v-model="editedDescription" class="form-control" rows="4"></textarea>
                   <div class="task-description-actions">
                     <button class="btn btn-secondary" @click="editingDescription = false">
                       Отмена
@@ -61,19 +58,15 @@
                     </span>
                   </h3>
                   <button class="btn btn-sm btn-primary" @click="showAddRootSubtask = true">
-                    + Добавить
+                    <Icon name="mdi:plus" size="14" />
+                    Добавить
                   </button>
                 </div>
 
-                <!-- ✅ ФОРМА ДОБАВЛЕНИЯ КОРНЕВОЙ ПОДЗАДАЧИ -->
+                <!-- Форма добавления корневой подзадачи -->
                 <div v-if="showAddRootSubtask" class="subtask-add-form">
-                  <input
-                    v-model="newRootSubtask.title"
-                    type="text"
-                    class="form-control"
-                    placeholder="Название подзадачи"
-                    @keyup.enter="addRootSubtask"
-                  />
+                  <input v-model="newRootSubtask.title" type="text" class="form-control"
+                    placeholder="Название подзадачи" @keyup.enter="addRootSubtask" />
                   <div class="subtask-add-actions">
                     <button class="btn btn-secondary" @click="showAddRootSubtask = false">
                       Отмена
@@ -85,11 +78,7 @@
                 </div>
 
                 <div v-if="task.subtasks && task.subtasks.length > 0" class="subtasks-list">
-                  <BoardSubtaskTree
-                    :subtasks="task.subtasks"
-                    :task-id="task.id"
-                    @subtask-updated="handleSubtaskUpdated"
-                  />
+                  <SubtaskTree :subtasks="task.subtasks" :task-id="task.id" @subtask-updated="handleSubtaskUpdated" />
                 </div>
                 <div v-else-if="!showAddRootSubtask" class="empty-state">
                   <p>Нет подзадач</p>
@@ -104,19 +93,13 @@
                     <span class="task-section-count">{{ task.comments?.length || 0 }}</span>
                   </h3>
                 </div>
-
                 <div v-if="task.comments && task.comments.length > 0" class="comments-list">
-                  <BoardComment
-                    v-for="comment in task.comments"
-                    :key="comment.id"
-                    :comment="comment"
-                  />
+                  <Comment v-for="comment in task.comments" :key="comment.id" :comment="comment" />
                 </div>
                 <div v-else class="empty-state">
                   <p>Нет комментариев</p>
                 </div>
-
-                <BoardCommentForm @comment-added="handleCommentAdded" />
+                <CommentForm @comment-added="handleCommentAdded" />
               </div>
             </div>
 
@@ -124,21 +107,18 @@
               <!-- Информация о задаче -->
               <div class="task-sidebar-section">
                 <h4 class="task-sidebar-title">Информация</h4>
-                
                 <div class="task-info-item">
                   <span class="task-info-label">Создана:</span>
                   <span class="task-info-value">
                     {{ formatDate(task.createdAt) }}
                   </span>
                 </div>
-
                 <div v-if="task.dueDate" class="task-info-item">
                   <span class="task-info-label">Срок:</span>
                   <span class="task-info-value">
                     {{ formatDate(task.dueDate) }}
                   </span>
                 </div>
-
                 <div v-if="task.completedDate" class="task-info-item">
                   <span class="task-info-label">Завершена:</span>
                   <span class="task-info-value">
@@ -152,17 +132,11 @@
                 <div class="task-sidebar-header">
                   <h4 class="task-sidebar-title">Теги</h4>
                   <button class="btn btn-sm btn-secondary" @click="showAddTag = true">
-                    +
+                    <Icon name="mdi:tag-plus" size="14" />
                   </button>
                 </div>
-
                 <div v-if="task.tags && task.tags.length > 0" class="task-tags">
-                  <span
-                    v-for="tag in task.tags"
-                    :key="tag.id"
-                    class="task-tag"
-                    :style="{ backgroundColor: tag.color }"
-                  >
+                  <span v-for="tag in task.tags" :key="tag.id" class="task-tag" :style="{ backgroundColor: tag.color }">
                     {{ tag.name }}
                   </span>
                 </div>
@@ -176,10 +150,9 @@
                 <div class="task-sidebar-header">
                   <h4 class="task-sidebar-title">Вложения</h4>
                   <button class="btn btn-sm btn-secondary" @click="showUploadFile = true">
-                    📎
+                    <Icon name="mdi:paperclip" size="14" />
                   </button>
                 </div>
-
                 <div v-if="task.attachments && task.attachments.length > 0" class="task-attachments">
                   <div v-for="attachment in task.attachments" :key="attachment.id" class="task-attachment">
                     <a :href="attachment.fileUrl" target="_blank" class="attachment-link">
@@ -198,7 +171,6 @@
               <!-- Быстрые действия -->
               <div class="task-sidebar-section">
                 <h4 class="task-sidebar-title">Действия</h4>
-                
                 <div class="task-actions">
                   <button class="btn btn-block btn-warning" @click="handleStatusChange('blocked')">
                     Заблокировать
@@ -221,15 +193,16 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import BoardSubtaskTree from './BoardSubtaskTree.vue'
-import BoardComment from './BoardComment.vue'
-import BoardCommentForm from './BoardCommentForm.vue'
-import { useSubtasks } from '~/composables/boards/useSubtasks';
-import { useNotifications } from '~/composables/useNotifications';
+import SubtaskTree from '../SubtaskTree.vue'
+import Comment from '../Comment/index.vue'
+import CommentForm from '../Comment/Form.vue'
+import { useSubtasks } from '~/composables/boards/useSubtasks'
+import { useNotifications } from '~/composables/useNotifications'
+import type { Task } from '~/types/boards'
 
 // Props
 const props = defineProps<{
-  task: any
+  task: Task
 }>()
 
 // Emits
@@ -242,15 +215,15 @@ const emit = defineEmits<{
 // State
 const editingDescription = ref(false)
 const editedDescription = ref(props.task.description || '')
-const showAddSubtask = ref(false)
 const showAddRootSubtask = ref(false)
 const newRootSubtask = ref({
   title: ''
 })
-const { createSubtask } = useSubtasks()
-const notifications = useNotifications()
 const showAddTag = ref(false)
 const showUploadFile = ref(false)
+
+const { createSubtask } = useSubtasks()
+const notifications = useNotifications()
 
 // Methods
 const getPriorityLabel = (priority: string) => {
@@ -306,7 +279,6 @@ const saveDescription = async () => {
 
 const getCompletedSubtasksCount = () => {
   if (!props.task.subtasks) return 0
-  
   let count = 0
   const countCompleted = (subs: any[]) => {
     subs.forEach(sub => {
@@ -316,14 +288,12 @@ const getCompletedSubtasksCount = () => {
       }
     })
   }
-  
   countCompleted(props.task.subtasks)
   return count
 }
 
 const getAllSubtasksCount = () => {
   if (!props.task.subtasks) return 0
-  
   let count = 0
   const countAll = (subs: any[]) => {
     subs.forEach(sub => {
@@ -333,7 +303,6 @@ const getAllSubtasksCount = () => {
       }
     })
   }
-  
   countAll(props.task.subtasks)
   return count
 }
@@ -367,16 +336,14 @@ const addRootSubtask = async () => {
     notifications.warning('Введите название подзадачи')
     return
   }
-  
   try {
     await createSubtask(props.task.id, {
       title: title,
       description: '',
-      parentId: null, // ← Корневая подзадача (без родителя)
+      parentId: null,
       order: 0
     })
-    
-    showAddSubtask.value = false
+    showAddRootSubtask.value = false
     newRootSubtask.value = { title: '' }
     emit('taskUpdated')
     notifications.success('Подзадача добавлена')
@@ -388,8 +355,6 @@ const addRootSubtask = async () => {
 
 watch(() => props.task, (newTask) => {
   if (newTask) {
-    // Можно добавить логику для обновления внутреннего состояния
-    // Например, сбросить форму редактирования описания
     if (editingDescription.value) {
       editedDescription.value = newTask.description || ''
     }
@@ -398,7 +363,7 @@ watch(() => props.task, (newTask) => {
 </script>
 
 <style scoped lang="scss">
-.board-task-details-modal {
+.task-details-modal {
   position: fixed;
   top: 0;
   left: 0;
@@ -451,83 +416,76 @@ watch(() => props.task, (newTask) => {
 
 .task-priority,
 .task-status {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 6px 12px;
   font-size: 13px;
   font-weight: 600;
   border-radius: 6px;
   text-transform: uppercase;
+  color: $text-light;
 }
 
 .task-priority.priority-low {
   background: #334155;
-  color: #94a3b8;
 }
 
 .task-priority.priority-medium {
-  background: #1e3a8a;
-  color: #93c5fd;
+  background: rgba($blue, 0.2);
+  color: $blue;
 }
 
 .task-priority.priority-high {
-  background: #7c3aed;
-  color: #ddd6fe;
+  background: rgba(124, 58, 237, 0.2);
+  color: #7c3aed;
 }
 
 .task-priority.priority-urgent {
-  background: #b91c1c;
-  color: #fecaca;
+  background: rgba($red, 0.2);
+  color: $red;
 }
 
 .task-status.status-todo {
   background: #334155;
-  color: #94a3b8;
 }
 
 .task-status.status-in_progress {
-  background: #1e3a8a;
-  color: #93c5fd;
+  background: rgba($blue, 0.2);
+  color: $blue;
 }
 
 .task-status.status-review {
-  background: #7c3aed;
-  color: #ddd6fe;
+  background: rgba(124, 58, 237, 0.2);
+  color: #7c3aed;
 }
 
 .task-status.status-done {
-  background: #047857;
-  color: #dcfce7;
+  background: rgba($green, 0.2);
+  color: $green;
 }
 
 .task-status.status-blocked {
-  background: #b91c1c;
-  color: #fecaca;
+  background: rgba($red, 0.2);
+  color: $red;
 }
 
 .task-status.status-cancelled {
   background: #4b5563;
-  color: #e5e7eb;
 }
 
 .modal-close {
   background: none;
   border: none;
-  font-size: 28px;
   color: #94a3b8;
   cursor: pointer;
-  line-height: 1;
-  padding: 0;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  padding: 4px;
   border-radius: 6px;
   transition: all 0.2s ease;
-  
+
   &:hover {
     background: #334155;
-    color: #fff;
+    color: $text-light;
   }
 }
 
@@ -535,7 +493,7 @@ watch(() => props.task, (newTask) => {
   margin: 0;
   font-size: 28px;
   font-weight: 700;
-  color: #fff;
+  color: $text-light;
   line-height: 1.3;
 }
 
@@ -574,7 +532,7 @@ watch(() => props.task, (newTask) => {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: #fff;
+  color: $text-light;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -610,16 +568,16 @@ watch(() => props.task, (newTask) => {
 .btn-text {
   background: none;
   border: none;
-  color: #60a5fa;
+  color: $blue;
   font-size: 14px;
   cursor: pointer;
   padding: 0;
   text-align: left;
-  
-  &:hover {
-    color: #3b82f6;
-    text-decoration: underline;
-  }
+
+  // &:hover {
+  //   color: darken($blue, 10%);
+  //   text-decoration: underline;
+  // }
 }
 
 .task-description-edit {
@@ -634,14 +592,15 @@ watch(() => props.task, (newTask) => {
   background: #0f172a;
   border: 1px solid #334155;
   border-radius: 8px;
-  color: #fff;
+  color: $text-light;
   font-size: 15px;
   font-family: inherit;
   resize: vertical;
-  
+
   &:focus {
     outline: none;
-    border-color: #3b82f6;
+    border-color: $blue;
+    box-shadow: 0 0 0 3px rgba($blue, 0.1);
   }
 }
 
@@ -688,7 +647,7 @@ watch(() => props.task, (newTask) => {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: #fff;
+  color: $text-light;
 }
 
 .task-info-item {
@@ -696,7 +655,7 @@ watch(() => props.task, (newTask) => {
   justify-content: space-between;
   padding: 10px 0;
   border-bottom: 1px solid #334155;
-  
+
   &:last-child {
     border-bottom: none;
   }
@@ -723,7 +682,7 @@ watch(() => props.task, (newTask) => {
   display: inline-block;
   padding: 6px 12px;
   font-size: 13px;
-  color: #fff;
+  color: $text-light;
   border-radius: 6px;
   font-weight: 500;
 }
@@ -744,10 +703,10 @@ watch(() => props.task, (newTask) => {
 }
 
 .attachment-link {
-  color: #60a5fa;
+  color: $blue;
   text-decoration: none;
   font-size: 14px;
-  
+
   &:hover {
     text-decoration: underline;
   }
@@ -777,29 +736,29 @@ watch(() => props.task, (newTask) => {
 }
 
 .btn-warning {
-  background: #b91c1c;
-  color: #fff;
-  
+  background: rgba($red, 0.2);
+  color: $red;
+
   &:hover {
-    background: #991b1b;
+    background: rgba($red, 0.3);
   }
 }
 
 .btn-success {
-  background: #047857;
-  color: #fff;
-  
+  background: rgba($green, 0.2);
+  color: $green;
+
   &:hover {
-    background: #065f46;
+    background: rgba($green, 0.3);
   }
 }
 
 .btn-danger {
-  background: #dc2626;
-  color: #fff;
-  
+  background: rgba($red, 0.3);
+  color: $text-light;
+
   &:hover {
-    background: #b91c1c;
+    background: $red;
   }
 }
 
@@ -818,18 +777,18 @@ watch(() => props.task, (newTask) => {
 }
 
 .btn-primary {
-  background: #3b82f6;
-  color: #fff;
-  
-  &:hover {
-    background: #2563eb;
-  }
+  background: $blue;
+  color: $text-light;
+
+  // &:hover {
+  //   background: darken($blue, 10%);
+  // }
 }
 
 .btn-secondary {
   background: #4b5563;
-  color: #fff;
-  
+  color: $text-light;
+
   &:hover {
     background: #374151;
   }
@@ -859,5 +818,15 @@ watch(() => props.task, (newTask) => {
   gap: 12px;
   justify-content: flex-end;
   margin-top: 12px;
+}
+
+@media (max-width: 768px) {
+  .task-details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal {
+    max-width: 95%;
+  }
 }
 </style>

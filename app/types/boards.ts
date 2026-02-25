@@ -1,4 +1,40 @@
 // app/types/boards.ts
+// ============================================
+// ТИПЫ ДЛЯ ПАПОК ДОСОК
+// ============================================
+
+// Тип папки досок
+export interface BoardFolder {
+  id: number
+  name: string
+  description?: string | null
+  category: 'objects' | 'general'
+  order: number
+  createdBy: number
+  createdAt: string
+  updatedAt: string
+}
+
+// Тип для создания папки
+export interface CreateBoardFolderData {
+  name: string
+  description?: string
+  category: 'objects' | 'general'
+  order?: number
+}
+
+// Тип для обновления папки
+export interface UpdateBoardFolderData {
+  name?: string
+  description?: string
+  category?: 'objects' | 'general'
+  order?: number
+}
+
+// ============================================
+// ТИПЫ ДЛЯ ДОСОК
+// ============================================
+
 // Тип объекта (для привязки к доске)
 export interface BoardObject {
   id: number
@@ -12,12 +48,19 @@ export interface Board {
   id: number
   name: string
   description?: string | null
-  type: 'object' | 'general'
+  type?: 'object' | 'general'
   objectId?: number | null
-  createdBy: number
-  createdAt: string
-  updatedAt: string
-  object?: BoardObject | null
+  folderId?: number | null
+  order?: number
+  createdBy?: number
+  createdAt?: string
+  updatedAt?: string
+  object?: {
+    id: number
+    name: string
+    status: string
+    address?: string
+  } | null
 }
 
 // Тип для создания доски
@@ -26,6 +69,8 @@ export interface CreateBoardData {
   description?: string
   type?: 'object' | 'general'
   objectId?: number
+  folderId: number
+  order?: number
 }
 
 // Тип для обновления доски
@@ -34,7 +79,13 @@ export interface UpdateBoardData {
   description?: string
   type?: 'object' | 'general'
   objectId?: number | null
+  folderId?: number | null
+  order?: number
 }
+
+// ============================================
+// ТИПЫ ДЛЯ ТЕГОВ
+// ============================================
 
 // Тип тега
 export interface Tag {
@@ -43,6 +94,10 @@ export interface Tag {
   color: string
   createdAt?: string
 }
+
+// ============================================
+// ТИПЫ ДЛЯ ПОДЗАДАЧ
+// ============================================
 
 // Тип подзадачи (рекурсивный)
 export interface Subtask {
@@ -58,6 +113,10 @@ export interface Subtask {
   updatedAt: string
   subtasks?: Subtask[]
 }
+
+// ============================================
+// ТИПЫ ДЛЯ КОММЕНТАРИЕВ
+// ============================================
 
 // Тип комментария (рекурсивный)
 export interface Comment {
@@ -76,6 +135,10 @@ export interface Comment {
   replies?: Comment[]
 }
 
+// ============================================
+// ТИПЫ ДЛЯ ВЛОЖЕНИЙ
+// ============================================
+
 // Тип вложения
 export interface Attachment {
   id: number
@@ -92,6 +155,10 @@ export interface Attachment {
     login: string
   } | null
 }
+
+// ============================================
+// ТИПЫ ДЛЯ ЗАДАЧ
+// ============================================
 
 // Тип задачи
 export interface Task {
@@ -136,4 +203,27 @@ export interface UpdateTaskData {
   dueDate?: string | null
   order?: number
   tags?: number[]
+}
+
+// ============================================
+// ТИПЫ ДЛЯ DND (Drag & Drop)
+// ============================================
+
+export const ItemTypes = {
+  TASK: 'task',
+  SUBTASK: 'subtask',
+  FOLDER: 'folder'
+} as const
+
+export interface TaskDragItem {
+  type: typeof ItemTypes.TASK
+  taskId: number
+  boardId: number
+  status: string
+}
+
+export interface FolderDragItem {
+  type: typeof ItemTypes.FOLDER
+  folderId: number
+  order: number
 }

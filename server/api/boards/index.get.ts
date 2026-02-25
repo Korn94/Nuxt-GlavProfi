@@ -2,7 +2,7 @@
 import { eventHandler, createError } from 'h3'
 import { db } from '../../db'
 import { boards, objects } from '../../db/schema'
-import { eq, desc } from 'drizzle-orm'
+import { eq, desc, asc } from 'drizzle-orm'
 import { verifyAuth } from '../../utils/auth'
 
 export default eventHandler(async (event) => {
@@ -10,7 +10,7 @@ export default eventHandler(async (event) => {
     // Проверяем аутентификацию
     const user = await verifyAuth(event)
 
-    // Получаем все доски пользователя
+    // Получаем все доски пользователя с folderId
     const allBoards = await db
       .select({
         id: boards.id,
@@ -18,12 +18,18 @@ export default eventHandler(async (event) => {
         description: boards.description,
         type: boards.type,
         objectId: boards.objectId,
+        folderId: boards.folderId, // ✅ ДОБАВЛЕНО
+        order: boards.order,       // ✅ ДОБАВЛЕНО для сортировки
         createdBy: boards.createdBy,
         createdAt: boards.createdAt,
         updatedAt: boards.updatedAt
       })
       .from(boards)
-      .orderBy(desc(boards.createdAt))
+      .orderBy(
+        asc(boards.folderId), // Сначала группируем по папкам
+        asc(boards.order),    // Затем сортируем по порядку внутри папки
+        desc(boards.createdAt) // И по дате создания как резерв
+      )
 
     // Получаем информацию об объектах для досок типа 'object'
     const boardsWithObjects = await Promise.all(

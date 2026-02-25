@@ -575,28 +575,57 @@ export const portfoCaseWorks = mysqlTable('portfolio_case_works', {
 }))
 
 // ============================================
+// BOARDS FOLDERS - ПАПКИ ДЛЯ ГРУППИРОВКИ ДОСОК
+// ============================================
+export const boardFolders = mysqlTable('board_folders', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  category: varchar('category', {
+    length: 20,
+    enum: ['objects', 'general']
+  }).default('general').notNull(),
+  order: int('order').default(0).notNull(),
+  createdBy: bigint('created_by', { mode: 'number', unsigned: true })
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: datetime('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull().$type<Date>()
+}, (table) => ({
+  orderIndex: index('order_idx').on(table.order),
+  nameIndex: index('name_idx').on(table.name),
+  categoryIndex: index('category_idx').on(table.category)
+}))
+
+// ============================================
 // BOARDS MODULE - ДОСКА ЗАДАЧ
 // ============================================
 
 // 1. Доски задач
 export const boards = mysqlTable('boards', {
   id: serial('id').primaryKey(),
-  name: varchar('name', { length: 255 }).notNull(), // Название доски
-  description: text('description'), // Описание доски
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
   type: varchar('type', {
     length: 20,
     enum: ['object', 'general']
-  }).default('general').notNull(), // Тип: привязана к объекту или общая
+  }).default('general').notNull(),
   objectId: bigint('object_id', { mode: 'number', unsigned: true })
-    .references(() => objects.id, { onDelete: 'cascade' }), // Ссылка на объект (опционально)
+    .references(() => objects.id, { onDelete: 'cascade' }),
+  folderId: bigint('folder_id', { mode: 'number', unsigned: true })
+    .notNull() // ✅ ОБЯЗАТЕЛЬНОЕ ПОЛЕ (было .references(..., { onDelete: 'set null' }))
+    .references(() => boardFolders.id, { onDelete: 'cascade' }), // ✅ CASCADE при удалении папки
+  order: int('order').default(0).notNull(),
   createdBy: bigint('created_by', { mode: 'number', unsigned: true })
     .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }), // Кто создал
+    .references(() => users.id, { onDelete: 'cascade' }),
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
   updatedAt: datetime('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull().$type<Date>()
 }, (table) => ({
   typeIndex: index('type_idx').on(table.type),
-  objectIndex: index('object_idx').on(table.objectId)
+  objectIndex: index('object_idx').on(table.objectId),
+  folderIndex: index('folder_idx').on(table.folderId),
+  orderIndex: index('board_order_idx').on(table.folderId, table.order)
 }))
 
 // 2. Основные задачи

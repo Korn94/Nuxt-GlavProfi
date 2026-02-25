@@ -1,6 +1,11 @@
 {
   "extends": "./.nuxt/tsconfig.json",
-  "include": ["**/*.ts", "**/*.tsx", "**/*.vue"],
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.vue",
+    "stores/**/*.ts"
+  ],
   "exclude": ["node_modules", ".nuxt", "dist", ".git", ".output"],
   "compilerOptions": {
     "types": ["nuxt", "vite/client"],
@@ -10,7 +15,6 @@
       "@/*": ["./app/*"],
       "~~/*": ["./"],
       "@@/*": ["./"],
-      "vue": ["./node_modules/vue/dist/vue.d.ts"]
     }
   }
 }

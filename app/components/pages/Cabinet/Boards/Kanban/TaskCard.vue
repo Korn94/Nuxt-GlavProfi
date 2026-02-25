@@ -1,66 +1,74 @@
-<!-- app/components/pages/cabinet/Boards/ui/BoardTaskCard.vue -->
+<!-- app/components/pages/cabinet/Boards/Kanban/TaskCard.vue -->
 <template>
-  <div 
-    ref="taskCardRef"
-    class="board-task-card" 
-    :class="{ 'dragging': isDragging, 'dropped': isDropped }"
-    draggable="true"
-    @dragstart="handleDragStart"
-    @dragend="handleDragEnd"
-    @click="openTaskDetails"
-    :style="cardStyle"
-  >
-    <div class="board-task-card-header">
-      <div class="board-task-card-priority" :class="`priority-${task.priority}`">
-        {{ getPriorityLabel(task.priority) }}
-      </div>
-      <div class="board-task-card-status" :class="`status-${task.status}`">
-        {{ getStatusLabel(task.status) }}
-      </div>
-    </div>
+<div
+  ref="taskCardRef"
+  class="task-card"
+  :class="{ 'dragging': isDragging, 'dropped': isDropped }"
+  draggable="true"
+  @dragstart="handleDragStart"
+  @dragend="handleDragEnd"
+  @click="openTaskDetails"
+  :style="cardStyle"
+>
+  <!-- Приоритет и статус -->
+  <div class="task-card-header">
+    <span class="task-priority" :class="`priority-${task.priority}`">
+      {{ getPriorityLabel(task.priority) }}
+    </span>
+    <span class="task-status" :class="`status-${task.status}`">
+      {{ getStatusLabel(task.status) }}
+    </span>
+  </div>
 
-    <div class="board-task-card-body">
-      <h3 class="board-task-card-title">{{ task.title }}</h3>
-      
-      <p v-if="task.description" class="board-task-card-description">
-        {{ truncateText(task.description, 80) }}
-      </p>
+  <!-- Основное содержимое -->
+  <div class="task-card-body">
+    <h3 class="task-card-title">{{ task.title }}</h3>
+    
+    <p v-if="task.description" class="task-card-description">
+      {{ truncateText(task.description, 80) }}
+    </p>
 
-      <div v-if="task.tags && task.tags.length > 0" class="board-task-card-tags">
-        <span
-          v-for="tag in task.tags"
-          :key="tag.id"
-          class="board-task-card-tag"
-          :style="{ backgroundColor: tag.color }"
-        >
-          {{ tag.name }}
-        </span>
-      </div>
-    </div>
-
-    <div class="board-task-card-footer">
-      <div class="board-task-card-meta">
-        <span v-if="task.dueDate" class="board-task-card-due-date">
-          📅 {{ formatDate(task.dueDate) }}
-        </span>
-        <span v-if="task.assignedTo" class="board-task-card-assignee">
-          👤 Исполнитель
-        </span>
-      </div>
-
-      <div class="board-task-card-stats">
-        <span v-if="task.subtasks" class="board-task-card-subtasks">
-          ✅ {{ getCompletedSubtasks(task.subtasks) }}/{{ task.subtasks.length }}
-        </span>
-      </div>
+    <!-- Теги -->
+    <div v-if="task.tags && task.tags.length > 0" class="task-card-tags">
+      <span
+        v-for="tag in task.tags"
+        :key="tag.id"
+        class="task-card-tag"
+        :style="{ backgroundColor: tag.color }"
+      >
+        {{ tag.name }}
+      </span>
     </div>
   </div>
+
+  <!-- Футер с мета-данными -->
+  <div class="task-card-footer">
+    <div class="task-card-meta">
+      <span v-if="task.dueDate" class="task-card-meta-item">
+        <Icon name="mdi:calendar" size="14" />
+        {{ formatDate(task.dueDate) }}
+      </span>
+      
+      <span v-if="task.assignedTo" class="task-card-meta-item">
+        <Icon name="mdi:account" size="14" />
+        Исполнитель
+      </span>
+    </div>
+
+    <div class="task-card-stats">
+      <span v-if="task.subtasks" class="task-card-subtasks">
+        <Icon name="mdi:checkbox-marked-circle" size="14" />
+        {{ getCompletedSubtasks(task.subtasks) }}/{{ task.subtasks.length }}
+      </span>
+    </div>
+  </div>
+</div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { useTaskModalStore } from '../../../../../../stores/boards/taskModal'
-import { useTasksStore } from '../../../../../../stores/boards/tasks'
+import { useTaskModalStore } from 'stores/boards/taskModal'
+import { useTasksStore } from 'stores/boards/tasks'
 import type { Task } from '~/types/boards'
 
 // ============================================
@@ -140,7 +148,7 @@ const handleDragStart = (event: DragEvent) => {
   
   // Добавляем тень для лучшей видимости
   if (taskCardRef.value) {
-    taskCardRef.value.style.boxShadow = '0 8px 24px rgba(59, 130, 246, 0.4)'
+    taskCardRef.value.style.boxShadow = `0 8px 24px rgba(0, 195, 245, 0.4)`
   }
 }
 
@@ -224,8 +232,9 @@ const getCompletedSubtasks = (subtasks: any[]): number => {
 // ============================================
 const openTaskDetails = () => {
   taskModalStore.open(props.task.id, null, props.task.id)
+  
   // Принудительно обновляем данные из стора
-  const fullTask = taskStore.tasks.find(t => t.id === props.task.id)
+  const fullTask = taskStore.tasks.find((t: { id: number; }) => t.id === props.task.id)
   if (fullTask) {
     taskModalStore.setTaskData(fullTask)
   }
@@ -233,9 +242,12 @@ const openTaskDetails = () => {
 </script>
 
 <style scoped lang="scss">
-.board-task-card {
-  background: #111827;
-  border: 1px solid #374151;
+// Импорт переменных напрямую для надежности
+@use '@/assets/styles/_variables.scss' as *;
+
+.task-card {
+  background: $background-gray;
+  border: 1px solid $text-dark;
   border-radius: 8px;
   padding: 16px;
   cursor: grab;
@@ -247,17 +259,17 @@ const openTaskDetails = () => {
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    border-color: #3b82f6;
+    border-color: $blue;
   }
   
   &.dragging {
     cursor: grabbing;
     z-index: 100;
-    box-shadow: 0 8px 24px rgba(59, 130, 246, 0.4);
+    box-shadow: 0 8px 24px rgba($blue, 0.4);
     
     &:hover {
       transform: scale(1.05);
-      box-shadow: 0 12px 32px rgba(59, 130, 246, 0.6);
+      box-shadow: 0 12px 32px rgba($blue, 0.6);
     }
   }
   
@@ -281,7 +293,7 @@ const openTaskDetails = () => {
   }
 }
 
-.board-task-card-header {
+.task-card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -290,109 +302,113 @@ const openTaskDetails = () => {
   border-bottom: 1px solid #374151;
 }
 
-.board-task-card-priority {
-  display: inline-block;
+.task-priority {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 4px 10px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   border-radius: 4px;
   text-transform: uppercase;
+  color: $text-light;
 }
 
-.board-task-card-priority.priority-low {
+.task-priority.priority-low {
   background: #374151;
-  color: #9ca3af;
 }
 
-.board-task-card-priority.priority-medium {
-  background: #1e3a8a;
-  color: #93c5fd;
+.task-priority.priority-medium {
+  background: rgba($blue, 0.2);
+  color: $blue;
 }
 
-.board-task-card-priority.priority-high {
-  background: #8b5cf6;
-  color: #ddd6fe;
+.task-priority.priority-high {
+  background: rgba(124, 58, 237, 0.2);
+  color: #7c3aed;
 }
 
-.board-task-card-priority.priority-urgent {
-  background: #dc2626;
-  color: #fee2e2;
+.task-priority.priority-urgent {
+  background: rgba($red, 0.2);
+  color: $red;
 }
 
-.board-task-card-status {
-  display: inline-block;
+.task-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 4px 10px;
-  font-size: 12px;
+  font-size: 11px;
   border-radius: 4px;
   text-transform: uppercase;
+  color: $text-light;
 }
 
-.board-task-card-status.status-todo {
+.task-status.status-todo {
   background: #374151;
-  color: #9ca3af;
+  color: $yellow;
 }
 
-.board-task-card-status.status-in_progress {
-  background: #1e3a8a;
-  color: #93c5fd;
+.task-status.status-in_progress {
+  background: rgba($blue, 0.2);
+  color: $blue;
 }
 
-.board-task-card-status.status-review {
-  background: #8b5cf6;
-  color: #ddd6fe;
+.task-status.status-review {
+  background: rgba(124, 58, 237, 0.2);
+  color: #7c3aed;
 }
 
-.board-task-card-status.status-done {
-  background: #059669;
-  color: #dcfce7;
+.task-status.status-done {
+  background: rgba($green, 0.2);
+  color: $green;
 }
 
-.board-task-card-status.status-blocked {
-  background: #dc2626;
-  color: #fee2e2;
+.task-status.status-blocked {
+  background: rgba($red, 0.2);
+  color: $red;
 }
 
-.board-task-card-status.status-cancelled {
+.task-status.status-cancelled {
   background: #6b7280;
-  color: #f3f4f6;
 }
 
-.board-task-card-body {
+.task-card-body {
   margin-bottom: 12px;
 }
 
-.board-task-card-title {
+.task-card-title {
   margin: 0 0 8px 0;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  color: #fff;
+  color: $text-light;
   line-height: 1.4;
 }
 
-.board-task-card-description {
+.task-card-description {
   margin: 0;
   color: #9ca3af;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.5;
 }
 
-.board-task-card-tags {
+.task-card-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 10px;
 }
 
-.board-task-card-tag {
+.task-card-tag {
   display: inline-block;
   padding: 3px 8px;
   font-size: 11px;
-  color: #fff;
+  color: $text-light;
   border-radius: 3px;
   font-weight: 500;
 }
 
-.board-task-card-footer {
+.task-card-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -400,32 +416,39 @@ const openTaskDetails = () => {
   border-top: 1px solid #374151;
 }
 
-.board-task-card-meta {
+.task-card-meta {
   display: flex;
   align-items: center;
   gap: 12px;
   color: #6b7280;
-  font-size: 13px;
+  font-size: 12px;
 }
 
-.board-task-card-due-date,
-.board-task-card-assignee {
+.task-card-meta-item {
   display: flex;
   align-items: center;
   gap: 4px;
+  
+  .icon {
+    color: #6b7280;
+  }
 }
 
-.board-task-card-stats {
+.task-card-stats {
   display: flex;
   align-items: center;
   gap: 12px;
   color: #9ca3af;
-  font-size: 13px;
+  font-size: 12px;
 }
 
-.board-task-card-subtasks {
+.task-card-subtasks {
   display: flex;
   align-items: center;
   gap: 4px;
+  
+  .icon {
+    color: $blue;
+  }
 }
 </style>

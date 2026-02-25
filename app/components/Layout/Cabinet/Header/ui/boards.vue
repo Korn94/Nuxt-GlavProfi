@@ -1,196 +1,150 @@
 <!-- app/components/Layout/Cabinet/Header/ui/boards.vue -->
 <template>
   <ul>
-    <!-- Общие доски -->
-    <li class="boards-section">
-      <div class="boards-section-header">
-        <div class="boards-section-title">
-          <Icon name="mdi:folder-outline" />
-          <span>Общие доски</span>
-        </div>
-        <button 
-          class="boards-section-add-btn"
-          @click="openCreateBoardModal('general')"
-          title="Создать общую доску"
-        >
-          <Icon name="mdi:plus" size="18" />
-        </button>
-      </div>
-      
-      <div v-if="boardsLoading" class="boards-loading">
-        <Icon name="mdi:loading" class="loading-icon" />
-        <span>Загрузка...</span>
-      </div>
-      
-      <div v-else-if="generalBoards.length === 0" class="boards-empty-state">
-        <p>Нет общих досок</p>
-      </div>
-      
-      <ul v-else class="boards-list">
-        <li 
-          v-for="board in generalBoards" 
-          :key="`general-${board.id}`"
-          class="board-item"
-          :class="{ active: isActiveBoard(board.id) }"
-        >
-          <button 
-            @click="selectBoard(board.id)"
-            class="board-link"
-          >
-            <Icon name="mdi:clipboard-text-outline" class="board-icon" />
-            <span class="board-name">{{ board.name }}</span>
-          </button>
-        </li>
-      </ul>
-    </li>
-    
-    <!-- Разделитель -->
-    <li v-if="generalBoards.length > 0 && objectBoards.length > 0" class="divider">
-      <hr />
-    </li>
-    
-    <!-- Доски объектов -->
+    <!-- Папки объектов -->
     <li class="boards-section">
       <div class="boards-section-header">
         <div class="boards-section-title">
           <Icon name="mdi:home-outline" />
           <span>Доски объектов</span>
         </div>
-        <button 
-          class="boards-section-add-btn"
-          @click="openCreateBoardModal('object')"
-          title="Создать доску объекта"
-        >
+        <button class="boards-section-add-btn" @click="openCreateFolderModal('objects')"
+          title="Создать папку досок объектов">
           <Icon name="mdi:plus" size="18" />
         </button>
       </div>
-      
-      <div v-if="boardsLoading" class="boards-loading">
+
+      <div v-if="foldersLoading" class="boards-loading">
         <Icon name="mdi:loading" class="loading-icon" />
         <span>Загрузка...</span>
       </div>
-      
-      <div v-else-if="objectBoards.length === 0" class="boards-empty-state">
-        <p>Нет досок объектов</p>
+
+      <div v-else-if="objectsFolders.length === 0" class="boards-empty-state">
+        <p>Нет папок</p>
       </div>
-      
+
       <ul v-else class="boards-list">
-        <li 
-          v-for="board in objectBoards" 
-          :key="`object-${board.id}`"
-          class="board-item"
-          :class="{ active: isActiveBoard(board.id) }"
-        >
-          <button 
-            @click="selectBoard(board.id)"
-            class="board-link"
-          >
-            <Icon name="mdi:clipboard-text-outline" class="board-icon" />
-            <span class="board-name">{{ board.name }}</span>
-            <span 
-              v-if="board.object" 
-              class="board-object"
-              :title="board.object.address || board.object.name"
-            >
-              {{ truncateText(board.object.name, 20) }}
-            </span>
-          </button>
+        <li v-for="folder in objectsFolders" :key="`folder-${folder.id}`" class="board-item folder-item"
+          :class="{ active: isActiveFolder(folder.id) }" @click="selectFolder(folder.id)">
+          <div class="board-link folder-link">
+            <Icon name="mdi:folder" class="board-icon folder-icon" />
+            <span class="board-name folder-name">{{ folder.name }}</span>
+            <span class="board-count folder-count">{{ getBoardsCount(folder.id) }}</span>
+          </div>
         </li>
       </ul>
     </li>
-    
-    <!-- Пустое состояние -->
-    <li v-if="generalBoards.length === 0 && objectBoards.length === 0 && !boardsLoading" class="boards-empty">
-      <Icon name="mdi:clipboard-text-off-outline" size="48" />
-      <p>Нет доступных досок</p>
-      <div class="boards-empty-actions">
-        <button 
-          @click="openCreateBoardModal('general')"
-          class="create-board-btn general"
-        >
-          Создать общую доску
+
+    <!-- Разделитель -->
+    <li v-if="objectsFolders.length > 0 && generalFolders.length > 0" class="divider">
+      <hr />
+    </li>
+
+    <!-- Общие папки -->
+    <li class="boards-section">
+      <div class="boards-section-header">
+        <div class="boards-section-title">
+          <Icon name="mdi:folder-outline" />
+          <span>Общие доски</span>
+        </div>
+        <button class="boards-section-add-btn" @click="openCreateFolderModal('general')"
+          title="Создать папку общих досок">
+          <Icon name="mdi:plus" size="18" />
         </button>
-        <button 
-          @click="openCreateBoardModal('object')"
-          class="create-board-btn object"
-        >
-          Создать доску объекта
+      </div>
+
+      <div v-if="foldersLoading" class="boards-loading">
+        <Icon name="mdi:loading" class="loading-icon" />
+        <span>Загрузка...</span>
+      </div>
+
+      <div v-else-if="generalFolders.length === 0" class="boards-empty-state">
+        <p>Нет папок</p>
+      </div>
+
+      <ul v-else class="boards-list">
+        <li v-for="folder in generalFolders" :key="`folder-${folder.id}`" class="board-item folder-item"
+          :class="{ active: isActiveFolder(folder.id) }" @click="selectFolder(folder.id)">
+          <div class="board-link folder-link">
+            <Icon name="mdi:folder" class="board-icon folder-icon" />
+            <span class="board-name folder-name">{{ folder.name }}</span>
+            <span class="board-count folder-count">{{ getBoardsCount(folder.id) }}</span>
+          </div>
+        </li>
+      </ul>
+    </li>
+
+    <!-- Пустое состояние -->
+    <li v-if="objectsFolders.length === 0 && generalFolders.length === 0 && !foldersLoading" class="boards-empty">
+      <Icon name="mdi:folder-open-outline" size="48" />
+      <p>Нет папок с досками</p>
+      <div class="boards-empty-actions">
+        <button @click="openCreateFolderModal('objects')" class="create-board-btn object">
+          Создать папку объектов
+        </button>
+        <button @click="openCreateFolderModal('general')" class="create-board-btn general">
+          Создать папку общих досок
         </button>
       </div>
     </li>
   </ul>
-  
-  <!-- Модалка создания доски через Teleport -->
+
+  <!-- Модалка создания папки через Teleport -->
   <Teleport to="body">
     <Transition name="modal-fade">
-      <div v-if="showCreateBoardModal" class="modal-overlay" @click="closeCreateBoardModal">
+      <div v-if="showCreateFolderModal" class="modal-overlay" @click="closeCreateFolderModal">
         <div class="modal" @click.stop>
           <div class="modal-header">
-            <h3>Создать {{ boardTypeLabel }}</h3>
-            <button class="modal-close" @click="closeCreateBoardModal" aria-label="Закрыть">
+            <h3>Создать папку {{ folderTypeLabel }}</h3>
+            <button class="modal-close" @click="closeCreateFolderModal" aria-label="Закрыть">
               <Icon name="mdi:close" size="24" />
             </button>
           </div>
           <div class="modal-body">
-            <form @submit.prevent="handleCreateBoard" class="create-board-form">
+            <form @submit.prevent="handleCreateFolder" class="create-folder-form">
               <div class="form-group">
-                <label for="board-name">Название доски *</label>
-                <input
-                  id="board-name"
-                  v-model="newBoard.name"
-                  type="text"
-                  class="form-control"
-                  placeholder="Введите название доски"
-                  required
-                  autofocus
-                />
+                <label for="folder-name">Название папки *</label>
+                <input id="folder-name" v-model="newFolder.name" type="text" class="form-control"
+                  placeholder="Введите название папки" required autofocus />
               </div>
-              
+
               <div class="form-group">
-                <label for="board-description">Описание</label>
-                <textarea
-                  id="board-description"
-                  v-model="newBoard.description"
-                  class="form-control"
-                  placeholder="Описание доски (необязательно)"
-                  rows="2"
-                ></textarea>
+                <label for="folder-description">Описание</label>
+                <textarea id="folder-description" v-model="newFolder.description" class="form-control"
+                  placeholder="Описание папки (необязательно)" rows="2"></textarea>
               </div>
-              
-              <!-- Выбор типа доски -->
+
+              <!-- Первая доска в папке -->
+              <div class="form-group section-divider">
+                <h4>Первая доска в папке</h4>
+                <p class="section-description">При создании папки автоматически создастся первая доска</p>
+              </div>
+
               <div class="form-group">
-                <label for="board-type">Тип доски *</label>
-                <select
-                  id="board-type"
-                  v-model="newBoard.type"
-                  class="form-control"
-                  required
-                  @change="handleTypeChange"
-                >
+                <label for="first-board-name">Название доски *</label>
+                <input id="first-board-name" v-model="newFolder.firstBoard.name" type="text" class="form-control"
+                  placeholder="Введите название доски" required />
+              </div>
+
+              <div class="form-group">
+                <label for="first-board-description">Описание доски</label>
+                <textarea id="first-board-description" v-model="newFolder.firstBoard.description" class="form-control"
+                  placeholder="Описание доски (необязательно)" rows="2"></textarea>
+              </div>
+
+              <div class="form-group">
+                <label for="first-board-type">Тип доски *</label>
+                <select id="first-board-type" v-model="newFolder.firstBoard.type" class="form-control" required>
                   <option value="general">Общая доска</option>
                   <option value="object">Доска объекта</option>
                 </select>
-                <div class="type-hint">
-                  <span v-if="newBoard.type === 'general'">💡 Общая доска не привязана к конкретному объекту</span>
-                  <span v-else>💡 Доска будет привязана к выбранному объекту</span>
-                </div>
               </div>
-              
-              <!-- Выбор объекта для доски объекта -->
-              <div v-if="newBoard.type === 'object'" class="form-group">
-                <label for="board-object">Выберите объект *</label>
-                <select
-                  id="board-object"
-                  v-model="newBoard.objectId"
-                  class="form-control"
-                  required
-                >
+
+              <div v-if="newFolder.firstBoard.type === 'object'" class="form-group">
+                <label for="first-board-object">Выберите объект *</label>
+                <select id="first-board-object" v-model="newFolder.firstBoard.objectId" class="form-control" required>
                   <option value="">-- Выберите объект --</option>
-                  <option
-                    v-for="obj in availableObjects"
-                    :key="obj.id"
-                    :value="obj.id"
-                  >
+                  <option v-for="obj in availableObjects" :key="obj.id" :value="obj.id">
                     {{ obj.name }} {{ obj.address ? `— ${truncateText(obj.address, 30)}` : '' }}
                   </option>
                 </select>
@@ -202,26 +156,18 @@
                   <span class="error-text">{{ objectsError }}</span>
                 </div>
               </div>
-              
+
               <div class="modal-actions">
-                <button 
-                  type="button" 
-                  class="btn btn-secondary" 
-                  @click="closeCreateBoardModal"
-                  :disabled="creatingBoard"
-                >
+                <button type="button" class="btn btn-secondary" @click="closeCreateFolderModal"
+                  :disabled="creatingFolder">
                   Отмена
                 </button>
-                <button 
-                  type="submit" 
-                  class="btn btn-primary" 
-                  :disabled="creatingBoard || !canSubmit"
-                >
-                  <span v-if="creatingBoard">
+                <button type="submit" class="btn btn-primary" :disabled="creatingFolder || !canSubmitFolder">
+                  <span v-if="creatingFolder">
                     <Icon name="mdi:loading" class="btn-icon spin" />
                     Создание...
                   </span>
-                  <span v-else>Создать доску</span>
+                  <span v-else>Создать папку</span>
                 </button>
               </div>
             </form>
@@ -235,8 +181,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useBoardsStore } from '~~/stores/boards'
-import { useNotificationStore } from '~~/stores/notifications'
+import { useBoardFoldersStore } from 'stores/boards/folders'
+import { useBoardsStore } from 'stores/boards'
+import { useNotificationStore } from 'stores/notifications'
+import type { BoardFolder } from '~/types/boards'
 
 // Emits
 const emit = defineEmits<{
@@ -244,22 +192,28 @@ const emit = defineEmits<{
 }>()
 
 // Stores
+const foldersStore = useBoardFoldersStore()
 const boardsStore = useBoardsStore()
 const notificationStore = useNotificationStore()
 const router = useRouter()
 
 // State
-const showCreateBoardModal = ref(false)
-const creatingBoard = ref(false)
-const boardType = ref<'general' | 'object'>('general')
-const boardsLoading = ref(false)
+const showCreateFolderModal = ref(false)
+const creatingFolder = ref(false)
+const folderType = ref<'objects' | 'general'>('general')
+const foldersLoading = ref(false)
 
-// State для формы создания доски
-const newBoard = ref({
+// State для формы создания папки
+const newFolder = ref({
   name: '',
   description: '',
-  type: 'general' as 'general' | 'object',
-  objectId: null as number | null
+  category: 'general' as 'objects' | 'general',
+  firstBoard: {
+    name: '',
+    description: '',
+    type: 'general' as 'object' | 'general',
+    objectId: null as number | null
+  }
 })
 
 // State для объектов
@@ -268,131 +222,154 @@ const objectsLoading = ref(false)
 const objectsError = ref<string | null>(null)
 
 // Computed
-const generalBoards = computed(() => {
-  return [...boardsStore.generalBoards].sort((a, b) => 
-    a.name.localeCompare(b.name, 'ru')
-  )
+const objectsFolders = computed(() => {
+  return foldersStore.allFolders.filter(f => f.category === 'objects')
+    .sort((a, b) => a.name.localeCompare(b.name, 'ru'))
 })
 
-const objectBoards = computed(() => {
-  return [...boardsStore.objectBoards].sort((a, b) => 
-    a.name.localeCompare(b.name, 'ru')
-  )
+const generalFolders = computed(() => {
+  return foldersStore.allFolders.filter(f => f.category === 'general')
+    .sort((a, b) => a.name.localeCompare(b.name, 'ru'))
 })
 
-const boardTypeLabel = computed(() => {
-  return boardType.value === 'general' ? 'доску' : 'доску объекта'
+const folderTypeLabel = computed(() => {
+  return folderType.value === 'objects' ? 'объектов' : 'общих досок'
 })
 
-const canSubmit = computed(() => {
-  const nameValid = newBoard.value.name.trim().length > 0
-  const objectValid = newBoard.value.type !== 'object' || !!newBoard.value.objectId
-  return nameValid && objectValid
+const canSubmitFolder = computed(() => {
+  const nameValid = newFolder.value.name.trim().length > 0
+  const boardNameValid = newFolder.value.firstBoard.name.trim().length > 0
+  const objectValid = newFolder.value.firstBoard.type !== 'object' ||
+    !!newFolder.value.firstBoard.objectId
+  return nameValid && boardNameValid && objectValid
 })
 
 // Methods
-const isActiveBoard = (boardId: number) => {
-  return boardsStore.selectedBoardId === boardId
+const isActiveFolder = (folderId: number) => {
+  return foldersStore.activeFolderId === folderId
 }
 
-const selectBoard = (id: number) => {
-  boardsStore.selectBoard(id)
-  emit('closeSidebar')
-  router.push('/cabinet/boards')
+const getBoardsCount = (folderId: number) => {
+  return boardsStore.allBoards.filter(b => b.folderId === folderId).length
 }
 
-const openCreateBoardModal = (type: 'general' | 'object') => {
-  boardType.value = type
-  newBoard.value = {
+const selectFolder = async (folderId: number) => {
+  // Устанавливаем активную папку
+  foldersStore.selectFolder(folderId)
+
+  // Загружаем доски папки
+  try {
+    await foldersStore.fetchBoardsInFolder(folderId)
+
+    // Получаем доски текущей папки
+    const boardsInFolder = boardsStore.allBoards.filter(b => b.folderId === folderId)
+
+    // Выбираем первую доску
+    if (boardsInFolder.length > 0) {
+      const firstBoard = boardsInFolder[0]
+      boardsStore.selectBoard(firstBoard.id)
+
+      // Переходим в канбан
+      router.push('/cabinet/boards')
+      emit('closeSidebar')
+    } else {
+      notificationStore.warning('В папке нет досок')
+    }
+  } catch (error) {
+    console.error('Ошибка загрузки досок папки:', error)
+    notificationStore.error('Не удалось загрузить доски папки')
+  }
+}
+
+const openCreateFolderModal = (type: 'objects' | 'general') => {
+  folderType.value = type
+  newFolder.value = {
     name: '',
     description: '',
-    type: type,
-    objectId: null
+    category: type,
+    firstBoard: {
+      name: '',
+      description: '',
+      type: type === 'objects' ? 'object' : 'general',
+      objectId: null
+    }
   }
-  
+
   // Загружаем объекты если нужно
-  if (type === 'object' && availableObjects.value.length === 0) {
+  if (type === 'objects' && availableObjects.value.length === 0) {
     fetchObjects()
   }
-  
-  showCreateBoardModal.value = true
+
+  showCreateFolderModal.value = true
   // Фокус на поле ввода при открытии
   setTimeout(() => {
-    const input = document.getElementById('board-name') as HTMLInputElement
+    const input = document.getElementById('folder-name') as HTMLInputElement
     input?.focus()
   }, 100)
 }
 
-const closeCreateBoardModal = () => {
-  showCreateBoardModal.value = false
-  newBoard.value = {
+const closeCreateFolderModal = () => {
+  showCreateFolderModal.value = false
+  newFolder.value = {
     name: '',
     description: '',
-    type: 'general',
-    objectId: null
+    category: 'general',
+    firstBoard: {
+      name: '',
+      description: '',
+      type: 'general',
+      objectId: null
+    }
   }
 }
 
-const handleTypeChange = () => {
-  // Сбрасываем выбор объекта при переключении на общую доску
-  if (newBoard.value.type === 'general') {
-    newBoard.value.objectId = null
-  }
-  // Загружаем объекты при переключении на доску объекта
-  else if (availableObjects.value.length === 0) {
-    fetchObjects()
-  }
-}
+const handleCreateFolder = async () => {
+  if (!canSubmitFolder.value) return
 
-const handleCreateBoard = async () => {
-  if (!canSubmit.value) return
-  
-  creatingBoard.value = true
+  creatingFolder.value = true
   try {
-    const boardData = {
-      name: newBoard.value.name.trim(),
-      description: newBoard.value.description.trim() || undefined,
-      type: newBoard.value.type,
-      ...(newBoard.value.type === 'object' && newBoard.value.objectId && { 
-        objectId: Number(newBoard.value.objectId) 
-      })
+    const result = await foldersStore.createFolderWithBoard({
+      folder: {
+        name: newFolder.value.name.trim(),
+        description: newFolder.value.description.trim() || undefined,
+        category: newFolder.value.category
+      },
+      firstBoard: {
+        name: newFolder.value.firstBoard.name.trim(),
+        description: newFolder.value.firstBoard.description.trim() || undefined,
+        type: newFolder.value.firstBoard.type,
+        objectId: newFolder.value.firstBoard.objectId || undefined
+      }
+    })
+
+    // ✅ ИСПРАВЛЕНИЕ: Явная проверка с optional chaining
+    if (result?.folder?.id && result?.board?.id) {
+      notificationStore.success(`Папка "${result.folder.name}" успешно создана`)
+      await selectFolder(result.folder.id)
+    } else {
+      notificationStore.error('Не удалось создать папку или доску')
     }
-    
-    await boardsStore.createBoard(boardData)
-    
-    // Обновляем список досок
-    await fetchBoards()
-    
-    // Показываем уведомление
-    notificationStore.success(`Доска "${boardData.name}" успешно создана`)
-    
-    // Закрываем модалку
-    closeCreateBoardModal()
-    
-    // Автоматически выбираем созданную доску и переходим к ней
-    const lastBoard = boardsStore.allBoards[0]
-    if (lastBoard) {
-      boardsStore.selectBoard(lastBoard.id)
-      router.push('/cabinet/boards')
-      emit('closeSidebar')
-    }
+
+    closeCreateFolderModal()
   } catch (error) {
-    console.error('Ошибка создания доски:', error)
-    const message = (error as any)?.data?.message || 'Не удалось создать доску'
+    console.error('Ошибка создания папки:', error)
+    const message = (error as any)?.data?.message || 'Не удалось создать папку'
     notificationStore.error(message)
   } finally {
-    creatingBoard.value = false
+    creatingFolder.value = false
   }
 }
 
-const fetchBoards = async () => {
-  boardsLoading.value = true
+const fetchFolders = async () => {
+  foldersLoading.value = true
   try {
+    await foldersStore.fetchFolders()
+    // Загружаем все доски для фильтрации по папкам
     await boardsStore.fetchBoards()
   } catch (error) {
-    console.error('Ошибка загрузки досок:', error)
+    console.error('Ошибка загрузки папок:', error)
   } finally {
-    boardsLoading.value = false
+    foldersLoading.value = false
   }
 }
 
@@ -417,9 +394,13 @@ const truncateText = (text: string, maxLength: number) => {
 
 // Lifecycle
 onMounted(() => {
-  // Загружаем доски при монтировании
-  if (boardsStore.allBoards.length === 0) {
-    fetchBoards()
+  // Загружаем папки при монтировании
+  if (foldersStore.allFolders.length === 0) {
+    fetchFolders()
+  }
+  // Загружаем доски если они ещё не загружены
+  else if (boardsStore.allBoards.length === 0) {
+    boardsStore.fetchBoards()
   }
 })
 </script>
@@ -429,10 +410,10 @@ ul {
   list-style: none;
   padding: 12px 0;
   margin: 0;
-  
+
   li {
     margin-bottom: 0;
-    
+
     &.boards-section {
       .boards-section-header {
         display: flex;
@@ -440,7 +421,7 @@ ul {
         align-items: center;
         padding: 0 16px 8px;
       }
-      
+
       .boards-section-title {
         display: flex;
         align-items: center;
@@ -449,17 +430,17 @@ ul {
         font-weight: 600;
         color: #7f8c8d;
         text-transform: uppercase;
-        
+
         .icon {
           font-size: 16px;
         }
       }
-      
+
       .boards-section-add-btn {
         width: 28px;
         height: 28px;
         border-radius: 50%;
-        background: rgba(0, 195, 245, 0.2);
+        background: #27282a;
         border: none;
         color: #00c3f5;
         display: flex;
@@ -467,45 +448,46 @@ ul {
         justify-content: center;
         cursor: pointer;
         transition: all 0.2s ease;
-        
+
         &:hover {
           background: rgba(0, 195, 245, 0.3);
           transform: scale(1.1);
         }
       }
-      
+
       .boards-loading,
       .boards-empty-state {
         padding: 12px 16px;
         text-align: center;
         color: #888;
         font-size: 13px;
-        
+
         .loading-icon {
           animation: spin 1s linear infinite;
           margin-bottom: 8px;
         }
       }
-      
+
       .boards-list {
         list-style: none;
         padding: 0;
         margin: 0;
-        
+
         .board-item {
           margin: 0;
-          
+          cursor: pointer;
+
           &.active {
             .board-link {
               background: rgba(52, 73, 94, 0.7);
-              color: white;
-              
+              color: $blue;
+
               .board-icon {
                 color: white;
               }
             }
           }
-          
+
           .board-link {
             display: flex;
             align-items: center;
@@ -520,32 +502,32 @@ ul {
             cursor: pointer;
             transition: all 0.2s ease;
             border-radius: 4px;
-            
+
             &:hover {
               background: rgba(0, 195, 245, 0.15);
               color: #00c3f5;
-              
+
               .board-icon {
                 color: #00c3f5;
               }
             }
-            
+
             &.router-link-active,
             &:active {
               background: rgba(52, 73, 94, 0.5);
               color: white;
-              
+
               .board-icon {
                 color: white;
               }
             }
-            
+
             .board-icon {
               color: #7f8c8d;
               font-size: 18px;
               flex-shrink: 0;
             }
-            
+
             .board-name {
               flex: 1;
               font-size: 13px;
@@ -553,52 +535,73 @@ ul {
               text-overflow: ellipsis;
               white-space: nowrap;
             }
-            
-            .board-object {
+
+            .board-count {
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              min-width: 20px;
+              height: 20px;
+              padding: 0 6px;
+              background: #334155;
+              color: #94a3b8;
               font-size: 11px;
-              color: #7f8c8d;
-              background: rgba(255, 255, 255, 0.05);
-              padding: 2px 6px;
-              border-radius: 3px;
-              white-space: nowrap;
-              margin-left: 8px;
+              border-radius: 10px;
+              font-weight: 500;
+            }
+          }
+
+          &.folder-item {
+            .folder-link {
+              .folder-icon {
+                color: #00c3f5;
+              }
+
+              .folder-name {
+                font-weight: 500;
+              }
+
+              .folder-count {
+                background: rgba(0, 195, 245, 0.2);
+                color: #00c3f5;
+              }
             }
           }
         }
       }
     }
-    
+
     &.divider {
       margin: 12px 0;
       pointer-events: none;
-      
+
       hr {
         border: 0;
         border-top: 1px solid #444;
         margin: 0;
       }
     }
-    
+
     &.boards-empty {
       padding: 20px;
       text-align: center;
       color: #ccc;
-      
+
       .icon {
         margin-bottom: 12px;
         color: #666;
       }
-      
+
       p {
         margin: 0 0 16px 0;
         font-size: 14px;
       }
-      
+
       .boards-empty-actions {
         display: flex;
         flex-direction: column;
         gap: 8px;
-        
+
         .create-board-btn {
           display: block;
           width: 100%;
@@ -609,18 +612,18 @@ ul {
           font-size: 13px;
           cursor: pointer;
           transition: background-color 0.2s ease;
-          
+
           &.general {
             background: #34495e;
-            
+
             &:hover {
               background: #2c3e50;
             }
           }
-          
+
           &.object {
             background: #1e3a8a;
-            
+
             &:hover {
               background: #172a66;
             }
@@ -631,7 +634,7 @@ ul {
   }
 }
 
-/* Модалка создания доски - стили вынесены для корректной работы с Teleport */
+/* Модалка создания папки */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -662,13 +665,13 @@ ul {
   align-items: center;
   padding: 16px 20px;
   border-bottom: 1px solid #333;
-  
+
   h3 {
     margin: 0;
     color: white;
     font-size: 18px;
   }
-  
+
   .modal-close {
     background: none;
     border: none;
@@ -677,7 +680,7 @@ ul {
     padding: 4px;
     border-radius: 4px;
     transition: color 0.2s;
-    
+
     &:hover {
       color: #fff;
     }
@@ -688,7 +691,7 @@ ul {
   padding: 20px;
 }
 
-.create-board-form {
+.create-folder-form {
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -698,7 +701,7 @@ ul {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  
+
   label {
     color: #ccc;
     font-size: 14px;
@@ -715,13 +718,13 @@ ul {
   color: white;
   font-size: 15px;
   transition: border-color 0.2s;
-  
+
   &:focus {
     outline: none;
     border-color: #00c3f5;
     box-shadow: 0 0 0 2px rgba(0, 195, 245, 0.2);
   }
-  
+
   &::placeholder {
     color: #666;
   }
@@ -732,11 +735,23 @@ textarea.form-control {
   min-height: 60px;
 }
 
-.type-hint {
-  margin-top: 6px;
-  font-size: 12px;
-  color: #888;
-  padding-left: 4px;
+.section-divider {
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid #333;
+
+  h4 {
+    margin: 0 0 8px;
+    color: #ccc;
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .section-description {
+    margin: 0;
+    color: #888;
+    font-size: 13px;
+  }
 }
 
 .objects-loading,
@@ -747,7 +762,7 @@ textarea.form-control {
   margin-top: 8px;
   font-size: 13px;
   color: #888;
-  
+
   .loading-icon {
     animation: spin 1s linear infinite;
     font-size: 16px;
@@ -778,7 +793,7 @@ textarea.form-control {
   justify-content: center;
   gap: 8px;
   transition: all 0.2s ease;
-  
+
   &:disabled {
     opacity: 0.6;
     cursor: not-allowed;
@@ -789,7 +804,7 @@ textarea.form-control {
   background: #00c3f5;
   color: white;
   border: none;
-  
+
   &:hover:not(:disabled) {
     background: #00a8d3;
   }
@@ -799,7 +814,7 @@ textarea.form-control {
   background: #444;
   color: white;
   border: none;
-  
+
   &:hover:not(:disabled) {
     background: #555;
   }
@@ -816,8 +831,13 @@ textarea.form-control {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .modal-fade-enter-active,
@@ -835,5 +855,9 @@ textarea.form-control {
     max-width: 95%;
     margin: 20px auto;
   }
+}
+
+span {
+  color: unset;
 }
 </style>

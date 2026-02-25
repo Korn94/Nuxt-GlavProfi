@@ -33,14 +33,14 @@ export const useTasksStore = defineStore('tasks', () => {
         // ✅ ОБРАБОТЧИК СОЗДАНИЯ ЗАДАЧИ С ЗАЩИТОЙ ОТ ДУБЛЕЙ
         socketStore.on(`board:${boardId}:task:created`, (data: { task: Task }) => {
           console.log('[TasksStore] 🆕 Task created via socket:', data.task.id)
-          
+
           if (!tasksByBoard[boardId]) {
             tasksByBoard[boardId] = []
           }
-          
+
           // ✅ ПРОВЕРЯЕМ, НЕТ ЛИ УЖЕ ТАКОЙ ЗАДАЧИ
           const exists = tasksByBoard[boardId].find(t => t.id === data.task.id)
-          
+
           if (!exists) {
             console.log('[TasksStore] ➕ Adding task to board')
             tasksByBoard[boardId] = [data.task, ...tasksByBoard[boardId]]
@@ -59,14 +59,33 @@ export const useTasksStore = defineStore('tasks', () => {
           if (tasksByBoard[boardId]) {
             const index = tasksByBoard[boardId].findIndex(task => task.id === data.taskId)
             if (index !== -1) {
-              tasksByBoard[boardId][index] = { ...data.task }
+              // ✅ СОХРАНЯЕМ ПОДЗАДАЧИ ИЗ ТЕКУЩЕГО СОСТОЯНИЯ
+              const currentSubtasks = tasksByBoard[boardId][index].subtasks
+
+              tasksByBoard[boardId][index] = {
+                ...tasksByBoard[boardId][index],
+                ...data.task,
+                // ✅ Восстанавливаем подзадачи если их нет в обновлении
+                subtasks: data.task.subtasks || currentSubtasks || []
+              }
             }
           }
         })
 
         socketStore.on(`board:${boardId}:tasks:updated`, (data: { tasks: Task[] }) => {
           console.log('[TasksStore] 🔄 Multiple tasks updated via socket:', data.tasks.length)
-          tasksByBoard[boardId] = [...(data.tasks || [])]
+          const currentTasks = tasksByBoard[boardId] || []
+
+          // ✅ СОХРАНЯЕМ ПОДЗАДАЧИ ДЛЯ ВСЕХ ЗАДАЧ
+          const updatedTasks = data.tasks.map(updatedTask => {
+            const currentTask = currentTasks.find(t => t.id === updatedTask.id)
+            return {
+              ...updatedTask,
+              subtasks: updatedTask.subtasks || currentTask?.subtasks || []
+            }
+          })
+
+          tasksByBoard[boardId] = updatedTasks
         })
 
         socketStore.on(`board:${boardId}:task:deleted`, (data: { taskId: number }) => {
@@ -109,36 +128,41 @@ export const useTasksStore = defineStore('tasks', () => {
   // ============================================
   // ✅ ОПТИМИСТИЧНЫЕ МЕТОДЫ
   // ============================================
-  
+
   async function updateTaskOptimistic(id: number, updates: Partial<UpdateTaskData>) {
     const boardId = currentBoardId.value
     if (!boardId || !tasksByBoard[boardId]) return
-    
     const taskIndex = tasksByBoard[boardId].findIndex(t => t.id === id)
     if (taskIndex === -1) return
-    
+
     const oldTask = { ...tasksByBoard[boardId][taskIndex] }
-    
+    const existingSubtasks = oldTask.subtasks // ✅ Сохраняем подзадачи
+
     try {
+      // ✅ Обновляем задачу с сохранением подзадач
       tasksByBoard[boardId][taskIndex] = {
-        ...tasksByBoard[boardId][taskIndex],
-        ...updates
+        ...oldTask,
+        ...updates,
+        subtasks: existingSubtasks // ✅ Восстанавливаем подзадачи
       } as Task
-      
+
       const response = await $fetch<{ success: boolean, task: Task }>(`/api/tasks/${id}`, {
         method: 'PUT',
         body: updates
       })
-      
+
       if (response.task) {
-        tasksByBoard[boardId][taskIndex] = response.task
+        // ✅ При получении ответа от сервера тоже сохраняем подзадачи
+        tasksByBoard[boardId][taskIndex] = {
+          ...response.task,
+          subtasks: response.task.subtasks || existingSubtasks || []
+        }
       }
-      
       return response.task
     } catch (error) {
       console.error('Failed to update task, rolling back:', error)
       if (tasksByBoard[boardId]) {
-        tasksByBoard[boardId][taskIndex] = oldTask
+        tasksByBoard[boardId][taskIndex] = oldTask // Откатываем с подзадачами
       }
       throw error
     }
@@ -146,24 +170,33 @@ export const useTasksStore = defineStore('tasks', () => {
 
   async function updateTasksOrderOptimistic(boardId: number, tasks: Task[]) {
     const oldTasks = [...(tasksByBoard[boardId] || [])]
-    
+
     try {
-      tasksByBoard[boardId] = [...tasks] as Task[]
-      
+      // ✅ СОХРАНЯЕМ ПОДЗАДАЧИ ПРИ ОБНОВЛЕНИИ ПОРЯДКА
+      const tasksWithSubtasks = tasks.map(task => {
+        const oldTask = oldTasks.find(t => t.id === task.id)
+        return {
+          ...task,
+          subtasks: task.subtasks || oldTask?.subtasks || []
+        }
+      })
+
+      tasksByBoard[boardId] = tasksWithSubtasks as Task[]
+
       const updates = tasks.map((task, index) => ({
         id: task.id,
         order: index
       }))
-      
+
       await $fetch<{ success: boolean }>(`/api/boards/${boardId}/tasks/order`, {
         method: 'PUT',
         body: { updates }
       })
-      
+
       return true
     } catch (error) {
       console.error('Failed to update tasks order, rolling back:', error)
-      tasksByBoard[boardId] = oldTasks
+      tasksByBoard[boardId] = oldTasks // Откатываем с подзадачами
       throw error
     }
   }
@@ -198,19 +231,19 @@ export const useTasksStore = defineStore('tasks', () => {
 
     try {
       console.log('[TasksStore] 📤 Creating task on server...')
-      
+
       const response = await $fetch<{ success: boolean, task: Task }>(`/api/boards/${boardId}/tasks`, {
         method: 'POST',
         body: data
       })
 
       console.log('[TasksStore] ✅ Task created on server:', response.task.id)
-      
+
       // ✅ ДОБАВЛЯЕМ ЛОКАЛЬНО СРАЗУ (ОПТИМИСТИЧНОЕ ОБНОВЛЕНИЕ)
       if (!tasksByBoard[boardId]) {
         tasksByBoard[boardId] = []
       }
-      
+
       // Проверяем, нет ли уже такой задачи (на случай быстрого сокета)
       const exists = tasksByBoard[boardId].find(t => t.id === response.task.id)
       if (!exists) {
@@ -219,10 +252,10 @@ export const useTasksStore = defineStore('tasks', () => {
       } else {
         console.log('[TasksStore] ⚠️ Task already added via socket')
       }
-      
+
       // Сокет-событие придёт и обновит/синхронизирует данные для других пользователей
       // Обработчик task:created проверит дубликаты и обновит задачу если нужно
-      
+
       return response.task
     } catch (err: any) {
       error.value = err.data?.statusMessage || 'Ошибка при создании задачи'

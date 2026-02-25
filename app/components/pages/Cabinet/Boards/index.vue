@@ -1,292 +1,161 @@
 <!-- app/components/pages/cabinet/Boards/index.vue -->
- <template>
-  <div class="boards-page">
-    <!-- <div class="boards-header">
-      <h1 class="boards-title">Доска задач</h1>
-      
-      <div class="boards-header-actions">
-        <button class="btn btn-primary" @click="showCreateBoardModal = true">
-          <span class="icon">+</span>
-          Создать доску
-        </button>
-      </div>
-    </div> -->
-
-    <div class="boards-content">
-      <!-- Список досок -->
-      <div v-if="!selectedBoard" class="boards-list">
-        <div v-if="loading" class="boards-loading">
-          <div class="spinner"></div>
-          <p>Загрузка досок...</p>
-        </div>
-
-        <div v-else-if="error" class="boards-error">
-          <p>{{ error }}</p>
-          <button class="btn btn-secondary" @click="fetchAllBoards">
-            Повторить
-          </button>
-        </div>
-
-        <div v-else-if="boards.length === 0" class="boards-empty">
-          <div class="empty-icon">📋</div>
-          <p>У вас пока нет досок задач</p>
-          <button class="btn btn-primary" @click="showCreateBoardModal = true">
-            Создать первую доску
-          </button>
-        </div>
-
-        <div v-else class="boards-grid">
-          <!-- Доски с объектами -->
-          <div v-if="objectBoards.length > 0" class="boards-section">
-            <h2 class="section-title">Доски объектов</h2>
-            <div class="boards-cards">
-              <div
-                v-for="board in objectBoards"
-                :key="board.id"
-                class="board-card"
-                @click="selectBoard(board.id)"
-              >
-                <div class="board-card-header">
-                  <span class="board-card-icon">🏗️</span>
-                  <h3 class="board-card-title">{{ board.name }}</h3>
-                </div>
-                <div class="board-card-body">
-                  <p class="board-card-description">
-                    {{ board.description || 'Без описания' }}
-                  </p>
-                  <div class="board-card-meta">
-                    <span class="board-card-type">Привязана к объекту</span>
-                    <span v-if="board.object" class="board-card-object">
-                      📍 {{ board.object.name }}
-                    </span>
-                  </div>
-                </div>
-                <div class="board-card-footer">
-                  <span class="board-card-date">
-                    Создана: {{ formatDate(board.createdAt) }}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Общие доски -->
-          <div v-if="generalBoards.length > 0" class="boards-section">
-            <h2 class="section-title">Общие доски</h2>
-            <div class="boards-cards">
-              <div
-                v-for="board in generalBoards"
-                :key="board.id"
-                class="board-card"
-                @click="selectBoard(board.id)"
-              >
-                <div class="board-card-header">
-                  <span class="board-card-icon">📋</span>
-                  <h3 class="board-card-title">{{ board.name }}</h3>
-                </div>
-                <div class="board-card-body">
-                  <p class="board-card-description">
-                    {{ board.description || 'Без описания' }}
-                  </p>
-                  <div class="board-card-meta">
-                    <span class="board-card-type">Общая доска</span>
-                  </div>
-                </div>
-                <div class="board-card-footer">
-                  <span class="board-card-date">
-                    Создана: {{ formatDate(board.createdAt) }}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Доска задач (канбан) -->
-      <BoardKanban
-        v-else
-        :board="selectedBoard"
-        @back="handleBack"
-      />
+<template>
+<div class="boards-page">
+  <!-- Список папок -->
+  <div v-if="!activeFolder" class="folders-view">
+    <div class="folders-header">
+      <h1 class="page-title">Доски задач</h1>
     </div>
-
-    <!-- Модалка создания доски -->
-    <div v-if="showCreateBoardModal" class="modal-overlay" @click="closeCreateBoardModal">
-      <div class="modal" @click.stop>
-        <div class="modal-header">
-          <h2>Создать доску</h2>
-          <button class="modal-close" @click="closeCreateBoardModal">×</button>
-        </div>
-        <div class="modal-body">
-          <form @submit.prevent="handleCreateBoard">
-            <div class="form-group">
-              <label for="board-name">Название доски *</label>
-              <input
-                id="board-name"
-                v-model="newBoard.name"
-                type="text"
-                class="form-control"
-                placeholder="Введите название доски"
-                required
-              />
+    
+    <!-- Загрузка -->
+    <div v-if="foldersLoading" class="loading-state">
+      <div class="spinner"></div>
+      <p>Загрузка папок...</p>
+    </div>
+    
+    <!-- Ошибка -->
+    <div v-else-if="foldersError" class="error-state">
+      <Icon name="mdi:alert-circle" size="48" />
+      <p>{{ foldersError }}</p>
+      <button class="btn btn-secondary" @click="fetchFolders">
+        Повторить
+      </button>
+    </div>
+    
+    <!-- Пустое состояние -->
+    <div v-else-if="folders.length === 0" class="empty-state">
+      <Icon name="mdi:folder-open-outline" size="64" />
+      <p>У вас пока нет папок</p>
+      <button class="btn btn-primary" @click="openCreateFolderModal">
+        Создать первую папку
+      </button>
+    </div>
+    
+    <!-- Список папок -->
+    <div v-else class="folders-grid">
+      <!-- Папки по категориям -->
+      <div v-for="category in ['objects', 'general'] as const" :key="category" class="category-section">
+        <h2 class="category-title">
+          <Icon :name="category === 'objects' ? 'mdi:home-outline' : 'mdi:folder-outline'" />
+          <span>{{ category === 'objects' ? 'Доски объектов' : 'Общие доски' }}</span>
+        </h2>
+        
+        <div class="folders-list">
+          <div
+            v-for="folder in getFoldersByCategory(category)"
+            :key="folder.id"
+            class="folder-card"
+            :class="{ active: folder.id === foldersStore.activeFolderId }"
+            @click="selectFolder(folder.id)"
+          >
+            <div class="folder-card-icon">
+              <Icon name="mdi:folder" size="32" />
             </div>
-
-            <div class="form-group">
-              <label for="board-description">Описание</label>
-              <textarea
-                id="board-description"
-                v-model="newBoard.description"
-                class="form-control"
-                placeholder="Описание доски (необязательно)"
-                rows="3"
-              ></textarea>
+            <div class="folder-card-content">
+              <h3 class="folder-card-title">{{ folder.name }}</h3>
+              <p class="folder-card-description">
+                {{ folder.description || 'Без описания' }}
+              </p>
+              <div class="folder-card-stats">
+                <span class="folder-card-badge">{{ getBoardsCount(folder.id) }}</span>
+              </div>
             </div>
-
-            <div class="form-group">
-              <label for="board-type">Тип доски *</label>
-              <select
-                id="board-type"
-                v-model="newBoard.type"
-                class="form-control"
-                required
-              >
-                <option value="general">Общая доска</option>
-                <option value="object">Привязана к объекту</option>
-              </select>
+            <div class="folder-card-footer">
+              <span class="folder-card-date">
+                {{ formatDate(folder.createdAt) }}
+              </span>
             </div>
-
-            <div v-if="newBoard.type === 'object'" class="form-group">
-              <label for="board-object">Выберите объект *</label>
-              <select
-                id="board-object"
-                v-model="newBoard.objectId"
-                class="form-control"
-                required
-              >
-                <option value="">Выберите объект</option>
-                <option
-                  v-for="obj in availableObjects"
-                  :key="obj.id"
-                  :value="obj.id"
-                >
-                  {{ obj.name }} - {{ obj.address || 'Без адреса' }}
-                </option>
-              </select>
-            </div>
-
-            <div class="modal-actions">
-              <button type="button" class="btn btn-secondary" @click="closeCreateBoardModal">
-                Отмена
-              </button>
-              <button type="submit" class="btn btn-primary" :disabled="creatingBoard">
-                {{ creatingBoard ? 'Создание...' : 'Создать' }}
-              </button>
-            </div>
-          </form>
+          </div>
         </div>
       </div>
     </div>
   </div>
+  
+  <!-- Канбан-доска -->
+  <Kanban
+    v-else
+    :folder="activeFolder"
+    :board="selectedBoard || {}"
+    @back="handleBack"
+  />
+</div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import BoardKanban from './ui/BoardKanban.vue'
-import { useBoardsStore } from '~~/stores/boards'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useBoardFoldersStore } from 'stores/boards/folders'
+import { useBoardsStore } from 'stores/boards'
+import Kanban from './Kanban/index.vue'
+import type { BoardFolder, Board } from '~/types/boards'
 
-// Типы
-interface BoardCreateData {
-  name: string
-  description: string
-  type: 'general' | 'object'
-  objectId?: number
-}
-
-// Получаем стор напрямую
+// ============================================
+// STORES
+// ============================================
+const foldersStore = useBoardFoldersStore()
 const boardsStore = useBoardsStore()
+const router = useRouter()
 
-// Используем свойства стора
-const boards = computed(() => boardsStore.allBoards)
-const selectedBoardId = computed(() => boardsStore.selectedBoardId)
+// ============================================
+// STATE
+// ============================================
+const foldersLoading = computed(() => foldersStore.loading)
+const foldersError = computed(() => foldersStore.error)
+const folders = computed(() => foldersStore.allFolders)
+const activeFolder = computed(() => foldersStore.activeFolder)
 const selectedBoard = computed(() => boardsStore.selectedBoard)
-const objectBoards = computed(() => boardsStore.objectBoards)
-const generalBoards = computed(() => boardsStore.generalBoards)
-const loading = computed(() => boardsStore.loading)
-const error = computed(() => boardsStore.error)
 
-// Methods
-const fetchAllBoards = async () => {
-  await boardsStore.fetchBoards()
-}
-
-const createBoard = async (data: BoardCreateData) => {
-  await boardsStore.createBoard(data)
-}
-
-const selectBoard = (id: number | null) => {
-  boardsStore.selectBoard(id)
-}
-
-// State
-const showCreateBoardModal = ref(false)
-const creatingBoard = ref(false)
-const availableObjects = ref<{ id: number; name: string; address?: string }[]>([])
-
-const newBoard = ref({
-  name: '',
-  description: '',
-  type: 'general' as 'general' | 'object',
-  objectId: undefined as number | undefined
-})
-
-// Lifecycle
-onMounted(async () => {
-  await fetchAllBoards()
-  
-  // Загружаем список объектов для выбора
+// ============================================
+// METHODS
+// ============================================
+const fetchFolders = async () => {
   try {
-    const response = await fetch('/api/objects')
-    const data = await response.json()
-    availableObjects.value = Array.isArray(data) ? data : []
-  } catch (err) {
-    console.error('Failed to fetch objects:', err)
+    await foldersStore.fetchFolders()
+  } catch (error) {
+    console.error('Ошибка загрузки папок:', error)
   }
-})
+}
 
-// Methods
-const handleCreateBoard = async () => {
-  creatingBoard.value = true
+const getFoldersByCategory = (category: 'objects' | 'general' | string) => {
+  return folders.value.filter(f => f.category === category)
+}
+
+const getBoardsCount = (folderId: number) => {
+  return boardsStore.allBoards.filter(b => b.folderId === folderId).length
+}
+
+const selectFolder = async (folderId: number) => {
+  // Устанавливаем активную папку
+  foldersStore.selectFolder(folderId)
   
+  // Загружаем доски папки
   try {
-    await createBoard({
-      name: newBoard.value.name,
-      description: newBoard.value.description,
-      type: newBoard.value.type,
-      objectId: newBoard.value.objectId
-    })
+    await foldersStore.fetchBoardsInFolder(folderId)
     
-    await fetchAllBoards()
-    closeCreateBoardModal()
-  } catch (err) {
-    console.error('Failed to create board:', err)
-  } finally {
-    creatingBoard.value = false
+    // Получаем доски текущей папки
+    const boardsInFolder = boardsStore.allBoards.filter(b => b.folderId === folderId)
+    
+    // Выбираем первую доску (или последнюю посещённую)
+    if (boardsInFolder.length > 0) {
+        const lastBoard = boardsInFolder[0]
+        if (lastBoard) {
+            boardsStore.selectBoard(lastBoard.id)
+        }
+    }
+  } catch (error) {
+    console.error('Ошибка загрузки досок папки:', error)
   }
 }
 
 const handleBack = () => {
-  selectBoard(null)
+  // Возвращаемся к списку папок
+  foldersStore.selectFolder(null)
+  boardsStore.selectBoard(null)
 }
 
-const closeCreateBoardModal = () => {
-  showCreateBoardModal.value = false
-  newBoard.value = {
-    name: '',
-    description: '',
-    type: 'general',
-    objectId: undefined
-  }
+const openCreateFolderModal = () => {
+  // TODO: Открыть модалку создания папки
+  console.log('Открыть модалку создания папки')
 }
 
 const formatDate = (dateString: string) => {
@@ -297,99 +166,70 @@ const formatDate = (dateString: string) => {
     day: 'numeric'
   })
 }
+
+// ============================================
+// LIFECYCLE
+// ============================================
+onMounted(() => {
+  // Загружаем папки при монтировании
+  if (folders.value.length === 0) {
+    fetchFolders()
+  }
+  
+  // Если уже выбрана папка, загружаем её доски
+  if (activeFolder.value) {
+    foldersStore.fetchBoardsInFolder(activeFolder.value.id)
+  }
+})
 </script>
 
 <style scoped lang="scss">
 .boards-page {
-  padding: 20px;
   height: 100%;
-}
-
-.boards-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid #3a3a3a;
-}
-
-.boards-title {
-  margin: 0;
-  font-size: 28px;
-  font-weight: 600;
-  color: #fff;
-}
-
-.boards-header-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-primary {
-  background: #3b82f6;
-  color: #fff;
-  
-  &:hover {
-    background: #2563eb;
-  }
-  
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-}
-
-.btn-secondary {
-  background: #4b5563;
-  color: #fff;
-  
-  &:hover {
-    background: #374151;
-  }
-}
-
-.boards-content {
-  min-height: calc(100vh - 150px);
-}
-
-.boards-list {
   display: flex;
   flex-direction: column;
-  gap: 30px;
+  overflow: hidden;
 }
 
-.boards-loading,
-.boards-error,
-.boards-empty {
+.folders-view {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  background: $background-dark;
+}
+
+.folders-header {
+  margin-bottom: 32px;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: $text-light;
+  text-align: center;
+}
+
+.loading-state,
+.error-state,
+.empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 60px 20px;
+  padding: 80px 20px;
   text-align: center;
+  color: $text-light;
 }
 
 .spinner {
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   border: 4px solid #3a3a3a;
-  border-top-color: #3b82f6;
+  border-top-color: $blue;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
+  margin-bottom: 20px;
 }
 
 @keyframes spin {
@@ -398,215 +238,201 @@ const formatDate = (dateString: string) => {
   }
 }
 
-.boards-error p,
-.boards-empty p {
-  margin: 15px 0;
-  color: #9ca3af;
-  font-size: 16px;
+.error-state {
+  p {
+    margin: 20px 0;
+    font-size: 16px;
+    color: $red;
+  }
 }
 
-.empty-icon {
-  font-size: 64px;
-  margin-bottom: 20px;
+.empty-state {
+  p {
+    margin: 20px 0;
+    font-size: 18px;
+    color: $text-gray;
+  }
 }
 
-.boards-section {
+.folders-grid {
+  display: grid;
+  gap: 40px;
+}
+
+.category-section {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 16px;
 }
 
-.section-title {
+.category-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   margin: 0;
   font-size: 20px;
   font-weight: 600;
-  color: #fff;
-  padding-left: 10px;
-  border-left: 4px solid #3b82f6;
+  color: $text-light;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #374151;
+  
+  .icon {
+    color: $blue;
+    font-size: 24px;
+  }
 }
 
-.boards-grid {
+.folders-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 20px;
 }
 
-.boards-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
-}
-
-.board-card {
+.folder-card {
   background: #1f2937;
   border: 1px solid #374151;
   border-radius: 12px;
   padding: 20px;
   cursor: pointer;
   transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
-    border-color: #3b82f6;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    border-color: $blue;
+  }
+  
+  &.active {
+    border-color: $blue;
+    box-shadow: 0 0 0 3px rgba($blue, 0.2);
+    
+    .folder-card-icon {
+      color: $blue;
+    }
+    
+    .folder-card-title {
+      color: $blue;
+    }
   }
 }
 
-.board-card-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 15px;
-}
-
-.board-card-icon {
-  font-size: 24px;
-}
-
-.board-card-title {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #fff;
-}
-
-.board-card-body {
-  margin-bottom: 15px;
-}
-
-.board-card-description {
-  margin: 0 0 10px 0;
-  color: #9ca3af;
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.board-card-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.board-card-type {
-  display: inline-block;
-  padding: 4px 8px;
-  background: #374151;
-  color: #9ca3af;
-  font-size: 12px;
-  border-radius: 4px;
-}
-
-.board-card-object {
-  display: inline-block;
-  padding: 4px 8px;
-  background: #1e3a8a;
-  color: #93c5fd;
-  font-size: 12px;
-  border-radius: 4px;
-}
-
-.board-card-footer {
-  padding-top: 15px;
-  border-top: 1px solid #374151;
-}
-
-.board-card-date {
-  color: #6b7280;
-  font-size: 12px;
-}
-
-/* Modal */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
+.folder-card-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
-  padding: 20px;
-}
-
-.modal {
-  background: #111827;
+  width: 56px;
+  height: 56px;
+  background: rgba($blue, 0.1);
   border-radius: 12px;
-  max-width: 500px;
-  width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
+  color: $blue;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
 }
 
-.modal-header {
+.folder-card-content {
+  flex: 1;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px;
-  border-bottom: 1px solid #374151;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.modal-header h2 {
+.folder-card-title {
   margin: 0;
-  font-size: 20px;
-  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  color: $text-light;
+  line-height: 1.4;
+  transition: color 0.2s ease;
 }
 
-.modal-close {
-  background: none;
-  border: none;
-  font-size: 28px;
+.folder-card-description {
+  margin: 0;
+  color: $text-gray;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.folder-card-stats {
+  display: flex;
+  gap: 8px;
+}
+
+.folder-card-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 10px;
+  background: #374151;
   color: #9ca3af;
-  cursor: pointer;
-  line-height: 1;
-  
-  &:hover {
-    color: #fff;
-  }
-}
-
-.modal-body {
-  padding: 20px;
-}
-
-.form-group {
-  margin-bottom: 20px;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 8px;
-  color: #fff;
+  font-size: 12px;
+  border-radius: 12px;
   font-weight: 500;
 }
 
-.form-control {
-  width: 100%;
-  padding: 10px 12px;
-  background: #1f2937;
-  border: 1px solid #374151;
-  border-radius: 6px;
-  color: #fff;
+.folder-card-footer {
+  padding-top: 12px;
+  border-top: 1px solid #374151;
+}
+
+.folder-card-date {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 24px;
+  border: none;
+  border-radius: 8px;
   font-size: 14px;
-  transition: border-color 0.2s ease;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
   
-  &:focus {
-    outline: none;
-    border-color: #3b82f6;
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 }
 
-.form-control::placeholder {
-  color: #6b7280;
+.btn-primary {
+  background: $blue;
+  color: $text-light;
+  
+  &:hover:not(:disabled) {
+    background: darken($blue, 10%);
+    transform: translateY(-1px);
+  }
 }
 
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid #374151;
+.btn-secondary {
+  background: #4b5563;
+  color: $text-light;
+  
+  &:hover:not(:disabled) {
+    background: #374151;
+  }
+}
+
+@media (max-width: 768px) {
+  .folders-grid {
+    gap: 24px;
+  }
+  
+  .folders-list {
+    grid-template-columns: 1fr;
+  }
+  
+  .page-title {
+    font-size: 22px;
+  }
 }
 </style>
