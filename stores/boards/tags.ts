@@ -37,7 +37,7 @@ export const useTagsStore = defineStore('tags', () => {
     error.value = null
 
     try {
-      const response = await $fetch<{ tags: Tag[], total: number }>('/api/tags', {
+      const response = await $fetch<{ tags: Tag[], total: number }>('/api/boards/tags', {
         method: 'GET'
       })
 
@@ -58,7 +58,7 @@ export const useTagsStore = defineStore('tags', () => {
 
     try {
       const response = await $fetch<{ tags: Tag[], total: number }>(
-        `/api/tasks/${taskId}/tags`,
+        `/api/boards/tasks/${taskId}/tags`,
         {
           method: 'GET'
         }
@@ -88,7 +88,7 @@ export const useTagsStore = defineStore('tags', () => {
     error.value = null
 
     try {
-      const response = await $fetch<{ success: boolean, tag: Tag }>('/api/tags', {
+      const response = await $fetch<{ success: boolean, tag: Tag }>('/api/boards/tags', {
         method: 'POST',
         body: data
       })
@@ -114,7 +114,7 @@ export const useTagsStore = defineStore('tags', () => {
     error.value = null
 
     try {
-      const response = await $fetch<{ success: boolean, tag: Tag }>(`/api/tags/${id}`, {
+      const response = await $fetch<{ success: boolean, tag: Tag }>(`/api/boards/tags/${id}`, {
         method: 'PUT',
         body: data
       })
@@ -141,7 +141,7 @@ export const useTagsStore = defineStore('tags', () => {
     error.value = null
 
     try {
-      await $fetch<{ success: boolean, message: string }>(`/api/tags/${id}`, {
+      await $fetch<{ success: boolean, message: string }>(`/api/boards/tags/${id}`, {
         method: 'DELETE'
       })
 
@@ -165,7 +165,7 @@ export const useTagsStore = defineStore('tags', () => {
 
     try {
       const response = await $fetch<{ success: boolean, message: string }>(
-        `/api/tasks/${taskId}/tags`,
+        `/api/boards/tasks/${taskId}/tags`,
         {
           method: 'POST',
           body: { tagIds }
@@ -189,7 +189,7 @@ export const useTagsStore = defineStore('tags', () => {
 
     try {
       const response = await $fetch<{ success: boolean, message: string }>(
-        `/api/tasks/${taskId}/tags/${tagId}`,
+        `/api/boards/tasks/${taskId}/tags/${tagId}`,
         {
           method: 'DELETE'
         }

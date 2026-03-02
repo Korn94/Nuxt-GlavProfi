@@ -1,260 +1,183 @@
 // stores/boards/tasks.ts
+
 import { defineStore } from 'pinia'
-import { ref, computed, reactive } from 'vue'
-import { useSocketStore } from '../socket'
-import type { Task, CreateTaskData, UpdateTaskData } from '~/types/boards'
+import { ref, computed } from 'vue'
+import { useSubtasksStore } from './subtasks' // Импортируем стор подзадач
+import type { Task, UpdateTaskData, CreateTaskData } from '~/types/boards'
 
 export const useTasksStore = defineStore('tasks', () => {
   // ============ STATE ============
-  const tasksByBoard = reactive<Record<number, Task[]>>({})
+  const tasks = ref<Task[]>([])
+  const tasksByBoard = ref<Record<number, Task[]>>({});
   const loading = ref(false)
   const error = ref<string | null>(null)
   const selectedTaskId = ref<number | null>(null)
-  const currentBoardId = ref<number | null>(null)
-  const isSubscribed = ref(false)
+  const currentBoardId = ref<number | null>(null) // Для отслеживания текущей доски
 
-  // ============ SOCKET INTEGRATION ============
-  const socketStore = useSocketStore()
+  // ============ GETTERS ============
+  const allTasks = computed(() => tasks.value)
 
-  // Подписка на события доски
-  const subscribeToBoard = (boardId: number) => {
-    console.log(`[TasksStore] 🔄 Subscribing to board ${boardId}`)
+  const selectedTask = computed(() => {
+    if (!selectedTaskId.value) return null
+    return tasks.value.find(task => task.id === selectedTaskId.value) || null
+  })
 
-    if (isSubscribed.value && currentBoardId.value && currentBoardId.value !== boardId) {
-      unsubscribeFromBoard(currentBoardId.value)
+  const tasksByStatus = computed(() => {
+    const todo = tasks.value.filter(task => task.status === 'todo')
+    const inProgress = tasks.value.filter(task => task.status === 'in_progress')
+    const review = tasks.value.filter(task => task.status === 'review')
+    const done = tasks.value.filter(task => task.status === 'done')
+    const blocked = tasks.value.filter(task => task.status === 'blocked')
+    const cancelled = tasks.value.filter(task => task.status === 'cancelled')
+
+    return {
+      todo,
+      in_progress: inProgress,
+      review,
+      done,
+      blocked,
+      cancelled,
+      total: tasks.value.length
     }
+  })
 
-    currentBoardId.value = boardId
+  // Геттер для статистики задач по приоритетам
+  const tasksByPriority = computed(() => {
+    const low = tasks.value.filter(task => task.priority === 'low')
+    const medium = tasks.value.filter(task => task.priority === 'medium')
+    const high = tasks.value.filter(task => task.priority === 'high')
+    const urgent = tasks.value.filter(task => task.priority === 'urgent')
 
-    const waitForSocket = (attempts = 0) => {
-      if (socketStore.socket?.connected) {
-        console.log(`[TasksStore] ✅ Socket connected, subscribing to board ${boardId}`)
-
-        // ✅ ОБРАБОТЧИК СОЗДАНИЯ ЗАДАЧИ С ЗАЩИТОЙ ОТ ДУБЛЕЙ
-        socketStore.on(`board:${boardId}:task:created`, (data: { task: Task }) => {
-          console.log('[TasksStore] 🆕 Task created via socket:', data.task.id)
-
-          if (!tasksByBoard[boardId]) {
-            tasksByBoard[boardId] = []
-          }
-
-          // ✅ ПРОВЕРЯЕМ, НЕТ ЛИ УЖЕ ТАКОЙ ЗАДАЧИ
-          const exists = tasksByBoard[boardId].find(t => t.id === data.task.id)
-
-          if (!exists) {
-            console.log('[TasksStore] ➕ Adding task to board')
-            tasksByBoard[boardId] = [data.task, ...tasksByBoard[boardId]]
-          } else {
-            console.log('[TasksStore] ⚠️ Task already exists (added optimistically), updating it')
-            // Обновляем на случай, если локальная версия отличается от серверной
-            const index = tasksByBoard[boardId].findIndex(t => t.id === data.task.id)
-            if (index !== -1) {
-              tasksByBoard[boardId][index] = data.task
-            }
-          }
-        })
-
-        socketStore.on(`board:${boardId}:task:updated`, (data: { taskId: number; task: Task }) => {
-          console.log('[TasksStore] 🔄 Task updated via socket:', data.taskId)
-          if (tasksByBoard[boardId]) {
-            const index = tasksByBoard[boardId].findIndex(task => task.id === data.taskId)
-            if (index !== -1) {
-              // ✅ СОХРАНЯЕМ ПОДЗАДАЧИ ИЗ ТЕКУЩЕГО СОСТОЯНИЯ
-              const currentSubtasks = tasksByBoard[boardId][index].subtasks
-
-              tasksByBoard[boardId][index] = {
-                ...tasksByBoard[boardId][index],
-                ...data.task,
-                // ✅ Восстанавливаем подзадачи если их нет в обновлении
-                subtasks: data.task.subtasks || currentSubtasks || []
-              }
-            }
-          }
-        })
-
-        socketStore.on(`board:${boardId}:tasks:updated`, (data: { tasks: Task[] }) => {
-          console.log('[TasksStore] 🔄 Multiple tasks updated via socket:', data.tasks.length)
-          const currentTasks = tasksByBoard[boardId] || []
-
-          // ✅ СОХРАНЯЕМ ПОДЗАДАЧИ ДЛЯ ВСЕХ ЗАДАЧ
-          const updatedTasks = data.tasks.map(updatedTask => {
-            const currentTask = currentTasks.find(t => t.id === updatedTask.id)
-            return {
-              ...updatedTask,
-              subtasks: updatedTask.subtasks || currentTask?.subtasks || []
-            }
-          })
-
-          tasksByBoard[boardId] = updatedTasks
-        })
-
-        socketStore.on(`board:${boardId}:task:deleted`, (data: { taskId: number }) => {
-          console.log('[TasksStore] 🗑️ Task deleted via socket:', data.taskId)
-          if (tasksByBoard[boardId]) {
-            tasksByBoard[boardId] = tasksByBoard[boardId].filter(task => task.id !== data.taskId)
-          }
-        })
-
-        socketStore.emit('subscribe:board', { boardId })
-
-        isSubscribed.value = true
-        console.log(`[TasksStore] ✅ Subscribed to board ${boardId}`)
-      } else if (attempts < 50) {
-        console.log(`[TasksStore] ⏳ Waiting for socket connection... (attempt ${attempts + 1}/50)`)
-        setTimeout(() => waitForSocket(attempts + 1), 100)
-      } else {
-        console.error(`[TasksStore] ❌ Failed to subscribe to board ${boardId}: socket not connected after 5 seconds`)
-      }
+    return {
+      low: low.length,
+      medium: medium.length,
+      high: high.length,
+      urgent: urgent.length
     }
+  })
 
-    waitForSocket()
-  }
-
-  const unsubscribeFromBoard = (boardId: number) => {
-    console.log(`[TasksStore] 📴 Unsubscribing from board ${boardId}`)
-
-    if (socketStore.socket?.connected) {
-      socketStore.emit('unsubscribe:board', { boardId })
+  // Геттер для общей статистики задач
+  const tasksStats = computed(() => {
+    return {
+      total: tasks.value.length,
+      todo: tasksByStatus.value.todo.length,
+      in_progress: tasksByStatus.value.in_progress.length,
+      review: tasksByStatus.value.review.length,
+      done: tasksByStatus.value.done.length,
+      blocked: tasksByStatus.value.blocked.length,
+      cancelled: tasksByStatus.value.cancelled.length
     }
-
-    socketStore.off(`board:${boardId}:task:created`)
-    socketStore.off(`board:${boardId}:task:updated`)
-    socketStore.off(`board:${boardId}:tasks:updated`)
-    socketStore.off(`board:${boardId}:task:deleted`)
-
-    isSubscribed.value = false
-  }
-
-  // ============================================
-  // ✅ ОПТИМИСТИЧНЫЕ МЕТОДЫ
-  // ============================================
-
-  async function updateTaskOptimistic(id: number, updates: Partial<UpdateTaskData>) {
-    const boardId = currentBoardId.value
-    if (!boardId || !tasksByBoard[boardId]) return
-    const taskIndex = tasksByBoard[boardId].findIndex(t => t.id === id)
-    if (taskIndex === -1) return
-
-    const oldTask = { ...tasksByBoard[boardId][taskIndex] }
-    const existingSubtasks = oldTask.subtasks // ✅ Сохраняем подзадачи
-
-    try {
-      // ✅ Обновляем задачу с сохранением подзадач
-      tasksByBoard[boardId][taskIndex] = {
-        ...oldTask,
-        ...updates,
-        subtasks: existingSubtasks // ✅ Восстанавливаем подзадачи
-      } as Task
-
-      const response = await $fetch<{ success: boolean, task: Task }>(`/api/tasks/${id}`, {
-        method: 'PUT',
-        body: updates
-      })
-
-      if (response.task) {
-        // ✅ При получении ответа от сервера тоже сохраняем подзадачи
-        tasksByBoard[boardId][taskIndex] = {
-          ...response.task,
-          subtasks: response.task.subtasks || existingSubtasks || []
-        }
-      }
-      return response.task
-    } catch (error) {
-      console.error('Failed to update task, rolling back:', error)
-      if (tasksByBoard[boardId]) {
-        tasksByBoard[boardId][taskIndex] = oldTask // Откатываем с подзадачами
-      }
-      throw error
-    }
-  }
-
-  async function updateTasksOrderOptimistic(boardId: number, tasks: Task[]) {
-    const oldTasks = [...(tasksByBoard[boardId] || [])]
-
-    try {
-      // ✅ СОХРАНЯЕМ ПОДЗАДАЧИ ПРИ ОБНОВЛЕНИИ ПОРЯДКА
-      const tasksWithSubtasks = tasks.map(task => {
-        const oldTask = oldTasks.find(t => t.id === task.id)
-        return {
-          ...task,
-          subtasks: task.subtasks || oldTask?.subtasks || []
-        }
-      })
-
-      tasksByBoard[boardId] = tasksWithSubtasks as Task[]
-
-      const updates = tasks.map((task, index) => ({
-        id: task.id,
-        order: index
-      }))
-
-      await $fetch<{ success: boolean }>(`/api/boards/${boardId}/tasks/order`, {
-        method: 'PUT',
-        body: { updates }
-      })
-
-      return true
-    } catch (error) {
-      console.error('Failed to update tasks order, rolling back:', error)
-      tasksByBoard[boardId] = oldTasks // Откатываем с подзадачами
-      throw error
-    }
-  }
+  })
 
   // ============ ACTIONS ============
+
+  // Установить текущую доску
+  function setCurrentBoardId(boardId: number | null) {
+    currentBoardId.value = boardId
+  }
+
+  // Получить все задачи доски
   async function fetchTasks(boardId: number) {
     loading.value = true
     error.value = null
-    currentBoardId.value = boardId
+    tasks.value = [] // Очищаем общее состояние задач
+    tasksByBoard.value = {}; // Очищаем задачи по доске
 
     try {
+      console.log(`[TasksStore] 📥 Fetching tasks for board ${boardId}`)
       const response = await $fetch<{ tasks: Task[], total: number }>(`/api/boards/${boardId}/tasks`, {
         method: 'GET'
       })
 
-      tasksByBoard[boardId] = response.tasks || []
+      console.log(`[TasksStore] ✅ Fetched ${response.tasks.length} tasks for board ${boardId}`)
+      tasks.value = response.tasks || []
 
-      subscribeToBoard(boardId)
+      // Заполняем tasksByBoard
+      tasksByBoard.value = { [boardId]: tasks.value }
+      setCurrentBoardId(boardId) // Устанавливаем текущую доску
+
     } catch (err: any) {
       error.value = err.data?.statusMessage || 'Ошибка при загрузке задач'
-      console.error('❌ Failed to fetch tasks:', err)
+      console.error('Failed to fetch tasks:', err)
       throw err
     } finally {
       loading.value = false
     }
   }
 
-  // ✅ ГИБРИДНЫЙ ПОДХОД: ЛОКАЛЬНОЕ ДОБАВЛЕНИЕ + СОКЕТ СИНХРОНИЗАЦИЯ
+  // Получить задачу по ID
+  async function fetchTaskById(id: number) {
+    loading.value = true
+    error.value = null
+
+    try {
+      console.log(`[TasksStore] 📥 Fetching task by ID: ${id}`)
+      const response = await $fetch<{ task: Task }>(`/api/tasks/${id}`, {
+        method: 'GET'
+      })
+
+      console.log(`[TasksStore] ✅ Fetched task: ${response.task.id}`)
+
+      // Обновляем задачу в списке или добавляем новую
+      const index = tasks.value.findIndex(task => task.id === id)
+      if (index !== -1) {
+        tasks.value[index] = response.task
+      } else {
+        tasks.value.push(response.task)
+      }
+
+      // Также обновляем в tasksByBoard, если задача принадлежит текущей доске
+      if (currentBoardId.value) {
+        const boardTasks = tasksByBoard.value[currentBoardId.value] || []
+        const boardIndex = boardTasks.findIndex(task => task.id === id)
+        if (boardIndex !== -1) {
+          boardTasks[boardIndex] = response.task
+          tasksByBoard.value[currentBoardId.value] = boardTasks
+        }
+      }
+
+      return response.task
+    } catch (err: any) {
+      error.value = err.data?.statusMessage || 'Ошибка при загрузке задачи'
+      console.error('Failed to fetch task:', err)
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Создать новую задачу (оптимистичное обновление)
   async function createTask(boardId: number, data: CreateTaskData) {
     loading.value = true
     error.value = null
 
     try {
       console.log('[TasksStore] 📤 Creating task on server...')
-
-      const response = await $fetch<{ success: boolean, task: Task }>(`/api/boards/${boardId}/tasks`, {
+      const response = await $fetch<{ success: boolean; task: Task }>(`/api/boards/${boardId}/tasks`, {
         method: 'POST',
         body: data
       })
+      console.log('[TasksStore] ✅ Task created on server:', response.task?.id)
 
-      console.log('[TasksStore] ✅ Task created on server:', response.task.id)
+      if (!response.task) {
+        throw new Error('Failed to create task: no task returned')
+      }
 
-      // ✅ ДОБАВЛЯЕМ ЛОКАЛЬНО СРАЗУ (ОПТИМИСТИЧНОЕ ОБНОВЛЕНИЕ)
-      if (!tasksByBoard[boardId]) {
-        tasksByBoard[boardId] = []
+      // Оптимистичное обновление: добавляем задачу локально сразу
+      if (!boardId || !tasksByBoard.value[boardId]) {
+        tasksByBoard.value[boardId] = []
       }
 
       // Проверяем, нет ли уже такой задачи (на случай быстрого сокета)
-      const exists = tasksByBoard[boardId].find(t => t.id === response.task.id)
+      const exists = tasksByBoard.value[boardId].find(t => t.id === response.task!.id)
       if (!exists) {
         console.log('[TasksStore] ➕ Adding task locally (optimistic)')
-        tasksByBoard[boardId] = [response.task, ...tasksByBoard[boardId]]
+        tasksByBoard.value[boardId] = [...tasksByBoard.value[boardId], response.task]
+        // Добавляем также в глобальный список
+        tasks.value = [...tasks.value, response.task]
       } else {
         console.log('[TasksStore] ⚠️ Task already added via socket')
       }
-
-      // Сокет-событие придёт и обновит/синхронизирует данные для других пользователей
-      // Обработчик task:created проверит дубликаты и обновит задачу если нужно
 
       return response.task
     } catch (err: any) {
@@ -266,17 +189,36 @@ export const useTasksStore = defineStore('tasks', () => {
     }
   }
 
+  // Обновить задачу (оптимистичное обновление)
   async function updateTask(id: number, data: UpdateTaskData) {
     loading.value = true
     error.value = null
 
     try {
+      console.log(`[TasksStore] 📤 Updating task ${id} on server...`)
       const response = await $fetch<{ success: boolean, task: Task }>(`/api/tasks/${id}`, {
         method: 'PUT',
         body: data
       })
+      console.log(`[TasksStore] ✅ Task ${id} updated on server.`)
 
-      // ✅ НЕ ОБНОВЛЯЕМ ЛОКАЛЬНО - сокет сам обновит
+      if (!response.task) {
+        throw new Error('Failed to update task: no task returned')
+      }
+
+      // Обновляем задачу в глобальном списке
+      const globalIndex = tasks.value.findIndex(task => task.id === id)
+      if (globalIndex !== -1) {
+        tasks.value[globalIndex] = response.task
+      }
+
+      // Обновляем задачу в списке по доске
+      if (currentBoardId.value && tasksByBoard.value[currentBoardId.value]) {
+        const boardIndex = tasksByBoard.value[currentBoardId.value].findIndex(task => task.id === id)
+        if (boardIndex !== -1) {
+          tasksByBoard.value[currentBoardId.value][boardIndex] = response.task
+        }
+      }
 
       return response.task
     } catch (err: any) {
@@ -288,17 +230,27 @@ export const useTasksStore = defineStore('tasks', () => {
     }
   }
 
+  // Удалить задачу
   async function deleteTask(id: number) {
     loading.value = true
     error.value = null
 
     try {
-      const response = await $fetch<{ success: boolean, message: string, boardId: number }>(`/api/tasks/${id}`, {
+      console.log(`[TasksStore] 📤 Deleting task ${id} on server...`)
+      await $fetch<{ success: boolean, message: string }>(`/api/tasks/${id}`, {
         method: 'DELETE'
       })
+      console.log(`[TasksStore] ✅ Task ${id} deleted on server.`)
 
-      // ✅ НЕ УДАЛЯЕМ ЛОКАЛЬНО - сокет сам обновит
+      // Удаляем задачу из глобального списка
+      tasks.value = tasks.value.filter(task => task.id !== id)
 
+      // Удаляем задачу из списка по доске
+      if (currentBoardId.value && tasksByBoard.value[currentBoardId.value]) {
+        tasksByBoard.value[currentBoardId.value] = tasksByBoard.value[currentBoardId.value].filter(task => task.id !== id)
+      }
+
+      // Если удалённая задача была выбрана, сбрасываем выбор
       if (selectedTaskId.value === id) {
         selectedTaskId.value = null
       }
@@ -313,76 +265,120 @@ export const useTasksStore = defineStore('tasks', () => {
     }
   }
 
-  function clearState() {
-    for (const boardId in tasksByBoard) {
-      delete tasksByBoard[boardId]
-    }
-
-    if (isSubscribed.value && currentBoardId.value) {
-      unsubscribeFromBoard(currentBoardId.value)
-    }
-
-    currentBoardId.value = null
-    selectedTaskId.value = null
-    error.value = null
-    isSubscribed.value = false
-  }
-
-  // ============ GETTERS ============
-  const tasks = computed(() => {
-    return currentBoardId.value
-      ? tasksByBoard[currentBoardId.value] || []
-      : []
-  })
-
-  const allTasks = computed(() => tasks.value)
-
-  const selectedTask = computed(() => {
-    if (!selectedTaskId.value) return null
-    return tasks.value.find(task => task.id === selectedTaskId.value)
-  })
-
-  const tasksByStatus = computed(() => {
-    const statuses = ['todo', 'in_progress', 'review', 'done', 'blocked', 'cancelled'] as const
-    const result: Record<(typeof statuses)[number], Task[]> = {
-      todo: [],
-      in_progress: [],
-      review: [],
-      done: [],
-      blocked: [],
-      cancelled: []
-    }
-
-    statuses.forEach(status => {
-      result[status] = tasks.value.filter(task => task.status === status)
-    })
-
-    return result
-  })
-
+  // Выбрать задачу
   function selectTask(id: number | null) {
     selectedTaskId.value = id
   }
 
+  // Очистить состояние
+  function clearState() {
+    tasks.value = []
+    tasksByBoard.value = {}
+    selectedTaskId.value = null
+    error.value = null
+    currentBoardId.value = null
+  }
+
+  // --- МЕТОДЫ ДЛЯ ОПТИМИСТИЧЕСКОГО ОБНОВЛЕНИЯ ---
+  // Обновить задачу оптимистично (до подтверждения сервера)
+  async function updateTaskOptimistic(id: number, data: Partial<Task>) {
+    console.log(`[TasksStore] 🔄 Optimistically updating task ${id}:`, data)
+
+    // Обновляем в глобальном списке
+    const globalIndex = tasks.value.findIndex(task => task.id === id)
+    if (globalIndex !== -1) {
+      tasks.value[globalIndex] = { ...tasks.value[globalIndex], ...data }
+    }
+
+    // Обновляем в списке по доске
+    if (currentBoardId.value && tasksByBoard.value[currentBoardId.value]) {
+      const boardIndex = tasksByBoard.value[currentBoardId.value].findIndex(task => task.id === id)
+      if (boardIndex !== -1) {
+        tasksByBoard.value[currentBoardId.value][boardIndex] = {
+          ...tasksByBoard.value[currentBoardId.value][boardIndex],
+          ...data
+        }
+      }
+    }
+  }
+
+  // Обновить порядок задач оптимистично
+  function updateTasksOrderOptimistic(boardId: number, orderedTasks: Task[]) {
+    console.log(`[TasksStore] 🔄 Optimistically reordering tasks on board ${boardId}`)
+    tasksByBoard.value[boardId] = orderedTasks.map((task, index) => ({
+      ...task,
+      order: index
+    }))
+  }
+
+  // --- МЕТОДЫ ДЛЯ ОБНОВЛЕНИЯ ПОДЗАДАЧ ---
+  // Обновить подзадачи задачи, используя актуальное состояние из subtasksStore
+  function updateTaskSubtasksFromStore(taskId: number) {
+      console.log(`[TasksStore] 🔄 Syncing subtasks for task ${taskId} from subtasks store.`)
+      
+      const subtasksStore = useSubtasksStore()
+      const updatedSubtasks = subtasksStore.getSubtasksByTaskId(taskId)
+      
+      // ✅ Правильно: создаём НОВЫЙ массив задач, а не мутируем существующий
+      tasks.value = tasks.value.map(task =>
+          task.id === taskId
+              ? {
+                  ...task,
+                  subtasks: [...updatedSubtasks], // Глубокая копия
+              }
+              : task
+      )
+      
+      // Также обновляем по доскам
+      for (const [boardIdStr, taskList] of Object.entries(tasksByBoard.value)) {
+          const boardId = Number(boardIdStr)
+          
+          tasksByBoard.value = {
+              ...tasksByBoard.value,
+              [boardId]: taskList.map(t =>
+                  t.id === taskId
+                      ? {
+                          ...t,
+                          subtasks: [...updatedSubtasks],
+                      }
+                      : t
+              )
+          }
+      }
+      
+      console.log(`[TasksStore] ✅ Updated subtasks for task ${taskId} (count: ${updatedSubtasks.length})`)
+  }
+
+
+  // ============ ВОЗВРАТ ============
+
   return {
+    // State
     tasks,
+    tasksByBoard, // Добавляем tasksByBoard в возвращаемый объект
     loading,
     error,
     selectedTaskId,
-    currentBoardId,
-    tasksByBoard,
+    currentBoardId, // Возвращаем currentBoardId
+
+    // Getters
     allTasks,
     selectedTask,
     tasksByStatus,
+    tasksByPriority,
+    tasksStats,
+
+    // Actions
+    setCurrentBoardId,
     fetchTasks,
+    fetchTaskById,
     createTask,
     updateTask,
     deleteTask,
+    selectTask,
     clearState,
     updateTaskOptimistic,
     updateTasksOrderOptimistic,
-    subscribeToBoard,
-    unsubscribeFromBoard,
-    selectTask
+    updateTaskSubtasksFromStore, // Возвращаем новый метод
   }
 })

@@ -1,4 +1,4 @@
-// server/api/users/[id]/get.ts
+// server/api/users/[id]/index.get.ts
 import { defineEventHandler, createError, getRouterParam } from 'h3'
 import { db } from '../../../db'
 import { users } from '../../../db/schema'
