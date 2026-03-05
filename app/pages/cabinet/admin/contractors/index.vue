@@ -18,7 +18,7 @@
     :closable="true"
   >
     <!-- Форма -->
-    <ContractorAddForm
+    <PagesCabibetContractorsAdminAddForm
       v-model:formData="modalFormData"
       v-model:errors="formErrors"
       :users="availableUsers"
@@ -66,7 +66,6 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import ContractorAddForm from '@/components/pages/cabinet/Admin/contractors/AddForm.vue'
 
 // Состояние
 const contractors = ref([])
