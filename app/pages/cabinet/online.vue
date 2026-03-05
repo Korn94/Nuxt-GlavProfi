@@ -99,7 +99,7 @@
               </div>
             </td>
             <td>
-              <OnlineStatus :status="user.status" :show-text="false" :show-tooltip="true" />
+              <UiStatusOnlineStatus :status="user.status" :show-text="false" :show-tooltip="true" />
             </td>
             <td>
               <span class="duration" :title="formatFullDate(user.startedAt)">
@@ -134,7 +134,6 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useOnlineStore } from '../../../stores/online'
 import { useAuthStore } from '../../../stores/auth'
 import { socketService } from 'services/socket.service'
-import OnlineStatus from '~/components/ui/status/OnlineStatus.vue'
 import type { OnlineUser } from '~/types'
 import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
 

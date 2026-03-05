@@ -3,7 +3,7 @@
     <h1>Новый кейс</h1>
     <form @submit.prevent="submitCase">
       <!-- Основная информация -->
-      <BasicInfo
+      <PagesPublicProjectsCreateBasicInfo
         :title="form.title"
         :slug="form.slug"
         :category="form.category"
@@ -12,7 +12,7 @@
         @update:category="form.category = $event"
       />
       <!-- Основные изображения и галерея -->
-      <ImagesMain
+      <PagesPublicProjectsCreateImagesMain
         :main-image="form.mainImage"
         :thumbnail="form.thumbnail"
         :gallery="form.gallery"
@@ -23,14 +23,14 @@
         @remove-existing-image="removeExistingGalleryImage"
       />
       <!-- Сравнение: До и После -->
-      <BeforeAfter
+      <PagesPublicProjectsCreateBeforeAfter
         :existing-before-after-pairs="existingBeforeAfterPairs"
         :before-after-pairs="form.beforeAfterPairs"
         @update:existing-before-after-pairs="updateExistingBeforeAfterPairs"
         @update:before-after-pairs="updateBeforeAfterPairs"
       />
       <!-- Описания и результат -->
-      <Descriptions
+      <PagesPublicProjectsCreateDescriptions
         :object-description="form.objectDescription"
         :short-object="form.shortObject"
         :short-description="form.shortDescription"
@@ -43,7 +43,7 @@
         @update:result="form.result = $event"
       />
       <!-- Работы и статистика -->
-      <WorksAndStats
+      <PagesPublicProjectsCreateWorksAndStats
         :works="form.works"
         :space="form.space"
         :duration="form.duration"
@@ -54,7 +54,7 @@
         @update:people="form.people = $event"
       />
       <!-- SEO-настройки -->
-      <Seo
+      <PagesPublicProjectsCreateSeo
         :meta-title="form.metaTitle"
         :meta-description="form.metaDescription"
         :meta-keywords="form.metaKeywords"
@@ -83,13 +83,6 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '~/composables/useAuth'
-// Импорт компонентов
-import BasicInfo from '~/components/pages/public/projects/create/BasicInfo.vue'
-import ImagesMain from '~/components/pages/public/projects/create/ImagesMain.vue'
-import BeforeAfter from '~/components/pages/public/projects/create/BeforeAfter.vue'
-import Descriptions from '~/components/pages/public/projects/create/Descriptions.vue'
-import WorksAndStats from '~/components/pages/public/projects/create/WorksAndStats.vue'
-import Seo from '~/components/pages/public/projects/create/Seo.vue'
 // Инициализация
 const router = useRouter()
 const { user } = useAuth()

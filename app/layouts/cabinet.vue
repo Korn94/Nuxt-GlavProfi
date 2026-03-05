@@ -3,7 +3,7 @@
   <LayoutCabinetHeader />
   <main>
     <NuxtPage />
-    <Container />
+    <UiNotificationsContainer />
   </main>
 </template>
 
@@ -13,7 +13,6 @@ import { useAuthStore } from '../../stores/auth'
 import { useSocketStore } from '../../stores/socket'
 import { useActivityTracker } from '~/composables/useActivityTracker'
 import { useUserStatusNotifications } from '~/composables/notifications/useUserStatus'
-import Container from '~/components/ui/notifications/Container.vue'
 
 const authStore = useAuthStore()
 const socketStore = useSocketStore()

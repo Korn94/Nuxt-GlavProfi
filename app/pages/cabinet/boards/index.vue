@@ -1,13 +1,12 @@
 <!-- app/pages/cabinet/boards/index.vue -->
 <template>
   <div class="boards-page-container">
-    <BoardsIndex />
+    <PagesCabinetBoardsIndex />
   </div>
 </template>
 
 <script setup lang="ts">
 import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime';
-import BoardsIndex from '~/components/pages/cabinet/Boards/index.vue'
 
 // Мета-данные страницы
 definePageMeta({
