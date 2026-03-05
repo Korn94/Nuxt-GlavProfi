@@ -4,7 +4,7 @@
 
   <div class="cabinet-page">
     <!-- Карточка профиля -->
-    <Card :loading="isLoading" title="Ваш профиль" elevated class="profile-card">
+    <PagesCabinetUiCardsCard :loading="isLoading" title="Ваш профиль" elevated class="profile-card">
       <template #icon>
         <Icon name="mdi:alarm-arm-home" size="24" />
       </template>
@@ -54,7 +54,7 @@
       <template #footer>
         Последнее обновление: {{ new Date().toLocaleString('ru-RU') }}
       </template>
-    </Card>
+    </PagesCabinetUiCardsCard>
 
     <!-- Сетка с компонентами -->
     <div class="cabinet-page__grid">
@@ -75,9 +75,6 @@
 import { ref, onMounted } from 'vue'
 import { useAuth } from '~/composables/useAuth'
 import { navigateTo } from '#app'
-
-// Компоненты
-const Card = defineAsyncComponent(() => import('/components/pages/cabinet/ui/cards/card.vue'))
 
 // Состояние
 const data = ref(null)

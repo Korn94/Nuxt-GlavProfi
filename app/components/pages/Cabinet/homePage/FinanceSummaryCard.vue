@@ -1,5 +1,5 @@
 <template>
-  <Card :loading="isLoading" title="Финансовая сводка" elevated class="finance-summary-card">
+  <PagesCabinetUiCardsCard :loading="isLoading" title="Финансовая сводка" elevated class="finance-summary-card">
     <template #icon>
       <Icon name="mdi:finance" size="24" />
     </template>
@@ -112,14 +112,12 @@
         <button class="btn btn-outline" @click="resetDateRange">Сбросить</button>
       </div>
     </template>
-  </Card>
+  </PagesCabinetUiCardsCard>
 </template>
 
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
 import { navigateTo } from '#app'
-
-const Card = defineAsyncComponent(() => import('/components/pages/cabinet/ui/cards/card.vue'))
 
 // Состояние компонента
 const balanceData = ref(null)

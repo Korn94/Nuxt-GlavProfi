@@ -1,5 +1,5 @@
 <template>
-  <Card :loading="isLoading" title="Статусы объектов" elevated class="object-status-card">
+  <PagesCabinetUiCardsCard :loading="isLoading" title="Статусы объектов" elevated class="object-status-card">
     <template #icon>
       <Icon name="mdi:home-city" size="24" />
     </template>
@@ -187,14 +187,12 @@
     <template #footer>
       Данные актуальны на {{ currentDate }}
     </template>
-  </Card>
+  </PagesCabinetUiCardsCard>
 </template>
 
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
 import { navigateTo } from '#app'
-
-const Card = defineAsyncComponent(() => import('/components/pages/cabinet/ui/cards/card.vue'))
 
 // Состояние компонента
 const objectStats = ref({

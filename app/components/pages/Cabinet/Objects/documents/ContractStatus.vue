@@ -1,6 +1,6 @@
 <!-- app/components/pages/cabinet/objects/documents/ContractStatus.vue -->
 <template>
-  <Card title="Договор" bordered elevated>
+  <PagesCabinetUiCardsCard title="Договор" bordered elevated>
     <!-- Отображение договора -->
     <div v-if="contract" class="contract-info">
       <p><strong>Тип:</strong> {{ typeText }} <span :class="`badge status-${contract.status}`">{{ statusText }}</span></p>
@@ -123,13 +123,11 @@
         </div>
       </template>
     </PagesCabinetUiModal>
-  </Card>
+  </PagesCabinetUiCardsCard>
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import PagesCabinetUiModal from '@/components/pages/cabinet/ui/Modal.vue'
-import Card from '/components/pages/cabinet/ui/cards/card.vue'
 
 const props = defineProps({
   object: Object,

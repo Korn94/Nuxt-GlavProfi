@@ -19,7 +19,7 @@
 
   <!-- Основной контент -->
   <div class="cabinet-page">
-    <Card :loading="loading" elevated no-padding-body>
+    <PagesCabinetUiCardsCard :loading="loading" elevated no-padding-body>
       <!-- Вкладки слева в заголовке карточки -->
       <template #header>
         <div class="tabs-container">
@@ -122,14 +122,13 @@
       <template #footer>
         Всего: {{ filteredObjects.length }} объект(а)
       </template>
-    </Card>
+    </PagesCabinetUiCardsCard>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import Card from '/components/pages/cabinet/ui/cards/card.vue'
 
 definePageMeta({
   layout: 'cabinet',

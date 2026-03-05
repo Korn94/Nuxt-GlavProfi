@@ -1,5 +1,5 @@
 <template>
-  <Card :loading="isLoading" title="Финансы контрагентов" elevated class="contractor-finance-card">
+  <PagesCabinetUiCardsCard :loading="isLoading" title="Финансы контрагентов" elevated class="contractor-finance-card">
     <template #icon>
       <Icon name="mdi:account-group" size="24" />
     </template>
@@ -351,14 +351,12 @@
     <template #footer>
       Данные актуальны на {{ currentDate }}
     </template>
-  </Card>
+  </PagesCabinetUiCardsCard>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { navigateTo } from '#app'
-
-const Card = defineAsyncComponent(() => import('/components/pages/cabinet/ui/cards/card.vue'))
 
 // Состояние компонента
 const contractorData = ref(null)

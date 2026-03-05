@@ -17,7 +17,7 @@
   </div>
 
   <!-- Фильтры -->
-  <Card bordered elevated no-padding-body class="filters-card cabinet-page">
+  <PagesCabinetUiCardsCard bordered elevated no-padding-body class="filters-card cabinet-page">
     <template #header>
       <h3>Фильтры</h3>
     </template>
@@ -83,10 +83,10 @@
         <button @click="clearAmountPrefixFilter" class="btn secondary">Сбросить</button>
       </div>
     </div>
-  </Card>
+  </PagesCabinetUiCardsCard>
 
   <!-- Таблица материалов -->
-  <Card bordered elevated no-padding-body class="cabinet-page">
+  <PagesCabinetUiCardsCard bordered elevated no-padding-body class="cabinet-page">
     <template #header>
       <h3>
         Материалы ({{ materials.length }})
@@ -136,7 +136,7 @@
         </tbody>
       </table>
     </div>
-  </Card>
+  </PagesCabinetUiCardsCard>
 
   <!-- Модальное окно -->
   <PagesCabinetUiModal
@@ -214,7 +214,6 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import Card from '@/components/pages/cabinet/ui/cards/card.vue'
 
 // Состояние
 const isModalOpen = ref(false)

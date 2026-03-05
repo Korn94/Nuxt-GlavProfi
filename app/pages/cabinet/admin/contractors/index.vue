@@ -35,7 +35,7 @@
 
   <!-- Основной контент -->
   <div class="cabinet-page">
-    <Card title="Категории контрагентов" elevated>
+    <PagesCabinetUiCardsCard title="Категории контрагентов" elevated>
       <template #icon>
         <Icon name="mdi:account-group" size="24" />
       </template>
@@ -60,15 +60,13 @@
       <template #footer>
         Всего контрагентов: {{ contractors.length }}
       </template>
-    </Card>
+    </PagesCabinetUiCardsCard>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import ContractorAddForm from '@/components/pages/cabinet/Admin/contractors/AddForm.vue'
-
-const Card = defineAsyncComponent(() => import('/components/pages/cabinet/ui/cards/card.vue'))
 
 // Состояние
 const contractors = ref([])

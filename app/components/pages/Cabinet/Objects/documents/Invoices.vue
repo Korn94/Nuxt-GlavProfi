@@ -1,6 +1,6 @@
 <!-- app/components/pages/cabinet/objects/documents/Invoices.vue -->
 <template>
-  <Card title="Счета" bordered elevated no-padding-body>
+  <PagesCabinetUiCardsCard title="Счета" bordered elevated no-padding-body>
     <!-- Заголовок + кнопка -->
     <template #actions>
       <div class="table-header">
@@ -110,13 +110,11 @@
         </div>
       </template>
     </PagesCabinetUiModal>
-  </Card>
+  </PagesCabinetUiCardsCard>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
-import PagesCabinetUiModal from '@/components/pages/cabinet/ui/Modal.vue'
-import Card from '/components/pages/cabinet/ui/cards/card.vue'
 
 const props = defineProps({
   objectId: {

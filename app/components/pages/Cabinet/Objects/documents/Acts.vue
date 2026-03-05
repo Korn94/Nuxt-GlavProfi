@@ -1,6 +1,6 @@
 <!-- app/components/pages/cabinet/objects/documents/Acts.vue -->
 <template>
-  <Card title="Акты" bordered elevated no-padding-body>
+  <PagesCabinetUiCardsCard title="Акты" bordered elevated no-padding-body>
     <!-- Заголовок + кнопка -->
     <template #actions>
       <button v-if="isAdmin" @click="isModalOpen = true" class="btn btn-sm primary">+ Добавить</button>
@@ -87,13 +87,11 @@
         </div>
       </template>
     </PagesCabinetUiModal>
-  </Card>
+  </PagesCabinetUiCardsCard>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
-import PagesCabinetUiModal from '@/components/pages/cabinet/ui/Modal.vue'
-import Card from '/components/pages/cabinet/ui/cards/card.vue'
 
 const props = defineProps({
   objectId: Number,

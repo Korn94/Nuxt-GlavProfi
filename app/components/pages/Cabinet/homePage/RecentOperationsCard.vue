@@ -1,5 +1,5 @@
 <template>
-  <Card :loading="isLoading" title="Последние операции" elevated class="recent-operations-card">
+  <PagesCabinetUiCardsCard :loading="isLoading" title="Последние операции" elevated class="recent-operations-card">
     <template #icon>
       <Icon name="mdi:history" size="24" />
     </template>
@@ -54,14 +54,12 @@
     <template #footer>
       Последние {{ recentOperations.length }} операции
     </template>
-  </Card>
+  </PagesCabinetUiCardsCard>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { navigateTo } from '#app'
-
-const Card = defineAsyncComponent(() => import('/components/pages/cabinet/ui/cards/card.vue'))
 
 // Состояние компонента
 const recentOperations = ref([])
