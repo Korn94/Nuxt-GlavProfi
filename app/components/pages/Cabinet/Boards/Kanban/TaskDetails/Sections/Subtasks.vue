@@ -1,6 +1,7 @@
 <!-- app/components/pages/cabinet/Boards/Kanban/TaskDetails/Sections/Subtasks.vue -->
 <template>
   <div class="task-section subtasks-section">
+    <!-- Заголовок секции -->
     <div class="section-header">
       <h3 class="section-title">
         <Icon name="mdi:checkbox-marked-circle-outline" size="20" />
@@ -18,20 +19,20 @@
         Добавить
       </button>
     </div>
-    
-    <!-- Прогресс-бар -->
+
+    <!-- Прогресс-бар (только первый уровень по требованиям) -->
     <div v-if="totalCount > 0" class="subtasks-progress">
       <div class="progress-bar">
-        <div 
-          class="progress-fill" 
+        <div
+          class="progress-fill"
           :style="{ width: `${progressPercent}%` }"
           :class="{ complete: progressPercent === 100 }"
         ></div>
       </div>
       <span class="progress-text">{{ progressPercent }}% завершено</span>
     </div>
-    
-    <!-- Форма добавления подзадачи -->
+
+    <!-- Форма добавления корневой подзадачи -->
     <Transition name="form-slide">
       <div v-if="showAddForm" class="subtask-add-form">
         <div class="form-group">
@@ -74,24 +75,30 @@
         </div>
       </div>
     </Transition>
-    
-    <!-- ✅ ИСПРАВЛЕНО: Используем taskWithSubtasks вместо props.task -->
-    <div v-if="taskWithSubtasks?.subtasks && taskWithSubtasks.subtasks.length > 0" class="subtasks-list">
+
+    <!-- Список подзадач (дерево из flat-списка) -->
+    <div v-if="subtaskTree && subtaskTree.length > 0" class="subtasks-list">
       <SubtaskItem
-        v-for="subtask in taskWithSubtasks.subtasks"
-        :key="subtask.id"
+        v-for="subtask in subtaskTree"
+        :key="`task-${taskId}-${subtask.id}`"
         :subtask="subtask"
-        :task-id="taskWithSubtasks.id"
-        @updated="$emit('updated')"
-        @deleted="$emit('updated')"
+        :task-id="taskId"
+        :depth="subtask.depth ?? 0"
+        @updated="handleSubtaskUpdated"
+        @deleted="handleSubtaskDeleted"
       />
     </div>
-    
+
     <!-- Пустое состояние -->
-    <div v-else-if="!showAddForm" class="empty-state">
+    <div v-else-if="!showAddForm && !loading" class="empty-state">
       <Icon name="mdi:clipboard-list-outline" size="48" />
       <p>Нет подзадач</p>
       <span class="empty-hint">Нажмите "Добавить", чтобы создать первую подзадачу</span>
+    </div>
+
+    <div v-if="loading && subtaskTree.length === 0" class="loading-state">
+      <Icon name="mdi:loading" size="24" class="spin" />
+      <span>Загрузка подзадач...</span>
     </div>
   </div>
 </template>
@@ -99,10 +106,10 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { useSubtasks } from '~/composables/boards/useSubtasks'
-import { useTasksStore } from 'stores/boards/tasks'
+import { useSubtaskTree } from '~/composables/boards/useSubtaskTree'
 import { useNotifications } from '~/composables/useNotifications'
 import SubtaskItem from '../Subtasks/SubtaskItem.vue'
-import type { Task, Subtask } from '~/types/boards'
+import type { Task, Subtask, SubtaskTree } from '~/types/boards'
 
 // ============================================
 // PROPS & EMITS
@@ -117,10 +124,18 @@ const emit = defineEmits<{
 }>()
 
 // ============================================
-// COMPOSABLES
+// ✅ ИСПРАВЛЕНО: Деструктурируем ВСЕ нужные методы и состояния
 // ============================================
-const { createSubtask, subscribeToTask, unsubscribeFromTask } = useSubtasks()
-const tasksStore = useTasksStore()
+const { 
+  fetchSubtasks, 
+  createSubtask,  // ✅ ДОБАВЛЕНО: метод создания
+  subscribeToBoard, 
+  unsubscribeFromBoard,
+  loading,        // ✅ ДОБАВЛЕНО: состояние загрузки
+  error           // ✅ ДОБАВЛЕНО: состояние ошибки
+} = useSubtasks()
+
+const { getTree, getTotalCount, getCompletedCount, clearTree } = useSubtaskTree()
 const notifications = useNotifications()
 
 // ============================================
@@ -135,84 +150,87 @@ const newSubtask = ref({
 })
 
 // ============================================
-// ✅ КРИТИЧЕСКИ ВАЖНО: Получаем задачу из tasksStore
+// COMPUTED - ID задачи и доски
 // ============================================
-const taskWithSubtasks = computed(() => {
-  // ✅ Ищем актуальную задачу в tasksStore
-  const storeTask = tasksStore.tasks.find(t => t.id === props.task.id)
-  
-  // ✅ Если нашли в сторе - используем её
-  if (storeTask) {
-    return storeTask
-  }
-  
-  // ✅ Фоллбэк на props, но с предупреждением
-  console.warn('[SubtasksSection] Task not found in store, using props:', props.task.id)
-  return props.task
-})
+const taskId = computed(() => props.task.id)
+const boardId = computed(() => props.boardId ?? props.task?.boardId)
 
 // ============================================
-// COMPUTED
+// COMPUTED - Дерево подзадач
 // ============================================
+const subtaskTree = computed<SubtaskTree[]>(() => {
+  if (!taskId.value) return []
+  return getTree(taskId.value)
+})
+
+/**
+ * ✅ ИСПРАВЛЕНО: Общее количество подзадач ТОЛЬКО ПЕРВОГО УРОВНЯ
+ */
 const totalCount = computed(() => {
-  if (!taskWithSubtasks.value?.subtasks) return 0
-  return countAllSubtasks(taskWithSubtasks.value.subtasks)
+  if (!taskId.value) return 0
+  // subtaskTree уже содержит только корневые подзадачи (parentId === null)
+  return subtaskTree.value.length
 })
 
+/**
+ * ✅ ИСПРАВЛЕНО: Количество завершённых подзадач ТОЛЬКО ПЕРВОГО УРОВНЯ
+ */
 const completedCount = computed(() => {
-  if (!taskWithSubtasks.value?.subtasks) return 0
-  return countCompletedSubtasks(taskWithSubtasks.value.subtasks)
+  if (!taskId.value) return 0
+  // Считаем только корневые подзадачи
+  return subtaskTree.value.filter(s => s.isCompleted).length
 })
 
+/**
+ * Процент завершения (только первый уровень)
+ */
 const progressPercent = computed(() => {
   if (totalCount.value === 0) return 0
   return Math.round((completedCount.value / totalCount.value) * 100)
 })
 
 const canAdd = computed(() => {
-  return newSubtask.value.title.trim().length > 0
+  return newSubtask.value.title.trim().length > 0 &&
+         newSubtask.value.title.trim().length <= 255
 })
 
 // ============================================
-// METHODS - Подсчёт подзадач
+// METHODS
 // ============================================
-const countAllSubtasks = (subtasks: Subtask[]): number => {
-  let count = 0
-  subtasks.forEach(subtask => {
-    count++
-    if (subtask.subtasks && subtask.subtasks.length > 0) {
-      count += countAllSubtasks(subtask.subtasks)
-    }
-  })
-  return count
+const loadSubtasks = async (taskId: number) => {
+  console.log('[Subtasks] 📥 Loading subtasks for task:', taskId)
+  try {
+    await fetchSubtasks(taskId)
+    console.log('[Subtasks] ✅ Subtasks loaded')
+  } catch (error) {
+    console.error('[Subtasks] ❌ Failed to load subtasks:', error)
+  }
 }
 
-const countCompletedSubtasks = (subtasks: Subtask[]): number => {
-  let count = 0
-  subtasks.forEach(subtask => {
-    if (subtask.isCompleted) count++
-    if (subtask.subtasks && subtask.subtasks.length > 0) {
-      count += countCompletedSubtasks(subtask.subtasks)
-    }
-  })
-  return count
-}
-
-// ============================================
-// METHODS - Управление подзадачами
-// ============================================
 const cancelAdd = () => {
   showAddForm.value = false
   newSubtask.value = { title: '', description: '' }
 }
 
+const startAdd = async () => {
+  showAddForm.value = true
+  newSubtask.value = { title: '', description: '' }
+  await nextTick()
+  if (titleInputRef.value) {
+    titleInputRef.value.focus()
+  }
+}
+
+// ============================================
+// METHODS - Создание подзадачи
+// ============================================
 const addSubtask = async () => {
-  if (!canAdd.value) return
+  if (!canAdd.value || !taskId.value) return
   
   addingSubtask.value = true
   
   try {
-    await createSubtask(props.task.id, {
+    await createSubtask(taskId.value, {  // ✅ Теперь TS видит createSubtask
       title: newSubtask.value.title.trim(),
       description: newSubtask.value.description.trim() || undefined,
       parentId: null,
@@ -222,43 +240,102 @@ const addSubtask = async () => {
     notifications.success('Подзадача добавлена')
     emit('updated')
     cancelAdd()
-  } catch (error) {
-    console.error('Failed to create subtask:', error)
-    notifications.error('Не удалось добавить подзадачу')
+  } catch (error: any) {
+    console.error('[SubtasksSection] Failed to create subtask:', error)
+    const message = error.data?.message || 'Не удалось добавить подзадачу'
+    notifications.error(message)
   } finally {
     addingSubtask.value = false
   }
 }
 
 // ============================================
-// WATCHERS - Отслеживаем изменения задачи в сторе
+// METHODS - Обработчики событий
+// ============================================
+const handleSubtaskUpdated = () => {
+  console.log('[Subtasks] 🔄 Subtask updated')
+  emit('updated')
+}
+
+const handleSubtaskDeleted = () => {
+  console.log('[Subtasks] 🗑️ Subtask deleted')
+  emit('updated')
+}
+
+// ============================================
+// WATCHERS
 // ============================================
 watch(
-  () => taskWithSubtasks.value?.subtasks,
-  (newSubtasks) => {
-    console.log('[DEBUG SubtasksSection] Subtasks updated:', {
-      taskId: taskWithSubtasks.value?.id,
-      count: newSubtasks?.length,
-      firstSubtaskId: newSubtasks?.[0]?.id
-    })
-    emit('updated')
+  () => taskId.value,
+  async (newTaskId, oldTaskId) => {
+    console.log('[Subtasks] 👀 TaskId watch:', { oldTaskId, newTaskId })
+    
+    if (oldTaskId) {
+      clearTree(oldTaskId)
+    }
+    
+    if (newTaskId) {
+      await loadSubtasks(newTaskId)
+    }
   },
-  { deep: true, immediate: true }
+  { immediate: true }
+)
+
+watch(
+  () => subtaskTree.value,
+  (newTree) => {
+    console.log('[SubtasksSection] Tree updated:', {
+      taskId: taskId.value,
+      rootCount: newTree?.length,
+      totalCount: totalCount.value,
+      completedCount: completedCount.value
+    })
+  },
+  { deep: true }
+)
+
+watch(
+  () => error.value,
+  (newError) => {
+    if (newError) {
+      notifications.error(newError)
+    }
+  }
 )
 
 // ============================================
 // LIFECYCLE
 // ============================================
 onMounted(() => {
-  subscribeToTask(props.task.id)
+  console.log('[Subtasks] 📦 Component mounted', {
+    taskId: taskId.value,
+    boardId: boardId.value
+  })
+  
+  if (boardId.value) {
+    subscribeToBoard(boardId.value)
+    console.log('[Subtasks] 🔔 Subscribed to board:', boardId.value)
+  }
 })
 
 onUnmounted(() => {
-  unsubscribeFromTask(props.task.id)
+  console.log('[Subtasks] 🗑️ Component unmounted')
+  
+  if (boardId.value) {
+    unsubscribeFromBoard(boardId.value)
+  }
+  
+  if (taskId.value) {
+    clearTree(taskId.value)
+  }
 })
 
-watch(() => props.task.id, () => {
-  cancelAdd()
+// ============================================
+// EXPOSE
+// ============================================
+defineExpose({
+  startAdd,
+  cancelAdd
 })
 </script>
 
@@ -465,7 +542,7 @@ textarea.form-control {
   color: $text-light;
   
   &:hover:not(:disabled) {
-    background: lighten($blue, 5%);
+    background: color.adjust($blue, $lightness: 5%);
     transform: translateY(-1px);
   }
 }

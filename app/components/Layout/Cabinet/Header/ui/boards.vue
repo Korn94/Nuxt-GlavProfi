@@ -184,7 +184,7 @@ import { useRouter } from 'vue-router'
 import { useBoardFoldersStore } from 'stores/boards/folders'
 import { useBoardsStore } from 'stores/boards'
 import { useNotificationStore } from 'stores/notifications'
-import type { BoardFolder } from '~/types/boards'
+import type { CreateFolderForm } from '~/types/boards'
 
 // Emits
 const emit = defineEmits<{
@@ -204,15 +204,15 @@ const folderType = ref<'objects' | 'general'>('general')
 const foldersLoading = ref(false)
 
 // State для формы создания папки
-const newFolder = ref({
+const newFolder = ref<CreateFolderForm>({
   name: '',
   description: '',
-  category: 'general' as 'objects' | 'general',
+  category: 'general',
   firstBoard: {
     name: '',
     description: '',
-    type: 'general' as 'object' | 'general',
-    objectId: null as number | null
+    type: 'general',
+    objectId: null
   }
 })
 
@@ -237,10 +237,13 @@ const folderTypeLabel = computed(() => {
 })
 
 const canSubmitFolder = computed(() => {
-  const nameValid = newFolder.value.name.trim().length > 0
-  const boardNameValid = newFolder.value.firstBoard.name.trim().length > 0
-  const objectValid = newFolder.value.firstBoard.type !== 'object' ||
-    !!newFolder.value.firstBoard.objectId
+  // ✅ Явно приводим тип внутри computed
+  const folder = newFolder.value as CreateFolderForm
+  
+  const nameValid = folder.name.trim().length > 0
+  const boardNameValid = folder.firstBoard.name.trim().length > 0  // Теперь TS «видит» тип
+  const objectValid = folder.firstBoard.type !== 'object' ||
+    !!folder.firstBoard.objectId
   return nameValid && boardNameValid && objectValid
 })
 
@@ -267,7 +270,11 @@ const selectFolder = async (folderId: number) => {
     // Выбираем первую доску
     if (boardsInFolder.length > 0) {
       const firstBoard = boardsInFolder[0]
-      boardsStore.selectBoard(firstBoard.id)
+        if (firstBoard) {
+        boardsStore.selectBoard(firstBoard.id)
+        router.push('/cabinet/boards')
+        emit('closeSidebar')
+      }
 
       // Переходим в канбан
       router.push('/cabinet/boards')
@@ -328,21 +335,24 @@ const handleCreateFolder = async () => {
 
   creatingFolder.value = true
   try {
+    // ✅ Извлекаем firstBoard с утверждением типа
+    const firstBoardData = newFolder.value.firstBoard as NonNullable<typeof newFolder.value.firstBoard>
+    
     const result = await foldersStore.createFolderWithBoard({
       folder: {
         name: newFolder.value.name.trim(),
         description: newFolder.value.description.trim() || undefined,
         category: newFolder.value.category
       },
+      // ✅ ВСЕ поля firstBoard теперь используют firstBoardData
       firstBoard: {
-        name: newFolder.value.firstBoard.name.trim(),
-        description: newFolder.value.firstBoard.description.trim() || undefined,
-        type: newFolder.value.firstBoard.type,
-        objectId: newFolder.value.firstBoard.objectId || undefined
+        name: firstBoardData.name.trim(),
+        description: firstBoardData.description?.trim() || undefined,
+        type: firstBoardData.type,
+        objectId: firstBoardData.objectId ?? undefined
       }
     })
 
-    // ✅ ИСПРАВЛЕНИЕ: Явная проверка с optional chaining
     if (result?.folder?.id && result?.board?.id) {
       notificationStore.success(`Папка "${result.folder.name}" успешно создана`)
       await selectFolder(result.folder.id)

@@ -17,6 +17,9 @@ export default defineNitroPlugin((nitroApp) => {
   
   const isDev = process.env.NODE_ENV !== 'production'
   
+  // ✅ Получаем хост для прослушивания (0.0.0.0 для доступа извне)
+  const listenHost = isDev ? '0.0.0.0' : 'localhost'
+  
   if (isDev) {
     // В dev-режиме создаём отдельный HTTP-сервер для Socket.IO
     socketHttpServer = createServer()
@@ -24,10 +27,10 @@ export default defineNitroPlugin((nitroApp) => {
     io = new Server(socketHttpServer, {
       path: '/socket.io',
       cors: {
-        // origin: process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+        // ✅ РАЗРЕШАЕМ ВСЕ ORIGIN В DEV-РЕЖИМЕ
         origin: true,
         credentials: true,
-        methods: ['GET', 'POST', 'OPTIONS'],
+        methods: ['GET', 'POST', 'OPTIONS', 'PUT', 'DELETE'],
         allowedHeaders: ['Authorization', 'Content-Type', 'X-Requested-With']
       },
       transports: ['websocket', 'polling'],
@@ -44,9 +47,8 @@ export default defineNitroPlugin((nitroApp) => {
         const result = await db
           .update(userSessions)
           .set({ status: 'offline' })
-          .execute() // ✅ Добавляем .execute()
+          .execute()
         
-        // ✅ Правильная обработка результата для MySQL
         const affectedRows = (result as any)[0]?.affectedRows || 0
         console.log(`[SocketPlugin] ✅ All sessions reset to offline (affected ${affectedRows} rows)`)
       } catch (error) {
@@ -57,8 +59,11 @@ export default defineNitroPlugin((nitroApp) => {
     setupSocketServer(io)
     
     const SOCKET_PORT = parseInt(process.env.SOCKET_PORT || '3001', 10)
-    socketHttpServer.listen(SOCKET_PORT, () => {
-      console.log(`[SocketPlugin] Socket.IO server running on http://localhost:${SOCKET_PORT}`)
+    
+    // ✅ ИСПРАВЛЕНИЕ: Слушаем на 0.0.0.0 для доступа из локальной сети
+    socketHttpServer.listen(SOCKET_PORT, listenHost, () => {
+      console.log(`[SocketPlugin] Socket.IO server running on http://${listenHost}:${SOCKET_PORT}`)
+      console.log(`[SocketPlugin] Accessible from: http://localhost:${SOCKET_PORT} or http://192.168.31.244:${SOCKET_PORT}`)
     })
     
     // ✅ СОХРАНЯЕМ В ГЛОБАЛЬНУЮ ПЕРЕМЕННУЮ
@@ -91,9 +96,10 @@ export default defineNitroPlugin((nitroApp) => {
     io = new Server({
       path: '/socket.io',
       cors: {
+        // ✅ В продакшене указываем конкретный origin
         origin: process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3000',
         credentials: true,
-        methods: ['GET', 'POST', 'OPTIONS'],
+        methods: ['GET', 'POST', 'OPTIONS', 'PUT', 'DELETE'],
         allowedHeaders: ['Authorization', 'Content-Type', 'X-Requested-With']
       },
       transports: ['websocket', 'polling'],
@@ -110,9 +116,8 @@ export default defineNitroPlugin((nitroApp) => {
         const result = await db
           .update(userSessions)
           .set({ status: 'offline' })
-          .execute() // ✅ Добавляем .execute()
+          .execute()
         
-        // ✅ Правильная обработка результата для MySQL
         const affectedRows = (result as any)[0]?.affectedRows || 0
         console.log(`[SocketPlugin] ✅ All sessions reset to offline (affected ${affectedRows} rows)`)
       } catch (error) {
@@ -125,9 +130,6 @@ export default defineNitroPlugin((nitroApp) => {
     // @ts-ignore
     nitroApp.io = io
     
-    // ✅ Исправляем хук для продакшена
-    // В продакшене сокет подключается к основному серверу через attach
-    // Это происходит автоматически при сборке Nuxt
     setupSocketServer(io)
     console.log('[SocketPlugin] ✅ Socket.IO initialized for production')
     

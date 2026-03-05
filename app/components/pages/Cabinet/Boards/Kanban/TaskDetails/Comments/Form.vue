@@ -375,7 +375,7 @@ defineExpose({
   color: $text-light;
   
   &:hover:not(:disabled) {
-    background: lighten($blue, 5%);
+    background: color.adjust($blue, $lightness: 5%);
     transform: translateY(-1px);
   }
 }

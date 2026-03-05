@@ -1,474 +1,353 @@
-<!-- app/components/pages/cabinet/Boards/Kanban/SubtaskTree.vue -->
- <template>
-<div class="subtask-tree">
-  <div
-    v-for="subtask in subtasks"
-    :key="subtask.id"
-    class="subtask-item"
-    :class="{
-      'dragging': draggingSubtaskId === subtask.id,
-      'drop-above': dragTargetSubtaskId === subtask.id && dragPosition === 'above',
-      'drop-below': dragTargetSubtaskId === subtask.id && dragPosition === 'below',
-      'drop-child': dragTargetSubtaskId === subtask.id && dragPosition === 'child'
-    }"
-    draggable="true"
-    @dragstart="handleSubtaskDragStart($event, subtask)"
-    @dragend="handleSubtaskDragEnd"
-    @dragover.prevent="handleSubtaskDragOver($event, subtask)"
-    @dragenter.prevent="handleSubtaskDragEnter($event, subtask)"
-    @dragleave="handleSubtaskDragLeave($event, subtask)"
-    @drop.prevent="handleSubtaskDrop($event, subtask)"
-  >
-    <div class="subtask-header">
-      <label class="subtask-checkbox">
-        <input
-          type="checkbox"
-          :checked="subtask.isCompleted"
-          @change="toggleSubtask(subtask.id)"
-        />
-        <span class="checkmark"></span>
-      </label>
-      
-      <div class="subtask-content">
-        <div class="subtask-title-wrapper">
-          <span :class="subtask.isCompleted ? 'subtask-title completed' : 'subtask-title'">
-            {{ subtask.title }}
-          </span>
-          
-          <span v-if="subtask.description" class="subtask-description">
-            {{ truncateText(subtask.description, 60) }}
-          </span>
+<!-- app/components/pages/cabinet/Boards/Kanban/TaskDetails/Subtasks/index.vue -->
+<template>
+  <div class="subtasks-root">
+    <!-- Заголовок секции -->
+    <div class="subtasks-header">
+      <h3 class="subtasks-title">
+        <Icon name="mdi:checkbox-marked-circle-outline" size="20" />
+        Подзадачи
+        <span class="subtasks-count">
+          {{ completedCount }}/{{ totalCount }}
+        </span>
+      </h3>
+      <button
+        class="btn btn-sm btn-primary"
+        @click="showAddForm = true"
+        :disabled="addingSubtask"
+      >
+        <Icon name="mdi:plus" size="16" />
+        Добавить
+      </button>
+    </div>
+
+    <!-- Прогресс-бар (только первый уровень по требованиям) -->
+    <div v-if="totalCount > 0" class="subtasks-progress">
+      <div class="progress-bar">
+        <div
+          class="progress-fill"
+          :style="{ width: `${progressPercent}%` }"
+          :class="{ complete: progressPercent === 100 }"
+        ></div>
+      </div>
+      <span class="progress-text">{{ progressPercent }}% завершено</span>
+    </div>
+
+    <!-- Форма добавления корневой подзадачи -->
+    <Transition name="form-slide">
+      <div v-if="showAddForm" class="subtask-add-form">
+        <div class="form-group">
+          <input
+            ref="titleInputRef"
+            v-model="newSubtask.title"
+            type="text"
+            class="form-control"
+            placeholder="Название подзадачи..."
+            @keyup.enter="addSubtask"
+            @keyup.esc="cancelAdd"
+            autofocus
+          />
         </div>
-        
-        <div class="subtask-actions">
-          <button class="btn btn-sm btn-text" @click="toggleEdit(subtask.id)" title="Редактировать">
-            ✏️
+        <div class="form-group">
+          <textarea
+            v-model="newSubtask.description"
+            class="form-control"
+            placeholder="Описание (необязательно)"
+            rows="2"
+          ></textarea>
+        </div>
+        <div class="form-actions">
+          <button
+            class="btn btn-secondary"
+            @click="cancelAdd"
+            :disabled="addingSubtask"
+          >
+            Отмена
           </button>
-          <button class="btn btn-sm btn-text" @click="showAddChild(subtask.id)" title="Добавить подзадачу">
-            +
-          </button>
-          <button class="btn btn-sm btn-text" @click="deleteSubtask(subtask.id)" title="Удалить">
-            🗑️
+          <button
+            class="btn btn-primary"
+            @click="addSubtask"
+            :disabled="addingSubtask || !canAdd"
+          >
+            <Icon v-if="addingSubtask" name="mdi:loading" size="16" class="spin" />
+            <Icon v-else name="mdi:check" size="16" />
+            {{ addingSubtask ? 'Добавление...' : 'Добавить' }}
           </button>
         </div>
       </div>
-    </div>
-    
-    <!-- Форма редактирования -->
-    <div v-if="editingSubtask === subtask.id" class="subtask-edit-form">
-      <input
-        v-model="editedSubtask.title"
-        type="text"
-        class="form-control"
-        placeholder="Название подзадачи"
-      />
-      <textarea
-        v-model="editedSubtask.description"
-        class="form-control"
-        placeholder="Описание (необязательно)"
-        rows="2"
-      ></textarea>
-      <div class="subtask-edit-actions">
-        <button class="btn btn-secondary" @click="cancelEdit">
-          Отмена
-        </button>
-        <button class="btn btn-primary" @click="saveEdit(subtask.id)">
-          Сохранить
-        </button>
-      </div>
-    </div>
-    
-    <!-- Форма добавления дочерней подзадачи -->
-    <div v-if="addChildTo === subtask.id" class="subtask-add-form">
-      <input
-        v-model="newChildSubtask.title"
-        type="text"
-        class="form-control"
-        placeholder="Название подзадачи"
-        @keyup.enter="addChildSubtask(subtask.id)"
-      />
-      <div class="subtask-add-actions">
-        <button class="btn btn-secondary" @click="addChildTo = null">
-          Отмена
-        </button>
-        <button class="btn btn-primary" @click="addChildSubtask(subtask.id)">
-          Добавить
-        </button>
-      </div>
-    </div>
-    
-    <!-- Дочерние подзадачи -->
-    <div
-      v-if="subtask.subtasks && subtask.subtasks.length > 0"
-      class="subtask-children"
-      @dragover.prevent="handleChildDragOver($event, subtask)"
-      @dragenter.prevent
-      @drop.prevent="handleChildDrop($event, subtask)"
-    >
-      <SubtaskTree
-        :subtasks="subtask.subtasks"
+    </Transition>
+
+    <!-- Список подзадач (дерево) -->
+    <div v-if="subtaskTree && subtaskTree.length > 0" class="subtasks-tree">
+      <SubtaskItem
+        v-for="subtask in subtaskTree"
+        :key="subtask.id"
+        :subtask="subtask"
         :task-id="taskId"
-        @subtask-updated="$emit('subtaskUpdated')"
+        :depth="subtask.depth ?? 0"
+        @updated="handleSubtaskUpdated"
+        @deleted="handleSubtaskDeleted"
       />
+    </div>
+
+    <!-- Пустое состояние -->
+    <div v-else-if="!showAddForm && !loading" class="empty-state">
+      <Icon name="mdi:clipboard-list-outline" size="48" />
+      <p>Нет подзадач</p>
+      <span class="empty-hint">
+        Нажмите "Добавить", чтобы создать первую подзадачу
+      </span>
+    </div>
+
+    <!-- Индикатор загрузки -->
+    <div v-if="loading && subtaskTree.length === 0" class="loading-state">
+      <Icon name="mdi:loading" size="24" class="spin" />
+      <span>Загрузка подзадач...</span>
     </div>
   </div>
-</div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { useSubtasks } from '~/composables/boards/useSubtasks'
+import { useSubtaskTree } from '~/composables/boards/useSubtaskTree'
 import { useNotifications } from '~/composables/useNotifications'
-import type { Subtask } from '~/types/boards'
+import SubtaskItem from './SubtaskItem.vue'
+import type { Task, SubtaskTree } from '~/types/boards'
+import { MAX_SUBTASK_DEPTH } from '~/types/boards'
 
 // ============================================
 // PROPS & EMITS
 // ============================================
 const props = defineProps<{
-  subtasks: Subtask[]
-  taskId: number
+  task: Task
+  boardId?: number
 }>()
 
 const emit = defineEmits<{
-  subtaskUpdated: []
+  updated: []
 }>()
 
 // ============================================
 // COMPOSABLES
 // ============================================
-const { createSubtask, updateSubtask, subscribeToTask, unsubscribeFromTask } = useSubtasks()
-const notifications = useNotifications()
+const {
+  fetchSubtasks,
+  createSubtask,
+  subscribeToBoard,
+  unsubscribeFromBoard,
+  loading,        // ✅ ИМПОРТИРОВАНО из useSubtasks
+  error           // ✅ ИМПОРТИРОВАНО из useSubtasks
+} = useSubtasks()
 
-// ============================================
-// DRAG & DROP STATE
-// ============================================
-const draggingSubtaskId = ref<number | null>(null)
-const dragTargetSubtaskId = ref<number | null>(null)
-const dragPosition = ref<'above' | 'below' | 'child' | null>(null)
+const {
+  getTree,
+  getTotalCount,
+  getCompletedCount,
+  clearTree
+} = useSubtaskTree()
+
+const notifications = useNotifications()
 
 // ============================================
 // STATE
 // ============================================
-const editingSubtask = ref<number | null>(null)
-const addChildTo = ref<number | null>(null)
-const editedSubtask = ref({
+const showAddForm = ref(false)
+const addingSubtask = ref(false)
+const titleInputRef = ref<HTMLInputElement | null>(null)
+const newSubtask = ref({
   title: '',
   description: ''
 })
-const newChildSubtask = ref({
-  title: ''
+
+// ============================================
+// COMPUTED - ID задачи и доски
+// ============================================
+const taskId = computed(() => props.task.id)
+const boardId = computed(() => props.boardId ?? props.task.boardId)
+
+// ============================================
+// COMPUTED - Дерево подзадач
+// ============================================
+/**
+ * Получаем дерево подзадач из useSubtaskTree
+ * Дерево строится из flat-списка в subtasksStore
+ */
+const subtaskTree = computed<SubtaskTree[]>(() => {
+  if (!taskId.value) return []
+  return getTree(taskId.value)
+})
+
+/**
+ * ✅ ИСПРАВЛЕНО: Общее количество подзадач ТОЛЬКО ПЕРВОГО УРОВНЯ
+ */
+const totalCount = computed(() => {
+  if (!taskId.value) return 0
+  // Считаем только корневые подзадачи (первый уровень)
+  return subtaskTree.value.length
+})
+
+/**
+ * ✅ ИСПРАВЛЕНО: Количество завершённых подзадач ТОЛЬКО ПЕРВОГО УРОВНЯ
+ */
+const completedCount = computed(() => {
+  if (!taskId.value) return 0
+  const rootSubtasks = subtaskTree.value
+  return rootSubtasks.filter(s => s.isCompleted).length
+})
+
+/**
+ * Процент завершения (только первый уровень)
+ */
+const progressPercent = computed(() => {
+  if (totalCount.value === 0) return 0
+  return Math.round((completedCount.value / totalCount.value) * 100)
+})
+
+/**
+ * Можно ли добавить подзадачу (проверка формы)
+ */
+const canAdd = computed(() => {
+  return newSubtask.value.title.trim().length > 0 &&
+         newSubtask.value.title.trim().length <= 255
 })
 
 // ============================================
-// METHODS
+// METHODS - Управление формой
 // ============================================
-const toggleSubtask = async (id: number) => {
-  try {
-    await updateSubtask(id, {
-      isCompleted: !findSubtask(props.subtasks, id)?.isCompleted
-    })
-    emit('subtaskUpdated')
-  } catch (error) {
-    console.error('Failed to toggle subtask:', error)
-    notifications.error('Не удалось обновить статус подзадачи')
+const cancelAdd = () => {
+  showAddForm.value = false
+  newSubtask.value = { title: '', description: '' }
+}
+
+const startAdd = async () => {
+  showAddForm.value = true
+  newSubtask.value = { title: '', description: '' }
+  await nextTick()
+  if (titleInputRef.value) {
+    titleInputRef.value.focus()
   }
 }
 
-const toggleEdit = (id: number) => {
-  const subtask = findSubtask(props.subtasks, id)
-  if (subtask) {
-    editedSubtask.value = {
-      title: subtask.title,
-      description: subtask.description || ''
-    }
-    editingSubtask.value = id
-  }
-}
-
-const cancelEdit = () => {
-  editingSubtask.value = null
-  editedSubtask.value = { title: '', description: '' }
-}
-
-const saveEdit = async (id: number) => {
-  if (!editedSubtask.value.title.trim()) {
-    notifications.warning('Название подзадачи не может быть пустым')
-    return
-  }
+// ============================================
+// METHODS - Создание подзадачи
+// ============================================
+const addSubtask = async () => {
+  if (!canAdd.value || !taskId.value) return
+  
+  addingSubtask.value = true
   
   try {
-    await updateSubtask(id, {
-      title: editedSubtask.value.title.trim(),
-      description: editedSubtask.value.description.trim() || null
-    })
-    cancelEdit()
-    emit('subtaskUpdated')
-    notifications.success('Подзадача обновлена')
-  } catch (error) {
-    console.error('Failed to save subtask:', error)
-    notifications.error('Не удалось сохранить подзадачу')
-  }
-}
-
-const showAddChild = (id: number) => {
-  addChildTo.value = id
-  newChildSubtask.value = { title: '' }
-}
-
-const addChildSubtask = async (parentId: number) => {
-  const title = newChildSubtask.value.title.trim()
-  if (!title) {
-    notifications.warning('Введите название подзадачи')
-    return
-  }
-  
-  try {
-    await createSubtask(props.taskId, {
-      title: title,
-      description: '',
-      parentId: parentId,
+    await createSubtask(taskId.value, {
+      title: newSubtask.value.title.trim(),
+      description: newSubtask.value.description.trim() || undefined,
+      parentId: null, // Корневая подзадача
       order: 0
     })
-    addChildTo.value = null
-    newChildSubtask.value = { title: '' }
-    emit('subtaskUpdated')
+    
     notifications.success('Подзадача добавлена')
-  } catch (error) {
-    console.error('Failed to create subtask:', error)
-    notifications.error('Не удалось добавить подзадачу')
+    emit('updated')
+    cancelAdd()
+  } catch (error: any) {
+    console.error('[SubtasksIndex] Failed to create subtask:', error)
+    const message = error.data?.message || 'Не удалось добавить подзадачу'
+    notifications.error(message)
+  } finally {
+    addingSubtask.value = false
   }
-}
-
-const deleteSubtask = async (id: number) => {
-  if (confirm('Удалить подзадачу?')) {
-    try {
-      await updateSubtask(id, { parentId: null }) // Сначала удаляем связь
-      emit('subtaskUpdated')
-      notifications.success('Подзадача удалена')
-    } catch (error) {
-      console.error('Failed to delete subtask:', error)
-      notifications.error('Не удалось удалить подзадачу')
-    }
-  }
-}
-
-const truncateText = (text: string, maxLength: number) => {
-  if (!text) return ''
-  return text.length > maxLength ? text.substring(0, maxLength) + '...' : text
-}
-
-const findSubtask = (subtasks: Subtask[], id: number): Subtask | null => {
-  for (const subtask of subtasks) {
-    if (subtask.id === id) return subtask
-    if (subtask.subtasks && subtask.subtasks.length > 0) {
-      const found = findSubtask(subtask.subtasks, id)
-      if (found) return found
-    }
-  }
-  return null
 }
 
 // ============================================
-// DRAG & DROP METHODS
+// METHODS - Обработчики событий
 // ============================================
-const handleSubtaskDragStart = (event: DragEvent, subtask: Subtask) => {
-  if (!event.dataTransfer) return
-  
-  draggingSubtaskId.value = subtask.id
-  
-  const dragData = {
-    type: 'subtask',
-    subtaskId: subtask.id,
-    taskId: props.taskId,
-    parentId: subtask.parentId
-  }
-  
-  event.dataTransfer.setData('application/json', JSON.stringify(dragData))
-  event.dataTransfer.effectAllowed = 'move'
-  
-  const target = event.target as HTMLElement
-  target.style.opacity = '0.7'
-  target.style.transform = 'scale(1.05)'
+const handleSubtaskUpdated = () => {
+  console.log('[SubtasksIndex] Subtask updated, emitting event')
+  emit('updated')
 }
 
-const handleSubtaskDragEnd = (event: DragEvent) => {
-  draggingSubtaskId.value = null
-  const target = event.target as HTMLElement
-  target.style.opacity = '1'
-  target.style.transform = 'scale(1)'
+const handleSubtaskDeleted = () => {
+  console.log('[SubtasksIndex] Subtask deleted, emitting event')
+  emit('updated')
 }
 
-const handleSubtaskDragOver = (event: DragEvent, targetSubtask: Subtask) => {
-  event.preventDefault()
-  
-  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
-  const mouseY = event.clientY
-  const elementCenterY = rect.top + rect.height / 2
-  
-  if (mouseY < elementCenterY - 20) {
-    dragPosition.value = 'above'
-  } else if (mouseY > elementCenterY + 20) {
-    dragPosition.value = 'below'
-  } else {
-    dragPosition.value = 'child'
-  }
-  
-  dragTargetSubtaskId.value = targetSubtask.id
-}
+// ============================================
+// WATCHERS - Отслеживание изменений
+// ============================================
+watch(
+  () => taskId.value,
+  async (newTaskId, oldTaskId) => {
+    // Очищаем кэш дерева для старой задачи
+    if (oldTaskId) {
+      clearTree(oldTaskId)
+    }
+    // Загружаем подзадачи для новой задачи
+    if (newTaskId) {
+      await loadSubtasks(newTaskId)
+    }
+    cancelAdd()
+  },
+  { immediate: true }
+)
 
-const handleSubtaskDragEnter = (event: DragEvent, targetSubtask: Subtask) => {
-  event.preventDefault()
-  dragTargetSubtaskId.value = targetSubtask.id
-}
-
-const handleSubtaskDragLeave = (event: DragEvent, targetSubtask: Subtask) => {
-  const relatedTarget = event.relatedTarget as HTMLElement | null
-  const currentTarget = event.currentTarget as HTMLElement | null
-  
-  if (!relatedTarget || !currentTarget || !currentTarget.contains(relatedTarget)) {
-    dragTargetSubtaskId.value = null
-    dragPosition.value = null
-  }
-}
-
-const handleChildDragOver = (event: DragEvent, parentSubtask: Subtask) => {
-  event.preventDefault()
-  dragTargetSubtaskId.value = parentSubtask.id
-  dragPosition.value = 'child'
-}
-
-const handleChildDrop = async (event: DragEvent, parentSubtask: Subtask) => {
-  event.stopPropagation()
-  if (!draggingSubtaskId.value) return
-  
-  try {
-    await updateSubtask(draggingSubtaskId.value, {
-      parentId: parentSubtask.id,
-      order: 0
+watch(
+  () => subtaskTree.value,
+  (newTree) => {
+    console.log('[SubtasksIndex] Tree updated:', {
+      taskId: taskId.value,
+      rootCount: newTree?.length,
+      totalCount: totalCount.value,
+      completedCount: completedCount.value
     })
-    emit('subtaskUpdated')
-    notifications.success('Подзадача перемещена как дочерняя')
-  } catch (error) {
-    console.error('Failed to move subtask:', error)
-    notifications.error('Не удалось переместить подзадачу')
-  } finally {
-    resetDragState()
-  }
-}
+  },
+  { deep: true }
+)
 
-const handleSubtaskDrop = async (event: DragEvent, targetSubtask: Subtask) => {
-  if (!draggingSubtaskId.value || draggingSubtaskId.value === targetSubtask.id) {
-    resetDragState()
-    return
-  }
-  
+// ============================================
+// METHODS - Загрузка подзадач
+// ============================================
+const loadSubtasks = async (taskId: number) => {
   try {
-    const sourceSubtask = findSubtask(props.subtasks, draggingSubtaskId.value)
-    if (!sourceSubtask) {
-      resetDragState()
-      return
-    }
-    
-    // Проверяем циклическую зависимость
-    if (isDescendant(targetSubtask, draggingSubtaskId.value)) {
-      notifications.warning('Нельзя переместить подзадачу в себя или своего потомка')
-      resetDragState()
-      return
-    }
-    
-    // Обрабатываем разные позиции вставки
-    if (dragPosition.value === 'above') {
-      await moveSubtaskAbove(draggingSubtaskId.value, targetSubtask.id)
-    } else if (dragPosition.value === 'below') {
-      await moveSubtaskBelow(draggingSubtaskId.value, targetSubtask.id)
-    } else if (dragPosition.value === 'child') {
-      await moveSubtaskAsChild(draggingSubtaskId.value, targetSubtask.id)
-    }
-    
-    emit('subtaskUpdated')
-    notifications.success('Подзадача перемещена')
+    console.log(`[SubtasksIndex] 📥 Loading subtasks for task ${taskId}`)
+    await fetchSubtasks(taskId)
+    console.log(`[SubtasksIndex] ✅ Subtasks loaded for task ${taskId}`)
   } catch (error) {
-    console.error('Failed to move subtask:', error)
-    notifications.error('Не удалось переместить подзадачу')
-  } finally {
-    resetDragState()
+    console.error(`[SubtasksIndex] ❌ Failed to load subtasks:`, error)
   }
-}
-
-// ============================================
-// ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
-// ============================================
-const isDescendant = (parent: Subtask, targetId: number): boolean => {
-  if (!parent.subtasks || parent.subtasks.length === 0) return false
-  
-  for (const child of parent.subtasks) {
-    if (child.id === targetId) return true
-    if (isDescendant(child, targetId)) return true
-  }
-  
-  return false
-}
-
-const moveSubtaskAbove = async (sourceId: number, targetId: number) => {
-  const targetIndex = findSubtaskIndex(props.subtasks, targetId)
-  if (targetIndex === -1) throw new Error('Target subtask not found')
-  
-  await updateSubtask(sourceId, {
-    parentId: null,
-    order: targetIndex
-  })
-}
-
-const moveSubtaskBelow = async (sourceId: number, targetId: number) => {
-  const targetIndex = findSubtaskIndex(props.subtasks, targetId)
-  if (targetIndex === -1) throw new Error('Target subtask not found')
-  
-  await updateSubtask(sourceId, {
-    parentId: null,
-    order: targetIndex + 1
-  })
-}
-
-const moveSubtaskAsChild = async (sourceId: number, parentId: number) => {
-  await updateSubtask(sourceId, {
-    parentId: parentId,
-    order: 0
-  })
-}
-
-const findSubtaskIndex = (subtasks: Subtask[], id: number, parentId: number | null = null): number => {
-  let index = 0
-  
-  for (const subtask of subtasks) {
-    if (subtask.parentId === parentId) {
-      if (subtask.id === id) return index
-      index++
-    }
-    
-    if (subtask.subtasks && subtask.subtasks.length > 0) {
-      const childIndex = findSubtaskIndex(subtask.subtasks, id, subtask.id)
-      if (childIndex !== -1) return childIndex
-    }
-  }
-  
-  return -1
-}
-
-const resetDragState = () => {
-  draggingSubtaskId.value = null
-  dragTargetSubtaskId.value = null
-  dragPosition.value = null
 }
 
 // ============================================
 // LIFECYCLE
 // ============================================
 onMounted(() => {
-  subscribeToTask(props.taskId)
+  // Подписка на обновления доски (real-time через Socket)
+  if (boardId.value) {
+    subscribeToBoard(boardId.value)
+    console.log('[SubtasksIndex] Subscribed to board:', boardId.value)
+  }
+  // Загружаем подзадачи если task.id уже есть
+  if (taskId.value) {
+    loadSubtasks(taskId.value)
+  }
 })
 
 onUnmounted(() => {
-  unsubscribeFromTask(props.taskId)
+  // Отписка при уничтожении компонента
+  if (boardId.value) {
+    unsubscribeFromBoard(boardId.value)
+  }
+  // Очистка кэша дерева
+  if (taskId.value) {
+    clearTree(taskId.value)
+  }
+  console.log('[SubtasksIndex] Component unmounted, cleaned up')
+})
+
+// ============================================
+// EXPOSE
+// ============================================
+defineExpose({
+  startAdd,
+  cancelAdd,
+  loadSubtasks
 })
 </script>
 
@@ -703,9 +582,9 @@ onUnmounted(() => {
   background: $blue;
   color: $text-light;
   
-  // &:hover {
-  //   background: darken($blue, 10%);
-  // }
+  &:hover {
+    background: color.adjust($blue, $lightness: -5%);
+  }
 }
 
 .btn-secondary {

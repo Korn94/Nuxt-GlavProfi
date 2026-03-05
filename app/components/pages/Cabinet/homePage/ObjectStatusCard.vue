@@ -163,7 +163,7 @@
 
     <!-- Ошибка загрузки -->
     <div v-else-if="error" class="error-state">
-      <Icon name="ic:outline-warning" size="40" class="error-icon" />
+      <Icon name="mdi:user-alert" size="40" class="error-icon" />
       <p>Не удалось загрузить данные по объектам</p>
       <button class="btn btn-secondary" @click="fetchData">
         <Icon name="mdi:refresh" size="18" />

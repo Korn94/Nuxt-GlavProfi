@@ -1,201 +1,374 @@
 // server/api/boards/subtasks/[id]/index.put.ts
-import { eventHandler, createError, readBody } from 'h3'
-import { db, boardsSubtasks } from '../../../../db'
-import { eq } from 'drizzle-orm'
-import { verifyAuth } from '../../../../utils/auth'
-import { handleSubtaskUpdate } from '../../../../socket/handlers/subtasks'
-import { getIO } from '../../../../plugins/socket.io'
+/**
+ * API Endpoint: Обновление подзадачи
+ *
+ * Архитектура:
+ * - Обновление данных подзадачи с валидацией
+ * - Проверка максимальной глубины вложенности (5 уровней)
+ * - Проверка на циклическую зависимость при смене родителя
+ * - Отправка socket события всем пользователям в комнате доски
+ * - Логирование на русском языке
+ * - Типизированный ответ
+ * - ✅ Использует централизованные утилиты из ~/utils/subtasks
+ */
 
-export default eventHandler(async (event) => {
+import { eventHandler, createError, readBody } from 'h3'
+import { db, boardsSubtasks, boardsTasks } from '../../../../db'
+import { eq, and } from 'drizzle-orm'
+import { verifyAuth } from '../../../../utils/auth'
+import { getIO } from '../../../../plugins/socket.io'
+import { emitSubtaskUpdated } from '../../../../socket/handlers/subtasks'
+import type { Subtask } from '~/types/boards'
+import { MAX_SUBTASK_DEPTH } from '~/types/boards'
+
+// ✅ ИМПОРТ ЦЕНТРАЛИЗОВАННЫХ УТИЛИТ
+import {
+  calculateSubtaskDepth,
+  hasCircularDependency,
+  validateParentChange,
+  validateUpdateSubtaskData,
+  sortSubtasksByOrder
+} from '../../../../utils/subtasks'
+
+/**
+ * Интерфейс тела запроса
+ */
+interface UpdateSubtaskBody {
+  title?: string
+  description?: string | null
+  parentId?: number | null
+  order?: number
+  isCompleted?: boolean
+}
+
+/**
+ * Интерфейс ответа API
+ */
+interface UpdateSubtaskResponse {
+  success: boolean
+  subtask: Subtask
+}
+
+/**
+ * ✅ Конвертировать дату из БД в ISO-строку
+ * Поддерживает Date, string, null, undefined
+ */
+function convertDateToISO(date: Date | string | null | undefined): string | null {
+  if (!date) return null
+  
+  // Если уже строка - возвращаем как есть (предполагаем ISO формат)
+  if (typeof date === 'string') {
+    return date
+  }
+  
+  // Если Date - конвертируем в ISO
+  return date instanceof Date ? date.toISOString() : new Date(date).toISOString()
+}
+
+/**
+ * ✅ Конвертировать подзадачу из БД в тип Subtask
+ * Учитывает что Drizzle может возвращать string или Date для дат
+ */
+function convertToSubtaskType(
+  dbSubtask: typeof boardsSubtasks.$inferSelect
+): Subtask {
+  return {
+    id: dbSubtask.id,
+    taskId: dbSubtask.taskId,
+    parentId: dbSubtask.parentId ?? null,
+    title: dbSubtask.title,
+    description: dbSubtask.description ?? null,
+    isCompleted: dbSubtask.isCompleted,
+    completedAt: convertDateToISO(dbSubtask.completedAt),
+    order: dbSubtask.order ?? 0,
+    createdAt: convertDateToISO(dbSubtask.createdAt) ?? new Date().toISOString(),
+    updatedAt: convertDateToISO(dbSubtask.updatedAt) ?? new Date().toISOString()
+  }
+}
+
+/**
+ * Обработчик запроса
+ */
+export default eventHandler(async (event): Promise<UpdateSubtaskResponse> => {
+  const startTime = Date.now()
+
   try {
-    // Проверяем аутентификацию
+    // ============================================
+    // 1. ПРОВЕРКА АУТЕНТИФИКАЦИИ
+    // ============================================
     const user = await verifyAuth(event)
-    
-    // Получаем ID подзадачи из параметров
-    const id = event.context.params?.id
-    if (!id || isNaN(Number(id))) {
+    console.log(`[API] 📥 Запрос обновления подзадачи: пользователь ${user.id}`)
+
+    // ============================================
+    // 2. ПОЛУЧЕНИЕ И ВАЛИДАЦИЯ ID ПОДЗАДАЧИ
+    // ============================================
+    const idParam = event.context.params?.id
+    if (!idParam || isNaN(Number(idParam))) {
+      console.warn(`[API] ⚠️ Некорректный ID подзадачи: ${idParam}`)
       throw createError({
         statusCode: 400,
         statusMessage: 'Некорректный ID подзадачи'
       })
     }
-    const subtaskId = Number(id)
-    
-    // Проверяем, существует ли подзадача
-    const [existingSubtask] = await db
+    const subtaskId = Number(idParam)
+    console.log(`[API] 🔍 Обновление подзадачи ${subtaskId}`)
+
+    // ============================================
+    // 3. ПРОВЕРКА СУЩЕСТВОВАНИЯ ПОДЗАДАЧИ
+    // ============================================
+    const [existingSubtaskDB] = await db
       .select()
       .from(boardsSubtasks)
       .where(eq(boardsSubtasks.id, subtaskId))
-    
-    if (!existingSubtask) {
+      .limit(1)
+
+    if (!existingSubtaskDB) {
+      console.warn(`[API] ⚠️ Подзадача ${subtaskId} не найдена`)
       throw createError({
         statusCode: 404,
         statusMessage: 'Подзадача не найдена'
       })
     }
-    
-    // ✅ СОХРАНЯЕМ ДАННЫЕ ДЛЯ СОКЕТА
-    const taskId = existingSubtask.taskId
-    
-    // Читаем тело запроса
-    const body = await readBody(event)
-    
-    // Подготавливаем данные для обновления
-    const updateData: any = {}
-    
-    // Обновляем название, если передано
-    if (body.title !== undefined) {
-      if (typeof body.title !== 'string' || body.title.trim().length === 0) {
-        throw createError({
-          statusCode: 400,
-          statusMessage: 'Название подзадачи не может быть пустым'
-        })
-      }
-      updateData.title = body.title.trim()
-    }
-    
-    // Обновляем описание, если передано
-    if (body.description !== undefined) {
-      updateData.description = body.description
-    }
-    
-    // Обновляем родительскую подзадачу, если передано
-    if (body.parentId !== undefined) {
-      if (body.parentId === null) {
-        updateData.parentId = null
-      } else if (typeof body.parentId === 'number') {
-        // Проверяем, что родительская подзадача существует и принадлежит той же задаче
-        const [parentSubtask] = await db
-          .select()
-          .from(boardsSubtasks)
-          .where(eq(boardsSubtasks.id, body.parentId))
-        
-        if (!parentSubtask) {
-          throw createError({
-            statusCode: 400,
-            statusMessage: 'Родительская подзадача не найдена'
-          })
-        }
-        
-        // Проверяем, что родительская подзадача принадлежит той же задаче
-        if (parentSubtask.taskId !== existingSubtask.taskId) {
-          throw createError({
-            statusCode: 400,
-            statusMessage: 'Родительская подзадача должна принадлежать той же задаче'
-          })
-        }
-        
-        // Проверяем на циклическую зависимость
-        if (await hasCircularDependency(subtaskId, body.parentId)) {
-          throw createError({
-            statusCode: 400,
-            statusMessage: 'Обнаружена циклическая зависимость'
-          })
-        }
-        
-        updateData.parentId = body.parentId
-      } else {
-        throw createError({
-          statusCode: 400,
-          statusMessage: 'parentId должен быть числом или null'
-        })
-      }
-    }
-    
-    // Обновляем порядок, если передано
-    if (body.order !== undefined) {
-      if (typeof body.order === 'number') {
-        updateData.order = body.order
-      } else {
-        throw createError({
-          statusCode: 400,
-          statusMessage: 'order должен быть числом'
-        })
-      }
-    }
-    
-    // Если нет данных для обновления
-    if (Object.keys(updateData).length === 0) {
+
+    // ✅ КОНВЕРТИРУЕМ В ТИП Subtask
+    const existingSubtask: Subtask = convertToSubtaskType(existingSubtaskDB)
+    console.log(`[API] ✅ Подзадача найдена: "${existingSubtask.title}"`)
+
+    // ============================================
+    // 4. ЗАГРУЗКА ВСЕХ ПОДЗАДАЧ ЗАДАЧИ (ДЛЯ ВАЛИДАЦИИ)
+    // ============================================
+    // ✅ Загружаем flat-список для использования в утилитах
+    const allSubtasksDB = await db
+      .select()
+      .from(boardsSubtasks)
+      .where(eq(boardsSubtasks.taskId, existingSubtask.taskId))
+
+    // ✅ КОНВЕРТИРУЕМ ДАТЫ СРАЗУ ПОСЛЕ ЗАГРУЗКИ
+    const allSubtasks: Subtask[] = allSubtasksDB.map(convertToSubtaskType)
+
+    // ============================================
+    // 5. ЧТЕНИЕ И ВАЛИДАЦИЯ ТЕЛА ЗАПРОСА
+    // ============================================
+    const body = await readBody<UpdateSubtaskBody>(event)
+
+    // Проверка что есть данные для обновления
+    if (Object.keys(body).length === 0) {
+      console.warn(`[API] ⚠️ Нет данных для обновления`)
       throw createError({
         statusCode: 400,
         statusMessage: 'Нет данных для обновления'
       })
     }
-    
-    // ✅ ОБНОВЛЯЕМ ПОДЗАДАЧУ
+
+    // ✅ Используем централизованную валидацию
+    const validation = validateUpdateSubtaskData(body, existingSubtask, allSubtasks)
+    if (!validation.valid) {
+      console.warn(`[API] ⚠️ Ошибка валидации: ${validation.errors.join(', ')}`)
+      throw createError({
+        statusCode: 400,
+        statusMessage: validation.errors.join('; ')
+      })
+    }
+
+    // ============================================
+    // 6. ПОДГОТОВКА ДАННЫХ ДЛЯ ОБНОВЛЕНИЯ
+    // ============================================
+    const updateData: Record<string, any> = {}
+
+    // Обновление названия
+    if (body.title !== undefined) {
+      updateData.title = body.title.trim()
+    }
+
+    // Обновление описания
+    if (body.description !== undefined) {
+      updateData.description = body.description
+    }
+
+    // Обновление родительской подзадачи
+    if (body.parentId !== undefined) {
+      const newParentId = body.parentId ?? null
+
+      // Если parentId не изменился, пропускаем проверки
+      if (newParentId !== existingSubtask.parentId) {
+        if (newParentId !== null) {
+          // Проверяем существование родительской подзадачи
+          const [parentSubtask] = await db
+            .select({
+              id: boardsSubtasks.id,
+              taskId: boardsSubtasks.taskId,
+              parentId: boardsSubtasks.parentId
+            })
+            .from(boardsSubtasks)
+            .where(eq(boardsSubtasks.id, newParentId))
+            .limit(1)
+
+          if (!parentSubtask) {
+            console.warn(`[API] ⚠️ Родительская подзадача ${newParentId} не найдена`)
+            throw createError({
+              statusCode: 400,
+              statusMessage: 'Родительская подзадача не найдена'
+            })
+          }
+
+          // Проверяем что родительская подзадача принадлежит той же задаче
+          if (parentSubtask.taskId !== existingSubtask.taskId) {
+            console.warn(`[API] ⚠️ Родительская подзадача принадлежит другой задаче`)
+            throw createError({
+              statusCode: 400,
+              statusMessage: 'Родительская подзадача должна принадлежать той же задаче'
+            })
+          }
+
+          // ============================================
+          // 7. ПРОВЕРКА МАКСИМАЛЬНОЙ ГЛУБИНЫ (через утилиту)
+          // ============================================
+          const parentDepth = calculateSubtaskDepth(newParentId, allSubtasks)
+          console.log(`[API] 📊 Глубина родительской подзадачи ${newParentId}: ${parentDepth}`)
+
+          if (parentDepth >= MAX_SUBTASK_DEPTH) {
+            console.warn(`[API] ⚠️ Достигнута максимальная глубина вложенности (${MAX_SUBTASK_DEPTH + 1} уровней)`)
+            throw createError({
+              statusCode: 400,
+              statusMessage: `Максимальная глубина вложенности (${MAX_SUBTASK_DEPTH + 1} уровней) достигнута`
+            })
+          }
+
+          // ============================================
+          // 8. ПРОВЕРКА НА ЦИКЛИЧЕСКУЮ ЗАВИСИМОСТЬ (через утилиту)
+          // ============================================
+          const hasCircular = hasCircularDependency(subtaskId, newParentId, allSubtasks)
+
+          if (hasCircular) {
+            console.warn(`[API] ⚠️ Обнаружена циклическая зависимость`)
+            throw createError({
+              statusCode: 400,
+              statusMessage: 'Обнаружена циклическая зависимость: нельзя сделать подзадачу дочерней своего потомка'
+            })
+          }
+        }
+      }
+      updateData.parentId = newParentId
+    }
+
+    // Обновление порядка
+    if (body.order !== undefined) {
+      updateData.order = body.order
+    }
+
+    // Обновление статуса завершения
+    if (body.isCompleted !== undefined) {
+      updateData.isCompleted = body.isCompleted
+      // Если завершаем, устанавливаем дату завершения
+      if (body.isCompleted && !existingSubtask.isCompleted) {
+        updateData.completedAt = new Date()
+      }
+      // Если развернули, сбрасываем дату завершения
+      if (!body.isCompleted && existingSubtask.isCompleted) {
+        updateData.completedAt = null
+      }
+    }
+
+    // Если после всех проверок нет данных для обновления
+    if (Object.keys(updateData).length === 0) {
+      console.warn(`[API] ⚠️ Нет данных для обновления после валидации`)
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Нет данных для обновления'
+      })
+    }
+
+    // ============================================
+    // 9. ОБНОВЛЕНИЕ ПОДЗАДАЧИ В БД
+    // ============================================
+    // Добавляем updatedAt
+    updateData.updatedAt = new Date()
+
     await db
       .update(boardsSubtasks)
       .set(updateData)
       .where(eq(boardsSubtasks.id, subtaskId))
-    
-    // ✅ ПОЛУЧАЕМ ОБНОВЛЁННУЮ ПОДЗАДАЧУ ОТДЕЛЬНЫМ ЗАПРОСОМ
-    const [updatedSubtask] = await db
+
+    console.log(`[API] ✅ Подзадача обновлена в БД`)
+
+    // ============================================
+    // 10. ПОЛУЧЕНИЕ ОБНОВЛЁННОЙ ПОДЗАДАЧИ
+    // ============================================
+    const [updatedSubtaskDB] = await db
       .select()
       .from(boardsSubtasks)
       .where(eq(boardsSubtasks.id, subtaskId))
-    
-    if (!updatedSubtask) {
+
+    if (!updatedSubtaskDB) {
+      console.error(`[API] ❌ Не удалось получить обновлённую подзадачу`)
       throw createError({
         statusCode: 500,
         statusMessage: 'Не удалось получить обновлённую подзадачу'
       })
     }
-    
-    // ✅ КОНВЕРТИРУЕМ ДАТЫ В СТРОКИ И ГАРАНТИРУЕМ НЕ-NULL ЗНАЧЕНИЯ
-    const subtaskForResponse = {
-      ...updatedSubtask,
-      createdAt: updatedSubtask.createdAt
-        ? new Date(updatedSubtask.createdAt).toISOString()
-        : new Date().toISOString(),
-      updatedAt: updatedSubtask.updatedAt
-        ? new Date(updatedSubtask.updatedAt).toISOString()
-        : new Date().toISOString(),
-      completedAt: updatedSubtask.completedAt || null
+
+    // ✅ КОНВЕРТИРУЕМ В ТИП Subtask
+    const updatedSubtask: Subtask = convertToSubtaskType(updatedSubtaskDB)
+
+    // ============================================
+    // 11. ПОЛУЧЕНИЕ ID ДОСКИ ЧЕРЕЗ ЗАДАЧУ
+    // ============================================
+    const [task] = await db
+      .select({ boardId: boardsTasks.boardId })
+      .from(boardsTasks)
+      .where(eq(boardsTasks.id, updatedSubtask.taskId))
+      .limit(1)
+
+    if (!task?.boardId) {
+      console.warn(`[API] ⚠️ Не удалось получить boardId для задачи ${updatedSubtask.taskId}`)
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Не удалось определить доску'
+      })
     }
-    
-    // ✅ ОТПРАВЛЯЕМ СОКЕТ-СОБЫТИЕ
+    const boardId = task.boardId
+    console.log(`[API] 📋 Board ID: ${boardId}`)
+
+    // ============================================
+    // 12. ОТПРАВКА SOCKET СОБЫТИЯ
+    // ============================================
     const io = getIO()
     if (io) {
-      handleSubtaskUpdate(io, subtaskId, subtaskForResponse, taskId)
+      emitSubtaskUpdated(io, updatedSubtask, boardId)
+      console.log(`[API] 📡 Socket событие отправлено в комнату board:${boardId}`)
+    } else {
+      console.warn(`[API] ⚠️ Socket.IO instance не доступен`)
     }
-    
+
+    // ============================================
+    // 13. ЛОГИРОВАНИЕ И ВОЗВРАТ ОТВЕТА
+    // ============================================
+    const executionTime = Date.now() - startTime
+    console.log(`[API] ✅ Подзадача обновлена за ${executionTime}мс`)
+
     return {
       success: true,
-      subtask: subtaskForResponse
+      subtask: updatedSubtask
     }
+
   } catch (error) {
-    console.error('Error updating subtask:', error)
+    // ============================================
+    // 14. ОБРАБОТКА ОШИБОК
+    // ============================================
+    const executionTime = Date.now() - startTime
+
+    // Если это уже ошибка h3, пробрасываем её
     if (error instanceof Error && 'statusCode' in error) {
+      console.error(`[API] ❌ Ошибка (за ${executionTime}мс):`, (error as any).statusMessage)
       throw error
     }
+
+    // Логируем непредвиденные ошибки
+    console.error(`[API] ❌ Непредвиденная ошибка (за ${executionTime}мс):`, error)
+
     throw createError({
       statusCode: 500,
-      statusMessage: 'Failed to update subtask'
+      statusMessage: 'Не удалось обновить подзадачу'
     })
   }
 })
-
-// Вспомогательная функция для проверки циклической зависимости
-async function hasCircularDependency(subtaskId: number, potentialParentId: number): Promise<boolean> {
-  // Рекурсивно проверяем, не является ли potentialParentId потомком subtaskId
-  async function checkAncestors(currentId: number): Promise<boolean> {
-    const [currentSubtask] = await db
-      .select()
-      .from(boardsSubtasks)
-      .where(eq(boardsSubtasks.id, currentId))
-    
-    if (!currentSubtask) return false
-    
-    if (currentSubtask.parentId === subtaskId) {
-      return true // Цикл обнаружен
-    }
-    
-    if (currentSubtask.parentId) {
-      return await checkAncestors(currentSubtask.parentId)
-    }
-    
-    return false
-  }
-  
-  return await checkAncestors(potentialParentId)
-}

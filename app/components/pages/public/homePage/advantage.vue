@@ -38,8 +38,6 @@ const benefits = [
 </script>
 
 <style scoped lang="scss">
-@use 'sass:color';
-
 $bg-color: #18191b;
 $transition: all 0.4s ease;
 

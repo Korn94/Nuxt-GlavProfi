@@ -204,7 +204,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch, type CSSProperties } from 'vue'
 import { useBoardFoldersStore } from 'stores/boards/folders'
 import { useBoardsStore } from 'stores/boards'
 import { useNotificationStore } from 'stores/notifications'
@@ -280,15 +280,16 @@ const toggleMenu = (boardId: number, event: MouseEvent) => {
   }
 }
 
-const getMenuPosition = (boardId: number) => {
+const getMenuPosition = (boardId: number): CSSProperties => {
   if (openMenuId.value !== boardId || !openMenuPosition.value) {
     return { display: 'none' }
   }
   return {
-    position: 'fixed',
+    position: 'fixed' as const,  // ✅ as const сужает тип до литерала
     top: `${openMenuPosition.value.top}px`,
     right: `${openMenuPosition.value.right}px`,
-    zIndex: 9999
+    zIndex: 9999,
+    display: 'block'
   }
 }
 
@@ -381,8 +382,9 @@ const deleteBoard = async () => {
     
     if (boardsStore.selectedBoardId === boardToDelete.value.id) {
       const remainingBoards = boardsInFolder.value.filter(b => b.id !== boardToDelete.value!.id)
-      if (remainingBoards.length > 0) {
-        boardsStore.selectBoard(remainingBoards[0].id)
+      const firstBoard = remainingBoards[0]  // ✅ Сохраняем в переменную
+      if (firstBoard) {  // ✅ Проверяем что существует
+        boardsStore.selectBoard(firstBoard.id)
       } else {
         boardsStore.selectBoard(null)
       }
@@ -447,7 +449,7 @@ const createBoard = async () => {
     
     if (boardType === 'object') {
       const boardWithObject = boardsInFolder.value.find(b => b.objectId)
-      objectId = boardWithObject?.objectId
+      objectId = boardWithObject?.objectId ?? undefined
     }
     
     const board = await boardsStore.createBoard({

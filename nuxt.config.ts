@@ -63,7 +63,11 @@ export default defineNuxtConfig({
     css: {
       preprocessorOptions: {
         scss: {
-          additionalData: '@use "@/assets/styles/variables.scss" as *;'
+          // Добавляем sass:color перед вашими переменными
+          additionalData: `
+            @use 'sass:color';
+            @use "@/assets/styles/variables.scss" as *;
+          `
         }
       }
     },
@@ -133,8 +137,8 @@ export default defineNuxtConfig({
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Credentials': 'true',
-          // 'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-          // 'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization'
         }
       },
       '/socket.io/**': {
@@ -189,7 +193,10 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       yandexMetricaId: process.env.YANDEX_METRICA_ID, // ID Яндекс.Метрики
-      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || "http://localhost:3000",
+      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 
+        (process.env.NODE_ENV === 'production' 
+          ? 'https://glavprofi.ru' 
+          : `http://${process.env.NUXT_HOST || '0.0.0.0'}:${process.env.PORT || 3000}`),
       telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
       telegramChatId: process.env.TELEGRAM_CHAT_ID
     },

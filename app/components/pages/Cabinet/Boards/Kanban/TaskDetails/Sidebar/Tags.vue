@@ -642,7 +642,7 @@ onUnmounted(() => {
   color: $blue;
   
   &:hover {
-    color: lighten($blue, 10%);
+    background: color.adjust($blue, $lightness: 5%);
     background: rgba($blue, 0.1);
   }
 }
@@ -829,7 +829,7 @@ onUnmounted(() => {
   color: $text-light;
   
   &:hover:not(:disabled) {
-    background: lighten($blue, 5%);
+    background: color.adjust($blue, $lightness: 5%);
     transform: translateY(-1px);
   }
 }

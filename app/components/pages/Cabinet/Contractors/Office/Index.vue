@@ -14,7 +14,7 @@
 </template>
 
 <script setup>
-import CommonIndex from '@/components/pages/Cabinet/Contractors/Common/Index.vue'
+import CommonIndex from '/components/pages/Cabinet/Contractors/Common/Index.vue'
 
 const contractorType = 'office';
 

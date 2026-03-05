@@ -6,14 +6,14 @@
     <!-- Карточка профиля -->
     <Card :loading="isLoading" title="Ваш профиль" elevated class="profile-card">
       <template #icon>
-        <Icon name="material-symbols-light:person" size="24" />
+        <Icon name="mdi:alarm-arm-home" size="24" />
       </template>
 
       <div v-if="data" class="profile-content">
         <!-- Основная информация о пользователе -->
         <div class="user-section">
           <p class="welcome-text">Добро пожаловать, <strong>{{ data.user.name }}</strong>!</p>
-          <p class="role"><Icon name="mdi:shield-account" size="16" /> Роль: <span>{{ data.user.role }}</span></p>
+          <p class="role"><Icon name="mdi:user" size="16" /> Роль: <span>{{ data.user.role }}</span></p>
         </div>
 
         <!-- Информация о контрагенте (если есть) -->
@@ -38,7 +38,7 @@
 
       <!-- Отображается при ошибке или отсутствии данных -->
       <div v-else class="error-state">
-        <Icon name="ic:outline-warning" size="40" class="error-icon" />
+        <Icon name="mdi:user-alert" size="40" class="error-icon" />
         <p>Не удалось загрузить данные пользователя.</p>
       </div>
 

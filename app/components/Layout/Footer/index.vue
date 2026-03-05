@@ -57,19 +57,19 @@
         <!-- <h3 class="footer-title">Свяжитесь с нами</h3> -->
         <div class="social-icons">
           <NuxtLink href="tg://resolve?domain=glavprofii" target="_blank">
-            <Icon name="bxl:telegram" class="ico" size="28px" />
+            <Icon name="mdi:telegram" class="ico" size="28px" />
           </NuxtLink>
-          <NuxtLink href="https://api.whatsapp.com/send?phone=79109096947" target="_blank">
-            <Icon name="bxl:whatsapp" class="ico" size="28px" />
-          </NuxtLink>
+          <!-- <NuxtLink href="https://api.whatsapp.com/send?phone=79109096947" target="_blank">
+            <Icon name="mdi:whatsapp" class="ico" size="28px" />
+          </NuxtLink> -->
           <NuxtLink href=" https://vk.com/glavprofi " target="_blank">
-            <Icon name="bxl:vk" class="ico" size="28px" />
+            <Icon name="mdi:vk" class="ico" size="28px" />
           </NuxtLink>
           <NuxtLink href="https://instagram.com/glavprofi " target="_blank">
-            <Icon name="bxl:instagram" class="ico" size="28px" />
+            <Icon name="mdi:instagram" class="ico" size="28px" />
           </NuxtLink>
           <NuxtLink href="https://youtube.com/ @glavstroy62" target="_blank">
-            <Icon name="bxl:youtube" class="ico" size="28px" />
+            <Icon name="mdi:youtube" class="ico" size="28px" />
           </NuxtLink>
         </div>
         

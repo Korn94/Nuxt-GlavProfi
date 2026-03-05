@@ -167,8 +167,6 @@ watch(() => props.task.status, (newStatus) => {
 </script>
 
 <style scoped lang="scss">
-@use '@/assets/styles/variables.scss' as *;
-
 .task-details-header {
   background: #1e293b;
   padding: 24px;
@@ -186,7 +184,7 @@ watch(() => props.task.status, (newStatus) => {
 .task-badges {
   display: flex;
   gap: 10px;
-  align-items: center;
+  // align-items: center;
 }
 
 .badge {

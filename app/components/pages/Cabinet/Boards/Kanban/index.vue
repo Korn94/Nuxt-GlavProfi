@@ -145,7 +145,8 @@ import { useBoardsStore } from 'stores/boards'
 import Column from './Column/index.vue'
 import TaskDetails from './TaskDetails/index.vue'
 import Header from './Header/index.vue'
-import type { Board, BoardFolder } from '~/types/boards'
+import type { Board, BoardFolder, Task } from '~/types/boards'
+import { socketService } from 'services/socket.service'
 
 // ============================================
 // PROPS & EMITS
@@ -216,8 +217,10 @@ const fetchTasks = async () => {
   }
 }
 
-const getTasksByStatus = (status: string) => {
-  return tasksByStatus.value[status as keyof typeof tasksByStatus.value] || []
+const getTasksByStatus = (status: string): Task[] => {
+  const tasks = tasksByStatus.value[status as keyof typeof tasksByStatus.value]
+  // ✅ Проверяем что это массив, а не число
+  return Array.isArray(tasks) ? tasks : []
 }
 
 const handleCreateTask = async () => {
@@ -339,18 +342,39 @@ const handleBoardMouseLeave = () => {
 // ============================================
 // LIFECYCLE
 // ============================================
-onMounted(() => {
-  // Загружаем задачи при монтировании
-  fetchTasks()
+onMounted(async () => {
+  // ✅ 1. Сначала гарантируем инициализацию сокета
+  if (process.client) {
+    socketService.init()
+    // Ждём подключения (макс. 2 сек)
+    let attempts = 0
+    while (!socketService.getConnected() && attempts < 20) {
+      await new Promise(resolve => setTimeout(resolve, 100))
+      attempts++
+    }
+  }
   
-  // Добавляем глобальные обработчики для корректной работы при выходе за пределы контейнера
+  // ✅ 2. Затем загружаем задачи
+  if (selectedBoard.value?.id) {
+    await fetchTasks()
+    // ✅ 3. Подписываемся на доску ПОСЛЕ подключения сокета
+    if (socketService.getConnected()) {
+      socketService.subscribeToBoard(selectedBoard.value.id)
+    } else {
+      console.warn('[Kanban] ⚠️ Socket not connected, cannot subscribe to board')
+    }
+  }
+  
+  // Глобальные обработчики для drag доски
   window.addEventListener('mouseup', handleBoardMouseUp)
   window.addEventListener('mouseleave', handleBoardMouseLeave)
 })
 
 onUnmounted(() => {
   tasksStore.clearState()
-  
+    if (selectedBoard.value?.id) {
+    socketService.unsubscribeFromBoard(selectedBoard.value.id)
+  }
   // Удаляем глобальные обработчики
   window.removeEventListener('mouseup', handleBoardMouseUp)
   window.removeEventListener('mouseleave', handleBoardMouseLeave)

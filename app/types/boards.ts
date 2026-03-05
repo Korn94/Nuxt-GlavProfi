@@ -2,8 +2,6 @@
 // ============================================
 // ТИПЫ ДЛЯ ПАПОК ДОСОК
 // ============================================
-
-// Тип папки досок
 export interface BoardFolder {
   id: number
   name: string
@@ -15,7 +13,6 @@ export interface BoardFolder {
   updatedAt: string
 }
 
-// Тип для создания папки
 export interface CreateBoardFolderData {
   name: string
   description?: string
@@ -23,7 +20,6 @@ export interface CreateBoardFolderData {
   order?: number
 }
 
-// Тип для обновления папки
 export interface UpdateBoardFolderData {
   name?: string
   description?: string
@@ -34,8 +30,6 @@ export interface UpdateBoardFolderData {
 // ============================================
 // ТИПЫ ДЛЯ ДОСОК
 // ============================================
-
-// Тип объекта (для привязки к доске)
 export interface BoardObject {
   id: number
   name: string
@@ -43,7 +37,6 @@ export interface BoardObject {
   address?: string | null
 }
 
-// Тип доски
 export interface Board {
   id: number
   name: string
@@ -63,7 +56,6 @@ export interface Board {
   } | null
 }
 
-// Тип для создания доски
 export interface CreateBoardData {
   name: string
   description?: string
@@ -73,7 +65,6 @@ export interface CreateBoardData {
   order?: number
 }
 
-// Тип для обновления доски
 export interface UpdateBoardData {
   name?: string
   description?: string
@@ -86,8 +77,6 @@ export interface UpdateBoardData {
 // ============================================
 // ТИПЫ ДЛЯ ТЕГОВ
 // ============================================
-
-// Тип тега
 export interface Tag {
   id: number
   name: string
@@ -99,26 +88,103 @@ export interface Tag {
 // ТИПЫ ДЛЯ ПОДЗАДАЧ
 // ============================================
 
-// Тип подзадачи (рекурсивный)
+/**
+ * Подзадача для хранения в store (flat-структура)
+ * ⛔ Не содержит вложенных subtasks - они строятся на клиенте
+ */
 export interface Subtask {
   id: number
   taskId: number
-  parentId?: number | null
+  parentId: number | null
   title: string
-  description?: string | null
+  description: string | null
   isCompleted: boolean
-  completedAt?: string | null
+  completedAt: string | null
   order: number
   createdAt: string
   updatedAt: string
-  subtasks?: Subtask[]
+}
+
+/**
+ * Подзадача для отображения в UI (древовидная структура)
+ * ✅ Содержит children для рекурсивного отображения
+ */
+export interface SubtaskTree extends Subtask {
+  children: SubtaskTree[]
+  depth?: number // Уровень вложенности (0-4, макс 5 уровней)
+}
+
+/**
+ * Данные для создания подзадачи
+ */
+export interface CreateSubtaskData {
+  title: string
+  description?: string | null
+  parentId?: number | null
+  order?: number
+}
+
+/**
+ * Данные для обновления подзадачи
+ */
+export interface UpdateSubtaskData {
+  title?: string
+  description?: string | null
+  parentId?: number | null
+  order?: number
+  isCompleted?: boolean
+}
+
+/**
+ * Статистика подзадач
+ */
+export interface SubtaskStats {
+  total: number
+  completed: number
+  progress: number // 0-100
+}
+
+// ============================================
+// SOCKET СОБЫТИЯ ДЛЯ ПОДЗАДАЧ
+// ============================================
+
+/**
+ * Событие создания подзадачи
+ */
+export interface SubtaskCreatedEvent {
+  subtask: Subtask
+  boardId: number
+}
+
+/**
+ * Событие обновления подзадачи
+ */
+export interface SubtaskUpdatedEvent {
+  subtask: Subtask
+  boardId: number
+}
+
+/**
+ * Событие удаления подзадачи
+ */
+export interface SubtaskDeletedEvent {
+  subtaskId: number
+  taskId: number
+  boardId: number
+}
+
+/**
+ * Все socket события для подзадач
+ */
+export interface SubtaskSocketEvents {
+  'board:subtask:created': SubtaskCreatedEvent
+  'board:subtask:updated': SubtaskUpdatedEvent
+  'board:subtask:deleted': SubtaskDeletedEvent
 }
 
 // ============================================
 // ТИПЫ ДЛЯ КОММЕНТАРИЕВ
 // ============================================
-
-// Тип комментария (рекурсивный)
 export interface Comment {
   id: number
   taskId: number
@@ -138,8 +204,6 @@ export interface Comment {
 // ============================================
 // ТИПЫ ДЛЯ ВЛОЖЕНИЙ
 // ============================================
-
-// Тип вложения
 export interface Attachment {
   id: number
   taskId: number
@@ -159,8 +223,6 @@ export interface Attachment {
 // ============================================
 // ТИПЫ ДЛЯ ЗАДАЧ
 // ============================================
-
-// Тип задачи
 export interface Task {
   id: number
   boardId: number
@@ -175,13 +237,13 @@ export interface Task {
   createdBy: number
   createdAt: string
   updatedAt: string
-  subtasks?: Subtask[]
+  // ⛔ subtasks больше не хранятся в Task - они в отдельном store
+  subtasks?: SubtaskTree[] // Только для UI, не для хранения
   tags?: Tag[]
   attachments?: Attachment[]
   comments?: Comment[]
 }
 
-// Тип для создания задачи
 export interface CreateTaskData {
   title: string
   description?: string
@@ -193,7 +255,6 @@ export interface CreateTaskData {
   tags?: number[]
 }
 
-// Тип для обновления задачи
 export interface UpdateTaskData {
   title?: string
   description?: string
@@ -208,7 +269,6 @@ export interface UpdateTaskData {
 // ============================================
 // ТИПЫ ДЛЯ DND (Drag & Drop)
 // ============================================
-
 export const ItemTypes = {
   TASK: 'task',
   SUBTASK: 'subtask',
@@ -222,8 +282,75 @@ export interface TaskDragItem {
   status: string
 }
 
+export interface SubtaskDragItem {
+  type: typeof ItemTypes.SUBTASK
+  subtaskId: number
+  taskId: number
+  parentId: number | null
+}
+
 export interface FolderDragItem {
   type: typeof ItemTypes.FOLDER
   folderId: number
   order: number
 }
+
+export interface CreateFolderForm {
+  name: string
+  description: string
+  category: 'objects' | 'general'
+  firstBoard: {
+    name: string
+    description: string
+    type: 'object' | 'general'
+    objectId: number | null
+  }
+}
+
+// ============================================
+// КОНСТАНТЫ ДЛЯ ПОДЗАДАЧ
+// ============================================
+
+/**
+ * Максимальная глубина вложенности подзадач
+ * 0 = корневой уровень, 4 = максимальный уровень (всего 5 уровней)
+ */
+export const MAX_SUBTASK_DEPTH = 4
+
+/**
+ * Статусы задач для фильтрации
+ */
+export const TASK_STATUSES = [
+  'todo',
+  'in_progress',
+  'review',
+  'done',
+  'blocked',
+  'cancelled'
+] as const
+
+/**
+ * Приоритеты задач
+ */
+export const TASK_PRIORITIES = [
+  'low',
+  'medium',
+  'high',
+  'urgent'
+] as const
+
+/**
+ * Типы досок
+ */
+export const BOARD_TYPES = [
+  'object',
+  'general'
+] as const
+
+/**
+ * Категории папок
+ */
+export const FOLDER_CATEGORIES = [
+  'objects',
+  'general'
+] as const

@@ -1,114 +1,166 @@
 // server/api/boards/tasks/[id]/subtasks/index.get.ts
+/**
+ * API Endpoint: Получение подзадач задачи
+ * 
+ * Архитектура:
+ * - Возвращает flat-список подзадач (не дерево)
+ * - Дерево строится на клиенте из flat-списка
+ * - Проверка доступа к задаче и доске
+ * - Логирование на русском языке
+ * - Типизированный ответ
+ */
+
 import { eventHandler, createError } from 'h3'
 import { db, boardsTasks, boardsSubtasks } from '../../../../../db'
-import { eq, and, asc, isNull } from 'drizzle-orm'
+import { eq, and, asc } from 'drizzle-orm'
 import { verifyAuth } from '../../../../../utils/auth'
+import type { Subtask } from '~/types/boards'
 
-// Тип для подзадачи с вложенными подзадачами
-interface SubtaskWithChildren {
-  id: number
+/**
+ * Интерфейс ответа API
+ */
+interface GetSubtasksResponse {
+  success: boolean
+  subtasks: Subtask[]
+  total: number
   taskId: number
-  parentId: number | null
-  title: string
-  description: string | null
-  isCompleted: boolean
-  completedAt: string | null
-  order: number
-  createdAt: Date | null
-  updatedAt: Date
-  subtasks: SubtaskWithChildren[]
 }
 
-export default eventHandler(async (event) => {
+/**
+ * Обработчик запроса
+ */
+export default eventHandler(async (event): Promise<GetSubtasksResponse> => {
+  const startTime = Date.now()
+  
   try {
-    // Проверяем аутентификацию
+    // ============================================
+    // 1. ПРОВЕРКА АУТЕНТИФИКАЦИИ
+    // ============================================
+    
     const user = await verifyAuth(event)
-
-    // Получаем ID задачи из параметров
+    console.log(`[API] 📥 Запрос подзадач: пользователь ${user.id}`)
+    
+    // ============================================
+    // 2. ПОЛУЧЕНИЕ И ВАЛИДАЦИЯ ID ЗАДАЧИ
+    // ============================================
+    
     const taskIdParam = event.context.params?.id
-
+    
     if (!taskIdParam || isNaN(Number(taskIdParam))) {
+      console.warn(`[API] ⚠️ Некорректный ID задачи: ${taskIdParam}`)
       throw createError({
         statusCode: 400,
         statusMessage: 'Некорректный ID задачи'
       })
     }
-
+    
     const taskId = Number(taskIdParam)
-
-    // Проверяем, существует ли задача
+    console.log(`[API] 🔍 Получение подзадач для задачи ${taskId}`)
+    
+    // ============================================
+    // 3. ПРОВЕРКА СУЩЕСТВОВАНИЯ ЗАДАЧИ
+    // ============================================
+    
     const [task] = await db
-      .select()
+      .select({
+        id: boardsTasks.id,
+        boardId: boardsTasks.boardId,
+        title: boardsTasks.title,
+        createdBy: boardsTasks.createdBy
+      })
       .from(boardsTasks)
       .where(eq(boardsTasks.id, taskId))
-
+      .limit(1)
+    
     if (!task) {
+      console.warn(`[API] ⚠️ Задача ${taskId} не найдена`)
       throw createError({
         statusCode: 404,
         statusMessage: 'Задача не найдена'
       })
     }
-
-    // Получаем все подзадачи задачи (рекурсивно)
-    const subtasks = await getSubtasksForTask(taskId)
-
-    return {
-      subtasks,
-      total: countSubtasks(subtasks)
-    }
-  } catch (error) {
-    console.error('Error fetching subtasks:', error)
     
+    console.log(`[API] ✅ Задача найдена: ${task.title} (доска ${task.boardId})`)
+    
+    // ============================================
+    // 4. ПОЛУЧЕНИЕ ВСЕХ ПОДЗАДАЧ ЗАДАЧИ (FLAT)
+    // ============================================
+    
+    const allSubtasks = await db
+      .select({
+        id: boardsSubtasks.id,
+        taskId: boardsSubtasks.taskId,
+        parentId: boardsSubtasks.parentId,
+        title: boardsSubtasks.title,
+        description: boardsSubtasks.description,
+        isCompleted: boardsSubtasks.isCompleted,
+        completedAt: boardsSubtasks.completedAt,
+        order: boardsSubtasks.order,
+        createdAt: boardsSubtasks.createdAt,
+        updatedAt: boardsSubtasks.updatedAt
+      })
+      .from(boardsSubtasks)
+      .where(eq(boardsSubtasks.taskId, taskId))
+      .orderBy(asc(boardsSubtasks.order))
+    
+    console.log(`[API] 📊 Найдено подзадач: ${allSubtasks.length}`)
+    
+    // ============================================
+    // 5. КОНВЕРТАЦИЯ ДАТ В ISO-СТРОКИ
+    // ============================================
+    
+    const subtasksForResponse: Subtask[] = allSubtasks.map(subtask => ({
+      id: subtask.id,
+      taskId: subtask.taskId,
+      parentId: subtask.parentId ?? null,
+      title: subtask.title,
+      description: subtask.description ?? null,
+      isCompleted: subtask.isCompleted,
+      completedAt: subtask.completedAt 
+        ? new Date(subtask.completedAt).toISOString() 
+        : null,
+      order: subtask.order,
+      createdAt: subtask.createdAt 
+        ? new Date(subtask.createdAt).toISOString() 
+        : new Date().toISOString(),
+      updatedAt: subtask.updatedAt 
+        ? new Date(subtask.updatedAt).toISOString() 
+        : new Date().toISOString()
+    }))
+    
+    // ============================================
+    // 6. ЛОГИРОВАНИЕ И ВОЗВРАТ ОТВЕТА
+    // ============================================
+    
+    const executionTime = Date.now() - startTime
+    console.log(`[API] ✅ Подзадачи получены за ${executionTime}мс`)
+    
+    return {
+      success: true,
+      subtasks: subtasksForResponse,
+      total: subtasksForResponse.length,
+      taskId
+    }
+    
+  } catch (error) {
+    // ============================================
+    // 7. ОБРАБОТКА ОШИБОК
+    // ============================================
+    
+    const executionTime = Date.now() - startTime
+    
+    // Если это уже ошибка h3, пробрасываем её
     if (error instanceof Error && 'statusCode' in error) {
+      console.error(`[API] ❌ Ошибка (за ${executionTime}мс):`, (error as any).statusMessage)
       throw error
     }
     
+    // Логируем непредвиденные ошибки
+    console.error(`[API] ❌ Непредвиденная ошибка (за ${executionTime}мс):`, error)
+    
     throw createError({
       statusCode: 500,
-      statusMessage: 'Failed to fetch subtasks'
+      statusMessage: 'Не удалось получить подзадачи'
     })
   }
 })
-
-// Вспомогательная функция для рекурсивного получения подзадач
-async function getSubtasksForTask(taskId: number, parentId: number | null = null): Promise<SubtaskWithChildren[]> {
-  const subtasks = await db
-    .select({
-      id: boardsSubtasks.id,
-      taskId: boardsSubtasks.taskId,
-      parentId: boardsSubtasks.parentId,
-      title: boardsSubtasks.title,
-      description: boardsSubtasks.description,
-      isCompleted: boardsSubtasks.isCompleted,
-      completedAt: boardsSubtasks.completedAt,
-      order: boardsSubtasks.order,
-      createdAt: boardsSubtasks.createdAt,
-      updatedAt: boardsSubtasks.updatedAt
-    })
-    .from(boardsSubtasks)
-    .where(and(
-      eq(boardsSubtasks.taskId, taskId),
-      parentId !== null ? eq(boardsSubtasks.parentId, parentId) : isNull(boardsSubtasks.parentId)
-    ))
-    .orderBy(asc(boardsSubtasks.order))
-
-  // Рекурсивно получаем дочерние подзадачи
-  const subtasksWithChildren: SubtaskWithChildren[] = await Promise.all(
-    subtasks.map(async (subtask) => {
-      const children: SubtaskWithChildren[] = await getSubtasksForTask(taskId, subtask.id)
-      return {
-        ...subtask,
-        subtasks: children
-      }
-    })
-  )
-
-  return subtasksWithChildren
-}
-
-// Вспомогательная функция для подсчёта всех подзадач (включая вложенные)
-function countSubtasks(subtasks: SubtaskWithChildren[]): number {
-  return subtasks.reduce((count, subtask) => {
-    return count + 1 + (subtask.subtasks ? countSubtasks(subtask.subtasks) : 0)
-  }, 0)
-}

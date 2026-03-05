@@ -1,16 +1,16 @@
 <!-- app/pages/cabinet/testpage.vue -->
 <template>
   <div class="test-page">
-    <h1>🔧 Тестовая страница диагностики</h1>
+    <h1>🔧 Тестовая страница диагностики Socket.IO</h1>
 
     <!-- Быстрый статус -->
     <div class="quick-status">
       <div class="status-item">
         <div class="status-label">Socket</div>
         <div 
-          :class="['status-value', `status-value--${socketStore.isConnected ? 'success' : 'error'}`]"
+          :class="['status-value', `status-value--${isConnected ? 'success' : 'error'}`]"
         >
-          {{ socketStore.isConnected ? '✅ Подключен' : '❌ Отключен' }}
+          {{ isConnected ? '✅ Подключен' : '❌ Отключен' }}
         </div>
       </div>
       <div class="status-item">
@@ -41,16 +41,16 @@
 
     <!-- Кнопки управления -->
     <div class="controls">
-      <button @click="reconnectSocket" :disabled="socketStore.isConnecting">
-        {{ socketStore.isConnecting ? 'Подключение...' : '🔄 Переподключить' }}
+      <button @click="reconnectSocket" :disabled="isConnecting">
+        {{ isConnecting ? 'Подключение...' : '🔄 Переподключить' }}
       </button>
-      <button @click="disconnectSocket" :disabled="!socketStore.isConnected">
+      <button @click="disconnectSocket" :disabled="!isConnected">
         🔌 Отключить
       </button>
-      <button @click="initSession" :disabled="!socketStore.isConnected">
+      <button @click="initSession" :disabled="!isConnected">
         📝 Инициализировать сессию
       </button>
-      <button @click="sendTestMessage" :disabled="!socketStore.isConnected">
+      <button @click="sendTestMessage" :disabled="!isConnected">
         📤 Отправить тестовое сообщение
       </button>
       <button @click="clearLogs">
@@ -70,8 +70,12 @@
           <span class="info-value">{{ socketStatus }}</span>
         </div>
         <div class="info-item">
-          <span class="info-label">URL:</span>
-          <span class="info-value">{{ socketUrl }}</span>
+          <span class="info-label">Socket ID:</span>
+          <span class="info-value">{{ socketId || '—' }}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Транспорт:</span>
+          <span class="info-value">{{ transport || '—' }}</span>
         </div>
         <div class="info-item">
           <span class="info-label">User ID:</span>
@@ -91,11 +95,7 @@
         </div>
         <div class="info-item">
           <span class="info-label">Попытки переподключения:</span>
-          <span class="info-value">{{ socketStore.reconnectAttempts }}</span>
-        </div>
-        <div class="info-item">
-          <span class="info-label">IP адрес:</span>
-          <span class="info-value">{{ ipAddress }}</span>
+          <span class="info-value">{{ reconnectAttempts }}</span>
         </div>
       </div>
     </div>
@@ -105,21 +105,21 @@
       <h2>🧪 Тестовые события</h2>
       <div class="test-events">
         <div class="test-event">
-          <button @click="testActivity('online')" :disabled="!socketStore.isConnected">
+          <button @click="testActivity('online')" :disabled="!isConnected">
             🟢 Activity: online
           </button>
-          <button @click="testActivity('afk')" :disabled="!socketStore.isConnected">
+          <button @click="testActivity('afk')" :disabled="!isConnected">
             🟡 Activity: afk
           </button>
-          <button @click="testActivity('offline')" :disabled="!socketStore.isConnected">
+          <button @click="testActivity('offline')" :disabled="!isConnected">
             ⚫ Activity: offline
           </button>
         </div>
         <div class="test-event">
-          <button @click="testResume" :disabled="!socketStore.isConnected">
+          <button @click="testResume" :disabled="!isConnected">
             🔄 Activity: resume
           </button>
-          <button @click="testUserUpdate" :disabled="!socketStore.isConnected">
+          <button @click="testUserUpdate" :disabled="!isConnected">
             👤 User: update
           </button>
         </div>
@@ -134,7 +134,7 @@
             placeholder='{"key": "value"}'
             class="event-input"
           />
-          <button @click="sendCustomEvent" :disabled="!socketStore.isConnected">
+          <button @click="sendCustomEvent" :disabled="!isConnected">
             📮 Отправить
           </button>
         </div>
@@ -151,18 +151,13 @@
       </div>
 
       <div class="store-state">
-        <h3>Socket Store</h3>
+        <h3>Socket Store (state only)</h3>
         <pre>{{ socketStoreState }}</pre>
       </div>
 
       <div class="store-state">
         <h3>Online Store</h3>
         <pre>{{ onlineStoreState }}</pre>
-      </div>
-
-      <div class="store-state">
-        <h3>Notifications Store</h3>
-        <pre>{{ notificationsStoreState }}</pre>
       </div>
     </div>
 
@@ -177,6 +172,10 @@
         <div class="cookie-item">
           <span class="cookie-label">session_id:</span>
           <span class="cookie-value">{{ sessionIdCookie }}</span>
+        </div>
+        <div class="cookie-item">
+          <span class="cookie-label">tab_id:</span>
+          <span class="cookie-value">{{ tabIdCookie }}</span>
         </div>
       </div>
     </div>
@@ -195,22 +194,24 @@
           <span class="log-message">{{ log.message }}</span>
         </div>
         <div v-if="logs.length === 0" class="log-empty">
-          Нет событий
+          Нет событий — нажмите кнопку для теста
         </div>
       </div>
     </div>
 
     <!-- Подписки на события -->
     <div class="section">
-      <h2>🔔 Подписки на события</h2>
+      <h2>🔔 Активные подписки</h2>
       <div class="subscriptions">
         <div 
-          v-for="(sub, index) in subscriptions" 
+          v-for="(sub, index) in activeSubscriptions" 
           :key="index"
           class="subscription-item"
         >
-          <span class="subscription-event">🎯 {{ sub.event }}</span>
-          <span class="subscription-status">{{ sub.active ? '✅ Активна' : '❌ Неактивна' }}</span>
+          <span class="subscription-event">🎯 {{ sub }}</span>
+        </div>
+        <div v-if="activeSubscriptions.length === 0" class="log-empty">
+          Нет активных подписок
         </div>
       </div>
     </div>
@@ -227,7 +228,7 @@
 
     <!-- Ошибки -->
     <div v-if="errors.length > 0" class="section errors-section">
-      <h2>❌ Ошибки</h2>
+      <h2>❌ Ошибки ({{ errors.length }})</h2>
       <div class="errors">
         <div 
           v-for="(error, index) in errors" 
@@ -247,55 +248,65 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useAuthStore } from '../../../stores/auth'
 import { useSocketStore } from '../../../stores/socket'
 import { useOnlineStore } from '../../../stores/online'
-import { useNotificationStore } from '../../../stores/notifications'
+import { socketService } from 'services/socket.service'
 import { useCookie } from 'nuxt/app'
+import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
 
 definePageMeta({
   layout: 'cabinet',
   middleware: ['require-auth']
 })
 
-// Хранилища
+// ============================================
+// STORES
+// ============================================
 const authStore = useAuthStore()
-const socketStore = useSocketStore()
+const socketStore = useSocketStore() // Только для чтения состояния!
 const onlineStore = useOnlineStore()
-const notificationStore = useNotificationStore()
 
-// Куки
+// ============================================
+// COOKIES
+// ============================================
 const authCookie = useCookie('auth_token')
 const sessionIdCookie = useCookie('session_id')
+const tabIdCookie = useCookie('tab_id')
 
-// Состояние
+// ============================================
+// STATE
+// ============================================
 const logs = ref<Array<{ type: string, message: string, time: string }>>([])
 const errors = ref<Array<{ message: string, time: string }>>([])
-const subscriptions = ref<Array<{ event: string, active: boolean }>>([
-  { event: 'connect', active: true },
-  { event: 'disconnect', active: true },
-  { event: 'connect_error', active: true },
-  { event: 'online-users:update', active: true },
-  { event: 'user:update', active: false },
-  { event: 'activity', active: false }
-])
+const activeSubscriptions = ref<string[]>([])
 const customEventName = ref('')
 const customEventData = ref('')
 
-// Информация
+// Информация о соединении
+const socketId = ref<string | null>(null)
+const transport = ref<string>('unknown')
+const reconnectAttempts = ref(0)
 const ipAddress = ref('')
+
+// ============================================
+// COMPUTED - Состояние из socketStore (только чтение)
+// ============================================
+const isConnected = computed(() => socketStore.isConnected)
+const isConnecting = computed(() => socketStore.isConnecting)
+const socketError = computed(() => socketStore.error)
 const hasToken = computed(() => !!authCookie.value)
 const sessionId = computed(() => sessionIdCookie.value)
+
 const socketStatus = computed(() => {
-  if (socketStore.isConnected) return 'Подключен'
-  if (socketStore.isConnecting) return 'Подключение...'
-  if (socketStore.error) return `Ошибка: ${socketStore.error}`
+  if (isConnected.value) return 'Подключен'
+  if (isConnecting.value) return 'Подключение...'
+  if (socketError.value) return `Ошибка: ${socketError.value}`
   return 'Отключен'
 })
-const socketUrl = computed(() => {
-  return typeof window !== 'undefined' ? window.location.origin : '—'
-})
 
-// Состояния хранилищ
+// ============================================
+// COMPUTED - Состояния хранилищ
+// ============================================
 const authStoreState = computed(() => ({
-  token: authStore.token,
+  token: authStore.token ? '***' : null,
   isAuthenticated: authStore.isAuthenticated,
   isChecking: authStore.isChecking,
   userId: authStore.user?.id,
@@ -308,24 +319,19 @@ const socketStoreState = computed(() => ({
   isConnecting: socketStore.isConnecting,
   userId: socketStore.userId,
   error: socketStore.error,
-  reconnectAttempts: socketStore.reconnectAttempts,
-  socket: socketStore.socket ? 'Socket instance exists' : null
+  reconnectAttempts: socketStore.reconnectAttempts
+  // ⛔ Не показываем socket instance — это приватное свойство SocketService
 }))
 
 const onlineStoreState = computed(() => ({
-  users: onlineStore.users,
+  users: onlineStore.users?.length || 0,
   isLoading: onlineStore.isLoading,
-  error: onlineStore.error,
-  count: onlineStore.getOnlineCount
+  error: onlineStore.error
 }))
 
-const notificationsStoreState = computed(() => ({
-  notifications: notificationStore.notifications,
-  count: notificationStore.notifications.length,
-  maxVisible: notificationStore.maxVisible
-}))
-
-// Логирование
+// ============================================
+// ЛОГИРОВАНИЕ
+// ============================================
 const log = (type: string, message: string) => {
   const time = new Date().toLocaleTimeString('ru-RU', { 
     hour: '2-digit', 
@@ -333,7 +339,7 @@ const log = (type: string, message: string) => {
     second: '2-digit' 
   })
   logs.value.unshift({ type, message, time })
-  console.log(`[${type.toUpperCase()}] ${message}`)
+  console.log(`[TESTPAGE/${type.toUpperCase()}] ${message}`)
 }
 
 const errorLog = (message: string) => {
@@ -349,49 +355,52 @@ const errorLog = (message: string) => {
 const clearLogs = () => {
   logs.value = []
   errors.value = []
+  log('info', 'Логи очищены')
 }
 
-// Управление сокетом
+// ============================================
+// УПРАВЛЕНИЕ СОКЕТОМ (через socketService)
+// ============================================
+
 const reconnectSocket = async () => {
   log('info', 'Попытка переподключения...')
   try {
-    await socketStore.disconnect()
-    await socketStore.connect()
-    log('success', 'Переподключение успешно')
-  } catch (error) {
-    errorLog(`Ошибка переподключения: ${error}`)
+    // ✅ Используем socketService вместо socketStore
+    socketService.disconnect()
+    await new Promise(resolve => setTimeout(resolve, 500))
+    socketService.connect()
+    log('success', 'Переподключение инициировано')
+  } catch (error: any) {
+    errorLog(`Ошибка переподключения: ${error?.message || error}`)
   }
 }
 
-const disconnectSocket = async () => {
+const disconnectSocket = () => {
   log('info', 'Отключение сокета...')
-  try {
-    await socketStore.disconnect()
-    log('info', 'Сокет отключен')
-  } catch (error) {
-    errorLog(`Ошибка отключения: ${error}`)
-  }
+  socketService.disconnect()
+  log('info', 'Сокет отключен')
 }
 
 const initSession = async () => {
-  if (!socketStore.isConnected || !sessionId.value) {
+  if (!isConnected.value || !sessionId.value) {
     errorLog('Нельзя инициализировать сессию: сокет не подключен или нет session_id')
     return
   }
 
   try {
-    socketStore.sendMessage('session:init', {
+    // ✅ Отправляем событие через socketService.emit()
+    await socketService.emit('session:init', {
       ipAddress: ipAddress.value,
       userAgent: navigator.userAgent
     })
     log('success', 'Сессия инициализирована')
-  } catch (error) {
-    errorLog(`Ошибка инициализации сессии: ${error}`)
+  } catch (error: any) {
+    errorLog(`Ошибка инициализации сессии: ${error?.message || error}`)
   }
 }
 
-const sendTestMessage = () => {
-  if (!socketStore.isConnected) {
+const sendTestMessage = async () => {
+  if (!isConnected.value) {
     errorLog('Сокет не подключен')
     return
   }
@@ -400,70 +409,93 @@ const sendTestMessage = () => {
     test: true,
     timestamp: Date.now(),
     userId: authStore.user?.id,
-    message: 'Тестовое сообщение'
+    message: 'Тестовое сообщение с testpage.vue'
   }
 
-  socketStore.sendMessage('test', testMessage)
-  log('info', `Отправлено тестовое сообщение: ${JSON.stringify(testMessage)}`)
+  try {
+    await socketService.emit('test', testMessage)
+    log('info', `Отправлено тестовое сообщение: ${JSON.stringify(testMessage)}`)
+  } catch (error: any) {
+    errorLog(`Ошибка отправки: ${error?.message || error}`)
+  }
 }
 
-const sendCustomEvent = () => {
-  if (!socketStore.isConnected) {
+const sendCustomEvent = async () => {
+  if (!isConnected.value) {
     errorLog('Сокет не подключен')
     return
   }
 
   try {
-    const data = JSON.parse(customEventData.value)
-    socketStore.sendMessage(customEventName.value, data)
+    const data = JSON.parse(customEventData.value || '{}')
+    await socketService.emit(customEventName.value, data)
     log('custom', `Отправлено событие "${customEventName.value}": ${JSON.stringify(data)}`)
-  } catch (error) {
-    errorLog(`Ошибка отправки события: ${error}`)
+  } catch (error: any) {
+    errorLog(`Ошибка отправки события: ${error?.message || error}`)
   }
 }
 
-// Тестовые события
-const testActivity = (status: 'online' | 'afk' | 'offline') => {
+// ============================================
+// ТЕСТОВЫЕ СОБЫТИЯ
+// ============================================
+
+const testActivity = async (status: 'online' | 'afk' | 'offline') => {
   if (!sessionId.value) {
     errorLog('Нет session_id для отправки события активности')
     return
   }
 
-  socketStore.sendMessage('activity', {
-    sessionId: sessionId.value,
-    status,
-    ipAddress: ipAddress.value
-  })
-  log('activity', `Отправлено событие активности: ${status}`)
+  try {
+    await socketService.emit('activity', {
+      sessionId: sessionId.value,
+      status,
+      ipAddress: ipAddress.value
+    })
+    log('activity', `Отправлено событие активности: ${status}`)
+  } catch (error: any) {
+    errorLog(`Ошибка отправки activity: ${error?.message || error}`)
+  }
 }
 
-const testResume = () => {
+const testResume = async () => {
   if (!sessionId.value) {
     errorLog('Нет session_id для отправки события')
     return
   }
 
-  socketStore.sendMessage('activity:resume', {
-    sessionId: sessionId.value,
-    ipAddress: ipAddress.value
-  })
-  log('activity', 'Отправлено событие resume')
+  try {
+    await socketService.emit('activity:resume', {
+      sessionId: sessionId.value,
+      ipAddress: ipAddress.value
+    })
+    log('activity', 'Отправлено событие resume')
+  } catch (error: any) {
+    errorLog(`Ошибка отправки resume: ${error?.message || error}`)
+  }
 }
 
-const testUserUpdate = () => {
-  socketStore.sendMessage('user:update', {
-    name: authStore.user?.name
-  })
-  log('user', 'Отправлено событие обновления пользователя')
+const testUserUpdate = async () => {
+  try {
+    await socketService.emit('user:update', {
+      name: authStore.user?.name,
+      role: authStore.user?.role
+    })
+    log('user', 'Отправлено событие обновления пользователя')
+  } catch (error: any) {
+    errorLog(`Ошибка отправки user:update: ${error?.message || error}`)
+  }
 }
 
-// API тесты
+// ============================================
+// API ТЕСТЫ
+// ============================================
+
 const testApiMe = async () => {
   try {
     const data = await $fetch('/api/me')
     log('api', `GET /api/me: ${JSON.stringify(data)}`)
-  } catch (error) {
-    errorLog(`GET /api/me failed: ${error}`)
+  } catch (error: any) {
+    errorLog(`GET /api/me failed: ${error?.data?.message || error?.message || error}`)
   }
 }
 
@@ -471,8 +503,8 @@ const testApiOnline = async () => {
   try {
     const data = await $fetch('/api/online')
     log('api', `GET /api/online: ${JSON.stringify(data)}`)
-  } catch (error) {
-    errorLog(`GET /api/online failed: ${error}`)
+  } catch (error: any) {
+    errorLog(`GET /api/online failed: ${error?.data?.message || error?.message || error}`)
   }
 }
 
@@ -480,82 +512,130 @@ const testApiCheck = async () => {
   try {
     const data = await $fetch('/api/auth/check')
     log('api', `GET /api/auth/check: ${JSON.stringify(data)}`)
-  } catch (error) {
-    errorLog(`GET /api/auth/check failed: ${error}`)
+  } catch (error: any) {
+    errorLog(`GET /api/auth/check failed: ${error?.data?.message || error?.message || error}`)
   }
 }
 
-// Принудительная переавторизация
+// ============================================
+// ПРИНУДИТЕЛЬНАЯ ПЕРЕАВТОРИЗАЦИЯ
+// ============================================
+
 const forceReauth = async () => {
   log('info', 'Принудительная переавторизация...')
   try {
     await authStore.init()
     log('success', 'Переавторизация завершена')
-  } catch (error) {
-    errorLog(`Ошибка переавторизации: ${error}`)
+  } catch (error: any) {
+    errorLog(`Ошибка переавторизации: ${error?.message || error}`)
   }
 }
 
-// Подписки на события сокета
+// ============================================
+// ПОДПИСКИ НА СОБЫТИЯ СОКЕТА
+// ============================================
+
 const setupSocketListeners = () => {
-  socketStore.on('connect', () => {
+  
+  socketService.on('connect', () => {
     log('socket', '✅ Подключен к серверу')
+    socketId.value = socketService.getSocketId() || null
+    transport.value = socketService.getTransport()
+    activeSubscriptions.value.push('connect')
   })
 
-  socketStore.on('disconnect', (reason: string) => {
+  socketService.on('disconnect', (reason: string) => {
     log('socket', `🔌 Отключен: ${reason}`)
+    activeSubscriptions.value = activeSubscriptions.value.filter(s => s !== 'connect')
   })
 
-  socketStore.on('connect_error', (error: any) => {
-    errorLog(`Ошибка подключения: ${error.message}`)
+  socketService.on('connect_error', (error: any) => {
+    errorLog(`Ошибка подключения: ${error?.message || error}`)
   })
 
-  socketStore.on('online-users:update', (users: any) => {
-    log('socket', `Получено обновление онлайн-пользователей: ${users.length}`)
+  socketService.on('reconnect_attempt', (attempt: number) => {
+    log('socket', `🔄 Попытка переподключения #${attempt}`)
+    reconnectAttempts.value = attempt
   })
 
-  socketStore.on('user:update', (user: any) => {
+  socketService.on('reconnect', (attempt: number) => {
+    log('socket', `✅ Переподключено после ${attempt} попыток`)
+    reconnectAttempts.value = 0
+  })
+
+  // socketService.on('online-users:update', (users: any[]) => {
+  //   log('socket', `Получено обновление онлайн-пользователей: ${users?.length || 0} пользователей`)
+  // })
+
+  socketService.on('user:status', (data: any) => {
+    log('socket', `Статус пользователя: ${JSON.stringify(data)}`)
+  })
+
+  socketService.on('user:update', (user: any) => {
     log('socket', `Обновление пользователя: ${JSON.stringify(user)}`)
   })
 
-  socketStore.on('test', (data: any) => {
-    log('socket', `Тестовое событие: ${JSON.stringify(data)}`)
+  socketService.on('test', (data: any) => {
+    log('socket', `Тестовое событие получено: ${JSON.stringify(data)}`)
   })
+
+  socketService.on('session:initialized', (data: any) => {
+    log('socket', `Сессия инициализирована: ${JSON.stringify(data)}`)
+  })
+
+  log('info', `Зарегистрировано ${activeSubscriptions.value.length} подписок на события`)
 }
 
-// Инициализация
-onMounted(() => {
-  log('info', 'Страница тестирования загружена')
+// ============================================
+// ИНИЦИАЛИЗАЦИЯ
+// ============================================
 
-  // Получаем локальный IP
-  ipAddress.value = window.location.hostname
+onMounted(() => {
+  log('info', '🚀 Страница тестирования загружена')
+
+  // Получаем локальный IP/хост
+  ipAddress.value = typeof window !== 'undefined' ? window.location.hostname : 'unknown'
 
   // Подписываемся на события сокета
   setupSocketListeners()
 
   // Логируем начальное состояние
-  log('info', `Auth status: ${authStore.isAuthenticated ? 'authenticated' : 'not authenticated'}`)
-  log('info', `Socket status: ${socketStore.isConnected ? 'connected' : 'disconnected'}`)
-  log('info', `Token exists: ${hasToken.value ? 'yes' : 'no'}`)
+  log('info', `Auth: ${authStore.isAuthenticated ? 'authenticated' : 'not authenticated'}`)
+  log('info', `Socket: ${isConnected.value ? 'connected' : 'disconnected'}`)
+  log('info', `Token: ${hasToken.value ? 'yes' : 'no'}`)
   log('info', `Session ID: ${sessionId.value || 'none'}`)
+  log('info', `Socket URL: ${typeof window !== 'undefined' ? window.location.origin : 'server'}`)
 
-  // Проверяем, если сокет не подключен, но есть токен
-  if (!socketStore.isConnected && hasToken.value) {
-    log('warning', 'Сокет не подключен, но токен существует. Попытка подключения...')
-    socketStore.connect()
+  // Если есть токен, но сокет не подключен — пробуем подключиться
+  if (hasToken.value && !isConnected.value && !isConnecting.value) {
+    log('warning', 'Токен есть, но сокет не подключен. Пробуем подключиться...')
+    socketService.connect()
   }
 })
 
 onUnmounted(() => {
-  log('info', 'Страница тестирования закрыта')
+  log('info', '👋 Страница тестирования закрыта')
+  
+  // ✅ Очищаем подписки при уничтожении компонента
+  activeSubscriptions.value.forEach(event => {
+    socketService.off(event)
+  })
+  activeSubscriptions.value = []
 })
 
-// Отслеживание изменений состояния
+// ============================================
+// WATCHERS
+// ============================================
+
 watch(
-  () => socketStore.isConnected,
+  () => isConnected.value,
   (newVal, oldVal) => {
     if (newVal !== oldVal) {
-      log('watch', `Socket connected changed: ${oldVal} -> ${newVal}`)
+      log('watch', `Socket connected: ${oldVal} → ${newVal}`)
+      if (newVal) {
+        socketId.value = socketService.getSocketId() || null
+        transport.value = socketService.getTransport()
+      }
     }
   }
 )
@@ -564,13 +644,13 @@ watch(
   () => authStore.isAuthenticated,
   (newVal, oldVal) => {
     if (newVal !== oldVal) {
-      log('watch', `Auth status changed: ${oldVal} -> ${newVal}`)
+      log('watch', `Auth status: ${oldVal} → ${newVal}`)
     }
   }
 )
 
 watch(
-  () => socketStore.error,
+  () => socketError.value,
   (newVal) => {
     if (newVal) {
       errorLog(`Socket error: ${newVal}`)
@@ -580,15 +660,17 @@ watch(
 </script>
 
 <style lang="scss" scoped>
+@use '@/assets/styles/variables.scss' as *;
+
 .test-page {
   padding: 20px;
-  color: #fff;
+  color: $text-light;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 
   h1 {
     margin-bottom: 20px;
     font-size: 28px;
-    color: #fff;
+    color: $text-light;
     border-bottom: 2px solid rgba(255, 255, 255, 0.1);
     padding-bottom: 10px;
   }
@@ -622,15 +704,15 @@ watch(
   font-weight: 600;
 
   &--success {
-    color: #4caf50;
+    color: $green;
   }
 
   &--error {
-    color: #f44336;
+    color: $red;
   }
 
   &--warning {
-    color: #ff9800;
+    color: $yellow;
   }
 }
 
@@ -645,8 +727,8 @@ watch(
 
   button {
     padding: 10px 16px;
-    background: #00c3f5;
-    color: #000;
+    background: $blue;
+    color: $text-light;
     border: none;
     border-radius: 6px;
     cursor: pointer;
@@ -655,7 +737,7 @@ watch(
     white-space: nowrap;
 
     &:hover:not(:disabled) {
-      background: #00d4ff;
+      background: color.adjust($blue, $lightness: 5%);
       transform: translateY(-1px);
     }
 
@@ -676,7 +758,7 @@ watch(
   h2 {
     margin-bottom: 15px;
     font-size: 20px;
-    color: #ccc;
+    color: $text-light;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -706,7 +788,7 @@ watch(
 .info-value {
   font-size: 14px;
   font-weight: 500;
-  color: #fff;
+  color: $text-light;
   word-break: break-all;
 }
 
@@ -724,7 +806,7 @@ watch(
   button {
     padding: 8px 12px;
     background: rgba(255, 255, 255, 0.1);
-    color: #fff;
+    color: $text-light;
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 6px;
     cursor: pointer;
@@ -747,7 +829,7 @@ watch(
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 6px;
-  color: #fff;
+  color: $text-light;
   font-size: 13px;
   flex: 1;
   min-width: 200px;
@@ -758,7 +840,7 @@ watch(
 
   &:focus {
     outline: none;
-    border-color: #00c3f5;
+    border-color: $blue;
   }
 }
 
@@ -771,7 +853,7 @@ watch(
   h3 {
     margin-bottom: 10px;
     font-size: 16px;
-    color: #00c3f5;
+    color: $blue;
   }
 
   pre {
@@ -832,47 +914,47 @@ watch(
   align-items: center;
 
   &--info {
-    background: rgba(0, 195, 245, 0.1);
-    color: #00c3f5;
+    background: rgba($blue, 0.1);
+    color: $blue;
   }
 
   &--success {
-    background: rgba(76, 175, 80, 0.1);
-    color: #4caf50;
+    background: rgba($green, 0.1);
+    color: $green;
   }
 
   &--error {
-    background: rgba(244, 67, 54, 0.1);
-    color: #f44336;
+    background: rgba($red, 0.1);
+    color: $red;
   }
 
   &--socket {
-    background: rgba(156, 39, 176, 0.1);
+    background: rgba(#9c27b0, 0.1);
     color: #9c27b0;
   }
 
   &--api {
-    background: rgba(255, 152, 0, 0.1);
-    color: #ff9800;
+    background: rgba($yellow, 0.1);
+    color: $yellow;
   }
 
   &--activity {
-    background: rgba(33, 150, 243, 0.1);
+    background: rgba(#2196f3, 0.1);
     color: #2196f3;
   }
 
   &--user {
-    background: rgba(76, 175, 80, 0.1);
-    color: #4caf50;
+    background: rgba($green, 0.1);
+    color: $green;
   }
 
   &--watch {
-    background: rgba(158, 158, 158, 0.1);
+    background: rgba(#9e9e9e, 0.1);
     color: #9e9e9e;
   }
 
   &--custom {
-    background: rgba(233, 30, 99, 0.1);
+    background: rgba(#e91e63, 0.1);
     color: #e91e63;
   }
 }
@@ -916,12 +998,7 @@ watch(
 }
 
 .subscription-event {
-  color: #00c3f5;
-  font-weight: 500;
-}
-
-.subscription-status {
-  color: #999;
+  color: $blue;
   font-weight: 500;
 }
 
@@ -932,23 +1009,23 @@ watch(
 
   button {
     padding: 8px 16px;
-    background: rgba(255, 152, 0, 0.2);
-    color: #ff9800;
-    border: 1px solid rgba(255, 152, 0, 0.3);
+    background: rgba($yellow, 0.2);
+    color: $yellow;
+    border: 1px solid rgba($yellow, 0.3);
     border-radius: 6px;
     cursor: pointer;
     font-size: 13px;
     transition: all 0.2s;
 
     &:hover {
-      background: rgba(255, 152, 0, 0.3);
+      background: rgba($yellow, 0.3);
     }
   }
 }
 
 .errors-section {
-  background: rgba(244, 67, 54, 0.1);
-  border: 1px solid rgba(244, 67, 54, 0.3);
+  background: rgba($red, 0.1);
+  border: 1px solid rgba($red, 0.3);
 }
 
 .errors {
@@ -961,7 +1038,7 @@ watch(
 
 .error-item {
   padding: 10px;
-  background: rgba(244, 67, 54, 0.1);
+  background: rgba($red, 0.1);
   border-radius: 4px;
   margin-bottom: 8px;
   display: flex;
@@ -970,14 +1047,49 @@ watch(
 }
 
 .error-time {
-  color: #f44336;
+  color: $red;
   font-weight: 600;
   min-width: 80px;
 }
 
 .error-message {
-  color: #fff;
+  color: $text-light;
   flex: 1;
   word-break: break-word;
+}
+
+// Адаптивность
+@media (max-width: 768px) {
+  .test-page {
+    padding: 10px;
+  }
+  
+  .quick-status {
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .controls {
+    flex-direction: column;
+    
+    button {
+      width: 100%;
+    }
+  }
+  
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .test-event {
+    flex-direction: column;
+    
+    button {
+      width: 100%;
+    }
+  }
+  
+  .event-input {
+    width: 100%;
+  }
 }
 </style>

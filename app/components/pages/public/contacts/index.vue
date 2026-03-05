@@ -23,19 +23,19 @@
           <!-- Социальные сети -->
           <div class="social-icons">
             <NuxtLink href="tg://resolve?domain=glavprofii" target="_blank">
-              <Icon name="bxl:telegram" size="28px" />
+              <Icon name="mdi:telegram" class="ico" size="28px" />
             </NuxtLink>
-            <NuxtLink href="https://api.whatsapp.com/send?phone=79109096947" target="_blank">
-              <Icon name="bxl:whatsapp" size="28px" />
+            <!-- <NuxtLink href="https://api.whatsapp.com/send?phone=79109096947" target="_blank">
+              <Icon name="mdi:whatsapp" class="ico" size="28px" />
+            </NuxtLink> -->
+            <NuxtLink href=" https://vk.com/glavprofi " target="_blank">
+              <Icon name="mdi:vk" class="ico" size="28px" />
             </NuxtLink>
-            <NuxtLink href="https://vk.com/glavprofi" target="_blank">
-              <Icon name="bxl:vk" size="28px" />
+            <NuxtLink href="https://instagram.com/glavprofi " target="_blank">
+              <Icon name="mdi:instagram" class="ico" size="28px" />
             </NuxtLink>
-            <NuxtLink href="https://instagram.com/glavprofi" target="_blank">
-              <Icon name="bxl:instagram" size="28px" />
-            </NuxtLink>
-            <NuxtLink href="https://youtube.com/@glavstroy62" target="_blank">
-              <Icon name="bxl:youtube" size="28px" />
+            <NuxtLink href="https://youtube.com/ @glavstroy62" target="_blank">
+              <Icon name="mdi:youtube" class="ico" size="28px" />
             </NuxtLink>
           </div>
         </section>

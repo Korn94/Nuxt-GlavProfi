@@ -408,7 +408,7 @@ onMounted(() => {
   color: $text-light;
   
   &:hover:not(:disabled) {
-    background: darken($blue, 10%);
+    background: color.adjust($blue, $lightness: -5%);
     transform: translateY(-1px);
   }
 }

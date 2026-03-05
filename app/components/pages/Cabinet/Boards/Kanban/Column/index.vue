@@ -8,29 +8,28 @@
     @dragleave="handleDragLeave"
     @drop="handleDrop"
   >
-    <!-- ✅ ШАПКА КОЛОНКИ С АНИМИРОВАННОЙ КНОПКОЙ "+" -->
+    <!-- Шапка колонки -->
     <div class="column-header">
       <div class="column-title-wrapper">
         <h2 class="column-title">{{ title }}</h2>
         <span class="column-count">{{ tasks.length }}</span>
       </div>
-      <!-- ✅ КНОПКА С АНИМАЦИЕЙ ПОВОРОТА -->
       <button
         class="column-add-btn-header"
         @click="toggleCreateForm"
         :class="{ active: showCreateForm }"
         title="Добавить задачу"
       >
-        <Icon 
-          :name="showCreateForm ? 'mdi:close' : 'mdi:plus'" 
-          size="20" 
+        <Icon
+          :name="showCreateForm ? 'mdi:close' : 'mdi:plus'"
+          size="20"
           class="btn-icon"
           :class="{ 'icon-rotate': showCreateForm }"
         />
       </button>
     </div>
 
-    <!-- ✅ ИНЛАЙН-ФОРМА СОЗДАНИЯ ЗАДАЧИ (ВНУТРИ КОЛОНКИ) -->
+    <!-- Форма создания задачи -->
     <Transition name="form-slide">
       <div v-if="showCreateForm" class="column-create-form">
         <div class="form-group">
@@ -51,14 +50,12 @@
             <option value="high">Высокий</option>
             <option value="urgent">Срочный</option>
           </select>
-          <!-- ✅ ПОЛЕ ДАТЫ (НЕОБЯЗАТЕЛЬНОЕ) -->
           <input
             v-model="newTask.dueDate"
             type="date"
             class="form-control-date"
             title="Срок выполнения (необязательно)"
           />
-          <!-- ✅ КНОПКА СОЗДАНИЯ (ЕДИНСТВЕННАЯ) -->
           <button
             class="btn btn-sm btn-primary"
             @click="handleCreateTask"
@@ -72,18 +69,19 @@
       </div>
     </Transition>
 
-    <!-- ✅ ТЕЛО КОЛОНКИ С ЗАДАЧАМИ -->
+    <!-- Список задач -->
     <div class="column-body">
       <div v-if="tasks.length === 0 && !showCreateForm" class="column-empty">
         <Icon name="mdi:clipboard-text-off-outline" size="48" />
         <p>Нет задач</p>
       </div>
       <div v-else class="column-tasks">
+        <!-- ✅ КЛЮЧЕВОЕ: :key только по task.id, без order -->
         <div
-          v-for="(task, index) in sortedTasks"
+          v-for="task in sortedTasks"
           :key="task.id"
           class="task-wrapper"
-          :class="{ 'drop-indicator': dropIndex === index }"
+          :class="{ 'drop-indicator': dropIndex === getTaskIndex(task) }"
         >
           <TaskCard
             :task="task"
@@ -91,9 +89,8 @@
             @move-task="handleMoveTask"
           />
         </div>
-        <!-- Индикатор вставки в конец -->
         <div
-          v-if="dropIndex === sortedTasks.length"
+          v-if="dropIndex !== null && dropIndex === sortedTasks.length"
           class="drop-indicator drop-indicator-end"
         ></div>
       </div>
@@ -102,9 +99,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, shallowRef, watch } from 'vue'
 import { useTasks } from '~/composables/boards/useTasks'
 import { useTasksStore } from 'stores/boards/tasks'
+import { socketService } from 'services/socket.service'
 import TaskCard from '../TaskCard.vue'
 import type { Task } from '~/types/boards'
 
@@ -125,18 +123,31 @@ const emit = defineEmits<{
 // ============================================
 // STORES & COMPOSABLES
 // ============================================
-const { createTask, updateTask } = useTasks()
+const { createTask, updateTask, updateTasksOrder } = useTasks()
 const tasksStore = useTasksStore()
 
 // ============================================
-// STATE
+// STATE — Оптимизация через shallowRef
 // ============================================
 const showCreateForm = ref(false)
 const creatingTask = ref(false)
 const isDraggingOver = ref(false)
 const dropIndex = ref<number | null>(null)
 
-// ✅ УПРОЩЁННАЯ ФОРМА (название, приоритет, дата)
+// ✅ shallowRef для предотвращения глубокой реактивности
+const tasksRef = shallowRef<Task[]>([...props.tasks])
+
+// ✅ Обновляем shallowRef только если изменились ID или order
+watch(() => props.tasks, (newTasks) => {
+  const oldIds = tasksRef.value.map(t => `${t.id}-${t.order}`)
+  const newIds = newTasks.map(t => `${t.id}-${t.order}`)
+  
+  // Обновляем только если действительно изменилось
+  if (JSON.stringify(oldIds) !== JSON.stringify(newIds)) {
+    tasksRef.value = [...newTasks]
+  }
+}, { deep: false })
+
 const newTask = ref({
   title: '',
   priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent',
@@ -146,20 +157,17 @@ const newTask = ref({
 // ============================================
 // COMPUTED
 // ============================================
-const canSubmit = computed(() => {
-  return newTask.value.title.trim().length > 0
-})
+const canSubmit = computed(() => newTask.value.title.trim().length > 0)
 
+// ✅ sortedTasks возвращает отсортированный массив, но не создаёт новые объекты
 const sortedTasks = computed(() => {
-  return [...props.tasks].sort((a, b) => {
+  return [...tasksRef.value].sort((a, b) => {
     const priorityOrder: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 }
     const aPriority = a.priority || 'low'
     const bPriority = b.priority || 'low'
     const priorityDiff = priorityOrder[aPriority] - priorityOrder[bPriority]
     if (priorityDiff !== 0) return priorityDiff
-    const aOrder = a.order ?? 0
-    const bOrder = b.order ?? 0
-    return aOrder - bOrder
+    return (a.order ?? 0) - (b.order ?? 0)
   })
 })
 
@@ -169,13 +177,7 @@ const sortedTasks = computed(() => {
 const toggleCreateForm = () => {
   showCreateForm.value = !showCreateForm.value
   if (showCreateForm.value) {
-    // Сброс формы при открытии
-    newTask.value = {
-      title: '',
-      priority: 'medium',
-      dueDate: ''
-    }
-    // Фокус на поле ввода после открытия
+    newTask.value = { title: '', priority: 'medium', dueDate: '' }
     setTimeout(() => {
       const input = document.querySelector('.column-create-form input[type="text"]') as HTMLInputElement
       input?.focus()
@@ -185,16 +187,11 @@ const toggleCreateForm = () => {
 
 const closeCreateForm = () => {
   showCreateForm.value = false
-  newTask.value = {
-    title: '',
-    priority: 'medium',
-    dueDate: ''
-  }
+  newTask.value = { title: '', priority: 'medium', dueDate: '' }
 }
 
 const handleCreateTask = async () => {
   if (!canSubmit.value) return
-  
   creatingTask.value = true
   try {
     await createTask(props.boardId, {
@@ -207,14 +204,29 @@ const handleCreateTask = async () => {
     closeCreateForm()
     emit('taskCreated')
   } catch (err) {
-    console.error('Failed to create task:', err)
+    console.error('[Column] ❌ Failed to create task:', err)
   } finally {
     creatingTask.value = false
   }
 }
 
 // ============================================
-// DRAG & DROP - DROP ZONE
+// METHODS - Вспомогательные
+// ============================================
+const getTaskIndex = (task: Task): number => {
+  return sortedTasks.value.findIndex(t => t.id === task.id)
+}
+
+const handleMoveTask = async (taskId: number, newStatus: string) => {
+  try {
+    await updateTask(taskId, { status: newStatus as any })
+  } catch (error) {
+    console.error('[Column] ❌ Failed to move task:', error)
+  }
+}
+
+// ============================================
+// DRAG & DROP - Определение позиции drop
 // ============================================
 const handleDragOver = (event: DragEvent) => {
   event.preventDefault()
@@ -255,59 +267,107 @@ const handleDragLeave = (event: DragEvent) => {
   }
 }
 
+// ============================================
+// DRAG & DROP - Обработка drop (ГЛАВНОЕ ИСПРАВЛЕНИЕ)
+// ============================================
 const handleDrop = async (event: DragEvent) => {
   event.preventDefault()
   isDraggingOver.value = false
+  
   try {
-    const data = event.dataTransfer!.getData('application/json')
-    const dragData = JSON.parse(data)
-    if (dragData.type === 'task') {
-      if (dragData.status !== props.status) {
-        await tasksStore.updateTaskOptimistic(dragData.taskId, {
-          status: props.status as any
+    // ✅ 1. Безопасное получение данных
+    const data = event.dataTransfer?.getData('application/json')
+    if (!data) {
+      console.warn('[Column] No drag data found')
+      return
+    }
+    
+    // ✅ 2. Парсинг с типизацией
+    const dragData = JSON.parse(data) as { 
+      type: string
+      taskId: number
+      status: string
+    }
+    
+    // ✅ 3. Валидация обязательных полей
+    if (dragData.type !== 'task' || !dragData.taskId || !dragData.status) {
+      console.warn('[Column] Invalid drag data:', dragData)
+      return
+    }
+    
+    // ✅ Теперь TS «видит», что поля существуют
+    const taskId = dragData.taskId
+    const fromStatus = dragData.status
+    const toStatus = props.status
+    
+    // ✅ СЛУЧАЙ 1: Перемещение между колонками (изменение статуса)
+    if (fromStatus !== toStatus) {
+      // 1️⃣ Оптимистичное обновление UI (мгновенно, без мигания)
+      await tasksStore.updateTaskOptimistic(taskId, { status: toStatus as any })
+      
+      // 2️⃣ Прямой API-запрос БЕЗ участия store (не триггерит loading!)
+      await $fetch(`/api/boards/tasks/${taskId}`, {
+        method: 'PUT',
+        body: { status: toStatus }
+      })
+      
+      // 3️⃣ Socket broadcast для других клиентов
+      await socketService.emit('board:task:updated', {
+        boardId: props.boardId,
+        taskId,
+        task: { id: taskId, status: toStatus }
+      })
+      
+    // ✅ СЛУЧАЙ 2: Перемещение внутри одной колонки (изменение order)
+    } else if (dropIndex.value !== null) {
+      const currentOrder = props.tasks.findIndex(t => t.id === taskId)
+      const newOrder = dropIndex.value
+      
+      if (currentOrder !== -1 && currentOrder !== newOrder) {
+        // 1️⃣ Копируем и пересчитываем порядок
+        const columnTasks = [...props.tasks]
+        const [movedTask] = columnTasks.splice(currentOrder, 1)
+        if (!movedTask) return
+        columnTasks.splice(newOrder, 0, movedTask)
+        
+        const updates = columnTasks.map((task, index) => ({
+          id: task.id,
+          order: index
+        }))
+        
+        // 2️⃣ Оптимистичное обновление в store (in-place, без замены массива)
+        updates.forEach(({ id, order }) => {
+          const task = tasksStore.tasks.find(t => t.id === id)
+          if (task) task.order = order
         })
-      } else if (dropIndex.value !== null) {
-        const currentOrder = props.tasks.findIndex(t => t.id === dragData.taskId)
-        const newOrder = dropIndex.value
-        if (currentOrder !== -1 && currentOrder !== newOrder) {
-          const allBoardTasks = [...(tasksStore.tasksByBoard[props.boardId] || [])]
-          const updatedColumnTasks = [...props.tasks]
-          const movedTask = updatedColumnTasks.splice(currentOrder, 1)[0]
-          if (!movedTask) return
-          updatedColumnTasks.splice(newOrder, 0, movedTask)
-          const tasksWithUpdatedOrder = updatedColumnTasks.map((task, index) => ({
-            ...task,
-            order: index
-          }))
-          const otherTasks = allBoardTasks.filter(t => t.status !== props.status)
-          const offset = updatedColumnTasks.length
-          const otherTasksWithOffset = otherTasks.map(task => ({
-            ...task,
-            order: task.order + offset
-          }))
-          const allTasksWithNewOrder = [...tasksWithUpdatedOrder, ...otherTasksWithOffset]
-            .sort((a, b) => a.order - b.order)
-          await tasksStore.updateTasksOrderOptimistic(props.boardId, allTasksWithNewOrder)
-        }
+        
+        // 3️⃣ Прямой API-запрос БЕЗ loading
+        await $fetch(`/api/boards/${props.boardId}/tasks/order`, {
+          method: 'PUT',
+          body: { updates }
+        })
+        
+        // 4️⃣ Socket broadcast для синхронизации
+        await socketService.emit('board:tasks:reorder', {
+          boardId: props.boardId,
+          status: props.status,
+          tasks: updates
+        })
       }
     }
   } catch (error) {
     console.error('Failed to drop task:', error)
+    // ✅ Fallback: перезагружаем задачи ТОЛЬКО при ошибке
+    await tasksStore.fetchTasks(props.boardId)
   } finally {
     dropIndex.value = null
-  }
-}
-
-const handleMoveTask = async (taskId: number, newStatus: string) => {
-  try {
-    await updateTask(taskId, { status: newStatus as any })
-  } catch (error) {
-    console.error('Failed to move task:', error)
   }
 }
 </script>
 
 <style scoped lang="scss">
+@use '@/assets/styles/variables.scss' as *;
+
 .column {
   background: $color-dark;
   border: 1px solid $text-dark;
@@ -362,7 +422,6 @@ const handleMoveTask = async (taskId: number, newStatus: string) => {
   font-weight: 500;
 }
 
-/* ✅ КНОПКА "+" В ШАПКЕ С АНИМАЦИЕЙ */
 .column-add-btn-header {
   width: 26px;
   height: 26px;
@@ -382,7 +441,6 @@ const handleMoveTask = async (taskId: number, newStatus: string) => {
     transform: scale(1.05);
   }
   
-  /* ✅ АКТИВНОЕ СОСТОЯНИЕ - КРЕСТИК */
   &.active {
     background: rgba($red, 0.2);
     border-color: rgba($red, 0.4);
@@ -394,7 +452,6 @@ const handleMoveTask = async (taskId: number, newStatus: string) => {
   }
 }
 
-/* ✅ АНИМАЦИЯ ПОВОРОТА ИКОНКИ */
 .btn-icon {
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   
@@ -403,7 +460,6 @@ const handleMoveTask = async (taskId: number, newStatus: string) => {
   }
 }
 
-/* ✅ ИНЛАЙН-ФОРМА СОЗДАНИЯ ЗАДАЧИ */
 .column-create-form {
   padding: 12px 16px;
   background: rgba($blue, 0.05);
@@ -464,7 +520,6 @@ const handleMoveTask = async (taskId: number, newStatus: string) => {
   }
 }
 
-/* ✅ ПОЛЕ ДАТЫ */
 .form-control-date {
   flex: 1;
   padding: 8px 10px;
@@ -566,7 +621,10 @@ const handleMoveTask = async (taskId: number, newStatus: string) => {
 
 .task-wrapper {
   position: relative;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: 
+    transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.2s ease;
+  will-change: transform;
   
   &.drop-indicator::before {
     content: '';
@@ -612,7 +670,6 @@ const handleMoveTask = async (taskId: number, newStatus: string) => {
   to { transform: translateX(-50%) translateY(-4px); }
 }
 
-/* ✅ АНИМАЦИЯ ФОРМЫ */
 .form-slide-enter-active,
 .form-slide-leave-active {
   transition: all 0.2s ease;
