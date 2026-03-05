@@ -68,7 +68,7 @@
 import { ref, computed, onMounted } from 'vue'
 import ContractorAddForm from '@/components/pages/cabinet/Admin/contractors/AddForm.vue'
 
-const Card = defineAsyncComponent(() => import('@/components/pages/cabinet/ui/cards/card.vue'))
+const Card = defineAsyncComponent(() => import('/components/pages/cabinet/ui/cards/card.vue'))
 
 // Состояние
 const contractors = ref([])

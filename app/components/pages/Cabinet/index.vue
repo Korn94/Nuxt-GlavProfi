@@ -77,7 +77,7 @@ import { useAuth } from '~/composables/useAuth'
 import { navigateTo } from '#app'
 
 // Компоненты
-const Card = defineAsyncComponent(() => import('@/components/pages/cabinet/ui/cards/card.vue'))
+const Card = defineAsyncComponent(() => import('/components/pages/cabinet/ui/cards/card.vue'))
 
 // Состояние
 const data = ref(null)

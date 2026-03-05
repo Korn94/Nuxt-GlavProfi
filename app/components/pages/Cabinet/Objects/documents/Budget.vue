@@ -154,7 +154,7 @@
 <script setup>
 import { ref, computed, defineProps, nextTick } from 'vue'
 import PagesCabinetUiModal from '@/components/pages/cabinet/ui/Modal.vue'
-import Card from '@/components/pages/cabinet/ui/cards/card.vue'
+import Card from '/components/pages/cabinet/ui/cards/card.vue'
 
 const props = defineProps({
   objectId: {

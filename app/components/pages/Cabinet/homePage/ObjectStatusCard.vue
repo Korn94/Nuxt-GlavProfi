@@ -194,7 +194,7 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { navigateTo } from '#app'
 
-const Card = defineAsyncComponent(() => import('@/components/pages/cabinet/ui/cards/card.vue'))
+const Card = defineAsyncComponent(() => import('/components/pages/cabinet/ui/cards/card.vue'))
 
 // Состояние компонента
 const objectStats = ref({
