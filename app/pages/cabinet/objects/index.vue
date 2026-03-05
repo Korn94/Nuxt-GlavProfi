@@ -129,7 +129,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import Card from '~/components/pages/cabinet/ui/cards/card.vue'
+import Card from '@/components/pages/cabinet/ui/cards/card.vue'
 
 definePageMeta({
   layout: 'cabinet',
