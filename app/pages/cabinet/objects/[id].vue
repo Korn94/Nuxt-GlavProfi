@@ -20,7 +20,7 @@
 
   <div class="object-detail-layout">
     <!-- Статус и информация -->
-    <Card class="status-card" bordered elevated>
+    <PagesCabinetUiCardsCard class="status-card" bordered elevated>
       <template #header>
         <div class="status-header">
           <h3>Информация об объекте</h3>
@@ -99,10 +99,10 @@
           </div>
         </div>
       </div>
-    </Card>
+    </PagesCabinetUiCardsCard>
 
     <!-- Баланс -->
-    <Card title="Баланс объекта" bordered elevated>
+    <PagesCabinetUiCardsCard title="Баланс объекта" bordered elevated>
       <!-- 1. Общий баланс (приходы - работы - баланс материалов) -->
       <div class="main-balance">
         <div class="balance-value" :class="{ 'positive': object.finances?.totalBalance >= 0, 'negative': object.finances?.totalBalance < 0 }">
@@ -167,10 +167,10 @@
           </div>
         </div>
       </div>
-    </Card>
+    </PagesCabinetUiCardsCard>
 
     <!-- Вкладки -->
-    <Card class="tabs-card" bordered elevated>
+    <PagesCabinetUiCardsCard class="tabs-card" bordered elevated>
       <template #header>
         <div class="tab-nav">
           <button
@@ -212,7 +212,7 @@
           @refresh="refreshObjectData"
         />
       </div>
-    </Card>
+    </PagesCabinetUiCardsCard>
   </div>
 
   <!-- Модальное окно редактирования -->
@@ -229,7 +229,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import Card from '@/components/pages/cabinet/ui/cards/card.vue'
 
 // --- Состояние ---
 const route = useRoute()
