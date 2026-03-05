@@ -1,5 +1,5 @@
 <template>
-  <WorkerIndex
+  <PagesCabinetContractorsMasterWorkerIndex
     :id="id"
     :contractor="contractor"
     :contractor-type="'worker'"
@@ -17,7 +17,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import WorkerIndex from '@/components/pages/cabinet/Contractors/MasterWorker/Index.vue'
 
 const route = useRoute()
 const id = route.params.id

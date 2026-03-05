@@ -1,7 +1,7 @@
 <template>
   <div class="contractor-layout">
     <!-- Шапка с данными контрагента -->
-    <Header
+    <PagesCabinetContractorsCommonHeader
       :contractor-type="contractorType"
       :contractor="contractor"
       :pending-total="pendingTotal"
@@ -13,7 +13,7 @@
       <!-- Левая колонка -->
       <div class="contractor-column">
         <!-- Зарплатные удержания -->
-        <PaymentsHistory
+        <PagesCabinetContractorsCommonPaymentsHistory
           :payments="financialPayments"
           :objects="objects"
           :contractorType="contractorType"
@@ -28,7 +28,7 @@
       <!-- Правая колонка -->
       <div class="contractor-column">
         <!-- Форма добавления оплаты -->
-        <PaymentForm
+        <PagesCabinetContractorsCommonPaymentForm
           v-if="contractor.id"
           :objects="objects"
           :contractor-type="contractorType"
@@ -65,9 +65,6 @@
 
 <script setup>
 import { ref } from 'vue'
-import Header from '@/components/pages/cabinet/Contractors/Common/Header.vue'
-import PaymentsHistory from '@/components/pages/cabinet/Contractors/Common/PaymentsHistory.vue'
-import PaymentForm from '@/components/pages/cabinet/Contractors/Common/PaymentForm.vue'
 
 const props = defineProps({
   salaryDeductions: {

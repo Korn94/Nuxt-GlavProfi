@@ -1,5 +1,5 @@
 <template>
-  <OfficeIndex
+  <PagesCabinetContractorsOfficeIndex
     :id="id"
     :contractor="contractor"
     :contractor-type="'office'" 
@@ -14,7 +14,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import OfficeIndex from '@/components/pages/cabinet/Contractors/Office/Index.vue'
 
 const route = useRoute()
 const id = route.params.id
