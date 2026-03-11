@@ -72,7 +72,7 @@
         <tbody>
           <tr 
             v-for="user in onlineUsers" 
-            :key="user.sessionId"
+            :key="user.userId"
             class="user-row"
             :class="{ 'is-current-user': user.userId === authStore.user?.id }"
           >
@@ -251,7 +251,9 @@ const formatPath = (path: string | null | undefined): string => {
   if (pathLabels[cleanPath]) return pathLabels[cleanPath]
   
   if (cleanPath.startsWith('cabinet/')) {
-    const page = cleanPath.split('/')[1]
+    const parts = cleanPath.split('/')
+    const page = parts[1] // ✅ Безопасное получение
+    if (!page) return cleanPath // ✅ Проверка на undefined
     return page.charAt(0).toUpperCase() + page.slice(1)
   }
   
@@ -304,7 +306,7 @@ const formatIp = (ip: string | null | undefined): string => {
   return ip
 }
 
-const getUserInitials = (name?: string): string => {
+const getUserInitials = (name?: string | null): string => {
   if (!name || name.trim() === '') return 'U'
   const parts = name.trim().split(' ').filter(p => p.length > 0)
   if (parts.length >= 2) {

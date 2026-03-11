@@ -77,7 +77,7 @@
               </button>
               <button
                 class="action-btn btn-danger"
-                @click="handleDelete"
+                @click="confirmDelete"
                 title="Удалить"
                 :disabled="updating || loading"
               >
@@ -192,14 +192,13 @@
       <div v-if="hasChildren && !subtask.isCompleted" class="subtask-children">
         <SubtaskItem
           v-for="child in subtask.children"
-            :key="child.id"
-            :subtask="child"
-            :task-id="taskId"
-            :depth="(depth ?? 0) + 1"
-            @updated="$emit('updated')"
-            @deleted="$emit('deleted')"
-          />
-        </div>
+          :key="child.id"
+          :subtask="child"
+          :task-id="taskId"
+          :depth="(depth ?? 0) + 1"
+          @updated="$emit('updated')"
+          @deleted="$emit('deleted')"
+        />
       </div>
     </Transition>
     
@@ -261,16 +260,16 @@ import { ref, computed, nextTick, watch } from 'vue'
 import { useSubtasks } from '~/composables/boards/useSubtasks'
 import { useSubtaskCompletion } from '~/composables/boards/useSubtaskCompletion'
 import { useNotifications } from '~/composables/useNotifications'
-import type { SubtaskTree } from '~/types/boards'  // ✅ ИСПРАВЛЕНО: SubtaskTree вместо Subtask
+import type { SubtaskTree } from '~/types/boards'
 import { MAX_SUBTASK_DEPTH } from '~/types/boards'
 
 // ============================================
 // PROPS & EMITS
 // ============================================
 const props = defineProps<{
-  subtask: SubtaskTree  // ✅ ИСПРАВЛЕНО: SubtaskTree вместо Subtask
+  subtask: SubtaskTree
   taskId: number
-  depth?: number  // ✅ Опциональный, будет значение по умолчанию
+  depth?: number
 }>()
 
 const emit = defineEmits<{
@@ -281,11 +280,9 @@ const emit = defineEmits<{
 // ============================================
 // COMPOSABLES
 // ============================================
-const { updateSubtask, completeSubtask, deleteSubtask, createSubtask } = useSubtasks()
+const { updateSubtask, deleteSubtask, createSubtask } = useSubtasks()
 const { toggleComplete: toggleCompleteWithChildren } = useSubtaskCompletion(props.taskId)
 const notifications = useNotifications()
-
-// ✅ УБРАНО: subscribeToTask, unsubscribeFromTask (теперь подписка в родительском компоненте)
 
 // ============================================
 // STATE
@@ -315,21 +312,21 @@ const childData = ref({
 // COMPUTED
 // ============================================
 const hasChildren = computed(() => {
-  return props.subtask.children && props.subtask.children.length > 0  // ✅ children вместо subtasks
+  return props.subtask.children && props.subtask.children.length > 0
 })
 
 const childrenCount = computed(() => {
-  if (!props.subtask.children) return 0  // ✅ children вместо subtasks
-  return countAllChildren(props.subtask.children)  // ✅ children вместо subtasks
+  if (!props.subtask.children) return 0
+  return countAllChildren(props.subtask.children)
 })
 
 const completedChildrenCount = computed(() => {
-  if (!props.subtask.children) return 0  // ✅ children вместо subtasks
-  return countCompletedChildren(props.subtask.children)  // ✅ children вместо subtasks
+  if (!props.subtask.children) return 0
+  return countCompletedChildren(props.subtask.children)
 })
 
 const canAddChild = computed(() => {
-  return (props.depth ?? 0) < MAX_SUBTASK_DEPTH  // ✅ depth ?? 0
+  return (props.depth ?? 0) < MAX_SUBTASK_DEPTH
 })
 
 const canAddChildSubmit = computed(() => {
@@ -356,8 +353,8 @@ const checkboxTooltip = computed(() => {
 const countAllChildren = (children: SubtaskTree[]): number => {
   let count = children.length
   children.forEach(child => {
-    if (child.children && child.children.length > 0) {  // ✅ children вместо subtasks
-      count += countAllChildren(child.children)  // ✅ children вместо subtasks
+    if (child.children && child.children.length > 0) {
+      count += countAllChildren(child.children)
     }
   })
   return count
@@ -366,8 +363,8 @@ const countAllChildren = (children: SubtaskTree[]): number => {
 const countCompletedChildren = (children: SubtaskTree[]): number => {
   let count = children.filter(c => c.isCompleted).length
   children.forEach(child => {
-    if (child.children && child.children.length > 0) {  // ✅ children вместо subtasks
-      count += countCompletedChildren(child.children)  // ✅ children вместо subtasks
+    if (child.children && child.children.length > 0) {
+      count += countCompletedChildren(child.children)
     }
   })
   return count
@@ -471,15 +468,23 @@ const cancelAddChild = () => {
 }
 
 // ============================================
-// METHODS - Удаление
+// ✅ METHODS - Удаление (ИСПРАВЛЕНО)
 // ============================================
-const handleDelete = async () => {
-  if (!confirm('Удалить эту подзадачу?')) return
+const confirmDelete = () => {
+  showDeleteConfirm.value = true
+}
+
+const cancelDelete = () => {
+  showDeleteConfirm.value = false
+}
+
+const deleteSubtaskAction = async () => {
   deleting.value = true
   try {
     await deleteSubtask(props.subtask.id)
     notifications.success('Подзадача удалена')
     emit('deleted')
+    cancelDelete()
   } catch (error: any) {
     console.error('Failed to delete subtask:', error)
     const message = error.data?.message || 'Не удалось удалить подзадачу'
@@ -594,8 +599,8 @@ const resetDragState = () => {
 // METHODS - Вспомогательные
 // ============================================
 const isDescendant = (parent: SubtaskTree, targetId: number): boolean => {
-  if (!parent.children || parent.children.length === 0) return false  // ✅ children вместо subtasks
-  for (const child of parent.children) {  // ✅ children вместо subtasks
+  if (!parent.children || parent.children.length === 0) return false
+  for (const child of parent.children) {
     if (child.id === targetId) return true
     if (isDescendant(child, targetId)) return true
   }
@@ -647,12 +652,6 @@ watch(() => props.subtask.description, (newDesc) => {
     editData.value.description = newDesc || ''
   }
 })
-
-// ============================================
-// LIFECYCLE
-// ============================================
-// ✅ УБРАНО: onMounted/onUnmounted с подпиской на сокет
-// Подписка на обновления доски происходит в родительском компоненте (Subtasks/index.vue)
 </script>
 
 <style scoped lang="scss">

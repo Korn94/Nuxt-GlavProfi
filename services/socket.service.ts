@@ -149,7 +149,6 @@ export class SocketService {
    * Вызывается один раз при старте приложения
    */
   init(): void {
-    // ⛔ Работаем только на клиенте
     if (!process.client) {
       console.log('[SocketService] ⚠️ Работа на сервере, пропускаем инициализацию')
       return
@@ -163,38 +162,39 @@ export class SocketService {
     try {
       console.log('[SocketService] 🚀 Инициализация Socket.IO...')
       
-      // ✅ Правильный URL для подключения
-      const socketUrl = process.client 
-        ? (window.location.hostname === 'localhost' 
-            ? 'http://localhost:3001'
-            : `http://${window.location.hostname}:3001`)
-        : ''
+      // ✅ ПРАВИЛЬНОЕ ОПРЕДЕЛЕНИЕ ПРОДАКШЕНА
+      // Проверяем и NODE_ENV, и hostname
+      const isProd = process.env.NODE_ENV === 'production' || 
+                    window.location.hostname !== 'localhost' && 
+                    window.location.hostname !== '127.0.0.1'
       
-      // ✅ ПОЛУЧАЕМ ТОКЕН ИЗ COOKIE
+      // Формируем URL — В ПРОДАКШЕНЕ ВСЕГДА ОДИН ПОРТ (3000)
+      const socketUrl = isProd 
+        ? `${window.location.protocol}//${window.location.host}`  // ✅ Один порт для всего
+        : `http://localhost:3001`  // Dev: отдельный порт
+      
+      console.log(`[SocketService] 📍 Socket URL: ${socketUrl} (prod: ${isProd})`)
+      
       const authToken = useCookie('auth_token')?.value || ''
       
-      // Создаём подключение с передачей токена
       this.socket = io(socketUrl, {
         path: this.config.path,
-        transports: this.config.transports,
+        transports: this.config.transports as ('websocket' | 'polling')[],
         autoConnect: this.config.autoConnect,
         reconnection: this.config.reconnection,
         reconnectionAttempts: this.config.reconnectionAttempts,
         reconnectionDelay: this.config.reconnectionDelay,
-        // ✅ ПЕРЕДАЁМ ТОКЕН В AUTH
-        auth: {
-          token: authToken // ✅ КРИТИЧЕСКИ ВАЖНО
-        }
+        auth: { token: authToken },
+        secure: window.location.protocol === 'https:',
+        rejectUnauthorized: process.env.NODE_ENV === 'production'
       })
       
-      // Регистрируем обработчики событий подключения
       this.setupConnectionHandlers()
-      
-      // Регистрируем обработчики бизнес-событий
       this.setupEventHandlers()
       
       this.isInitialized = true
       console.log('[SocketService] ✅ Socket.IO инициализирован')
+      
     } catch (error) {
       console.error('[SocketService] ❌ Ошибка инициализации:', error)
       throw error

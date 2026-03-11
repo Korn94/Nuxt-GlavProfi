@@ -263,8 +263,6 @@ const addSubtask = async () => {
     emit('updated')
     cancelAdd()
 
-    // Обновляем задачу в tasksStore для синхронизации
-    tasksStore.updateTaskSubtasksFromStore(taskId.value)
   } catch (error: any) {
     console.error('[SubtasksIndex] Failed to create subtask:', error)
     const message = error.data?.message || 'Не удалось добавить подзадачу'
@@ -280,17 +278,11 @@ const addSubtask = async () => {
 const handleSubtaskUpdated = () => {
   console.log('[SubtasksIndex] Subtask updated, emitting event')
   emit('updated')
-
-  // Обновляем задачу в tasksStore для синхронизации
-  tasksStore.updateTaskSubtasksFromStore(taskId.value)
 }
 
 const handleSubtaskDeleted = () => {
   console.log('[SubtasksIndex] Subtask deleted, emitting event')
   emit('updated')
-
-  // Обновляем задачу в tasksStore для синхронизации
-  tasksStore.updateTaskSubtasksFromStore(taskId.value)
 }
 
 // ============================================

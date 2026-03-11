@@ -111,8 +111,10 @@ export default defineNuxtConfig({
       '/prices/plumbing'
     ],
   },
-
+  
+  // @ts-ignore - Nitro config для Nuxt 4
   nitro: {
+    preset: 'node-server',
     experimental: {
       websocket: true,
     },
@@ -139,13 +141,6 @@ export default defineNuxtConfig({
           'Access-Control-Allow-Credentials': 'true',
           'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
           'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-        }
-      },
-      '/socket.io/**': {
-        cors: true,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Credentials': 'true'
         }
       },
       '/cabinet': {
@@ -201,12 +196,12 @@ export default defineNuxtConfig({
       telegramChatId: process.env.TELEGRAM_CHAT_ID
     },
     private: {
-      dbHost: process.env.DB_HOST,
-      dbPort: process.env.DB_PORT,
-      dbUser: process.env.DB_USER,
-      dbPassword: process.env.DB_PASSWORD,
-      dbName: process.env.DB_NAME,
-      jwtSecret: process.env.JWT_SECRET
+      dbHost: process.env.NUXT_DB_HOST,
+      dbPort: Number(process.env.NUXT_DB_PORT),
+      dbUser: process.env.NUXT_DB_USER,
+      dbPassword: process.env.NUXT_DB_PASSWORD,
+      dbName: process.env.NUXT_DB_NAME,
+      jwtSecret: process.env.NUXT_JWT_SECRET,
     }
   },
 

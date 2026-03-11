@@ -14,7 +14,7 @@ import { eventHandler, createError, readBody } from 'h3'
 import { db, boardsSubtasks, boardsTasks } from '../../../../db'
 import { eq, and } from 'drizzle-orm'
 import { verifyAuth } from '../../../../utils/auth'
-import { getIO } from '../../../../plugins/socket.io'
+import { getIO } from '../../../../socket/common'
 import { emitSubtaskUpdated } from '../../../../socket/handlers/subtasks'
 import type { Subtask } from '~/types/boards'
 

@@ -4,7 +4,7 @@ import { eventHandler, createError } from 'h3'
 import { db, boardsTasks } from '../../../../db'
 import { eq } from 'drizzle-orm'
 import { verifyAuth } from '../../../../utils/auth'
-import { getIO } from '../../../../plugins/socket.io'
+import { getIO } from '../../../../socket/common'
 // ✅ ИМПОРТИРУЕМ broadcast-функцию
 import { broadcastTaskDeleted } from '../../../../socket/handlers/tasks'
 

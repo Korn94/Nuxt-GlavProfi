@@ -13,7 +13,7 @@ import { eventHandler, createError, readBody } from 'h3'
 import { db, boardsTasks, boardsTasksTags } from '../../../../db'
 import { eq } from 'drizzle-orm'
 import { verifyAuth } from '../../../../utils/auth'
-import { getIO } from '../../../../plugins/socket.io'
+import { getIO } from '../../../../socket/common'
 import { broadcastTaskUpdated } from '../../../../socket/handlers/tasks'
 import type { Task } from '~/types/boards'
 

@@ -4,18 +4,28 @@ import mysql from 'mysql2/promise'
 import * as schema from './schema'
 import './relations'
 
+// ✅ Читаем переменные с приоритетом: NUXT_ > DB_ > default
+// Это работает и при сборке, и в рантайме, и без загрузки .env
+const dbConfig = {
+  host: process.env.NUXT_DB_HOST || 'localhost',
+  port: Number(process.env.NUXT_DB_PORT) || 3306,
+  user: process.env.NUXT_DB_USER,
+  password: process.env.NUXT_DB_PASSWORD,
+  database: process.env.NUXT_DB_NAME,
+}
+
 // Создаем пул соединений
 const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  port: Number(process.env.DB_PORT),
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
+  host: dbConfig.host,
+  port: dbConfig.port,
+  user: dbConfig.user,
+  password: dbConfig.password,
+  database: dbConfig.database,
   waitForConnections: true,
-  connectionLimit: 10,       // Максимальное количество соединений
-  queueLimit: 0,             // Без ограничения очереди
-  connectTimeout: 30000,     // Таймаут получения соединения (30 сек)
-  idleTimeout: 60000         // Время простоя перед закрытием (60 сек)
+  connectionLimit: 10,
+  queueLimit: 0,
+  connectTimeout: 30000,
+  idleTimeout: 60000
 })
 
 // Устанавливаем часовой пояс сессии на Московское время (UTC+3)

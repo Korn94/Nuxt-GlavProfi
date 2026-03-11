@@ -219,9 +219,12 @@ export const useAuthStore = defineStore('auth', {
      */
     async connectSocket() {
       try {
+        // ⏱️ Небольшая задержка для гарантии записи куки
+        await new Promise(resolve => setTimeout(resolve, 150))
+        
         const socketStore = useSocketStore()
         
-        // Если сокет уже подключен, отключаем и подключаем заново
+        // 🔁 Если сокет уже подключен — переподключаем (важно при логине/рефреше токена)
         if (socketStore.isConnected) {
           await socketStore.disconnect()
           await socketStore.connect()

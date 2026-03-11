@@ -61,6 +61,7 @@ const menuItems = [
     icon: 'mdi:instant-transfer',
     roles: ['admin'] 
   },
+  { divider: true },
   { 
     title: 'Онлайн', 
     path: '/cabinet/online', 
