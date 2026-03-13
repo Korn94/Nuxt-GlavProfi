@@ -206,7 +206,7 @@ export default defineNuxtConfig({
   },
 
   // Дата совместимости
-  compatibilityDate: '2025-08-27',
+  compatibilityDate: '2026-03-13',
 
   devtools: {
     enabled: true,

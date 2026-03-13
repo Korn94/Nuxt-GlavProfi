@@ -101,12 +101,14 @@ export function getSocketOptions(isDev: boolean) {
   return {
     path: '/socket.io',
     cors: getCorsConfig(isDev),
-    // ✅ FIX: явное приведение к нужному типу
     transports: ['websocket', 'polling'] as ('websocket' | 'polling')[],
+    allowUpgrades: true,
     allowEIO3: true,
     pingTimeout: 60000,
     pingInterval: 25000,
     upgradeTimeout: 30000,
-    maxHttpBufferSize: 1e6
+    maxHttpBufferSize: 1e6,
+    // ✅ Отключаем сжатие — часто ломает WS через nginx proxy
+    perMessageDeflate: false
   }
 }

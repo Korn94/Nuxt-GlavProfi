@@ -5,15 +5,10 @@ import type { NitroApp } from 'nitropack'
 import { setupSocketServer } from './index'
 import { 
   resetAllSessions, 
-  setupSocketHandlers, 
   getSocketOptions, 
   setIO 
 } from './common'
 
-/**
- * Инициализация Socket.IO для разработки
- * ✅ Экспортируем как обычную функцию, а не defineNitroPlugin
- */
 export function initSocketDev(nitroApp: NitroApp): void {
   console.log('[SocketDev] 🛠️ Инициализация Socket.IO для разработки...')
   
@@ -28,10 +23,9 @@ export function initSocketDev(nitroApp: NitroApp): void {
     
     io = new Server(httpServer, getSocketOptions(true))
     
-    setupSocketHandlers(io)
+    // ✅ Только setupSocketServer — без setupSocketHandlers (дублирует connection)
     setupSocketServer(io)
     
-    // Сброс сессий (не блокируем инициализацию)
     resetAllSessions().catch(console.error)
     
     setIO(io)

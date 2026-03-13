@@ -1,12 +1,11 @@
 // stores/socket/index.ts
 /**
  * Socket Store - Управление состоянием подключения Socket.IO
- * 
+ *
  * Архитектура:
  * - Хранит только реактивное состояние (isConnected, userId, error)
  * - Делегирует всю логику подключения в SocketService
  * - Предоставляет удобные обёртки для компонентов
- * - Сохраняет вспомогательные функции (generateTabId, setSessionId)
  */
 
 import { defineStore } from 'pinia'
@@ -16,468 +15,327 @@ import { setSessionId } from './helpers/sessionId'
 import { useCookie } from 'nuxt/app'
 
 /**
- * Состояние сокета (реактивное для компонентов)
- */
-export const socketState = () => ({
-  /**
-   * Статус подключения к сокет-серверу
-   */
-  isConnected: false,
-  
-  /**
-   * Статус подключения (в процессе)
-   */
-  isConnecting: false,
-  
-  /**
-   * ID текущего пользователя (если авторизован)
-   */
-  userId: null as number | null,
-  
-  /**
-   * Сообщение об ошибке подключения
-   */
-  error: null as string | null,
-  
-  /**
-   * Количество попыток переподключения
-   */
-  reconnectAttempts: 0,
-  
-  /**
-   * Максимальное количество попыток переподключения
-   */
-  maxReconnectAttempts: 5,
-  
-  /**
-   * Интервал heartbeat (для поддержания соединения)
-   */
-  heartbeatInterval: null as NodeJS.Timeout | null,
-  
-  /**
-   * Очередь сообщений для отправки при восстановлении соединения
-   */
-  messageQueue: [] as Array<{
-    event: string
-    data: any
-    resolve?: (value: any) => void
-    reject?: (reason?: any) => void
-  }>
-})
-
-/**
  * Генерация уникального идентификатора вкладки
- * @returns Уникальный ID вкладки
  */
 function generateTabId(): string {
   const tabIdCookie = useCookie<string>('tab_id', {
-    maxAge: 60 * 60 * 24 * 90, // 90 дней
+    maxAge: 60 * 60 * 24 * 90,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
     path: '/'
   })
-  
-  // Если уже есть сохранённый tabId - используем его
+
   if (tabIdCookie.value) {
     return tabIdCookie.value
   }
-  
-  // Генерируем новый уникальный идентификатор
+
   const newTabId = `tab_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
   tabIdCookie.value = newTabId
-  
+
   console.log('[SocketStore] 🆔 Сгенерирован новый ID вкладки:', newTabId)
   return newTabId
 }
 
-/**
- * Инициализация обработчиков событий SocketService
- * @param socketStore - Экземпляр store для обновления состояния
- */
-function setupSocketEventHandlers(socketStore: ReturnType<typeof useSocketStore>) {
-  // ✅ ПОДКЛЮЧЕНИЕ
-  socketService.on('connect', () => {
-    console.log('[SocketStore] ✅ Подключено к серверу')
-    console.log('[SocketStore] 📡 Socket ID:', socketService.getSocketId())
-    
-    // ✅ ПРОВЕРКА ТРАНСПОРТА
-    const transport = socketService.getTransport()
-    console.log('[SocketStore] 🚚 Транспорт:', transport)
-    
-    if (transport === 'websocket') {
-      console.log('[SocketStore] ✅ WebSocket transport active - FAST MODE')
-    } else {
-      console.warn('[SocketStore] ⚠️ Using polling transport - SLOW MODE')
-    }
-    
-    // Обновляем состояние store
-    socketStore.isConnected = true
-    socketStore.isConnecting = false
-    socketStore.error = null
-    socketStore.reconnectAttempts = 0
-    
-    // ✅ РЕГИСТРИРУЕМ ВКЛАДКУ ПРИ ПОДКЛЮЧЕНИИ
-    const tabId = generateTabId()
-    const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/'
-    
-    socketService.emit('tab:register', {
-      tabId,
-      currentPath
+export const useSocketStore = defineStore('socket', () => {
+  // ============================================
+  // STATE — все поля реактивны через ref()
+  // ============================================
+
+  const isConnected = ref(false)
+  const isConnecting = ref(false)
+  const userId = ref<number | null>(null)
+  const error = ref<string | null>(null)
+  const reconnectAttempts = ref(0)
+  const maxReconnectAttempts = ref(5)
+  const heartbeatInterval = ref<NodeJS.Timeout | null>(null)
+  const messageQueue = ref<Array<{
+    event: string
+    data: any
+    resolve?: (value: any) => void
+    reject?: (reason?: any) => void
+  }>>([])
+
+  // ============================================
+  // GETTERS
+  // ============================================
+
+  const connected = computed(() => isConnected.value)
+  const hasError = computed(() => !!error.value)
+  const isReconnecting = computed(() =>
+    reconnectAttempts.value > 0 && reconnectAttempts.value < maxReconnectAttempts.value
+  )
+
+  // ============================================
+  // ОБРАБОТЧИКИ СОБЫТИЙ SOCKETSERVICE
+  // ============================================
+
+  function setupEventHandlers() {
+    // ✅ ПОДКЛЮЧЕНИЕ
+    socketService.on('connect', () => {
+      console.log('[SocketStore] ✅ Подключено к серверу')
+      console.log('[SocketStore] 📡 Socket ID:', socketService.getSocketId())
+
+      const transport = socketService.getTransport()
+      console.log('[SocketStore] 🚚 Транспорт:', transport)
+
+      isConnected.value = true
+      isConnecting.value = false
+      error.value = null
+      reconnectAttempts.value = 0
+
+      // Регистрируем вкладку
+      const tabId = generateTabId()
+      const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/'
+      socketService.emit('tab:register', { tabId, currentPath })
+      console.log('[SocketStore] 📌 Вкладка зарегистрирована:', tabId, 'на странице', currentPath)
+
+      // Отправляем накопленные сообщения
+      sendQueuedMessages()
     })
-    
-    console.log('[SocketStore] 📌 Вкладка зарегистрирована:', tabId, 'на странице', currentPath)
-    
-    // ✅ ОТПРАВЛЯЕМ НАКОПЛЕННЫЕ СООБЩЕНИЯ ИЗ ОЧЕРЕДИ
-    socketStore.sendQueuedMessages()
-  })
-  
-  // ✅ ОШИБКА ПОДКЛЮЧЕНИЯ
-  socketService.on('connect_error', (error: any) => {
-    console.error('[SocketStore] ❌ Ошибка подключения:', error.message)
-    
-    socketStore.isConnecting = false
-    socketStore.isConnected = false
-    socketStore.error = `Ошибка подключения: ${error.message}`
-    socketStore.reconnectAttempts++
-    
-    // ✅ АВТОМАТИЧЕСКИЙ ВЫХОД ПРИ ОШИБКЕ АУТЕНТИФИКАЦИИ
-    if (error.message?.includes('Unauthorized') || error.message?.includes('No token')) {
-      console.log('[SocketStore] 🔐 Ошибка аутентификации, выполняем выход...')
-      
-      // Динамический импорт для избежания циклических зависимостей
-      if (process.client) {
+
+    // ✅ ОШИБКА ПОДКЛЮЧЕНИЯ
+    socketService.on('connect_error', (err: any) => {
+      console.error('[SocketStore] ❌ Ошибка подключения:', err.message)
+
+      isConnecting.value = false
+      isConnected.value = false
+      error.value = `Ошибка подключения: ${err.message}`
+      reconnectAttempts.value++
+
+      // ✅ logout только при невалидном токене, НЕ при его отсутствии
+      const isInvalidToken =
+        err.message?.includes('Unauthorized') ||
+        err.message?.includes('Invalid token') ||
+        err.message?.includes('User not found')
+
+      if (isInvalidToken && process.client) {
+        console.log('[SocketStore] 🔐 Невалидный токен, выполняем выход...')
         import('../auth').then(({ useAuthStore }) => {
           const authStore = useAuthStore()
           authStore.logout()
-        }).catch(err => {
-          console.error('[SocketStore] ❌ Не удалось импортировать auth store:', err)
+        }).catch((importErr) => {
+          console.error('[SocketStore] ❌ Не удалось импортировать auth store:', importErr)
         })
       }
-    }
-  })
-  
-  // ✅ ОТКЛЮЧЕНИЕ
-  socketService.on('disconnect', (reason: string) => {
-    console.log('[SocketStore] 🔌 Отключено:', reason)
-    
-    socketStore.isConnected = false
-    socketStore.isConnecting = false
-    socketStore.userId = null
-    
-    // ✅ ОЧИЩАЕМ HEARTBEAT ПРИ ОТКЛЮЧЕНИИ
-    if (socketStore.heartbeatInterval) {
-      clearInterval(socketStore.heartbeatInterval)
-      socketStore.heartbeatInterval = null
-    }
-  })
-  
-  // ✅ ПОПЫТКА ПЕРЕПОДКЛЮЧЕНИЯ
-  socketService.on('reconnect_attempt', (attempt: number) => {
-    console.log(`[SocketStore] 🔄 Попытка переподключения ${attempt}/${socketStore.maxReconnectAttempts}`)
-    socketStore.reconnectAttempts = attempt
-  })
-  
-  // ✅ УСПЕШНОЕ ПЕРЕПОДКЛЮЧЕНИЕ
-  socketService.on('reconnect', (attempt: number) => {
-    console.log(`[SocketStore] ✅ Переподключено после ${attempt} попыток`)
-    
-    socketStore.reconnectAttempts = 0
-    socketStore.error = null
-  })
-  
-  // ✅ НЕУДАЧНОЕ ПЕРЕПОДКЛЮЧЕНИЕ
-  socketService.on('reconnect_failed', () => {
-    console.error('[SocketStore] ❌ Не удалось переподключиться после всех попыток')
-    
-    socketStore.error = 'Не удалось подключиться к серверу'
-    socketStore.isConnected = false
-    socketStore.isConnecting = false
-  })
-  
-  // ✅ ОШИБКА СЕРВЕРА
-  socketService.on('error', (error: any) => {
-    console.error('[SocketStore] ❌ Ошибка сервера:', error)
-    socketStore.error = error.message || 'Неизвестная ошибка сервера'
-  })
-  
-  // ✅ СЕССИЯ
-  socketService.on('session:initialized', (data: { sessionId: string; userId: number }) => {
-    console.log('[SocketStore] 🎫 Сессия инициализирована:', data.sessionId)
-    
-    // ✅ СОХРАНЯЕМ SESSION_ID В КУКИ
-    setSessionId(data.sessionId)
-    
-    // ✅ ОБНОВЛЯЕМ СОСТОЯНИЕ
-    socketStore.userId = data.userId
-  })
-}
+    })
 
-/**
- * Pinia store для управления сокет-соединением
- */
-export const useSocketStore = defineStore('socket', () => {
-  // ============================================
-  // STATE
-  // ============================================
-  
-  const state = socketState()
-  
-  // ============================================
-  // COMPUTED / GETTERS
-  // ============================================
-  
-  /**
-   * Проверка статуса подключения
-   */
-  const connected = computed(() => state.isConnected)
-  
-  /**
-   * Проверка наличия ошибок
-   */
-  const hasError = computed(() => !!state.error)
-  
-  /**
-   * Проверка, идёт ли переподключение
-   */
-  const isReconnecting = computed(() => 
-    state.reconnectAttempts > 0 && state.reconnectAttempts < state.maxReconnectAttempts
-  )
-  
-  // ============================================
-  // ACTIONS - Initialization
-  // ============================================
-  
-  /**
-   * Инициализация сокет-сервиса
-   * Вызывается один раз при старте приложения
-   */
-  function init() {
-    console.log('[SocketStore] 🚀 Инициализация Socket.IO...')
-    
-    // Инициализируем SocketService
-    socketService.init()
-    
-    // Настраиваем обработчики событий
-    setupSocketEventHandlers({ ...state, ...getters } as any)
-    
-    console.log('[SocketStore] ✅ Socket.IO инициализирован')
+    // ✅ ОТКЛЮЧЕНИЕ
+    socketService.on('disconnect', (reason: string) => {
+      console.log('[SocketStore] 🔌 Отключено:', reason)
+
+      isConnected.value = false
+      isConnecting.value = false
+      userId.value = null
+
+      if (heartbeatInterval.value) {
+        clearInterval(heartbeatInterval.value)
+        heartbeatInterval.value = null
+      }
+    })
+
+    // ✅ ПОПЫТКА ПЕРЕПОДКЛЮЧЕНИЯ
+    socketService.on('reconnect_attempt', (attempt: number) => {
+      console.log(`[SocketStore] 🔄 Попытка переподключения ${attempt}/${maxReconnectAttempts.value}`)
+      reconnectAttempts.value = attempt
+    })
+
+    // ✅ УСПЕШНОЕ ПЕРЕПОДКЛЮЧЕНИЕ
+    socketService.on('reconnect', (attempt: number) => {
+      console.log(`[SocketStore] ✅ Переподключено после ${attempt} попыток`)
+      reconnectAttempts.value = 0
+      error.value = null
+    })
+
+    // ✅ НЕУДАЧНОЕ ПЕРЕПОДКЛЮЧЕНИЕ
+    socketService.on('reconnect_failed', () => {
+      console.error('[SocketStore] ❌ Не удалось переподключиться после всех попыток')
+      error.value = 'Не удалось подключиться к серверу'
+      isConnected.value = false
+      isConnecting.value = false
+    })
+
+    // ✅ ОШИБКА СЕРВЕРА
+    socketService.on('error', (err: any) => {
+      console.error('[SocketStore] ❌ Ошибка сервера:', err)
+      error.value = err.message || 'Неизвестная ошибка сервера'
+    })
+
+    // ✅ ИНИЦИАЛИЗАЦИЯ СЕССИИ
+    socketService.on('session:initialized', (data: { sessionId: string; userId: number }) => {
+      console.log('[SocketStore] 🎫 Сессия инициализирована:', data.sessionId)
+      setSessionId(data.sessionId)
+      userId.value = data.userId
+    })
   }
-  
+
+  // ============================================
+  // ACTIONS — Подключение
+  // ============================================
+
   /**
    * Подключение к сокет-серверу
+   * Вызывается из plugins/socket.client.ts
    */
   function connect() {
     console.log('[SocketStore] 🔗 Подключение к серверу...')
-    state.isConnecting = true
+    isConnecting.value = true
     socketService.connect()
   }
-  
+
   /**
    * Отключение от сокет-сервера
    */
   function disconnect() {
     console.log('[SocketStore] 🔌 Отключение от сервера...')
     socketService.disconnect()
-    
-    // Сбрасываем состояние
-    state.isConnected = false
-    state.isConnecting = false
-    state.userId = null
+    isConnected.value = false
+    isConnecting.value = false
+    userId.value = null
   }
-  
+
   // ============================================
-  // ACTIONS - Subscription Management
+  // ACTIONS — Подписки на доски
   // ============================================
-  
-  /**
-   * Подписаться на обновления доски
-   * @param boardId - ID доски
-   */
+
   function subscribeToBoard(boardId: number) {
     console.log(`[SocketStore] 🔔 Подписка на доску ${boardId}`)
     socketService.subscribeToBoard(boardId)
   }
-  
-  /**
-   * Отписаться от обновлений доски
-   * @param boardId - ID доски
-   */
+
   function unsubscribeFromBoard(boardId: number) {
     console.log(`[SocketStore] 📴 Отписка от доски ${boardId}`)
     socketService.unsubscribeFromBoard(boardId)
   }
-  
-  /**
-   * Отписаться от всех досок
-   */
+
   function unsubscribeFromAll() {
     console.log('[SocketStore] 📴 Отписка от всех досок')
     socketService.unsubscribeFromAll()
   }
-  
+
   // ============================================
-  // ACTIONS - Message Queue
+  // ACTIONS — Очередь сообщений
   // ============================================
-  
-  /**
-   * Добавить сообщение в очередь
-   * @param event - Имя события
-   * @param data - Данные события
-   * @returns Promise с результатом отправки
-   */
+
   function queueMessage<T>(event: string, data: any): Promise<T> {
     return new Promise((resolve, reject) => {
-      state.messageQueue.push({
+      messageQueue.value.push({
         event,
         data,
         resolve: resolve as (value: any) => void,
         reject
       })
-      
-      // Если подключены - отправляем сразу
-      if (state.isConnected) {
+
+      if (isConnected.value) {
         sendQueuedMessages()
       }
     })
   }
-  
-  /**
-   * Отправить все сообщения из очереди
-   */
+
   function sendQueuedMessages() {
-    if (state.messageQueue.length === 0) return
-    
-    console.log(`[SocketStore] 📤 Отправка ${state.messageQueue.length} сообщений из очереди`)
-    
-    while (state.messageQueue.length > 0) {
-      const { event, data, resolve, reject } = state.messageQueue.shift()!
-      
+    if (messageQueue.value.length === 0) return
+
+    console.log(`[SocketStore] 📤 Отправка ${messageQueue.value.length} сообщений из очереди`)
+
+    while (messageQueue.value.length > 0) {
+      const { event, data, resolve, reject } = messageQueue.value.shift()!
       socketService.emit(event, data)
         .then((result: any) => resolve?.(result))
-        .catch((error: any) => reject?.(error))
+        .catch((err: any) => reject?.(err))
     }
   }
-  
-  /**
-   * Очистить очередь сообщений
-   */
+
   function clearMessageQueue() {
     console.log('[SocketStore] 🧹 Очистка очереди сообщений')
-    state.messageQueue = []
+    messageQueue.value = []
   }
-  
+
   // ============================================
-  // ACTIONS - Heartbeat
+  // ACTIONS — Heartbeat
   // ============================================
-  
-  /**
-   * Запустить heartbeat для поддержания соединения
-   * @param intervalMs - Интервал в миллисекундах (по умолчанию 30000)
-   */
+
   function startHeartbeat(intervalMs: number = 30000) {
-    if (state.heartbeatInterval) {
-      clearInterval(state.heartbeatInterval)
+    if (heartbeatInterval.value) {
+      clearInterval(heartbeatInterval.value)
     }
-    
+
     console.log(`[SocketStore] 💓 Запуск heartbeat каждые ${intervalMs}мс`)
-    
-    state.heartbeatInterval = setInterval(() => {
-      if (state.isConnected) {
+
+    heartbeatInterval.value = setInterval(() => {
+      if (isConnected.value) {
         socketService.emit('heartbeat', { timestamp: Date.now() }).catch(() => {})
       }
     }, intervalMs)
   }
-  
-  /**
-   * Остановить heartbeat
-   */
+
   function stopHeartbeat() {
-    if (state.heartbeatInterval) {
+    if (heartbeatInterval.value) {
       console.log('[SocketStore] 💓 Остановка heartbeat')
-      clearInterval(state.heartbeatInterval)
-      state.heartbeatInterval = null
+      clearInterval(heartbeatInterval.value)
+      heartbeatInterval.value = null
     }
   }
-  
+
   // ============================================
-  // ACTIONS - Utility
+  // ACTIONS — Утилиты
   // ============================================
-  
-  /**
-   * Очистить состояние store
-   */
+
   function clearState() {
     console.log('[SocketStore] 🧹 Очистка состояния')
-    
     stopHeartbeat()
     clearMessageQueue()
-    
-    state.isConnected = false
-    state.isConnecting = false
-    state.userId = null
-    state.error = null
-    state.reconnectAttempts = 0
+    isConnected.value = false
+    isConnecting.value = false
+    userId.value = null
+    error.value = null
+    reconnectAttempts.value = 0
   }
-  
+
   // ============================================
-  // GETTERS (обёртки)
+  // ИНИЦИАЛИЗАЦИЯ ОБРАБОТЧИКОВ
   // ============================================
-  
-  const getters = {
-    connected,
-    hasError,
-    isReconnecting,
-    
-    /**
-     * Получить ID текущего пользователя
-     */
-    getUserId: () => state.userId,
-    
-    /**
-     * Получить сообщение об ошибке
-     */
-    getError: () => state.error,
-    
-    /**
-     * Получить количество попыток переподключения
-     */
-    getReconnectAttempts: () => state.reconnectAttempts
-  }
-  
+
+  // ✅ Вызываем сразу при создании store — один раз
+  setupEventHandlers()
+
   // ============================================
   // RETURN
   // ============================================
-  
+
   return {
     // State
-    ...state,
-    
+    isConnected,
+    isConnecting,
+    userId,
+    error,
+    reconnectAttempts,
+    maxReconnectAttempts,
+    messageQueue,
+
     // Getters
-    ...getters,
-    
-    // Actions - Initialization
-    init,
+    connected,
+    hasError,
+    isReconnecting,
+
+    // Actions — Подключение
     connect,
     disconnect,
-    
-    // Actions - Subscription
+
+    // Actions — Подписки
     subscribeToBoard,
     unsubscribeFromBoard,
     unsubscribeFromAll,
-    
-    // Actions - Message Queue
+
+    // Actions — Очередь
     queueMessage,
     sendQueuedMessages,
     clearMessageQueue,
-    
-    // Actions - Heartbeat
+
+    // Actions — Heartbeat
     startHeartbeat,
     stopHeartbeat,
-    
-    // Actions - Utility
+
+    // Actions — Утилиты
     clearState,
-    
-    // Utility functions
     generateTabId
   }
 })

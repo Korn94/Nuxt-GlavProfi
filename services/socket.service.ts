@@ -164,14 +164,12 @@ export class SocketService {
       
       // ✅ ПРАВИЛЬНОЕ ОПРЕДЕЛЕНИЕ ПРОДАКШЕНА
       // Проверяем и NODE_ENV, и hostname
-      const isProd = process.env.NODE_ENV === 'production' || 
-                    window.location.hostname !== 'localhost' && 
-                    window.location.hostname !== '127.0.0.1'
+      const isProd = process.env.NODE_ENV === 'production'
       
       // Формируем URL — В ПРОДАКШЕНЕ ВСЕГДА ОДИН ПОРТ (3000)
       const socketUrl = isProd 
         ? `${window.location.protocol}//${window.location.host}`  // ✅ Один порт для всего
-        : `http://localhost:3001`  // Dev: отдельный порт
+        : `http://${window.location.hostname}:3001`  // Dev: отдельный порт
       
       console.log(`[SocketService] 📍 Socket URL: ${socketUrl} (prod: ${isProd})`)
       
@@ -179,14 +177,25 @@ export class SocketService {
       
       this.socket = io(socketUrl, {
         path: this.config.path,
-        transports: this.config.transports as ('websocket' | 'polling')[],
+        
+        // 🔥 ТРАНСПОРТЫ: polling первым (гарантированно работает)
+        transports: ['polling', 'websocket'],
+        
+        // Стандартные настройки
         autoConnect: this.config.autoConnect,
         reconnection: this.config.reconnection,
         reconnectionAttempts: this.config.reconnectionAttempts,
         reconnectionDelay: this.config.reconnectionDelay,
+        
+        // Аутентификация
         auth: { token: authToken },
+        
+        // 🔐 Безопасность
         secure: window.location.protocol === 'https:',
-        rejectUnauthorized: process.env.NODE_ENV === 'production'
+        rejectUnauthorized: process.env.NODE_ENV === 'production',
+        
+        // 🔥 Таймауты
+        timeout: 20000
       })
       
       this.setupConnectionHandlers()
@@ -414,7 +423,6 @@ export class SocketService {
       this.isConnected = true
       console.log('[SocketService] ✅ Подключено:', this.socket?.id)
       
-      // Проверяем транспорт
       const transport = this.getTransport()
       console.log('[SocketService] 🚚 Транспорт:', transport)
       
@@ -424,7 +432,11 @@ export class SocketService {
         console.warn('[SocketService] ⚠️ Using polling transport - SLOW MODE')
       }
       
-      // Переподписываемся на доски после reconnect
+      // ✅ Слушаем upgrade ПОСЛЕ подключения — engine уже доступен
+      this.socket?.io.engine.once('upgrade', (transport: any) => {
+        console.log('[SocketService] 🚀 Transport upgraded to:', transport.name)
+      })
+      
       this.subscribedBoards.forEach(boardId => {
         this.socket?.emit('join', `board:${boardId}`)
       })
@@ -445,11 +457,15 @@ export class SocketService {
     this.socket.on('connect_error', (error: any) => {
       console.error('[SocketService] ⚠️ Ошибка подключения:', error.message)
       
-      // Автоматический выход при ошибке аутентификации
-      if (error.message?.includes('Unauthorized') || error.message?.includes('No token')) {
-        console.log('[SocketService] 🔐 Ошибка аутентификации, выполняем выход...')
-        
-        // Динамический импорт для избежания циклических зависимостей
+      // ✅ logout только при невалидном токене, но НЕ при его отсутствии
+      // "No token provided" — нормально для незалогиненных пользователей
+      const isInvalidToken = 
+        error.message?.includes('Unauthorized') || 
+        error.message?.includes('Invalid token') ||
+        error.message?.includes('User not found')
+      
+      if (isInvalidToken) {
+        console.log('[SocketService] 🔐 Невалидный токен, выполняем выход...')
         if (process.client) {
           import('stores/auth').then(({ useAuthStore }) => {
             const authStore = useAuthStore()
@@ -717,7 +733,8 @@ export class SocketService {
  */
 export const socketService = new SocketService({
   path: '/socket.io',
-  transports: ['websocket', 'polling'],
+  // ✅ Попробуйте WebSocket ПЕРВЫМ в проде
+  transports: ['polling', 'websocket'],
   reconnection: true,
   reconnectionAttempts: 5,
   reconnectionDelay: 1000

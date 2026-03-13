@@ -1,7 +1,6 @@
 // stores/auth/index.ts
 import { defineStore } from 'pinia'
 import { useCookie, useRouter } from 'nuxt/app'
-import { useSocketStore } from '../socket'
 import { useNotifications } from '~/composables/useNotifications'
 import type { User } from '~/types'
 
@@ -14,7 +13,6 @@ interface AuthState {
   error: string | null
 }
 
-// Интерфейс для ответа сервера
 interface AuthResponse {
   token: string
   user: User
@@ -65,10 +63,7 @@ export const useAuthStore = defineStore('auth', {
         this.user = user
         this.isAuthenticated = true
         
-        // Подключаем сокет
-        console.log('[AuthStore] User authenticated, connecting socket...')
-        const socketStore = useSocketStore()
-        await socketStore.connect()
+        // ✅ Сокет подключается автоматически через watch в plugins/socket.client.ts
         
       } catch (error) {
         console.error('Authentication check failed:', error)
@@ -120,11 +115,8 @@ export const useAuthStore = defineStore('auth', {
         // Обновляем состояние
         this.token = response.token
         this.user = response.user
-        this.isAuthenticated = true
+        this.isAuthenticated = true  // ✅ watch в плагине сработает и подключит сокет
         this.sessionId = response.sessionId
-        
-        // Подключаем сокет с новым токеном
-        await this.connectSocket()
         
         // Показываем уведомление об успешном входе
         notifications.success(`Добро пожаловать, ${response.user.name}!`)
@@ -136,16 +128,15 @@ export const useAuthStore = defineStore('auth', {
         return response
       } catch (error: any) {
         console.error('Login failed:', error)
-        // Определяем сообщение об ошибке
+        
         let errorMessage = 'Ошибка авторизации'
-        // Пытаемся получить более конкретное сообщение
         if (error.data?.message) {
           errorMessage = error.data.message
         } else if (error.message) {
           errorMessage = error.message
         }
+        
         this.error = errorMessage
-        // Показываем уведомление об ошибке
         notifications.error(errorMessage, 'Ошибка входа')
         throw error
       } finally {
@@ -159,7 +150,6 @@ export const useAuthStore = defineStore('auth', {
     async logout() {
       const notifications = useNotifications()
       try {
-        // Получаем сессию пользователя из кук
         const tokenCookie = useCookie('auth_token')
         const sessionIdCookie = useCookie('session_id')
         const token = tokenCookie.value
@@ -172,33 +162,30 @@ export const useAuthStore = defineStore('auth', {
           })
         }
         
-        // Удаляем токен и sessionId из кук
+        // Удаляем куки
         tokenCookie.value = null
         sessionIdCookie.value = null
         
-        // Отключаем сокет
-        const socketStore = useSocketStore()
-        await socketStore.disconnect()
+        // ✅ Сокет отключается автоматически через watch в plugins/socket.client.ts
         
         // Сбрасываем состояние
         this.resetState()
         
-        // Показываем уведомление об успешном выходе
         notifications.info('Вы вышли из системы')
         
-        // Перенаправляем на страницу входа
         const router = useRouter()
         router.push('/login')
       } catch (error) {
         console.error('Logout failed:', error)
-        // Показываем уведомление об ошибке
         notifications.error('Ошибка при выходе из системы')
+        
         // Даже при ошибке удаляем токен и перенаправляем
         const tokenCookie = useCookie('auth_token')
         const sessionIdCookie = useCookie('session_id')
         tokenCookie.value = null
         sessionIdCookie.value = null
         this.resetState()
+        
         const router = useRouter()
         router.push('/login')
       }
@@ -212,29 +199,6 @@ export const useAuthStore = defineStore('auth', {
       this.user = null
       this.isAuthenticated = false
       this.error = null
-    },
-    
-    /**
-     * Подключение сокета с текущим токеном
-     */
-    async connectSocket() {
-      try {
-        // ⏱️ Небольшая задержка для гарантии записи куки
-        await new Promise(resolve => setTimeout(resolve, 150))
-        
-        const socketStore = useSocketStore()
-        
-        // 🔁 Если сокет уже подключен — переподключаем (важно при логине/рефреше токена)
-        if (socketStore.isConnected) {
-          await socketStore.disconnect()
-          await socketStore.connect()
-        } else {
-          await socketStore.connect()
-        }
-      } catch (error) {
-        console.error('Socket connection failed:', error)
-        this.error = 'Failed to connect to real-time service'
-      }
     }
   },
   

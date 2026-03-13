@@ -168,12 +168,6 @@ export async function socketAuthMiddleware(
       console.error('[SocketAuth] ❌ Токен не предоставлен. Доступные ключи auth:', 
         socket.handshake.auth ? Object.keys(socket.handshake.auth) : 'none')
       
-      // Отправляем клиенту понятную ошибку
-      socket.emit('connect_error', {
-        message: 'No token provided',
-        code: 'AUTH_TOKEN_MISSING'
-      })
-      
       return next(new Error('No token provided'))
     }
     
@@ -196,18 +190,6 @@ export async function socketAuthMiddleware(
     
   } catch (error) {
     console.error('[SocketAuth] ❌ Ошибка middleware:', error instanceof Error ? error.message : error)
-    
-    // ✅ Отправляем клиенту детальную ошибку (только в dev-режиме)
-    const isDev = process.env.NODE_ENV !== 'production'
-    socket.emit('connect_error', {
-      message: error instanceof Error ? error.message : 'Authentication failed',
-      code: 'AUTH_FAILED',
-      // В продакшене не отправляем детали ошибки
-      details: isDev && error instanceof Error ? { 
-        name: error.name, 
-        stack: error.stack 
-      } : undefined
-    })
     
     // ✅ Прерываем подключение
     next(error instanceof Error ? error : new Error('Authentication failed'))

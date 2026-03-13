@@ -18,11 +18,11 @@ import { socketService } from 'services/socket.service'
 export default defineNuxtPlugin(async (nuxtApp) => {
   // ⛔ Работаем только на клиенте
   if (!process.client) {
-    console.log('[SocketClientPlugin] ⚠️ Running on server, skipping initialization')
+    console.log('[SocketClientPlugin] ⚠️ Запуск на сервере, пропускаем инициализацию')
     return
   }
   
-  console.log('[SocketClientPlugin] 🚀 Initializing...')
+  console.log('[SocketClientPlugin] 🚀 Инициализация...')
   
   const authStore = useAuthStore()
   const socketStore = useSocketStore()
@@ -31,8 +31,12 @@ export default defineNuxtPlugin(async (nuxtApp) => {
   // ИНИЦИАЛИЗАЦИЯ SOCKET SERVICE
   // ============================================
   
-  // Инициализируем SocketService один раз
-  socketService.init()
+  // ✅ Инициализируем SocketService ТОЛЬКО если пользователь уже авторизован
+  // Для незалогиненных пользователей сокет не нужен — не создаём соединение
+  if (authStore.isAuthenticated) {
+    socketService.init()
+    socketService.connect()
+  }
   
   // ============================================
   // АВТО-ПОДКЛЮЧЕНИЕ ПРИ АУТЕНТИФИКАЦИИ
@@ -51,9 +55,10 @@ export default defineNuxtPlugin(async (nuxtApp) => {
         await new Promise(resolve => setTimeout(resolve, 100))
         
         try {
-          // ✅ ИСПРАВЛЕНО: Используем socketService.connect()
+          // ✅ Только connect() — init() уже был вызван выше при старте плагина
+          // Повторный вызов init() создал бы дублирующий сокет и forced server close
           socketService.connect()
-          console.log('[SocketClientPlugin] ✅ Socket подключён')
+          console.log('[SocketClientPlugin] ✅ Сокет подключён')
         } catch (error) {
           console.error('[SocketClientPlugin] ❌ Ошибка подключения сокета:', error)
           socketStore.error = 'Не удалось подключиться к серверу'
@@ -62,9 +67,8 @@ export default defineNuxtPlugin(async (nuxtApp) => {
         console.log('[SocketClientPlugin] 🔓 Пользователь вышел, отключаем сокет...')
         
         try {
-          // ✅ ИСПРАВЛЕНО: Используем socketService.disconnect()
           socketService.disconnect()
-          console.log('[SocketClientPlugin] ✅ Socket отключён')
+          console.log('[SocketClientPlugin] ✅ Сокет отключён')
         } catch (error) {
           console.error('[SocketClientPlugin] ❌ Ошибка отключения сокета:', error)
         }
@@ -81,28 +85,28 @@ export default defineNuxtPlugin(async (nuxtApp) => {
   socketService.on('connect', () => {
     socketStore.isConnected = true
     socketStore.error = null
-    console.log('[SocketClientPlugin] 🟢 Socket connected')
+    console.log('[SocketClientPlugin] 🟢 Сокет подключён')
   })
   
   socketService.on('disconnect', (reason: string) => {
     socketStore.isConnected = false
-    console.log(`[SocketClientPlugin] 🔴 Socket disconnected: ${reason}`)
+    console.log(`[SocketClientPlugin] 🔴 Сокет отключён: ${reason}`)
   })
   
   socketService.on('connect_error', (error: any) => {
     socketStore.isConnected = false
     socketStore.error = error.message || 'Ошибка подключения'
-    console.error(`[SocketClientPlugin] ❌ Socket connection error: ${error.message}`)
+    console.error(`[SocketClientPlugin] ❌ Ошибка подключения сокета: ${error.message}`)
   })
   
   // ============================================
-  // ОЧИСТКА ПРИ УНИЧТОЖЕНИИ ПЛАГИНА
+  // ОЧИСТКА ПРИ ЗАКРЫТИИ СТРАНИЦЫ
   // ============================================
   
-  nuxtApp.hook('app:unmounted', () => {
-    console.log('[SocketClientPlugin] 🧹 Cleanup: disconnecting socket...')
+  window.addEventListener('beforeunload', () => {
+    console.log('[SocketClientPlugin] 🧹 Очистка: отключаем сокет...')
     socketService.disconnect()
   })
   
-  console.log('[SocketClientPlugin] ✅ Plugin initialized successfully')
+  console.log('[SocketClientPlugin] ✅ Плагин успешно инициализирован')
 })
