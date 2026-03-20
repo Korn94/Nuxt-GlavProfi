@@ -31,20 +31,20 @@
           {{ caseData.shortDescription }}
         </p>
         <p class="info">
-          {{ caseData.fullDescription }}
+          <span>Задача</span> - {{ caseData.fullDescription }}
         </p>
       </div>
       <p class="title-info display-mob">Работы</p>
       <div class="wrap-items">
         <p class="title-info display-pk">Работы</p>
         <!-- Динамические работы -->
-        <div v-for="(work, index) in displayedWorks" :key="index" class="items">
-          <!-- <p class="title">{{ work.progress }}%</p> -->
-          <PagesPublicProjectsUiProgressIndicator :progress="work.progress" />
+       <div v-for="(work, index) in displayedWorks" :key="index" class="items">
+          <p class="value">{{ work.value }}</p>
+          <div class="divider"></div>
           <p class="work">{{ work.workType }}</p>
         </div>
       </div>
-      <p class="info">Процент работ который был выполнен нами на объекте</p>
+      <p class="info">Основные работы которые был выполнен нами на объекте</p>
     </div>
   </div>
 </template>
@@ -65,7 +65,7 @@ const props = defineProps({
 
 // Ограничиваем вывод до 6 работ
 const displayedWorks = computed(() => {
-  return props.works.slice(0, 6)
+  return props.works
 })
 </script>
 
@@ -195,6 +195,26 @@ const displayedWorks = computed(() => {
           color: $text-gray;
           font-size: 1rem;
         }
+
+        .value {
+          font-size: 1.4em;
+          font-weight: 700;
+          color: $blue;
+          margin-bottom: 0.5em;
+        }
+
+        .divider {
+          width: 40px;
+          height: 2px;
+          background: $blue20;
+          margin: 0.5em auto;
+        }
+
+        .work {
+          font-size: 0.8em;
+          font-weight: 500;
+          color: $text-light;
+        }
       }
     }
   }
@@ -210,6 +230,7 @@ const displayedWorks = computed(() => {
     justify-content: flex-end;
     gap: 5em;
     margin-bottom: 2em;
+    align-items: stretch;
 
       @media (max-width: 768px) {
         flex-direction: row;
@@ -251,6 +272,9 @@ const displayedWorks = computed(() => {
       padding: 2em 1em;
       background-color: $background-gray;
       filter: drop-shadow(0 0 20px $blue20);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
 
       .title {
         font-size: 1.2em;

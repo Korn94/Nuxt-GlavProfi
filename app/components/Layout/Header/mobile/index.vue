@@ -1,6 +1,7 @@
 <template>
   <div class="mobile-bottom-nav">
     <!-- Нижнее меню -->
+     <div class="name"><p><span>ГлавПрофи</span> - ремонт коммерческих помещений</p></div>
     <nav>
       <ul>
         <li :class="{ active: !isMenuActive && currentRoute === 'index' }">
@@ -162,6 +163,21 @@ const closeMenus = () => {
           flex-direction: column;
           align-items: center;
         }
+      }
+    }
+  }
+
+  .name {
+    background: $background-gray;
+    padding: 3px;
+
+    p {
+      color: $text-light;
+      font-size: 10px;
+      text-align: center;
+
+      span {
+        color: $blue;
       }
     }
   }

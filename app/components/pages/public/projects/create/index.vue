@@ -4,12 +4,9 @@
     <form @submit.prevent="submitCase">
       <!-- Основная информация -->
       <PagesPublicProjectsCreateBasicInfo
-        :title="form.title"
-        :slug="form.slug"
-        :category="form.category"
-        @update:title="form.title = $event"
-        @update:slug="form.slug = $event"
-        @update:category="form.category = $event"
+        :title="form.title" :slug="form.slug" :category="form.category"
+        :address="form.address" @update:title="form.title = $event" @update:slug="form.slug = $event"
+        @update:category="form.category = $event" @update:address="form.address = $event"
       />
       <!-- Основные изображения и галерея -->
       <PagesPublicProjectsCreateImagesMain
@@ -141,6 +138,7 @@ const form = ref({
   thumbnail: null,
   beforeAfterPairs: [],
   gallery: [],
+  address: '',
   pairGroup: '',
   works: []
 })
@@ -173,7 +171,7 @@ const submitCase = async () => {
     const formData = new FormData()
     // Добавление текстовых полей
     Object.entries(form.value).forEach(([key, value]) => {
-      if (['beforeAfterPairs', 'gallery', 'mainImage', 'thumbnail'].includes(key)) return
+      if (['beforeAfterPairs', 'gallery', 'mainImage', 'thumbnail', 'works'].includes(key)) return
       formData.append(key, value || '')
     })
     // Добавление основных изображений
@@ -188,11 +186,11 @@ const submitCase = async () => {
     if (form.value.beforeAfterPairs.length > 0) {
       formData.append('pairGroup', form.value.pairGroup || `Сравнение фото - ${Date.now()}`)
       form.value.beforeAfterPairs.forEach((pair, index) => {
-        if (pair.before?.file) {
-          formData.append(`beforeImage[${index}]`, pair.before.file)
+        if (pair.before) {
+          formData.append(`beforeImage[${index}]`, pair.before)
         }
-        if (pair.after?.file) {
-          formData.append(`afterImage[${index}]`, pair.after.file)
+        if (pair.after) {
+          formData.append(`afterImage[${index}]`, pair.after)
         }
       })
     }
@@ -207,7 +205,7 @@ const submitCase = async () => {
     // Работы
     form.value.works.forEach((work, index) => {
       formData.append(`workType[${index}]`, work.workType)
-      formData.append(`progress[${index}]`, work.progress.toString())
+      formData.append(`workValue[${index}]`, work.value ?? '')
     })
     // Отправка запроса
     const response = await fetch('/api/portfolio', {
@@ -229,56 +227,6 @@ const submitCase = async () => {
   }
 }
 </script>
-<style lang="scss" scoped>
-.admin-portfolio-create {
-  background: #f9fafb;
-  padding: 5em 0;
-  h1 {
-    font-size: 2rem;
-    text-align: center;
-    margin-bottom: 2rem;
-    color: #1f2937;
-  }
-  form {
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: 5px;
-    .form-actions {
-      display: flex;
-      gap: 1rem;
-      margin-top: 2rem;
-      justify-content: center;
-      .btn {
-        padding: 0.75rem 1.5rem;
-        border: none;
-        border-radius: 0.5rem;
-        cursor: pointer;
-        font-weight: 600;
-        transition: all 0.2s;
-        &.primary {
-          background-color: #3b82f6;
-          color: white;
-          &:hover {
-            background-color: #2563eb;
-          }
-        }
-        &.secondary {
-          background-color: transparent;
-          color: #3b82f6;
-          border: 2px solid #3b82f6;
-          &:hover {
-            background-color: #bfdbfe;
-          }
-        }
-        &:disabled {
-          opacity: 0.7;
-          cursor: not-allowed;
-        }
-      }
-    }
-  }
-}
-</style>
 
 <style lang="scss" scoped>
 .admin-portfolio-create {

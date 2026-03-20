@@ -65,6 +65,7 @@ export const {
   portfoCaseWorks,
   // Новые таблицы доски задач
   boards,
+  boardColumns,
   boardsTasks,
   boardsSubtasks,
   boardsTags,

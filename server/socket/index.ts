@@ -15,6 +15,7 @@ import { setupUserHandlers, setupActivityHandlers } from './handlers'
 import { setupStatusHandlers } from './handlers/status'
 import { registerTaskHandlers } from './handlers/tasks'
 import { registerSubtaskHandlers } from './handlers/subtasks'
+import { registerColumnHandlers } from './handlers/columns'
 
 // ============================================
 // ГЛОБАЛЬНОЕ ХРАНИЛИЩЕ ПОДКЛЮЧЕНИЙ
@@ -90,6 +91,9 @@ export function setupSocketServer(io: Server): void {
   // Обработчики подзадач
   registerSubtaskHandlers(io)
   console.log('[Socket] ✅ Subtask handlers registered')
+
+  registerColumnHandlers(io)
+  console.log('[Socket] ✅ Column handlers registered')
   
   // ============================================
   // MIDDLEWARE ДЛЯ АУТЕНТИФИКАЦИИ

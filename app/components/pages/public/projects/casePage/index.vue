@@ -59,11 +59,13 @@ const mainImageUrl = computed(() => {
 // Группировка изображений "до/после"
 const groupedImages = computed(() => {
   const groups = {}
-  
+
   props.images
-    .filter(img => img.type === 'before' || img.type === 'after')
+    .filter(img =>
+      (img.type === 'before' || img.type === 'after') && img.pairGroup != null
+    )
     .forEach(img => {
-      const groupKey = img.pairGroup || 'ungrouped'
+      const groupKey = img.pairGroup
       if (!groups[groupKey]) {
         groups[groupKey] = { before: null, after: null }
       }
@@ -84,9 +86,8 @@ const imagePairs = computed(() => {
 })
 
 const galleryImages = computed(() => {
-  // Передаём ВСЕ изображения "до" и "после" в галерею
-  return props.images.filter(img => 
-    img.type === 'before' || img.type === 'after'
+  return props.images.filter(img =>
+    (img.type === 'before' || img.type === 'after') && img.pairGroup == null
   )
 })
 
@@ -109,7 +110,7 @@ const handleScroll = () => {
 
 onMounted(() => {
   window.scrollTo(0, 0)
-  window.addEventListener('scroll', handleScroll)
+  window.addEventListener('scroll', handleScroll, { passive: true })
   handleScroll()
 })
 

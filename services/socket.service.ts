@@ -1,32 +1,33 @@
 // services/socket.service.ts
 /**
  * Централизованный сервис для работы с Socket.IO
- * 
+ *
  * Архитектура:
  * - Единая точка подключения к сокет-серверу
  * - Подписка на комнаты досок (board:{boardId})
- * - Обработка всех socket-событий (tasks, subtasks, etc.)
+ * - Обработка всех socket-событий (tasks, subtasks, columns, etc.)
  * - Интеграция с Pinia stores
  * - Клиент-сайдовый только (process.client)
  */
-
 import { io, type Socket } from 'socket.io-client'
 import { useCookie } from '#app'
-import type { Subtask, Task } from '~/types/boards'
+import type { Subtask, Task, BoardColumn } from '~/types/boards'
 
 // ============================================
 // ТИПЫ СОБЫТИЙ
 // ============================================
-
 /**
  * Типы для обработчиков событий
  */
 type SocketEventHandler<T = any> = (data: T) => void
 
 /**
- * Карта зарегистрированных обработчиков
+ * Карта зарегистрированных обработчиков событий
  */
 interface EventHandlerMap {
+  // ============================================
+  // СОБЫТИЯ ПОДКЛЮЧЕНИЯ
+  // ============================================
   'connect': SocketEventHandler
   'disconnect': SocketEventHandler<string>
   'connect_error': SocketEventHandler<any>
@@ -34,53 +35,87 @@ interface EventHandlerMap {
   'reconnect': SocketEventHandler<number>
   'reconnect_failed': SocketEventHandler
   'error': SocketEventHandler<any>
+  
+  // ============================================
+  // СОБЫТИЯ СЕССИИ
+  // ============================================
   'session:initialized': SocketEventHandler<{ sessionId: string; userId: number }>
-  'board:subtask:created': SocketEventHandler<{ subtask: Subtask; boardId: number }>
-  'board:subtask:updated': SocketEventHandler<{ subtask: Subtask; boardId: number }>
-  'board:subtask:deleted': SocketEventHandler<{ subtaskId: number; taskId: number; boardId: number }>
+  
+  // ============================================
+  // СОБЫТИЯ ВКЛАДОК
+  // ============================================
+  'tab:registered': SocketEventHandler<{ tabId: string; currentPath: string }>
+  'board:subscribed': SocketEventHandler<{ boardId: number; success: boolean }>
+  'board:unsubscribed': SocketEventHandler<{ success: boolean }>
+  
+  // ============================================
+  // СОБЫТИЯ ЗАДАЧ
+  // ============================================
   'board:task:created': SocketEventHandler<{ task: Task; boardId: number }>
   'board:task:updated': SocketEventHandler<{ task: Task; boardId: number }>
   'board:task:deleted': SocketEventHandler<{ taskId: number; boardId: number }>
-  'board:subscribed': SocketEventHandler<{ boardId: number; success: boolean }>
-  'board:unsubscribed': SocketEventHandler<{ success: boolean }>
+  'board:tasks:reordered': SocketEventHandler<{
+    boardId: number
+    status: string
+    tasks: Array<{ id: number; order: number }>
+  }>
+  
+  // ============================================
+  // СОБЫТИЯ ПОДЗАДАЧ
+  // ============================================
+  'board:subtask:created': SocketEventHandler<{ subtask: Subtask; boardId: number }>
+  'board:subtask:updated': SocketEventHandler<{ subtask: Subtask; boardId: number }>
+  'board:subtask:deleted': SocketEventHandler<{
+    subtaskId: number
+    taskId: number
+    boardId: number
+  }>
+  
+  // ============================================
+  // ✅ СОБЫТИЯ КОЛОНОК (НОВОЕ)
+  // ============================================
+  'board:column:created': SocketEventHandler<{ column: BoardColumn; boardId: number }>
+  'board:column:updated': SocketEventHandler<{ column: BoardColumn; boardId: number }>
+  'board:column:deleted': SocketEventHandler<{ columnId: number; boardId: number }>
+  'board:columns:reordered': SocketEventHandler<{
+    boardId: number
+    columns: Array<{ id: number; order: number }>
+  }>
+  
+  // ============================================
+  // ДИНАМИЧЕСКИЕ СОБЫТИЯ
+  // ============================================
   [key: string]: SocketEventHandler
 }
 
 // ============================================
 // КОНФИГУРАЦИЯ
 // ============================================
-
 interface SocketServiceConfig {
   /**
    * URL сокет-сервера
    */
   url?: string
-  
   /**
    * Путь к socket.io
    */
   path?: string
-  
   /**
    * Транспортные протоколы
    */
   transports?: string[]
-  
   /**
    * Автоматическое подключение
    */
   autoConnect?: boolean
-  
   /**
    * Переподключение при разрыве
    */
   reconnection?: boolean
-  
   /**
    * Максимальное количество попыток переподключения
    */
   reconnectionAttempts?: number
-  
   /**
    * Задержка между попытками переподключения (мс)
    */
@@ -90,7 +125,6 @@ interface SocketServiceConfig {
 // ============================================
 // КЛАСС SOCKET SERVICE
 // ============================================
-
 export class SocketService {
   /**
    * Экземпляр сокет-подключения
@@ -143,7 +177,6 @@ export class SocketService {
   // ============================================
   // PUBLIC METHODS - Initialization
   // ============================================
-  
   /**
    * Инициализация сокет-сервиса
    * Вызывается один раз при старте приложения
@@ -153,23 +186,20 @@ export class SocketService {
       console.log('[SocketService] ⚠️ Работа на сервере, пропускаем инициализацию')
       return
     }
-    
     if (this.isInitialized) {
       console.log('[SocketService] ⚠️ Уже инициализирован')
       return
     }
-    
     try {
       console.log('[SocketService] 🚀 Инициализация Socket.IO...')
       
       // ✅ ПРАВИЛЬНОЕ ОПРЕДЕЛЕНИЕ ПРОДАКШЕНА
-      // Проверяем и NODE_ENV, и hostname
       const isProd = process.env.NODE_ENV === 'production'
       
       // Формируем URL — В ПРОДАКШЕНЕ ВСЕГДА ОДИН ПОРТ (3000)
-      const socketUrl = isProd 
-        ? `${window.location.protocol}//${window.location.host}`  // ✅ Один порт для всего
-        : `http://${window.location.hostname}:3001`  // Dev: отдельный порт
+      const socketUrl = isProd
+        ? `${window.location.protocol}//${window.location.host}`
+        : `http://${window.location.hostname}:3001`
       
       console.log(`[SocketService] 📍 Socket URL: ${socketUrl} (prod: ${isProd})`)
       
@@ -177,33 +207,27 @@ export class SocketService {
       
       this.socket = io(socketUrl, {
         path: this.config.path,
-        
         // 🔥 ТРАНСПОРТЫ: polling первым (гарантированно работает)
         transports: ['polling', 'websocket'],
-        
         // Стандартные настройки
         autoConnect: this.config.autoConnect,
         reconnection: this.config.reconnection,
         reconnectionAttempts: this.config.reconnectionAttempts,
         reconnectionDelay: this.config.reconnectionDelay,
-        
         // Аутентификация
         auth: { token: authToken },
-        
         // 🔐 Безопасность
         secure: window.location.protocol === 'https:',
         rejectUnauthorized: process.env.NODE_ENV === 'production',
-        
         // 🔥 Таймауты
         timeout: 20000
       })
       
       this.setupConnectionHandlers()
       this.setupEventHandlers()
-      
       this.isInitialized = true
-      console.log('[SocketService] ✅ Socket.IO инициализирован')
       
+      console.log('[SocketService] ✅ Socket.IO инициализирован')
     } catch (error) {
       console.error('[SocketService] ❌ Ошибка инициализации:', error)
       throw error
@@ -228,7 +252,6 @@ export class SocketService {
     if (!this.socket) return
     
     console.log('[SocketService] 🔌 Отключение от сервера...')
-    
     this.unsubscribeFromAll()
     this.socket.disconnect()
     this.socket = null
@@ -239,7 +262,6 @@ export class SocketService {
   // ============================================
   // PUBLIC METHODS - Event Handlers
   // ============================================
-  
   /**
    * Подписаться на событие
    */
@@ -247,7 +269,6 @@ export class SocketService {
     if (!this.eventHandlers.has(event)) {
       this.eventHandlers.set(event, new Set())
     }
-    
     const handlers = this.eventHandlers.get(event)!
     handlers.add(handler as SocketEventHandler)
     
@@ -268,7 +289,6 @@ export class SocketService {
     if (!this.eventHandlers.has(event)) return
     
     const handlers = this.eventHandlers.get(event)!
-    
     if (handler) {
       handlers.delete(handler as SocketEventHandler)
     } else {
@@ -291,7 +311,6 @@ export class SocketService {
         reject(new Error('Socket not connected'))
         return
       }
-      
       this.socket.emit(event, data, (response: R) => {
         resolve(response)
       })
@@ -301,7 +320,6 @@ export class SocketService {
   // ============================================
   // PUBLIC METHODS - Subscription Management
   // ============================================
-  
   /**
    * Подписаться на обновления доски
    * @param boardId - ID доски для подписки
@@ -311,7 +329,6 @@ export class SocketService {
       console.warn(`[SocketService] ⚠️ Нельзя подписаться на доску ${boardId}: не подключено`)
       return
     }
-    
     if (this.subscribedBoards.has(boardId)) {
       console.log(`[SocketService] ⚠️ Уже подписано на доску ${boardId}`)
       return
@@ -334,7 +351,6 @@ export class SocketService {
       console.warn(`[SocketService] ⚠️ Нельзя отписаться от доски ${boardId}: нет сокета`)
       return
     }
-    
     if (!this.subscribedBoards.has(boardId)) {
       console.log(`[SocketService] ⚠️ Не подписано на доску ${boardId}`)
       return
@@ -372,7 +388,6 @@ export class SocketService {
   // ============================================
   // PUBLIC METHODS - Utility
   // ============================================
-  
   /**
    * Проверка статуса подключения
    */
@@ -411,7 +426,6 @@ export class SocketService {
   // ============================================
   // PRIVATE METHODS - Connection Handlers
   // ============================================
-  
   /**
    * Настройка обработчиков событий подключения
    */
@@ -437,6 +451,7 @@ export class SocketService {
         console.log('[SocketService] 🚀 Transport upgraded to:', transport.name)
       })
       
+      // ✅ Восстанавливаем подписки на доски после переподключения
       this.subscribedBoards.forEach(boardId => {
         this.socket?.emit('join', `board:${boardId}`)
       })
@@ -458,9 +473,8 @@ export class SocketService {
       console.error('[SocketService] ⚠️ Ошибка подключения:', error.message)
       
       // ✅ logout только при невалидном токене, но НЕ при его отсутствии
-      // "No token provided" — нормально для незалогиненных пользователей
-      const isInvalidToken = 
-        error.message?.includes('Unauthorized') || 
+      const isInvalidToken =
+        error.message?.includes('Unauthorized') ||
         error.message?.includes('Invalid token') ||
         error.message?.includes('User not found')
       
@@ -476,15 +490,24 @@ export class SocketService {
         }
       }
     })
-
+    
     // ✅ Обработчик изменения порядка задач
-    this.socket.on('board:tasks:reordered', (data: { 
+    this.socket.on('board:tasks:reordered', (data: {
       boardId: number
-      status: string 
-      tasks: Array<{ id: number; order: number }> 
+      status: string
+      tasks: Array<{ id: number; order: number }>
     }) => {
       console.log('[SocketService] 📋 Tasks reordered:', data)
       this.handleTasksReordered(data)
+    })
+    
+    // ✅ ОБРАБОТЧИК ИЗМЕНЕНИЯ ПОРЯДКА КОЛОНОК (НОВОЕ)
+    this.socket.on('board:columns:reordered', (data: {
+      boardId: number
+      columns: Array<{ id: number; order: number }>
+    }) => {
+      console.log('[SocketService] 📋 Columns reordered:', data)
+      this.handleColumnsReordered(data)
     })
     
     // 🔄 Переподключено
@@ -517,7 +540,6 @@ export class SocketService {
     // ============================================
     // СОБЫТИЯ ДЛЯ ЗАДАЧ
     // ============================================
-    
     this.socket.on('board:task:created', (data: { task: Task; boardId: number }) => {
       console.log('[SocketService] 🆕 Задача создана:', data.task.id, 'доска:', data.boardId)
       this.handleTaskCreated(data.task, data.boardId)
@@ -536,7 +558,6 @@ export class SocketService {
     // ============================================
     // СОБЫТИЯ ДЛЯ ПОДЗАДАЧ
     // ============================================
-    
     this.socket.on('board:subtask:created', (data: { subtask: Subtask; boardId: number }) => {
       console.log('[SocketService] 🆕 Подзадача создана:', data.subtask.id, 'доска:', data.boardId)
       this.handleSubtaskCreated(data.subtask, data.boardId)
@@ -547,15 +568,36 @@ export class SocketService {
       this.handleSubtaskUpdated(data.subtask, data.boardId)
     })
     
-    this.socket.on('board:subtask:deleted', (data: { subtaskId: number; taskId: number; boardId: number }) => {
+    this.socket.on('board:subtask:deleted', (data: {
+      subtaskId: number
+      taskId: number
+      boardId: number
+    }) => {
       console.log('[SocketService] 🗑️ Подзадача удалена:', data.subtaskId, 'задача:', data.taskId, 'доска:', data.boardId)
       this.handleSubtaskDeleted(data.subtaskId, data.taskId, data.boardId)
     })
     
     // ============================================
+    // ✅ СОБЫТИЯ ДЛЯ КОЛОНОК (НОВОЕ)
+    // ============================================
+    this.socket.on('board:column:created', (data: { column: BoardColumn; boardId: number }) => {
+      console.log('[SocketService] 🆕 Колонка создана:', data.column.id, 'доска:', data.boardId)
+      this.handleColumnCreated(data.column, data.boardId)
+    })
+    
+    this.socket.on('board:column:updated', (data: { column: BoardColumn; boardId: number }) => {
+      console.log('[SocketService] 🔄 Колонка обновлена:', data.column.id, 'доска:', data.boardId)
+      this.handleColumnUpdated(data.column, data.boardId)
+    })
+    
+    this.socket.on('board:column:deleted', (data: { columnId: number; boardId: number }) => {
+      console.log('[SocketService] 🗑️ Колонка удалена:', data.columnId, 'доска:', data.boardId)
+      this.handleColumnDeleted(data.columnId, data.boardId)
+    })
+    
+    // ============================================
     // СОБЫТИЯ СЕССИИ
     // ============================================
-    
     this.socket.on('session:initialized', (data: { sessionId: string; userId: number }) => {
       console.log('[SocketService] 🎫 Сессия инициализирована:', data.sessionId)
       this.handleSessionInitialized(data)
@@ -564,24 +606,17 @@ export class SocketService {
     // ============================================
     // ОШИБКИ
     // ============================================
-    
     this.socket.on('error', (error: any) => {
       console.error('[SocketService] ❌ Ошибка сервера:', error)
     })
   }
   
   // ============================================
-  // PRIVATE METHODS - Event Handlers
+  // PRIVATE METHODS - Event Handlers (Tasks)
   // ============================================
-  
-  /**
-   * Обработка события создания задачи
-   */
   private handleTaskCreated(task: Task, boardId: number): void {
     if (!process.client) return
-    
     try {
-      // Динамический импорт store
       import('stores/boards/tasks').then(({ useTasksStore }) => {
         const tasksStore = useTasksStore()
         tasksStore.handleTaskCreated(task)
@@ -593,12 +628,8 @@ export class SocketService {
     }
   }
   
-  /**
-   * Обработка события обновления задачи
-   */
   private handleTaskUpdated(task: Task, boardId: number): void {
     if (!process.client) return
-    
     try {
       import('stores/boards/tasks').then(({ useTasksStore }) => {
         const tasksStore = useTasksStore()
@@ -611,12 +642,8 @@ export class SocketService {
     }
   }
   
-  /**
-   * Обработка события удаления задачи
-   */
   private handleTaskDeleted(taskId: number, boardId: number): void {
     if (!process.client) return
-    
     try {
       import('stores/boards/tasks').then(({ useTasksStore }) => {
         const tasksStore = useTasksStore()
@@ -629,12 +656,11 @@ export class SocketService {
     }
   }
   
-  /**
-   * Обработка события создания подзадачи
-   */
+  // ============================================
+  // PRIVATE METHODS - Event Handlers (Subtasks)
+  // ============================================
   private handleSubtaskCreated(subtask: Subtask, boardId: number): void {
     if (!process.client) return
-    
     try {
       import('stores/boards/subtasks').then(({ useSubtasksStore }) => {
         const subtasksStore = useSubtasksStore()
@@ -647,12 +673,8 @@ export class SocketService {
     }
   }
   
-  /**
-   * Обработка события обновления подзадачи
-   */
   private handleSubtaskUpdated(subtask: Subtask, boardId: number): void {
     if (!process.client) return
-    
     try {
       import('stores/boards/subtasks').then(({ useSubtasksStore }) => {
         const subtasksStore = useSubtasksStore()
@@ -665,12 +687,8 @@ export class SocketService {
     }
   }
   
-  /**
-   * Обработка события удаления подзадачи
-   */
   private handleSubtaskDeleted(subtaskId: number, taskId: number, boardId: number): void {
     if (!process.client) return
-    
     try {
       import('stores/boards/subtasks').then(({ useSubtasksStore }) => {
         const subtasksStore = useSubtasksStore()
@@ -682,14 +700,68 @@ export class SocketService {
       console.error('[SocketService] ❌ Ошибка импорта subtasksStore:', error)
     }
   }
-
+  
+  // ============================================
+  // ✅ PRIVATE METHODS - Event Handlers (Columns)
+  // ============================================
+  /**
+   * Обработка события создания колонки
+   */
+  private handleColumnCreated(column: BoardColumn, boardId: number): void {
+    if (!process.client) return
+    try {
+      import('stores/boards/columns').then(({ useColumnsStore }) => {
+        const columnsStore = useColumnsStore()
+        columnsStore.handleColumnCreated(column)
+      }).catch(error => {
+        console.error('[SocketService] ❌ Ошибка обработки column:created:', error)
+      })
+    } catch (error) {
+      console.error('[SocketService] ❌ Ошибка импорта columnsStore:', error)
+    }
+  }
+  
+  /**
+   * Обработка события обновления колонки
+   */
+  private handleColumnUpdated(column: BoardColumn, boardId: number): void {
+    if (!process.client) return
+    try {
+      import('stores/boards/columns').then(({ useColumnsStore }) => {
+        const columnsStore = useColumnsStore()
+        columnsStore.handleColumnUpdated(column)
+      }).catch(error => {
+        console.error('[SocketService] ❌ Ошибка обработки column:updated:', error)
+      })
+    } catch (error) {
+      console.error('[SocketService] ❌ Ошибка импорта columnsStore:', error)
+    }
+  }
+  
+  /**
+   * Обработка события удаления колонки
+   */
+  private handleColumnDeleted(columnId: number, boardId: number): void {
+    if (!process.client) return
+    try {
+      import('stores/boards/columns').then(({ useColumnsStore }) => {
+        const columnsStore = useColumnsStore()
+        columnsStore.handleColumnDeleted(columnId)
+      }).catch(error => {
+        console.error('[SocketService] ❌ Ошибка обработки column:deleted:', error)
+      })
+    } catch (error) {
+      console.error('[SocketService] ❌ Ошибка импорта columnsStore:', error)
+    }
+  }
+  
   /**
    * Обработчик события изменения порядка задач
    */
-  private handleTasksReordered(data: { 
+  private handleTasksReordered(data: {
     boardId: number
-    status: string 
-    tasks: Array<{ id: number; order: number }> 
+    status: string
+    tasks: Array<{ id: number; order: number }>
   }): void {
     if (!process.client) return
     try {
@@ -703,14 +775,36 @@ export class SocketService {
       console.error('[SocketService] ❌ Ошибка импорта tasksStore:', error)
     }
   }
-
+  
+  /**
+   * ✅ ОБРАБОТЧИК СОБЫТИЯ ИЗМЕНЕНИЯ ПОРЯДКА КОЛОНОК (НОВОЕ)
+   * 📡 Вызывается из SocketService при reorder колонок
+   */
+  private handleColumnsReordered(data: {
+    boardId: number
+    columns: Array<{ id: number; order: number }>
+  }): void {
+    if (!process.client) return
+    try {
+      import('stores/boards/columns').then(({ useColumnsStore }) => {
+        const columnsStore = useColumnsStore()
+        columnsStore.handleColumnsReordered(data)
+      }).catch(error => {
+        console.error('[SocketService] ❌ Ошибка обработки columns:reordered:', error)
+      })
+    } catch (error) {
+      console.error('[SocketService] ❌ Ошибка импорта columnsStore:', error)
+    }
+  }
+  
+  // ============================================
+  // PRIVATE METHODS - Session Handlers
+  // ============================================
   /**
    * Обработка инициализации сессии
    */
   private handleSessionInitialized(data: { sessionId: string; userId: number }): void {
     if (!process.client) return
-    
-    // Сохраняем session_id в cookie
     try {
       import('./helpers/sessionId').then(({ setSessionId }) => {
         setSessionId(data.sessionId)
@@ -726,14 +820,12 @@ export class SocketService {
 // ============================================
 // SINGLETON INSTANCE
 // ============================================
-
 /**
  * Единственный экземпляр сервиса
  * Используется во всём приложении
  */
 export const socketService = new SocketService({
   path: '/socket.io',
-  // ✅ Попробуйте WebSocket ПЕРВЫМ в проде
   transports: ['polling', 'websocket'],
   reconnection: true,
   reconnectionAttempts: 5,
@@ -743,111 +835,71 @@ export const socketService = new SocketService({
 // ============================================
 // COMPOSABLE ДЛЯ ИСПОЛЬЗОВАНИЯ В КОМПОНЕНТАХ
 // ============================================
-
 /**
  * Composable для удобного использования socketService в компонентах
- * 
+ *
  * @example
  * ```ts
  * const { subscribeToBoard, unsubscribeFromBoard } = useSocket()
- * 
+ *
  * onMounted(() => {
  *   subscribeToBoard(boardId.value)
  * })
- * 
+ *
  * onUnmounted(() => {
  *   unsubscribeFromBoard(boardId.value)
  * })
  * ```
  */
 export function useSocket() {
-  /**
-   * Инициализировать сервис
-   */
   const init = () => {
     socketService.init()
   }
   
-  /**
-   * Подключиться к серверу
-   */
   const connect = () => {
     socketService.connect()
   }
   
-  /**
-   * Отключиться от сервера
-   */
   const disconnect = () => {
     socketService.disconnect()
   }
   
-  /**
-   * Подписаться на событие
-   */
   const on = <T = any>(event: string, handler: (data: T) => void) => {
     socketService.on(event, handler)
   }
   
-  /**
-   * Отписаться от события
-   */
   const off = <T = any>(event: string, handler?: (data: T) => void) => {
     socketService.off(event, handler)
   }
   
-  /**
-   * Отправить событие
-   */
   const emit = <T = any, R = any>(event: string, data?: T): Promise<R> => {
     return socketService.emit(event, data)
   }
   
-  /**
-   * Подписаться на доску
-   */
   const subscribeToBoard = (boardId: number) => {
     socketService.subscribeToBoard(boardId)
   }
   
-  /**
-   * Отписаться от доски
-   */
   const unsubscribeFromBoard = (boardId: number) => {
     socketService.unsubscribeFromBoard(boardId)
   }
   
-  /**
-   * Отписаться от всех досок
-   */
   const unsubscribeFromAll = () => {
     socketService.unsubscribeFromAll()
   }
   
-  /**
-   * Проверить статус подключения
-   */
   const isConnected = () => {
     return socketService.getConnected()
   }
   
-  /**
-   * Получить ID сокета
-   */
   const getSocketId = () => {
     return socketService.getSocketId()
   }
   
-  /**
-   * Получить ID текущей доски
-   */
   const getCurrentBoardId = () => {
     return socketService.getCurrentBoardId()
   }
   
-  /**
-   * Получить список подписанных досок
-   */
   const getSubscribedBoards = () => {
     return socketService.getSubscribedBoards()
   }

@@ -87,7 +87,6 @@ export interface Tag {
 // ============================================
 // ТИПЫ ДЛЯ ПОДЗАДАЧ
 // ============================================
-
 /**
  * Подзадача для хранения в store (flat-структура)
  * ⛔ Не содержит вложенных subtasks - они строятся на клиенте
@@ -147,7 +146,6 @@ export interface SubtaskStats {
 // ============================================
 // SOCKET СОБЫТИЯ ДЛЯ ПОДЗАДАЧ
 // ============================================
-
 /**
  * Событие создания подзадачи
  */
@@ -221,6 +219,90 @@ export interface Attachment {
 }
 
 // ============================================
+// ✅ ТИПЫ ДЛЯ КОЛОНОК ДОСКИ (КАСТОМНЫЕ)
+// ============================================
+/**
+ * Колонка доски (хранится в БД)
+ */
+export interface BoardColumn {
+  id: number
+  boardId: number
+  name: string
+  order: number
+  createdAt: string
+  updatedAt: string
+}
+
+/**
+ * Данные для создания колонки
+ */
+export interface CreateBoardColumnData {
+  name: string
+  order?: number
+}
+
+/**
+ * Данные для обновления колонки
+ */
+export interface UpdateBoardColumnData {
+  name?: string
+  order?: number
+}
+
+/**
+ * Колонка с дополнительными данными для UI
+ */
+export interface BoardColumnExtended extends BoardColumn {
+  tasksCount?: number
+  isCollapsed?: boolean
+}
+
+// ============================================
+// ✅ SOCKET СОБЫТИЯ ДЛЯ КОЛОНОК
+// ============================================
+/**
+ * Событие создания колонки
+ */
+export interface ColumnCreatedEvent {
+  column: BoardColumn
+  boardId: number
+}
+
+/**
+ * Событие обновления колонки
+ */
+export interface ColumnUpdatedEvent {
+  column: BoardColumn
+  boardId: number
+}
+
+/**
+ * Событие удаления колонки
+ */
+export interface ColumnDeletedEvent {
+  columnId: number
+  boardId: number
+}
+
+/**
+ * Событие изменения порядка колонок
+ */
+export interface ColumnsReorderedEvent {
+  boardId: number
+  columns: Array<{ id: number; order: number }>
+}
+
+/**
+ * Все socket события для колонок
+ */
+export interface ColumnSocketEvents {
+  'board:column:created': ColumnCreatedEvent
+  'board:column:updated': ColumnUpdatedEvent
+  'board:column:deleted': ColumnDeletedEvent
+  'board:columns:reordered': ColumnsReorderedEvent
+}
+
+// ============================================
 // ТИПЫ ДЛЯ ЗАДАЧ
 // ============================================
 export interface Task {
@@ -242,6 +324,8 @@ export interface Task {
   tags?: Tag[]
   attachments?: Attachment[]
   comments?: Comment[]
+  // ✅ Добавлено для работы с кастомными колонками
+  columnId?: number | null
 }
 
 export interface CreateTaskData {
@@ -253,6 +337,8 @@ export interface CreateTaskData {
   dueDate?: string | null
   order?: number
   tags?: number[]
+  // ✅ Добавлено для работы с кастомными колонками
+  columnId?: number
 }
 
 export interface UpdateTaskData {
@@ -264,6 +350,48 @@ export interface UpdateTaskData {
   dueDate?: string | null
   order?: number
   tags?: number[]
+  // ✅ Добавлено для работы с кастомными колонками
+  columnId?: number
+}
+
+// ============================================
+// ✅ ТИПЫ ДЛЯ ОТВЕТОВ API — КОЛОНКИ
+// ============================================
+/**
+ * Ответ на создание колонки
+ */
+export interface CreateColumnResponse {
+  success: boolean
+  column: BoardColumn
+}
+
+/**
+ * Ответ на обновление колонки
+ */
+export interface UpdateColumnResponse {
+  success: boolean
+  column: BoardColumn
+}
+
+/**
+ * Ответ на удаление колонки
+ */
+export interface DeleteColumnResponse {
+  success: boolean
+  message: string
+  columnId: number
+  boardId: number
+  deletedTasksCount?: number
+}
+
+/**
+ * Ответ на изменение порядка колонок
+ */
+export interface ReorderColumnsResponse {
+  success: boolean
+  message: string
+  boardId: number
+  updated: number
 }
 
 // ============================================
@@ -272,7 +400,8 @@ export interface UpdateTaskData {
 export const ItemTypes = {
   TASK: 'task',
   SUBTASK: 'subtask',
-  FOLDER: 'folder'
+  FOLDER: 'folder',
+  COLUMN: 'column' // ✅ Добавлено для D&D колонок
 } as const
 
 export interface TaskDragItem {
@@ -295,6 +424,16 @@ export interface FolderDragItem {
   order: number
 }
 
+/**
+ * ✅ Данные для Drag & Drop колонок
+ */
+export interface ColumnDragItem {
+  type: typeof ItemTypes.COLUMN
+  columnId: number
+  boardId: number
+  order: number
+}
+
 export interface CreateFolderForm {
   name: string
   description: string
@@ -310,7 +449,6 @@ export interface CreateFolderForm {
 // ============================================
 // КОНСТАНТЫ ДЛЯ ПОДЗАДАЧ
 // ============================================
-
 /**
  * Максимальная глубина вложенности подзадач
  * 0 = корневой уровень, 4 = максимальный уровень (всего 5 уровней)

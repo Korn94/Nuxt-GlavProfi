@@ -1,74 +1,77 @@
 <!-- app/components/pages/cabinet/Boards/Kanban/TaskCard.vue -->
 <template>
-<div
-  ref="taskCardRef"
-  class="task-card"
-  :class="{ 'dragging': isDragging, 'dropped': isDropped }"
-  draggable="true"
-  @dragstart="handleDragStart"
-  @dragend="handleDragEnd"
-  @click="openTaskDetails"
-  :style="cardStyle"
->
-  <!-- Приоритет и статус -->
-  <div class="task-card-header">
-    <span class="task-priority" :class="`priority-${task.priority}`">
-      {{ getPriorityLabel(task.priority) }}
-    </span>
-    <span class="task-status" :class="`status-${task.status}`">
-      {{ getStatusLabel(task.status) }}
-    </span>
-  </div>
-
-  <!-- Основное содержимое -->
-  <div class="task-card-body">
-    <h3 class="task-card-title">{{ task.title }}</h3>
-    
-    <p v-if="task.description" class="task-card-description">
-      {{ truncateText(task.description, 80) }}
-    </p>
-
-    <!-- Теги -->
-    <div v-if="task.tags && task.tags.length > 0" class="task-card-tags">
-      <span
-        v-for="tag in task.tags"
-        :key="tag.id"
-        class="task-card-tag"
-        :style="{ backgroundColor: tag.color }"
+  <div
+    ref="taskCardRef"
+    class="task-card"
+    :class="{ 'dragging': isDragging, 'dropped': isDropped }"
+    draggable="true"
+    @dragstart="handleDragStart"
+    @dragend="handleDragEnd"
+    @click="openTaskDetails"
+    :style="cardStyle"
+  >
+    <!-- Приоритет и статус -->
+    <div class="task-card-header">
+      <span class="task-priority" :class="`priority-${task.priority}`">
+        {{ getPriorityLabel(task.priority) }}
+      </span>
+      <!-- ✅ ПОКАЗЫВАЕМ СТАТУС ТОЛЬКО ЕСЛИ НЕТ КОЛОНКИ (для обратной совместимости) -->
+      <span 
+        v-if="!task.columnId" 
+        class="task-status" 
+        :class="`status-${task.status}`"
       >
-        {{ tag.name }}
+        {{ getStatusLabel(task.status) }}
       </span>
     </div>
-  </div>
 
-  <!-- Футер с мета-данными -->
-  <div class="task-card-footer">
-    <div class="task-card-meta">
-      <span v-if="task.dueDate" class="task-card-meta-item">
-        <Icon name="mdi:calendar" size="14" />
-        {{ formatDate(task.dueDate) }}
-      </span>
+    <!-- Основное содержимое -->
+    <div class="task-card-body">
+      <h3 class="task-card-title">{{ task.title }}</h3>
+      <p v-if="task.description" class="task-card-description">
+        {{ truncateText(task.description, 80) }}
+      </p>
       
-      <span v-if="task.assignedTo" class="task-card-meta-item">
-        <Icon name="mdi:account" size="14" />
-        Исполнитель
-      </span>
+      <!-- Теги -->
+      <div v-if="task.tags && task.tags.length > 0" class="task-card-tags">
+        <span
+          v-for="tag in task.tags"
+          :key="tag.id"
+          class="task-card-tag"
+          :style="{ backgroundColor: tag.color }"
+        >
+          {{ tag.name }}
+        </span>
+      </div>
     </div>
 
-    <div class="task-card-stats">
-      <span v-if="task.subtasks" class="task-card-subtasks">
-        <Icon name="mdi:checkbox-marked-circle" size="14" />
-        {{ getCompletedSubtasks(task.subtasks) }}/{{ task.subtasks.length }}
-      </span>
+    <!-- Футер с мета-данными -->
+    <div class="task-card-footer">
+      <div class="task-card-meta">
+        <span v-if="task.dueDate" class="task-card-meta-item">
+          <Icon name="mdi:calendar" size="14" />
+          {{ formatDate(task.dueDate) }}
+        </span>
+        <span v-if="task.assignedTo" class="task-card-meta-item">
+          <Icon name="mdi:account" size="14" />
+          Исполнитель
+        </span>
+      </div>
+      <div class="task-card-stats">
+        <span v-if="task.subtasks" class="task-card-subtasks">
+          <Icon name="mdi:checkbox-marked-circle" size="14" />
+          {{ getCompletedSubtasks(task.subtasks) }}/{{ task.subtasks.length }}
+        </span>
+      </div>
     </div>
   </div>
-</div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useTaskModalStore } from 'stores/boards/taskModal'
 import { useTasksStore } from 'stores/boards/tasks'
+import { socketService } from 'services/socket.service'
 import type { Task } from '~/types/boards'
 
 // ============================================
@@ -76,11 +79,12 @@ import type { Task } from '~/types/boards'
 // ============================================
 const props = defineProps<{
   task: Task
-  boardId?: number
+  boardId: number
+  columnId?: number  // ✅ Добавлено: поддержка кастомных колонок
 }>()
 
 const emit = defineEmits<{
-  moveTask: [taskId: number, newStatus: string]
+  moveTask: [taskId: number, newColumnId: number]  // ✅ Изменено: передаём columnId вместо status
 }>()
 
 // ============================================
@@ -97,7 +101,6 @@ const isDragging = ref(false)
 const isDropped = ref(false)
 const initialPosition = ref({ x: 0, y: 0 })
 const dragStartPosition = ref({ x: 0, y: 0 })
-const animationFrame = ref<number | null>(null)
 
 // ============================================
 // COMPUTED - Стили с анимацией
@@ -124,14 +127,14 @@ const cardStyle = computed(() => {
 // NATIVE DRAG & DROP
 // ============================================
 const handleDragStart = (event: DragEvent) => {
-  if (!props.boardId || !taskCardRef.value) return
+  if (!taskCardRef.value) return
   
-  // Сохраняем данные задачи в dataTransfer
+  // ✅ Сохраняем данные задачи в dataTransfer — теперь с columnId
   const dragData = {
     type: 'task',
     taskId: props.task.id,
     boardId: props.boardId,
-    status: props.task.status,
+    columnId: props.columnId ?? null,  // ✅ Передаём columnId
     order: props.task.order
   }
   
@@ -146,7 +149,6 @@ const handleDragStart = (event: DragEvent) => {
   // Визуальная обратная связь
   isDragging.value = true
   
-  // Добавляем тень для лучшей видимости
   if (taskCardRef.value) {
     taskCardRef.value.style.boxShadow = `0 8px 24px rgba(0, 195, 245, 0.4)`
   }
@@ -163,7 +165,7 @@ const handleDragEnd = (event: DragEvent) => {
     taskCardRef.value.style.zIndex = '1'
   }
   
-  // Запускаем анимацию "приземления" если задача была перемещена
+  // Запускаем анимацию "приземления"
   setTimeout(() => {
     isDropped.value = true
     setTimeout(() => {
@@ -212,7 +214,6 @@ const truncateText = (text: string, maxLength: number) => {
 
 const getCompletedSubtasks = (subtasks: any[]): number => {
   if (!subtasks || subtasks.length === 0) return 0
-  
   let count = 0
   const countCompleted = (subs: any[]) => {
     subs.forEach(sub => {
@@ -222,7 +223,6 @@ const getCompletedSubtasks = (subtasks: any[]): number => {
       }
     })
   }
-  
   countCompleted(subtasks)
   return count
 }
@@ -234,15 +234,53 @@ const openTaskDetails = () => {
   taskModalStore.open(props.task.id, null, props.task.id)
   
   // Принудительно обновляем данные из стора
-  const fullTask = taskStore.tasks.find((t: { id: number; }) => t.id === props.task.id)
+  const fullTask = taskStore.tasks.find((t: { id: number }) => t.id === props.task.id)
   if (fullTask) {
     taskModalStore.setTaskData(fullTask)
   }
 }
+
+// ============================================
+// DRAG & DROP — ОБРАБОТКА ПЕРЕМЕЩЕНИЯ МЕЖДУ КОЛОНКАМИ
+// ============================================
+
+/**
+ * Обработчик перемещения задачи в новую колонку
+ * Вызывается из Column/index.vue при drop
+ */
+const handleMoveToColumn = async (newColumnId: number) => {
+  if (props.task.columnId === newColumnId) return
+  
+  try {
+    // ✅ 1. Оптимистичное обновление в store
+    await taskStore.updateTaskOptimistic(props.task.id, { 
+      columnId: newColumnId 
+    })
+    
+    // ✅ 2. Прямой API-запрос (минуя store, чтобы не триггерить loading)
+    await $fetch(`/api/boards/tasks/${props.task.id}`, {
+      method: 'PUT',
+      body: { columnId: newColumnId }
+    })
+    
+    emit('moveTask', props.task.id, newColumnId)
+    
+  } catch (error) {
+    console.error('[TaskCard] ❌ Failed to move task:', error)
+    // ✅ Fallback: перезагружаем задачи при ошибке
+    await taskStore.fetchTasks(props.boardId)
+  }
+}
+
+// ============================================
+// EXPOSE
+// ============================================
+defineExpose({
+  handleMoveToColumn
+})
 </script>
 
 <style scoped lang="scss">
-// Импорт переменных напрямую для надежности
 @use '@/assets/styles/_variables.scss' as *;
 
 .task-card {
@@ -279,18 +317,10 @@ const openTaskDetails = () => {
 }
 
 @keyframes drop-animation {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(0.95) translateY(-4px);
-  }
-  70% {
-    transform: scale(1.02) translateY(2px);
-  }
-  100% {
-    transform: scale(1) translateY(0);
-  }
+  0% { transform: scale(1); }
+  50% { transform: scale(0.95) translateY(-4px); }
+  70% { transform: scale(1.02) translateY(2px); }
+  100% { transform: scale(1) translateY(0); }
 }
 
 .task-card-header {
@@ -314,24 +344,10 @@ const openTaskDetails = () => {
   color: $text-light;
 }
 
-.task-priority.priority-low {
-  background: #374151;
-}
-
-.task-priority.priority-medium {
-  background: rgba($blue, 0.2);
-  color: $blue;
-}
-
-.task-priority.priority-high {
-  background: rgba(124, 58, 237, 0.2);
-  color: #7c3aed;
-}
-
-.task-priority.priority-urgent {
-  background: rgba($red, 0.2);
-  color: $red;
-}
+.task-priority.priority-low { background: #374151; }
+.task-priority.priority-medium { background: rgba($blue, 0.2); color: $blue; }
+.task-priority.priority-high { background: rgba(124, 58, 237, 0.2); color: #7c3aed; }
+.task-priority.priority-urgent { background: rgba($red, 0.2); color: $red; }
 
 .task-status {
   display: inline-flex;
@@ -344,38 +360,14 @@ const openTaskDetails = () => {
   color: $text-light;
 }
 
-.task-status.status-todo {
-  background: #374151;
-  color: $yellow;
-}
+.task-status.status-todo { background: #374151; color: $yellow; }
+.task-status.status-in_progress { background: rgba($blue, 0.2); color: $blue; }
+.task-status.status-review { background: rgba(124, 58, 237, 0.2); color: #7c3aed; }
+.task-status.status-done { background: rgba($green, 0.2); color: $green; }
+.task-status.status-blocked { background: rgba($red, 0.2); color: $red; }
+.task-status.status-cancelled { background: #6b7280; }
 
-.task-status.status-in_progress {
-  background: rgba($blue, 0.2);
-  color: $blue;
-}
-
-.task-status.status-review {
-  background: rgba(124, 58, 237, 0.2);
-  color: #7c3aed;
-}
-
-.task-status.status-done {
-  background: rgba($green, 0.2);
-  color: $green;
-}
-
-.task-status.status-blocked {
-  background: rgba($red, 0.2);
-  color: $red;
-}
-
-.task-status.status-cancelled {
-  background: #6b7280;
-}
-
-.task-card-body {
-  margin-bottom: 12px;
-}
+.task-card-body { margin-bottom: 12px; }
 
 .task-card-title {
   margin: 0 0 8px 0;
@@ -428,10 +420,6 @@ const openTaskDetails = () => {
   display: flex;
   align-items: center;
   gap: 4px;
-  
-  .icon {
-    color: #6b7280;
-  }
 }
 
 .task-card-stats {
@@ -446,9 +434,5 @@ const openTaskDetails = () => {
   display: flex;
   align-items: center;
   gap: 4px;
-  
-  .icon {
-    color: $blue;
-  }
 }
 </style>

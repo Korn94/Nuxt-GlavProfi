@@ -11,7 +11,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { socketService } from 'services/socket.service'
-import { setSessionId } from './helpers/sessionId'
+import { setSessionId } from 'services/helpers/sessionId'
 import { useCookie } from 'nuxt/app'
 
 /**

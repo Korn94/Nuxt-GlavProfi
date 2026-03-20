@@ -59,7 +59,7 @@ defineProps({
         font-weight: 600;
         font-size: 2em;
         line-height: 46px;
-        max-width: 600px;
+        max-width: 1200px;
       }
     }
   }

@@ -1,0 +1,1 @@
+CREATE INDEX `column_idx` ON `boards_tasks` (`column_id`);

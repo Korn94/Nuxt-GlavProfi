@@ -12,29 +12,24 @@ export default eventHandler(async (event) => {
   }
 
   const params = event.context.params
-  if (!params || !params.id) {
-    throw createError({ statusCode: 400, statusMessage: 'Missing case ID' })
+  if (!params || !params.slug) {
+    throw createError({ statusCode: 400, statusMessage: 'Missing case slug' })
   }
 
-  const caseId = parseInt(params.id)
-  if (isNaN(caseId)) {
-    throw createError({ statusCode: 400, statusMessage: 'Invalid case ID' })
-  }
+  const slug = params.slug
 
-  // Проверяем, существует ли кейс
   const [existingCase] = await db
     .select()
     .from(portfolioCases)
-    .where(eq(portfolioCases.id, caseId))
+    .where(eq(portfolioCases.slug, slug))
 
   if (!existingCase) {
     throw createError({ statusCode: 404, statusMessage: 'Case not found' })
   }
 
-  // Удаляем кейс
   await db
     .delete(portfolioCases)
-    .where(eq(portfolioCases.id, caseId))
+    .where(eq(portfolioCases.slug, slug))
 
   return { message: 'Case deleted successfully' }
 })

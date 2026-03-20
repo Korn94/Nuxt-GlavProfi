@@ -118,7 +118,7 @@ export default eventHandler(async (event) => {
       id: portfoCaseWorks.id,
       caseId: portfoCaseWorks.caseId,
       workType: portfoCaseWorks.workType,
-      progress: portfoCaseWorks.progress
+      value: portfoCaseWorks.value
     })
     .from(portfoCaseWorks)
     .where(inArray(portfoCaseWorks.caseId, caseIds))
@@ -145,7 +145,7 @@ export default eventHandler(async (event) => {
       casesMap.get(w.caseId).works.push({
         id: w.id,
         workType: w.workType,
-        progress: w.progress
+        value: w.value
       })
     }
   })

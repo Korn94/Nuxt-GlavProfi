@@ -111,7 +111,7 @@ onMounted(() => {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   // padding-bottom: .2em;
-  margin-bottom: 1em;
+  margin-bottom: 5px;
   white-space: nowrap;
   position: relative;
   z-index: 1;
@@ -125,13 +125,14 @@ onMounted(() => {
     left: 0;
     right: 0;
     // border-top: 1px solid #555555;
-    // background: $background-light;
-    // padding: 10px 0;
+    background: $background-light;
+    padding: 5px;
     z-index: 1;
     transform: translateY(0);
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     .inner {
       justify-content: center;
+      width: 100%;
     }
   }
 
@@ -158,12 +159,12 @@ onMounted(() => {
     padding: 0;
     transition: all 0.3s ease;
     width: 100%;
+    gap: 5px;
     
     @media (max-width: 450px) {
-      width: max-content;
-      padding: 0.5em;
+      // width: max-content;
+      padding: 0px;
       background: $background-light;
-      gap: .5em;
     }
     
 
@@ -173,9 +174,9 @@ onMounted(() => {
       cursor: pointer;
       border: none;
       background: #f7f7f7;
-      // border-radius: 3px;
+      // border-radius: 8px;
       font-weight: 600;
-      font-size: .9em;
+      font-size: .8em;
       transition: all 0.3s ease;
       border: 1px solid $border-color;
 
@@ -185,7 +186,7 @@ onMounted(() => {
 
       &.active {
         background: $blue;
-        // color: $text-light;
+        color: $text-light;
       }
 
       &:hover {

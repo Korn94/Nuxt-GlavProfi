@@ -185,11 +185,6 @@ const loadMore = () => {
 onMounted(() => {
   fetchData()
 })
-
-// Следим за изменением активной вкладки
-watch(activeTab, () => {
-  fetchData()
-})
 </script>
 
 <style lang="scss" scoped>
@@ -234,6 +229,29 @@ watch(activeTab, () => {
     display: flex;
     gap: 0.75rem;
     min-width: 100%;
+
+    button {
+      border: 1px solid $border-color;
+      // color: $text-light;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: unset;
+      border-radius: $border-radius;
+      min-width: 100px;
+      // font-size: 1em;
+      // border-color: $text-light;
+      // margin-right: 1em;
+      padding: 5px 10px;
+  
+      &.active {
+        color: $text-dark;
+        background: $text-light;
+      }
+  
+      &:hover {
+        border-color: $blue;
+      }
+    }
   }
 
   .tab {

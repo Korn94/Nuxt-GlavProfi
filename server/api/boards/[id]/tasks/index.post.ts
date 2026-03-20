@@ -160,7 +160,8 @@ export default eventHandler(async (event): Promise<CreateTaskResponse> => {
       assignedTo: body.assignedTo ?? null,
       dueDate: body.dueDate ?? null,
       order: body.order ?? 0,
-      createdBy: user.id
+      createdBy: user.id,
+      columnId: (body as any).columnId ?? null,
     }
     
     // ============================================
@@ -231,6 +232,7 @@ export default eventHandler(async (event): Promise<CreateTaskResponse> => {
       dueDate: createdTask.dueDate ?? null,
       completedDate: createdTask.completedDate ?? null,
       order: createdTask.order ?? 0,
+      columnId: createdTask.columnId ?? null,
       createdBy: createdTask.createdBy,
       createdAt: createdTask.createdAt 
         ? new Date(createdTask.createdAt).toISOString() 

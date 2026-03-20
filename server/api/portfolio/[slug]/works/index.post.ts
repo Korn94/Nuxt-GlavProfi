@@ -11,34 +11,34 @@ export default eventHandler(async (event) => {
     throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   }
 
-  // Проверка params и id
   const params = event.context.params
-  if (!params || !params.id) {
+  if (!params || !params.slug) {
     throw createError({
       statusCode: 400,
-      statusMessage: 'Missing case ID in request parameters'
+      statusMessage: 'Missing case slug in request parameters'
     })
   }
 
-  const caseId = parseInt(params.id)
+  const slug = params.slug
 
-  // Проверка, что ID — это число
-  if (isNaN(caseId)) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Case ID must be a valid number'
-    })
+  const [caseExists] = await db
+    .select()
+    .from(portfolioCases)
+    .where(eq(portfolioCases.slug, slug))
+
+  if (!caseExists) {
+    throw createError({ statusCode: 404, statusMessage: 'Case not found' })
   }
+
+  const caseId = caseExists.id
 
   const body = await readBody(event)
   const { workType, progress } = body
 
-  // Проверка обязательных полей
   if (!workType || progress === undefined) {
     throw createError({ statusCode: 400, statusMessage: 'Missing required fields' })
   }
 
-  // Список допустимых типов работ
   const validWorkTypes = [
     'Демонтаж',
     'Перегородки ГКЛ',
@@ -69,29 +69,17 @@ export default eventHandler(async (event) => {
     'Террасная доска'
   ]
 
-  // Проверка, что workType входит в enum
   if (!validWorkTypes.includes(workType)) {
     throw createError({ statusCode: 400, statusMessage: 'Invalid work type' })
   }
 
-  // Проверка, что кейс существует
-  const [caseExists] = await db
-    .select()
-    .from(portfolioCases)
-    .where(eq(portfolioCases.id, caseId))
-
-  if (!caseExists) {
-    throw createError({ statusCode: 404, statusMessage: 'Case not found' })
-  }
-
-  // Добавление новой работы
   const [newWork] = await db
     .insert(portfoCaseWorks)
     .values({
       caseId,
       workType,
       progress,
-      order: 0 // По умолчанию 0, можно обновить позже
+      order: 0
     })
     .$returningId()
 

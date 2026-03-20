@@ -26,5 +26,3 @@ ecosystem.config.cjs
 
 # Папка с приватными данными
 config
-plugins/yandexMetrica.js
-utils

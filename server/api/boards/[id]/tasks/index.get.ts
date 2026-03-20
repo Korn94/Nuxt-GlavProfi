@@ -57,6 +57,7 @@ export default eventHandler(async (event) => {
         title: boardsTasks.title,
         description: boardsTasks.description,
         status: boardsTasks.status,
+        columnId: boardsTasks.columnId,
         priority: boardsTasks.priority,
         assignedTo: boardsTasks.assignedTo,
         dueDate: boardsTasks.dueDate,

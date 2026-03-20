@@ -11,23 +11,99 @@
     <!-- Шапка колонки -->
     <div class="column-header">
       <div class="column-title-wrapper">
-        <h2 class="column-title">{{ title }}</h2>
+        <h2 class="column-title">{{ column.name }}</h2>
         <span class="column-count">{{ tasks.length }}</span>
       </div>
-      <button
-        class="column-add-btn-header"
-        @click="toggleCreateForm"
-        :class="{ active: showCreateForm }"
-        title="Добавить задачу"
-      >
-        <Icon
-          :name="showCreateForm ? 'mdi:close' : 'mdi:plus'"
-          size="20"
-          class="btn-icon"
-          :class="{ 'icon-rotate': showCreateForm }"
-        />
-      </button>
+      <div class="column-actions">
+        <button
+          class="column-add-btn-header"
+          @click="toggleCreateForm"
+          :class="{ active: showCreateForm }"
+          title="Добавить задачу"
+        >
+          <Icon
+            :name="showCreateForm ? 'mdi:close' : 'mdi:plus'"
+            size="20"
+            class="btn-icon"
+            :class="{ 'icon-rotate': showCreateForm }"
+          />
+        </button>
+        <button
+          class="column-menu-btn"
+          @click.stop="toggleColumnMenu($event)"
+          title="Меню колонки"
+        >
+          <Icon name="mdi:dots-vertical" size="20" />
+        </button>
+      </div>
     </div>
+
+    <!-- ✅ TELEPORT ДЛЯ МЕНЮ КОЛОНКИ -->
+    <Teleport to="body">
+      <Transition name="menu-fade">
+        <div
+          v-if="showColumnMenu"
+          class="column-menu-dropdown"
+          :style="{
+            position: 'fixed',
+            top: columnMenuPosition.top,
+            right: columnMenuPosition.right,
+            zIndex: 9999
+          }"
+          @click.stop
+        >
+          <button
+            class="menu-item"
+            @click.stop="startEditingColumnName"
+          >
+            <Icon name="mdi:pencil" size="16" />
+            <span>Переименовать</span>
+          </button>
+          <button
+            class="menu-item danger"
+            @click.stop="confirmDeleteColumn"
+          >
+            <Icon name="mdi:delete" size="16" />
+            <span>Удалить колонку</span>
+          </button>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- ✅ РЕЖИМ РЕДАКТИРОВАНИЯ НАЗВАНИЯ КОЛОНКИ -->
+    <Transition name="form-slide">
+      <div v-if="isEditingColumnName" class="column-name-edit">
+        <input
+          ref="columnNameInputRef"
+          v-model="editedColumnName"
+          type="text"
+          class="form-control"
+          placeholder="Название колонки..."
+          maxlength="255"
+          @keyup.enter="saveColumnName"
+          @keyup.esc="cancelEditColumnName"
+          @blur="onColumnNameBlur"
+          autofocus
+        />
+        <div class="edit-actions">
+          <button
+            class="btn btn-sm btn-secondary"
+            @click="cancelEditColumnName"
+            :disabled="savingColumn"
+          >
+            Отмена
+          </button>
+          <button
+            class="btn btn-sm btn-primary"
+            @click="saveColumnName"
+            :disabled="savingColumn || !canSaveColumnName"
+          >
+            <Icon v-if="savingColumn" name="mdi:loading" size="16" class="spin" />
+            <Icon v-else name="mdi:check" size="16" />
+          </button>
+        </div>
+      </div>
+    </Transition>
 
     <!-- Форма создания задачи -->
     <Transition name="form-slide">
@@ -76,18 +152,17 @@
         <p>Нет задач</p>
       </div>
       <div v-else class="column-tasks">
-        <!-- ✅ КЛЮЧЕВОЕ: :key только по task.id, без order -->
         <div
           v-for="task in sortedTasks"
           :key="task.id"
           class="task-wrapper"
           :class="{ 'drop-indicator': dropIndex === getTaskIndex(task) }"
         >
-          <TaskCard
-            :task="task"
-            :board-id="boardId"
-            @move-task="handleMoveTask"
-          />
+        <TaskCard
+          :task="task"
+          :board-id="boardId"
+          :column-id="column.id"
+        />
         </div>
         <div
           v-if="dropIndex !== null && dropIndex === sortedTasks.length"
@@ -99,55 +174,40 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, shallowRef, watch } from 'vue'
-import { useTasks } from '~/composables/boards/useTasks'
+import { ref, computed, shallowRef, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useTasksStore } from 'stores/boards/tasks'
+import { useColumns } from '~/composables/boards/useColumns'
 import { socketService } from 'services/socket.service'
+import { useNotifications } from '~/composables/useNotifications'
 import TaskCard from '../TaskCard.vue'
-import type { Task } from '~/types/boards'
+import type { Task, BoardColumn } from '~/types/boards'
 
 // ============================================
 // PROPS & EMITS
 // ============================================
 const props = defineProps<{
   boardId: number
-  title: string
+  column: BoardColumn
   tasks: Task[]
-  status: string
 }>()
 
 const emit = defineEmits<{
   taskCreated: []
+  columnUpdated: []
 }>()
 
 // ============================================
 // STORES & COMPOSABLES
 // ============================================
-const { createTask, updateTask, updateTasksOrder } = useTasks()
 const tasksStore = useTasksStore()
+const { updateColumn, deleteColumn } = useColumns()
+const notifications = useNotifications()
 
 // ============================================
-// STATE — Оптимизация через shallowRef
+// STATE — Форма создания задачи
 // ============================================
 const showCreateForm = ref(false)
 const creatingTask = ref(false)
-const isDraggingOver = ref(false)
-const dropIndex = ref<number | null>(null)
-
-// ✅ shallowRef для предотвращения глубокой реактивности
-const tasksRef = shallowRef<Task[]>([...props.tasks])
-
-// ✅ Обновляем shallowRef только если изменились ID или order
-watch(() => props.tasks, (newTasks) => {
-  const oldIds = tasksRef.value.map(t => `${t.id}-${t.order}`)
-  const newIds = newTasks.map(t => `${t.id}-${t.order}`)
-  
-  // Обновляем только если действительно изменилось
-  if (JSON.stringify(oldIds) !== JSON.stringify(newIds)) {
-    tasksRef.value = [...newTasks]
-  }
-}, { deep: false })
-
 const newTask = ref({
   title: '',
   priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent',
@@ -155,11 +215,48 @@ const newTask = ref({
 })
 
 // ============================================
+// STATE — Drag & Drop задач
+// ============================================
+const isDraggingOver = ref(false)
+const dropIndex = ref<number | null>(null)
+const tasksRef = shallowRef<Task[]>([...props.tasks])
+
+// Обновляем shallowRef только если изменились ID или order
+watch(() => props.tasks, (newTasks) => {
+  const oldIds = tasksRef.value.map(t => `${t.id}-${t.order}`)
+  const newIds = newTasks.map(t => `${t.id}-${t.order}`)
+  if (JSON.stringify(oldIds) !== JSON.stringify(newIds)) {
+    tasksRef.value = [...newTasks]
+  }
+}, { deep: false })
+
+// ============================================
+// STATE — Редактирование названия колонки
+// ============================================
+const isEditingColumnName = ref(false)
+const editedColumnName = ref('')
+const savingColumn = ref(false)
+const columnNameInputRef = ref<HTMLInputElement | null>(null)
+
+const canSaveColumnName = computed(() => {
+  return editedColumnName.value.trim().length > 0 &&
+    editedColumnName.value.trim().length <= 255
+})
+
+// ============================================
+// STATE — Меню колонки (Teleport)
+// ============================================
+const showColumnMenu = ref(false)
+const columnMenuPosition = ref<{ top: string; right: string }>({
+  top: '0px',
+  right: '0px'
+})
+
+// ============================================
 // COMPUTED
 // ============================================
 const canSubmit = computed(() => newTask.value.title.trim().length > 0)
 
-// ✅ sortedTasks возвращает отсортированный массив, но не создаёт новые объекты
 const sortedTasks = computed(() => {
   return [...tasksRef.value].sort((a, b) => {
     const priorityOrder: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 }
@@ -172,7 +269,7 @@ const sortedTasks = computed(() => {
 })
 
 // ============================================
-// METHODS - ФОРМА
+// METHODS - ФОРМА СОЗДАНИЯ ЗАДАЧИ
 // ============================================
 const toggleCreateForm = () => {
   showCreateForm.value = !showCreateForm.value
@@ -194,17 +291,19 @@ const handleCreateTask = async () => {
   if (!canSubmit.value) return
   creatingTask.value = true
   try {
-    await createTask(props.boardId, {
+    await tasksStore.createTask(props.boardId, {
       title: newTask.value.title.trim(),
       description: '',
-      status: props.status as any,
       priority: newTask.value.priority,
-      dueDate: newTask.value.dueDate || null
+      dueDate: newTask.value.dueDate || null,
+      columnId: props.column.id  // ✅ Передаём columnId вместо status
     })
     closeCreateForm()
     emit('taskCreated')
+    notifications.success('Задача создана')
   } catch (err) {
     console.error('[Column] ❌ Failed to create task:', err)
+    notifications.error('Не удалось создать задачу')
   } finally {
     creatingTask.value = false
   }
@@ -215,14 +314,6 @@ const handleCreateTask = async () => {
 // ============================================
 const getTaskIndex = (task: Task): number => {
   return sortedTasks.value.findIndex(t => t.id === task.id)
-}
-
-const handleMoveTask = async (taskId: number, newStatus: string) => {
-  try {
-    await updateTask(taskId, { status: newStatus as any })
-  } catch (error) {
-    console.error('[Column] ❌ Failed to move task:', error)
-  }
 }
 
 // ============================================
@@ -268,101 +359,194 @@ const handleDragLeave = (event: DragEvent) => {
 }
 
 // ============================================
-// DRAG & DROP - Обработка drop (ГЛАВНОЕ ИСПРАВЛЕНИЕ)
+// DRAG & DROP - Обработка drop
 // ============================================
 const handleDrop = async (event: DragEvent) => {
   event.preventDefault()
   isDraggingOver.value = false
   
   try {
-    // ✅ 1. Безопасное получение данных
     const data = event.dataTransfer?.getData('application/json')
     if (!data) {
       console.warn('[Column] No drag data found')
       return
     }
     
-    // ✅ 2. Парсинг с типизацией
-    const dragData = JSON.parse(data) as { 
+    const dragData = JSON.parse(data) as {
       type: string
       taskId: number
-      status: string
+      columnId: number
     }
     
-    // ✅ 3. Валидация обязательных полей
-    if (dragData.type !== 'task' || !dragData.taskId || !dragData.status) {
+    if (dragData.type !== 'task' || !dragData.taskId) {
       console.warn('[Column] Invalid drag data:', dragData)
       return
     }
     
-    // ✅ Теперь TS «видит», что поля существуют
     const taskId = dragData.taskId
-    const fromStatus = dragData.status
-    const toStatus = props.status
+    const fromColumnId = dragData.columnId
+    const toColumnId = props.column.id
     
-    // ✅ СЛУЧАЙ 1: Перемещение между колонками (изменение статуса)
-    if (fromStatus !== toStatus) {
-      // 1️⃣ Оптимистичное обновление UI (мгновенно, без мигания)
-      await tasksStore.updateTaskOptimistic(taskId, { status: toStatus as any })
-      
-      // 2️⃣ Прямой API-запрос БЕЗ участия store (не триггерит loading!)
+    // ✅ СЛУЧАЙ 1: Перемещение между колонками
+    if (fromColumnId !== toColumnId) {
+      await tasksStore.updateTaskOptimistic(taskId, { columnId: toColumnId })
       await $fetch(`/api/boards/tasks/${taskId}`, {
         method: 'PUT',
-        body: { status: toStatus }
+        body: { columnId: toColumnId }
       })
-      
-      // 3️⃣ Socket broadcast для других клиентов
-      await socketService.emit('board:task:updated', {
-        boardId: props.boardId,
-        taskId,
-        task: { id: taskId, status: toStatus }
-      })
-      
+    } 
     // ✅ СЛУЧАЙ 2: Перемещение внутри одной колонки (изменение order)
-    } else if (dropIndex.value !== null) {
+    else if (dropIndex.value !== null) {
       const currentOrder = props.tasks.findIndex(t => t.id === taskId)
       const newOrder = dropIndex.value
-      
       if (currentOrder !== -1 && currentOrder !== newOrder) {
-        // 1️⃣ Копируем и пересчитываем порядок
         const columnTasks = [...props.tasks]
-        const [movedTask] = columnTasks.splice(currentOrder, 1)
-        if (!movedTask) return
+        const spliced = columnTasks.splice(currentOrder, 1)
+        const movedTask = spliced[0]
+        if (movedTask === undefined) return
         columnTasks.splice(newOrder, 0, movedTask)
-        
         const updates = columnTasks.map((task, index) => ({
           id: task.id,
           order: index
         }))
-        
-        // 2️⃣ Оптимистичное обновление в store (in-place, без замены массива)
-        updates.forEach(({ id, order }) => {
-          const task = tasksStore.tasks.find(t => t.id === id)
-          if (task) task.order = order
-        })
-        
-        // 3️⃣ Прямой API-запрос БЕЗ loading
+        const tasksList: Task[] = Array.isArray(tasksStore.tasks)
+          ? (tasksStore.tasks as Task[])
+          : []
+
+        for (const update of updates) {
+          const task = tasksList.find(t => t.id === update.id)
+          if (task != null) {
+            task.order = update.order
+          }
+        }
         await $fetch(`/api/boards/${props.boardId}/tasks/order`, {
           method: 'PUT',
           body: { updates }
-        })
-        
-        // 4️⃣ Socket broadcast для синхронизации
-        await socketService.emit('board:tasks:reorder', {
-          boardId: props.boardId,
-          status: props.status,
-          tasks: updates
         })
       }
     }
   } catch (error) {
     console.error('Failed to drop task:', error)
-    // ✅ Fallback: перезагружаем задачи ТОЛЬКО при ошибке
+    notifications.error('Не удалось переместить задачу')
     await tasksStore.fetchTasks(props.boardId)
   } finally {
     dropIndex.value = null
   }
 }
+
+// ============================================
+// METHODS - МЕНЮ КОЛОНКИ
+// ============================================
+const toggleColumnMenu = (event: MouseEvent) => {
+  if (showColumnMenu.value) {
+    showColumnMenu.value = false
+    return
+  }
+
+  const trigger = event.currentTarget as HTMLElement
+  const rect = trigger.getBoundingClientRect()
+
+  columnMenuPosition.value = {
+    top: `${rect.bottom + 8}px`,
+    right: `${window.innerWidth - rect.right}px`
+  }
+
+  showColumnMenu.value = true
+}
+
+const closeColumnMenu = () => {
+  showColumnMenu.value = false
+}
+
+// ============================================
+// METHODS - РЕДАКТИРОВАНИЕ НАЗВАНИЯ КОЛОНКИ
+// ============================================
+const startEditingColumnName = async () => {
+  editedColumnName.value = props.column.name
+  isEditingColumnName.value = true
+  closeColumnMenu()
+  await nextTick()
+  await new Promise(resolve => setTimeout(resolve, 50))
+  if (columnNameInputRef.value && typeof columnNameInputRef.value.focus === 'function') {
+    columnNameInputRef.value.focus()
+    columnNameInputRef.value.select()
+  }
+}
+
+const saveColumnName = async () => {
+  if (!canSaveColumnName.value) return
+  savingColumn.value = true
+  try {
+    await updateColumn(props.column.id, {
+      name: editedColumnName.value.trim()
+    })
+    notifications.success('Колонка переименована')
+    emit('columnUpdated')
+    cancelEditColumnName()
+  } catch (error: any) {
+    console.error('Ошибка переименования колонки:', error)
+    const message = error.data?.message || 'Не удалось переименовать колонку'
+    notifications.error(message)
+  } finally {
+    savingColumn.value = false
+  }
+}
+
+const cancelEditColumnName = () => {
+  isEditingColumnName.value = false
+  editedColumnName.value = ''
+}
+
+const onColumnNameBlur = async (e: FocusEvent) => {
+  const relatedTarget = e.relatedTarget as HTMLElement | null
+  if (!relatedTarget || !relatedTarget.classList.contains('btn')) {
+    if (canSaveColumnName.value && editedColumnName.value.trim() !== '') {
+      await saveColumnName()
+    } else {
+      cancelEditColumnName()
+    }
+  }
+}
+
+// ============================================
+// METHODS - УДАЛЕНИЕ КОЛОНКИ
+// ============================================
+const confirmDeleteColumn = () => {
+  if (confirm(`Вы уверены, что хотите удалить колонку "${props.column.name}"? Все задачи останутся без колонки.`)) {
+    deleteColumn(props.column.id)
+      .then(() => {
+        notifications.success('Колонка удалена')
+        emit('columnUpdated')
+      })
+      .catch((error: any) => {
+        console.error('Ошибка удаления колонки:', error)
+        const message = error.data?.message || 'Не удалось удалить колонку'
+        notifications.error(message)
+      })
+  }
+  closeColumnMenu()
+}
+
+// ============================================
+// LIFECYCLE
+// ============================================
+onMounted(() => {
+  document.addEventListener('click', closeColumnMenu)
+  document.addEventListener('scroll', closeColumnMenu, true)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', closeColumnMenu)
+  document.removeEventListener('scroll', closeColumnMenu, true)
+})
+
+watch(
+  () => props.column.id,
+  () => {
+    closeColumnMenu()
+    cancelEditColumnName()
+  }
+)
 </script>
 
 <style scoped lang="scss">
@@ -373,6 +557,7 @@ const handleDrop = async (event: DragEvent) => {
   border: 1px solid $text-dark;
   border-radius: 12px;
   min-width: 320px;
+  max-width: 320px;
   display: flex;
   flex-direction: column;
   max-height: 100%;
@@ -422,6 +607,11 @@ const handleDrop = async (event: DragEvent) => {
   font-weight: 500;
 }
 
+.column-actions {
+  display: flex;
+  gap: 4px;
+}
+
 .column-add-btn-header {
   width: 26px;
   height: 26px;
@@ -452,6 +642,26 @@ const handleDrop = async (event: DragEvent) => {
   }
 }
 
+.column-menu-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: $text-light;
+  }
+}
+
 .btn-icon {
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   
@@ -460,15 +670,58 @@ const handleDrop = async (event: DragEvent) => {
   }
 }
 
-.column-create-form {
+// ============================================
+// МЕНЮ КОЛОНКИ (TELEPORT)
+// ============================================
+.column-menu-dropdown {
+  position: fixed;
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  padding: 6px;
+  min-width: 160px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: $text-light;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  
+  &.danger {
+    color: $red;
+    
+    &:hover {
+      background: rgba($red, 0.15);
+    }
+  }
+}
+
+// ============================================
+// РЕДАКТИРОВАНИЕ НАЗВАНИЯ КОЛОНКИ
+// ============================================
+.column-name-edit {
   padding: 12px 16px;
   background: rgba($blue, 0.05);
   border-bottom: 1px solid #374151;
   animation: slideDown 0.2s ease;
-}
-
-.form-group {
-  margin-bottom: 10px;
 }
 
 .form-control {
@@ -490,6 +743,29 @@ const handleDrop = async (event: DragEvent) => {
   &::placeholder {
     color: #6b7280;
   }
+}
+
+.edit-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #374151;
+}
+
+// ============================================
+// ФОРМА СОЗДАНИЯ ЗАДАЧИ
+// ============================================
+.column-create-form {
+  padding: 12px 16px;
+  background: rgba($blue, 0.05);
+  border-bottom: 1px solid #374151;
+  animation: slideDown 0.2s ease;
+}
+
+.form-group {
+  margin-bottom: 10px;
 }
 
 .form-row {
@@ -542,16 +818,11 @@ const handleDrop = async (event: DragEvent) => {
     filter: invert(1);
     cursor: pointer;
   }
-  
-  &::-webkit-datetime-edit {
-    color: $text-light;
-  }
-  
-  &::-webkit-datetime-edit-fields-wrapper {
-    padding: 0;
-  }
 }
 
+// ============================================
+// КНОПКИ
+// ============================================
 .btn {
   display: inline-flex;
   align-items: center;
@@ -586,6 +857,18 @@ const handleDrop = async (event: DragEvent) => {
   }
 }
 
+.btn-secondary {
+  background: #4b5563;
+  color: $text-light;
+  
+  &:hover:not(:disabled) {
+    background: #374151;
+  }
+}
+
+// ============================================
+// ТЕЛО КОЛОНКИ
+// ============================================
 .column-body {
   flex: 1;
   overflow-y: auto;
@@ -621,7 +904,7 @@ const handleDrop = async (event: DragEvent) => {
 
 .task-wrapper {
   position: relative;
-  transition: 
+  transition:
     transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
     opacity 0.2s ease;
   will-change: transform;
@@ -670,6 +953,9 @@ const handleDrop = async (event: DragEvent) => {
   to { transform: translateX(-50%) translateY(-4px); }
 }
 
+// ============================================
+// АНИМАЦИИ
+// ============================================
 .form-slide-enter-active,
 .form-slide-leave-active {
   transition: all 0.2s ease;
@@ -683,6 +969,17 @@ const handleDrop = async (event: DragEvent) => {
 .form-slide-leave-to {
   opacity: 0;
   transform: translateY(-10px);
+}
+
+.menu-fade-enter-active,
+.menu-fade-leave-active {
+  transition: all 0.2s ease;
+}
+
+.menu-fade-enter-from,
+.menu-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
 }
 
 @keyframes slideDown {
@@ -704,9 +1001,13 @@ const handleDrop = async (event: DragEvent) => {
   to { transform: rotate(360deg); }
 }
 
+// ============================================
+// АДАПТИВНОСТЬ
+// ============================================
 @media (max-width: 768px) {
   .column {
     min-width: 280px;
+    max-width: 280px;
   }
   
   .form-row {

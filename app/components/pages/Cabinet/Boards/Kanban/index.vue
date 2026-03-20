@@ -1,139 +1,116 @@
 <!-- app/components/pages/cabinet/Boards/Kanban/index.vue -->
 <template>
-<div class="kanban-board">
-  <!-- Шапка через отдельный компонент -->
-  <Header 
-    :board="selectedBoard || {}" 
-    :folder="activeFolder" 
-    @back="$emit('back')" 
-    @create-task="showCreateTaskModal = true" 
-  />
-  
-  <div class="kanban-content">
-    <!-- Загрузка -->
-    <div v-if="loading" class="kanban-loading">
-      <div class="spinner"></div>
-      <p>Загрузка задач...</p>
+  <div class="kanban-board">
+    <!-- Шапка через отдельный компонент -->
+    <Header :board="selectedBoard || {}" :folder="activeFolder" @back="$emit('back')"
+      @create-task="showCreateTaskModal = true" />
+
+    <div class="kanban-content">
+      <!-- Загрузка -->
+      <div v-if="loading" class="kanban-loading">
+        <div class="spinner"></div>
+        <p>Загрузка доски...</p>
+      </div>
+
+      <!-- Ошибка -->
+      <div v-else-if="error" class="kanban-error">
+        <Icon name="mdi:alert-circle" size="48" />
+        <p>{{ error }}</p>
+        <button class="btn btn-secondary" @click="fetchData">
+          Повторить
+        </button>
+      </div>
+
+      <!-- ✅ КАСТОМНЫЕ КОЛОНКИ -->
+      <div v-else ref="kanbanColumnsRef" class="kanban-columns" :class="{ 'dragging': isBoardDragging }"
+        @mousedown="handleBoardMouseDown" @mousemove="handleBoardMouseMove" @mouseup="handleBoardMouseUp"
+        @mouseleave="handleBoardMouseLeave">
+        <!-- ✅ КОЛОНКИ ИЗ БД -->
+        <Column v-for="(column, index) in sortedColumns" :key="column.id" :column="column"
+          :tasks="getTasksByColumnId(column.id, index === 0)" :board-id="selectedBoard?.id || 0"
+          @task-created="fetchData" @column-updated="fetchData" />
+
+        <!-- ✅ PLACEHOLDER ДЛЯ ДОБАВЛЕНИЯ КОЛОНКИ -->
+        <AddColumnPlaceholder :board-id="selectedBoard?.id || 0" :is-first-column="columns.length === 0"
+          @column-created="onColumnCreated" />
+      </div>
     </div>
-    
-    <!-- Ошибка -->
-    <div v-else-if="error" class="kanban-error">
-      <Icon name="mdi:alert-circle" size="48" />
-      <p>{{ error }}</p>
-      <button class="btn btn-secondary" @click="fetchTasks">
-        Повторить
-      </button>
-    </div>
-    
-    <!-- Канбан-доска -->
-    <div 
-      v-else 
-      ref="kanbanColumnsRef" 
-      class="kanban-columns" 
-      :class="{ 'dragging': isBoardDragging }"
-      @mousedown="handleBoardMouseDown" 
-      @mousemove="handleBoardMouseMove" 
-      @mouseup="handleBoardMouseUp"
-      @mouseleave="handleBoardMouseLeave"
-    >
-      <Column 
-        v-for="status in columnStatuses" 
-        :key="status.value" 
-        :title="status.label" 
-        :status="status.value"
-        :tasks="getTasksByStatus(status.value)" 
-        :board-id="selectedBoard?.id || 0" 
-        @task-created="fetchTasks" 
-      />
-    </div>
-  </div>
-  
-  <!-- Модалка создания задачи -->
-  <Teleport to="body">
-    <Transition name="modal-fade">
-      <div v-if="showCreateTaskModal" class="modal-overlay" @click="closeCreateTaskModal">
-        <div class="modal" @click.stop>
-          <div class="modal-header">
-            <h2>Создать задачу</h2>
-            <button class="modal-close" @click="closeCreateTaskModal" aria-label="Закрыть">
-              <Icon name="mdi:close" size="24" />
-            </button>
-          </div>
-          <div class="modal-body">
-            <form @submit.prevent="handleCreateTask" class="create-task-form">
-              <div class="form-group">
-                <label for="task-title">Название задачи *</label>
-                <input 
-                  id="task-title" 
-                  v-model="newTask.title" 
-                  type="text" 
-                  class="form-control"
-                  placeholder="Введите название задачи" 
-                  required 
-                  autofocus 
-                />
-              </div>
-              <div class="form-group">
-                <label for="task-description">Описание</label>
-                <textarea 
-                  id="task-description" 
-                  v-model="newTask.description" 
-                  class="form-control"
-                  placeholder="Описание задачи (необязательно)" 
-                  rows="3"
-                ></textarea>
-              </div>
-              <div class="form-row">
+
+    <!-- Модалка создания задачи -->
+    <Teleport to="body">
+      <Transition name="modal-fade">
+        <div v-if="showCreateTaskModal" class="modal-overlay" @click="closeCreateTaskModal">
+          <div class="modal" @click.stop>
+            <div class="modal-header">
+              <h2>Создать задачу</h2>
+              <button class="modal-close" @click="closeCreateTaskModal" aria-label="Закрыть">
+                <Icon name="mdi:close" size="24" />
+              </button>
+            </div>
+            <div class="modal-body">
+              <form @submit.prevent="handleCreateTask" class="create-task-form">
                 <div class="form-group">
-                  <label for="task-status">Статус</label>
-                  <select id="task-status" v-model="newTask.status" class="form-control">
-                    <option v-for="status in columnStatuses" :key="status.value" :value="status.value">
-                      {{ status.label }}
+                  <label for="task-title">Название задачи *</label>
+                  <input id="task-title" v-model="newTask.title" type="text" class="form-control"
+                    placeholder="Введите название задачи" required autofocus />
+                </div>
+
+                <div class="form-group">
+                  <label for="task-description">Описание</label>
+                  <textarea id="task-description" v-model="newTask.description" class="form-control"
+                    placeholder="Описание задачи (необязательно)" rows="3"></textarea>
+                </div>
+
+                <!-- ✅ ВЫБОР КОЛОНКИ ВМЕСТО СТАТУСА -->
+                <div class="form-group" v-if="columns.length > 0">
+                  <label for="task-column">Колонка</label>
+                  <select id="task-column" v-model="newTask.columnId" class="form-control">
+                    <option v-for="column in sortedColumns" :key="column.id" :value="column.id">
+                      {{ column.name }}
                     </option>
                   </select>
                 </div>
-                <div class="form-group">
-                  <label for="task-priority">Приоритет</label>
-                  <select id="task-priority" v-model="newTask.priority" class="form-control">
-                    <option value="low">Низкий</option>
-                    <option value="medium">Средний</option>
-                    <option value="high">Высокий</option>
-                    <option value="urgent">Срочный</option>
-                  </select>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="task-priority">Приоритет</label>
+                    <select id="task-priority" v-model="newTask.priority" class="form-control">
+                      <option value="low">Низкий</option>
+                      <option value="medium">Средний</option>
+                      <option value="high">Высокий</option>
+                      <option value="urgent">Срочный</option>
+                    </select>
+                  </div>
                 </div>
-              </div>
-              <div class="form-group">
-                <label for="task-due-date">Срок выполнения</label>
-                <input id="task-due-date" v-model="newTask.dueDate" type="date" class="form-control" />
-              </div>
-              <div class="modal-actions">
-                <button type="button" class="btn btn-secondary" @click="closeCreateTaskModal">
-                  Отмена
-                </button>
-                <button type="submit" class="btn btn-primary" :disabled="creatingTask">
-                  <span v-if="creatingTask">
-                    <Icon name="mdi:loading" class="btn-icon spin" />
-                    Создание...
-                  </span>
-                  <span v-else>Создать задачу</span>
-                </button>
-              </div>
-            </form>
+
+                <div class="form-group">
+                  <label for="task-due-date">Срок выполнения</label>
+                  <input id="task-due-date" v-model="newTask.dueDate" type="date" class="form-control" />
+                </div>
+
+                <div class="modal-actions">
+                  <button type="button" class="btn btn-secondary" @click="closeCreateTaskModal">
+                    Отмена
+                  </button>
+                  <button type="submit" class="btn btn-primary" :disabled="creatingTask">
+                    <span v-if="creatingTask">
+                      <Icon name="mdi:loading" class="btn-icon spin" />
+                      Создание...
+                    </span>
+                    <span v-else>Создать задачу</span>
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
-      </div>
-    </Transition>
-  </Teleport>
-  
-  <!-- Модалка деталей задачи -->
-  <TaskDetails 
-    v-if="taskModalStore.isOpen && taskModalStore.taskData"
-    :task="taskModalStore.taskData"
-    @close="taskModalStore.close"
-    @task-updated="handleTaskUpdated" 
-    @task-deleted="handleTaskDeleted" 
-  />
-</div>
+      </Transition>
+    </Teleport>
+
+    <!-- Модалка деталей задачи -->
+    <TaskDetails v-if="taskModalStore.isOpen && taskModalStore.taskData" :task="taskModalStore.taskData"
+      @close="taskModalStore.close" @task-updated="handleTaskUpdated" @task-deleted="handleTaskDeleted" />
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -142,10 +119,12 @@ import { useTasksStore } from 'stores/boards/tasks'
 import { useTaskModalStore } from 'stores/boards/taskModal'
 import { useBoardFoldersStore } from 'stores/boards/folders'
 import { useBoardsStore } from 'stores/boards'
+import { useColumns } from '~/composables/boards/useColumns'
 import Column from './Column/index.vue'
 import TaskDetails from './TaskDetails/index.vue'
 import Header from './Header/index.vue'
-import type { Board, BoardFolder, Task } from '~/types/boards'
+import AddColumnPlaceholder from './Column/AddColumnPlaceholder.vue'
+import type { Board, BoardFolder, Task, BoardColumn } from '~/types/boards'
 import { socketService } from 'services/socket.service'
 
 // ============================================
@@ -164,17 +143,30 @@ const foldersStore = useBoardFoldersStore()
 const boardsStore = useBoardsStore()
 
 // ============================================
+// COMPOSABLES
+// ============================================
+const {
+  columns,
+  loading: columnsLoading,
+  error: columnsError,
+  fetchColumns,
+  createColumn,
+  subscribeToBoard,
+  unsubscribeFromBoard,
+  updateColumnsOrder
+} = useColumns()
+
+// ============================================
 // STATE
 // ============================================
-const loading = computed(() => tasksStore.loading)
-const error = computed(() => tasksStore.error)
-const tasksByStatus = computed(() => tasksStore.tasksByStatus)
+const loading = ref(false)
+const error = ref<string | null>(null)
 const showCreateTaskModal = ref(false)
 const creatingTask = ref(false)
 const newTask = ref({
   title: '',
   description: '',
-  status: 'todo' as 'todo' | 'in_progress' | 'review' | 'done' | 'blocked' | 'cancelled',
+  columnId: 0, // ✅ Вместо status используем columnId
   priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent',
   dueDate: ''
 })
@@ -193,51 +185,124 @@ const activeFolder = computed(() => foldersStore.activeFolder)
 const selectedBoard = computed(() => boardsStore.selectedBoard)
 
 // ============================================
-// Column statuses
+// COMPUTED - Сортировка колонок
 // ============================================
-const columnStatuses = [
-  { value: 'todo', label: 'В ожидании' },
-  { value: 'in_progress', label: 'В работе' },
-  { value: 'review', label: 'На проверке' },
-  { value: 'done', label: 'Завершено' },
-  { value: 'blocked', label: 'Заблокировано' },
-  { value: 'cancelled', label: 'Отменено' }
-]
+const sortedColumns = computed(() => {
+  // ✅ ПРОВЕРКА: массив может быть пустым
+  const cols = columns.value || []
+  return [...cols].sort((a: BoardColumn, b: BoardColumn) => a.order - b.order)
+})
 
 // ============================================
-// METHODS
+// COMPUTED - Объединённый loading и error
 // ============================================
-const fetchTasks = async () => {
-  if (!selectedBoard.value?.id) return
-  
+const combinedLoading = computed(() => {
+  return loading.value ||
+    columnsLoading.value ||
+    tasksStore.loading
+})
+
+const combinedError = computed(() => {
+  return error.value ||
+    columnsError.value ||
+    tasksStore.error
+})
+
+const unassignedTasks = computed(() => {
+  return (tasksStore.tasks || []).filter(
+    (task: Task) => task.columnId === null || task.columnId === undefined
+  )
+})
+
+// ============================================
+// METHODS - Получение задач по колонке
+// ============================================
+const getTasksByColumnId = computed(() => {
+  return (columnId: number, isFirst = false): Task[] => {
+    const tasks = tasksStore.tasks || []
+    return tasks
+      .filter((task: Task) => {
+        if (isFirst) {
+          // Первая колонка получает и задачи без колонки
+          return task.columnId === columnId || task.columnId == null
+        }
+        return task.columnId === columnId
+      })
+      .sort((a: Task, b: Task) => (a.order ?? 0) - (b.order ?? 0))
+  }
+})
+
+// ============================================
+// METHODS - Загрузка данных
+// ============================================
+const fetchData = async () => {
+  const boardId = selectedBoard.value?.id
+  if (!boardId) return
+
   try {
-    await tasksStore.fetchTasks(selectedBoard.value.id)
-  } catch (err) {
-    console.error('❌ Ошибка загрузки задач:', err)
+    loading.value = true
+    error.value = null
+
+    // ✅ 1. Загружаем колонки
+    await fetchColumns(boardId)
+
+    // ✅ 2. Загружаем задачи
+    await tasksStore.fetchTasks(boardId)
+
+    console.log('[Kanban] ✅ Данные загружены:', {
+      columns: columns.value.length,
+      tasks: tasksStore.tasks.length
+    })
+  } catch (err: any) {
+    console.error('[Kanban] ❌ Ошибка загрузки данных:', err)
+    error.value = err.message || 'Ошибка загрузки данных'
+  } finally {
+    loading.value = false
   }
 }
 
-const getTasksByStatus = (status: string): Task[] => {
-  const tasks = tasksByStatus.value[status as keyof typeof tasksByStatus.value]
-  // ✅ Проверяем что это массив, а не число
-  return Array.isArray(tasks) ? tasks : []
-}
-
+// ============================================
+// METHODS - Создание задачи
+// ============================================
 const handleCreateTask = async () => {
-  if (!selectedBoard.value?.id) return
-  
+  const boardId = selectedBoard.value?.id
+  if (!boardId) return
+
+  // ✅ Если нет колонок, создаём первую автоматически
+  let targetColumnId = newTask.value.columnId
+  if (!targetColumnId && columns.value.length === 0) {
+    try {
+      const newColumn = await createColumn(boardId, {
+        name: 'По умолчанию',
+        order: 0
+      })
+      targetColumnId = newColumn.id
+    } catch (err: any) {
+      console.error('[Kanban] ❌ Не удалось создать колонку:', err)
+      return
+    }
+  }
+
+  if (!targetColumnId) {
+    console.error('[Kanban] ❌ Нет колонки для задачи')
+    return
+  }
+
   creatingTask.value = true
+
   try {
-    await tasksStore.createTask(selectedBoard.value.id, {
+    await tasksStore.createTask(boardId, {
       title: newTask.value.title,
       description: newTask.value.description,
-      status: newTask.value.status,
+      columnId: targetColumnId, // ✅ Передаём columnId
       priority: newTask.value.priority,
       dueDate: newTask.value.dueDate || null
     })
+
     closeCreateTaskModal()
-  } catch (err) {
-    console.error('Failed to create task:', err)
+  } catch (err: any) {
+    console.error('[Kanban] ❌ Ошибка создания задачи:', err)
+    error.value = err.message || 'Ошибка создания задачи'
   } finally {
     creatingTask.value = false
   }
@@ -248,15 +313,18 @@ const closeCreateTaskModal = () => {
   newTask.value = {
     title: '',
     description: '',
-    status: 'todo',
+    columnId: columns.value[0]?.id || 0,
     priority: 'medium',
     dueDate: ''
   }
 }
 
+// ============================================
+// METHODS - Обработчики событий
+// ============================================
 const handleTaskUpdated = () => {
   if (taskModalStore.isOpen && taskModalStore.taskId) {
-    const updatedTask = tasksStore.tasks.find(t => t.id === taskModalStore.taskId)
+    const updatedTask = tasksStore.tasks.find((t: Task) => t.id === taskModalStore.taskId)
     if (updatedTask) {
       taskModalStore.setTaskData(updatedTask)
     }
@@ -267,21 +335,25 @@ const handleTaskDeleted = () => {
   taskModalStore.close()
 }
 
+const onColumnCreated = (columnId: number) => {
+  console.log('[Kanban] ✅ Колонка создана:', columnId)
+  // ✅ Устанавливаем новую колонку как выбранную для следующей задачи
+  newTask.value.columnId = columnId
+}
+
 // ============================================
 // ГОРИЗОНТАЛЬНОЕ ПЕРЕТАСКИВАНИЕ ДОСКИ
 // ============================================
 const handleBoardMouseDown = (e: MouseEvent) => {
-  // Проверяем, что клик не по интерактивным элементам
   const target = e.target as HTMLElement
-  
-  // Игнорируем если клик по карточке задачи, кнопкам, инпутам и т.д.
+
+  // Игнорируем если клик по интерактивным элементам
   if (
     target.closest('.task-card') ||
     target.closest('.btn') ||
     target.closest('input') ||
     target.closest('textarea') ||
     target.closest('select') ||
-    target.closest('.task-card-header') ||
     target.closest('.column-header') ||
     target.closest('.column-footer') ||
     target.tagName === 'BUTTON' ||
@@ -291,38 +363,34 @@ const handleBoardMouseDown = (e: MouseEvent) => {
   ) {
     return
   }
-  
+
   // Начинаем перетаскивание доски
   isDraggingBoard = true
   isBoardDragging.value = true
   dragStartX = e.clientX
   dragStartScrollLeft = kanbanColumnsRef.value?.scrollLeft || 0
-  
-  // Блокируем выделение текста
+
   if (kanbanColumnsRef.value) {
     kanbanColumnsRef.value.style.userSelect = 'none'
     kanbanColumnsRef.value.style.cursor = 'grabbing'
   }
-  
-  // Предотвращаем стандартное поведение (выделение)
+
   e.preventDefault()
 }
 
 const handleBoardMouseMove = (e: MouseEvent) => {
   if (!isDraggingBoard || !kanbanColumnsRef.value) return
-  
-  // Вычисляем смещение и прокручиваем
+
   const deltaX = e.clientX - dragStartX
-  kanbanColumnsRef.value.scrollLeft = dragStartScrollLeft - deltaX * 1.5 // Коэффициент чувствительности
+  kanbanColumnsRef.value.scrollLeft = dragStartScrollLeft - deltaX * 1.5
 }
 
 const handleBoardMouseUp = () => {
   if (!isDraggingBoard) return
-  
+
   isDraggingBoard = false
   isBoardDragging.value = false
-  
-  // Восстанавливаем стандартные стили
+
   if (kanbanColumnsRef.value) {
     kanbanColumnsRef.value.style.userSelect = 'auto'
     kanbanColumnsRef.value.style.cursor = 'unset'
@@ -330,7 +398,6 @@ const handleBoardMouseUp = () => {
 }
 
 const handleBoardMouseLeave = () => {
-  // Сбрасываем состояние при выходе мыши за пределы окна
   if (isDraggingBoard && kanbanColumnsRef.value) {
     isDraggingBoard = false
     isBoardDragging.value = false
@@ -343,28 +410,17 @@ const handleBoardMouseLeave = () => {
 // LIFECYCLE
 // ============================================
 onMounted(async () => {
-  // ✅ 1. Сначала гарантируем инициализацию сокета
+  // ✅ 1. Инициализация сокета
   if (process.client) {
     socketService.init()
-    // Ждём подключения (макс. 2 сек)
+
     let attempts = 0
     while (!socketService.getConnected() && attempts < 20) {
       await new Promise(resolve => setTimeout(resolve, 100))
       attempts++
     }
   }
-  
-  // ✅ 2. Затем загружаем задачи
-  if (selectedBoard.value?.id) {
-    await fetchTasks()
-    // ✅ 3. Подписываемся на доску ПОСЛЕ подключения сокета
-    if (socketService.getConnected()) {
-      socketService.subscribeToBoard(selectedBoard.value.id)
-    } else {
-      console.warn('[Kanban] ⚠️ Socket not connected, cannot subscribe to board')
-    }
-  }
-  
+
   // Глобальные обработчики для drag доски
   window.addEventListener('mouseup', handleBoardMouseUp)
   window.addEventListener('mouseleave', handleBoardMouseLeave)
@@ -372,10 +428,12 @@ onMounted(async () => {
 
 onUnmounted(() => {
   tasksStore.clearState()
-    if (selectedBoard.value?.id) {
-    socketService.unsubscribeFromBoard(selectedBoard.value.id)
+
+  if (selectedBoard.value?.id) {
+    unsubscribeFromBoard(selectedBoard.value.id)
+    console.log('[Kanban] ✅ Отписка от доски:', selectedBoard.value.id)
   }
-  // Удаляем глобальные обработчики
+
   window.removeEventListener('mouseup', handleBoardMouseUp)
   window.removeEventListener('mouseleave', handleBoardMouseLeave)
 })
@@ -383,9 +441,10 @@ onUnmounted(() => {
 // Следим за изменением выбранной доски
 watch(
   () => selectedBoard.value?.id,
-  (newBoardId, oldBoardId) => {
+  async (newBoardId, oldBoardId) => {
     if (newBoardId && newBoardId !== oldBoardId) {
-      fetchTasks()
+      console.log('[Kanban] 🔄 Смена доски:', { from: oldBoardId, to: newBoardId })
+      await fetchData()
     }
   },
   { immediate: true }
@@ -393,6 +452,8 @@ watch(
 </script>
 
 <style scoped lang="scss">
+@use '@/assets/styles/variables.scss' as *;
+
 .kanban-board {
   height: 100%;
   display: flex;
@@ -445,37 +506,34 @@ watch(
   padding: 10px;
   overflow-x: auto;
   height: 100%;
-  // cursor: grab;
   scroll-behavior: smooth;
   scrollbar-width: thin;
   scrollbar-color: #374151 #1f2937;
-  
+
   // Стили для WebKit (Chrome, Safari)
   &::-webkit-scrollbar {
     height: 8px;
   }
-  
+
   &::-webkit-scrollbar-track {
     background: #1f2937;
     border-radius: 4px;
   }
-  
+
   &::-webkit-scrollbar-thumb {
     background: #374151;
     border-radius: 4px;
-    
+
     &:hover {
       background: #4b5563;
     }
   }
-  
+
   // Состояние перетаскивания
   &.dragging {
-    // cursor: grabbing;
     user-select: none;
-    scroll-behavior: auto; // Отключаем плавную прокрутку во время перетаскивания
-    
-    // Визуальная подсказка
+    scroll-behavior: auto;
+
     &::after {
       content: '';
       position: fixed;
@@ -483,7 +541,6 @@ watch(
       left: 0;
       right: 0;
       bottom: 0;
-      // background: rgba(0, 0, 0, 0.3);
       z-index: 100;
       pointer-events: none;
       cursor: grabbing;
@@ -522,13 +579,13 @@ watch(
   align-items: center;
   padding: 20px;
   border-bottom: 1px solid #374151;
-  
+
   h2 {
     margin: 0;
     font-size: 20px;
     color: $text-light;
   }
-  
+
   .modal-close {
     background: none;
     border: none;
@@ -537,7 +594,7 @@ watch(
     padding: 4px;
     border-radius: 4px;
     transition: all 0.2s ease;
-    
+
     &:hover {
       color: $text-light;
       background: #374151;
@@ -559,7 +616,7 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 8px;
-  
+
   label {
     color: $text-light;
     font-size: 14px;
@@ -576,13 +633,13 @@ watch(
   color: $text-light;
   font-size: 14px;
   transition: border-color 0.2s ease;
-  
+
   &:focus {
     outline: none;
     border-color: $blue;
     box-shadow: 0 0 0 3px rgba($blue, 0.1);
   }
-  
+
   &::placeholder {
     color: #6b7280;
   }
@@ -590,7 +647,7 @@ watch(
 
 .form-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 16px;
 }
 
@@ -615,7 +672,7 @@ watch(
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  
+
   &:disabled {
     opacity: 0.6;
     cursor: not-allowed;
@@ -625,7 +682,7 @@ watch(
 .btn-primary {
   background: $blue;
   color: $text-light;
-  
+
   &:hover:not(:disabled) {
     background: $red;
     transform: translateY(-1px);
@@ -635,7 +692,7 @@ watch(
 .btn-secondary {
   background: #4b5563;
   color: $text-light;
-  
+
   &:hover:not(:disabled) {
     background: #374151;
   }
@@ -665,7 +722,7 @@ watch(
   .kanban-columns {
     flex-direction: column;
   }
-  
+
   .form-row {
     grid-template-columns: 1fr;
   }

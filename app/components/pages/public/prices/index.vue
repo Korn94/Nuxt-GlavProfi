@@ -1174,7 +1174,7 @@ $shadow-color: rgba(0, 0, 0, 0.05);
 h1, h2 {
   text-align: center;
   color: $text-color;
-  font-size: 1.8rem;
+  font-size: 1.7rem;
 }
 
 @media (max-width: 768px) {

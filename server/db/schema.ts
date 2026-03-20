@@ -567,9 +567,9 @@ export const portfolioImages = mysqlTable('portfolio_images', {
 export const portfoCaseWorks = mysqlTable('portfolio_case_works', {
   id: serial('id').primaryKey(),
   caseId: bigint('case_id', { mode: 'number', unsigned: true }).notNull().references(() => portfolioCases.id),
-  workType: varchar('work_type', { length: 50 }).notNull(),
-  progress: int('progress').notNull(), // Процент выполных работ нами (0-100)
-  order: int('order').default(0) // Порядок отображения
+  workType: varchar('work_type', { length: 100 }).notNull(),
+  value: varchar('value', { length: 100 }).notNull(),
+  order: int('order').default(0)
 }, (table) => ({
   caseIdIndex: index('case_id_index').on(table.caseId)
 }))
@@ -628,6 +628,20 @@ export const boards = mysqlTable('boards', {
   orderIndex: index('board_order_idx').on(table.folderId, table.order)
 }))
 
+export const boardColumns = mysqlTable('board_columns', {
+  id: serial('id').primaryKey(),
+  boardId: bigint('board_id', { mode: 'number', unsigned: true })
+    .notNull()
+    .references(() => boards.id, { onDelete: 'cascade' }),
+  name: varchar('name', { length: 255 }).notNull(),
+  order: int('order').default(0).notNull(),
+  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: datetime('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull().$type<Date>()
+}, (table) => ({
+  boardIndex: index('board_columns_board_idx').on(table.boardId),
+  orderIndex: index('board_columns_order_idx').on(table.boardId, table.order)
+}))
+
 // 2. Основные задачи
 export const boardsTasks = mysqlTable('boards_tasks', {
   id: serial('id').primaryKey(),
@@ -636,6 +650,8 @@ export const boardsTasks = mysqlTable('boards_tasks', {
     .references(() => boards.id, { onDelete: 'cascade' }), // Ссылка на доску
   title: varchar('title', { length: 255 }).notNull(), // Название задачи
   description: text('description'), // Описание задачи
+  columnId: bigint('column_id', { mode: 'number', unsigned: true })
+  .references(() => boardColumns.id, { onDelete: 'set null' }),
   status: varchar('status', {
     length: 20,
     enum: ['todo', 'in_progress', 'review', 'done', 'blocked', 'cancelled']
@@ -659,7 +675,8 @@ export const boardsTasks = mysqlTable('boards_tasks', {
   statusIndex: index('status_idx').on(table.status),
   priorityIndex: index('priority_idx').on(table.priority),
   assignedIndex: index('assigned_idx').on(table.assignedTo),
-  orderIndex: index('order_idx').on(table.boardId, table.order)
+  orderIndex: index('order_idx').on(table.boardId, table.order),
+  columnIndex: index('column_idx').on(table.columnId)
 }))
 
 // 3. Подзадачи (древовидная структура)

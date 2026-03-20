@@ -5,87 +5,53 @@
     :images="images" 
     :works="works" 
   />
-  <div v-else-if="loading" class="loading">
-    <Icon name="eos-icons:bubble-loading" size="34px" /> Загрузка...
-  </div>
+  <div v-else-if="loading" class="loading">Загрузка...</div>
   <div v-else-if="error" class="error">{{ error }}</div>
 </template>
 
 <script setup>
-import { ref, onServerPrefetch } from 'vue'
-import { useHead } from '#app'
+const route = useRoute()
+const slug = route.params.slug
 
-const caseData = ref(null)
-const images = ref([])
-const works = ref([])
-const loading = ref(true)
-const error = ref(null)
-
-// Загрузка данных
-const fetchData = async () => {
-  try {
-    loading.value = true
-    const slug = useRoute().params.slug
-    
-    if (!slug) throw new Error('Slug не найден')
-    
-    // Загружаем все данные параллельно
+const { data, pending: loading, error } = await useAsyncData(
+  `case-${slug}`,
+  async () => {
     const [caseRes, imagesRes, worksRes] = await Promise.all([
-      $fetch(`/api/portfolio/${slug}`, { method: 'GET' }),
-      $fetch(`/api/portfolio/${slug}/images`, { method: 'GET' }).catch(() => []),
-      $fetch(`/api/portfolio/${slug}/works`, { method: 'GET' }).catch(() => [])
+      $fetch(`/api/portfolio/${slug}`),
+      $fetch(`/api/portfolio/${slug}/images`).catch(() => []),
+      $fetch(`/api/portfolio/${slug}/works`).catch(() => [])
     ])
-    
-    caseData.value = caseRes
-    images.value = imagesRes
-    works.value = worksRes
-    
-    // Устанавливаем мета-теги сразу после загрузки
-    if (caseData.value) {
-      const seoDescription = getSeoDescription(caseData.value)
-      const mainImageUrl = getMainImageUrl(images.value)
-      
-      useHead({
-        title: `${caseData.value.title} | ГлавПрофи — ремонт коммерческих помещений`,
-        meta: [
-          { name: 'description', content: seoDescription },
-          { property: 'og:description', content: seoDescription },
-          { property: 'og:image', content: mainImageUrl },
-          { property: 'og:url', content: `${useRuntimeConfig().public.siteUrl}/projects/${slug}` }
-        ]
-      })
-    }
-  } catch (err) {
-    error.value = 'Не удалось загрузить данные кейса'
-    console.error('Ошибка загрузки:', err)
-  } finally {
-    loading.value = false
+    return { caseData: caseRes, images: imagesRes, works: worksRes }
   }
-}
+)
 
-// Вспомогательные функции
-const getSeoDescription = (data) => {
-  if (!data.fullDescription) return 'Ремонт коммерческих помещений под ключ в Рязани'
-  
-  const tempDiv = document.createElement('div')
-  tempDiv.innerHTML = data.fullDescription
-  const cleanDesc = tempDiv.textContent || ''
-  
-  return cleanDesc.length > 155 
-    ? cleanDesc.substring(0, 155) + '...' 
-    : cleanDesc
-}
+const caseData = computed(() => data.value?.caseData || null)
+const images = computed(() => data.value?.images || [])
+const works = computed(() => data.value?.works || [])
 
-const getMainImageUrl = (images) => {
-  const mainImage = images.find(img => img.type === 'main')
-  return mainImage?.url || '/main/projects.webp'
-}
+// SEO
+watchEffect(() => {
+  if (!caseData.value) return
 
-// Для SSR
-onServerPrefetch(fetchData)
+  const cleanDesc = (caseData.value.fullDescription || '')
+    .replace(/<[^>]*>/g, '')
+    .trim()
 
-// Для клиентской навигации
-if (process.client) {
-  fetchData()
-}
+  const seoDescription = cleanDesc.length > 155
+    ? cleanDesc.substring(0, 155) + '...'
+    : cleanDesc || 'Ремонт коммерческих помещений под ключ в Рязани'
+
+  const mainImage = images.value.find(img => img.type === 'main')
+  const mainImageUrl = mainImage?.url || '/main/projects.webp'
+
+  useHead({
+    title: `${caseData.value.title} | ГлавПрофи — ремонт коммерческих помещений`,
+    meta: [
+      { name: 'description', content: seoDescription },
+      { property: 'og:description', content: seoDescription },
+      { property: 'og:image', content: mainImageUrl },
+      { property: 'og:url', content: `${useRuntimeConfig().public.siteUrl}/projects/${slug}` }
+    ]
+  })
+})
 </script>

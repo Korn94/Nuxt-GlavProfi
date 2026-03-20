@@ -1,10 +1,6 @@
 <template>
   <div class="gallery-container">
-    <!-- Состояния загрузки и ошибки -->
-    <div v-if="loading" class="loading">Загрузка изображений... <Icon name="eos-icons:bubble-loading" size="34px" /></div>
-    <div v-else-if="error" class="error">{{ error }}</div>
-
-    <div v-else>
+    <div>
       <!-- Вкладки -->
       <div class="tabs">
         <h3>Фото с объекта <span>«До»</span> и <span>«После»</span> ремонта</h3>
@@ -66,83 +62,57 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 
-// Получение ID кейса из URL
-const route = useRoute()
-const slug = computed(() => route.params.slug)
+const props = defineProps({
+  images: {
+    type: Array,
+    default: () => []
+  },
+  caseData: {
+    type: Object,
+    default: null
+  }
+})
 
-// Состояние
-const images = ref([])
-const loading = ref(true)
-const error = ref(null)
 const lightboxVisible = ref(false)
 const currentImageIndex = ref(0)
 const activeTab = ref('После')
 
-// Вкладки
 const tabs = ['После', 'До']
 
-// Загрузка изображений
-const fetchImages = async () => {
-  try {
-    const data = await $fetch(`/api/portfolio/${slug.value}/images`)
-    images.value = data || []
-  } catch (err) {
-    error.value = 'Не удалось загрузить изображения'
-    console.error('Ошибка загрузки изображений:', err)
-  } finally {
-    loading.value = false
-  }
-}
-
-// Фильтрация изображений: только те, у которых pair_group = null
 const filteredImages = computed(() => {
-  // Убираем фильтр по pairGroup — нам нужны все фото с type=before/after
-  const allGalleryImages = images.value.filter(img =>
+  const allGalleryImages = props.images.filter(img =>
     img.type === 'before' || img.type === 'after'
   )
 
-  if (activeTab.value === 'До') {
-    return allGalleryImages.filter(img => img.type === 'before')
-  } else if (activeTab.value === 'После') {
-    return allGalleryImages.filter(img => img.type === 'after')
-  }
+  if (activeTab.value === 'До') return allGalleryImages.filter(img => img.type === 'before')
+  if (activeTab.value === 'После') return allGalleryImages.filter(img => img.type === 'after')
 
   return allGalleryImages
 })
 
-// Текущее изображение для lightbox
 const currentImage = computed(() => {
   return filteredImages.value[currentImageIndex.value] || { url: '', type: '' }
 })
 
-// Открытие lightbox
 const openLightbox = (index) => {
   currentImageIndex.value = index
   lightboxVisible.value = true
 }
 
-// Закрытие lightbox
 const closeLightbox = () => {
   lightboxVisible.value = false
 }
 
-// Переключение изображений
 const prevImage = () => {
-  if (currentImageIndex.value > 0) {
-    currentImageIndex.value--
-  }
+  if (currentImageIndex.value > 0) currentImageIndex.value--
 }
 
 const nextImage = () => {
-  if (currentImageIndex.value < filteredImages.value.length - 1) {
-    currentImageIndex.value++
-  }
+  if (currentImageIndex.value < filteredImages.value.length - 1) currentImageIndex.value++
 }
 
-// Обработка клавиатуры
 const handleKeydown = (e) => {
   if (!lightboxVisible.value) return
   if (e.key === 'Escape') closeLightbox()
@@ -150,16 +120,17 @@ const handleKeydown = (e) => {
   if (e.key === 'ArrowRight') nextImage()
 }
 
-// Установка активной вкладки
 const setActiveTab = (tab) => {
   activeTab.value = tab
   currentImageIndex.value = 0
 }
 
-// Инициализация
 onMounted(() => {
-  fetchImages()
   window.addEventListener('keydown', handleKeydown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown)
 })
 </script>
 
@@ -187,11 +158,12 @@ onMounted(() => {
     cursor: pointer;
     transition: all 0.2s ease;
     background: unset;
-    border-radius: unset;
+    border-radius: $border-radius;
     min-width: 150px;
     font-size: 1em;
     border-color: $text-light;
     margin-right: 1em;
+    padding: 5px 10px;
 
     &:last-child {
       margin: unset;

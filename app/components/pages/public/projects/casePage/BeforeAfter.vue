@@ -3,14 +3,11 @@
   <div class="before-after-wrapper">
     <!-- Основной блок сравнения -->
     <div class="before-after-container" ref="container">
-      <div class="image-wrapper after">
-        <img v-if="currentAfter" :src="currentAfter" :alt="currentAfterAlt" class="image" />
-      </div>
-      <div
-        class="image-wrapper before"
-        :style="{ '--clip-left': position + '%' }"
-      >
+     <div class="image-wrapper before">
         <img v-if="currentBefore" :src="currentBefore" :alt="currentBeforeAlt" class="image" />
+      </div>
+      <div class="image-wrapper after" :style="{ '--clip-left': position + '%' }">
+        <img v-if="currentAfter" :src="currentAfter" :alt="currentAfterAlt" class="image" />
       </div>
 
       <!-- Ползунок -->
@@ -166,11 +163,14 @@ const stopDrag = () => {
     height: 100%;
     overflow: hidden;
     pointer-events: none;
-    &.after { z-index: 1; }
     &.before {
-      z-index: 2;
-      clip-path: inset(0 0 0 calc(var(--clip-left, 50%)));
-    }
+        z-index: 1;
+      }
+
+      &.after {
+        z-index: 2;
+        clip-path: inset(0 0 0 calc(var(--clip-left, 50%)));
+      }
     .image {
       width: 100%;
       height: 100%;
@@ -250,8 +250,8 @@ const stopDrag = () => {
   display: flex;
   gap: 5px;
   overflow-x: auto;
-  scrollbar-width: none;
-  &::-webkit-scrollbar { display: none; }
+  // scrollbar-width: none;
+  // &::-webkit-scrollbar { display: none; }
   scroll-padding: 1rem;
 }
 

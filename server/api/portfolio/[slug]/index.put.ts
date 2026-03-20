@@ -8,11 +8,10 @@ import { transliterate } from '../../../utils/transliteration'
 import { randomUUID } from 'crypto'
 import { mkdirSync, writeFileSync, existsSync, unlinkSync } from 'fs'
 import { join } from 'path'
+import { validateImage } from '../../../utils/imageValidation'
 
 const UPLOAD_DIR_BASE = join(process.cwd(), 'public', 'uploads')
 mkdirSync(UPLOAD_DIR_BASE, { recursive: true })
-
-const allowedExt = ['jpg', 'jpeg', 'png', 'webp']
 
 export default eventHandler(async (event) => {
   // ───────── AUTH ─────────
@@ -37,22 +36,27 @@ export default eventHandler(async (event) => {
   const keepImageIds: number[] = []
 
   for (const part of formData) {
-    // ✅ ФАЙЛ — ТОЛЬКО если есть filename
     if (part.filename && part.name) {
       files[part.name] = part
       continue
     }
 
-    // ✅ ПОЛЕ
     if (part.name) {
       const value = part.data?.toString() || ''
-
       if (part.name === 'keepImageId[]') {
         const id = parseInt(value, 10)
         if (!isNaN(id)) keepImageIds.push(id)
       } else {
         fields[part.name] = value
       }
+    }
+  }
+
+  // ───────── ВАЛИДАЦИЯ НОВЫХ ИЗОБРАЖЕНИЙ ─────────
+  for (const [key, file] of Object.entries(files)) {
+    const validation = validateImage(file)
+    if (!validation.valid) {
+      throw createError({ statusCode: 400, statusMessage: validation.error! })
     }
   }
 
@@ -84,15 +88,14 @@ export default eventHandler(async (event) => {
     if (!isNaN(id)) idsToKeep.push(id)
   }
 
-  console.log('DEBUG SERVER: IDs to keep:', idsToKeep)
-
   // ───────── SAVE IMAGE ─────────
   const saveImage = (file: any, type: string, order = 0, pairGroup: string | null = null) => {
-    const ext = file.filename.split('.').pop()?.toLowerCase() || 'jpg'
-    if (!allowedExt.includes(ext)) {
-      throw createError({ statusCode: 400, statusMessage: `Bad image format: ${ext}` })
+    const validation = validateImage(file)
+    if (!validation.valid) {
+      throw createError({ statusCode: 400, statusMessage: validation.error! })
     }
 
+    const ext = file.filename.split('.').pop()?.toLowerCase() || 'jpg'
     const dir = join(UPLOAD_DIR_BASE, `case-${existingCase.id}`)
     mkdirSync(dir, { recursive: true })
 
@@ -145,7 +148,6 @@ export default eventHandler(async (event) => {
     if (files[`beforeImage[${pi}]`]) {
       imagesToInsert.push(saveImage(files[`beforeImage[${pi}]`], 'before', 200 + pi * 2, group))
     }
-
     if (files[`afterImage[${pi}]`]) {
       imagesToInsert.push(saveImage(files[`afterImage[${pi}]`], 'after', 201 + pi * 2, group))
     }
@@ -153,7 +155,7 @@ export default eventHandler(async (event) => {
     pi++
   }
 
-  // ───────── DELETE UNUSED ─────────
+  // ───────── DELETE UNUSED IMAGES ─────────
   const idsToDelete = existingImages
     .filter(img => !idsToKeep.includes(img.id))
     .map(img => img.id)
@@ -205,6 +207,39 @@ export default eventHandler(async (event) => {
       updatedAt: new Date()
     })
     .where(eq(portfolioCases.slug, slug))
+
+  // ───────── UPDATE WORKS ─────────
+  const workTypes: string[] = []
+  const workValues: string[] = []
+
+  for (const key of Object.keys(fields)) {
+    if (key.startsWith('workType[')) {
+      const idx = parseInt(key.match(/\d+/)?.[0] ?? '-1', 10)
+      if (idx >= 0) workTypes[idx] = fields[key] ?? ''
+    }
+    if (key.startsWith('workValue[')) {
+      const idx = parseInt(key.match(/\d+/)?.[0] ?? '-1', 10)
+      if (idx >= 0) workValues[idx] = fields[key] ?? ''
+    }
+  }
+
+  const worksToInsert = workTypes
+    .map((type, i) => ({ workType: type?.trim() ?? '', value: workValues[i]?.trim() ?? '' }))
+    .filter(w => w.workType)
+
+  if (worksToInsert.length > 0) {
+    await db.delete(portfoCaseWorks)
+      .where(eq(portfoCaseWorks.caseId, existingCase.id))
+
+    await db.insert(portfoCaseWorks).values(
+      worksToInsert.map(({ workType, value }) => ({
+        caseId: existingCase.id,
+        workType,
+        value,
+        order: 0
+      }))
+    )
+  }
 
   return {
     success: true,

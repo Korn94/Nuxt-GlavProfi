@@ -29,6 +29,7 @@ interface UpdateTaskBody {
   dueDate?: string | null
   order?: number
   tags?: number[]
+  columnId?: number | null
 }
 
 /**
@@ -198,6 +199,16 @@ export default eventHandler(async (event): Promise<UpdateTaskResponse> => {
       }
       updateData.order = body.order
     }
+
+    if (body.columnId !== undefined) {
+      if (body.columnId !== null && typeof body.columnId !== 'number') {
+        throw createError({
+          statusCode: 400,
+          statusMessage: 'columnId должен быть числом или null'
+        })
+      }
+      updateData.columnId = body.columnId
+    }
     
     // Если после валидации нет данных для обновления
     if (Object.keys(updateData).length === 0) {
@@ -297,6 +308,7 @@ export default eventHandler(async (event): Promise<UpdateTaskResponse> => {
         ? new Date(updatedTask.updatedAt).toISOString() 
         : new Date().toISOString(),
       // Пустые массивы для связанных данных (загружаются отдельно)
+      columnId: updatedTask.columnId ?? null,
       subtasks: [],
       tags: [],
       attachments: [],
