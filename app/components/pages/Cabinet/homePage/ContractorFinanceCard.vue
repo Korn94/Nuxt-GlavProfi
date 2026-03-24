@@ -1,1079 +1,753 @@
+<!-- app/components/pages/cabinet/homePage/ContractorFinanceCard.vue -->
 <template>
-  <PagesCabinetUiCardsCard :loading="isLoading" title="Финансы контрагентов" elevated class="contractor-finance-card">
+  <PagesCabinetUiCardsCard :loading="isLoading" title="Финансы контрагентов" flush>
     <template #icon>
-      <Icon name="mdi:account-group" size="24" />
+      <Icon name="mdi:account-group-outline" size="18" />
     </template>
 
-    <div v-if="contractorData" class="finance-content">
-      <!-- Общий баланс -->
-      <div class="summary-item total-balance">
-        <div class="item-label">Общий баланс по контрагентам</div>
-        <div class="item-value">
+    <template #actions>
+      <button class="crm-btn crm-btn--ghost crm-btn--sm" @click="navigateTo('/cabinet/admin/contractors')">
+        Все контрагенты
+        <Icon name="mdi:arrow-right" size="14" />
+      </button>
+    </template>
+
+    <div v-if="contractorData" class="cf">
+
+      <!-- Итог по всем -->
+      <div class="cf__total">
+        <span class="cf__total-label">Общий баланс по контрагентам</span>
+        <span class="cf__total-value" :class="totalBalance >= 0 ? 'cf__total-value--pos' : 'cf__total-value--neg'">
           {{ formatCurrency(totalBalance) }}
+        </span>
+      </div>
+
+      <!-- Типы контрагентов -->
+      <div class="cf__types">
+        <div v-for="type in contractorTypes" :key="type.key" class="cf-type"
+          @click="navigateTo(`/cabinet/admin/contractors/${type.key}`)">
+          <div class="cf-type__icon" :style="{ background: type.bgColor, color: type.color }">
+            <Icon :name="type.icon" size="18" />
+          </div>
+          <div class="cf-type__info">
+            <span class="cf-type__label">{{ type.label }}</span>
+            <span class="cf-type__count">{{ contractorData[type.dataKey].count }} чел.</span>
+          </div>
+          <span class="cf-type__balance"
+            :class="contractorData[type.dataKey].totalBalance >= 0 ? 'cf-type__balance--pos' : 'cf-type__balance--neg'">
+            {{ formatCurrency(contractorData[type.dataKey].totalBalance) }}
+          </span>
         </div>
       </div>
 
-      <!-- Балансы по типам -->
-      <div class="types-grid">
-        <div class="type-item master" @click="navigateTo('/cabinet/admin/contractors/master')">
-          <div class="type-icon">
-            <Icon name="mdi:hammer" size="24" />
-          </div>
-          <div class="type-info">
-            <div class="type-label">Мастера</div>
-            <div class="type-value" :class="{
-              'positive-balance': contractorData.masters.totalBalance > 0,
-              'negative-balance': contractorData.masters.totalBalance < 0
-            }">
-              {{ formatCurrency(contractorData.masters.totalBalance) }}
-            </div>
-            <div class="type-count">{{ contractorData.masters.count }} контрагентов</div>
-          </div>
-        </div>
-        
-        <div class="type-item worker" @click="navigateTo('/cabinet/admin/contractors/worker')">
-          <div class="type-icon">
-            <Icon name="mdi:account-hard-hat" size="24" />
-          </div>
-          <div class="type-info">
-            <div class="type-label">Рабочие</div>
-            <div class="type-value" :class="{
-              'positive-balance': contractorData.workers.totalBalance > 0,
-              'negative-balance': contractorData.workers.totalBalance < 0
-            }">
-              {{ formatCurrency(contractorData.workers.totalBalance) }}
-            </div>
-            <div class="type-count">{{ contractorData.workers.count }} контрагентов</div>
-          </div>
-        </div>
-        
-        <div class="type-item foreman" @click="navigateTo('/cabinet/admin/contractors/foreman')">
-          <div class="type-icon">
-            <Icon name="mdi:briefcase" size="24" />
-          </div>
-          <div class="type-info">
-            <div class="type-label">Прорабы</div>
-            <div class="type-value" :class="{
-              'positive-balance': contractorData.foremans.totalBalance > 0,
-              'negative-balance': contractorData.foremans.totalBalance < 0
-            }">
-              {{ formatCurrency(contractorData.foremans.totalBalance) }}
-            </div>
-            <div class="type-count">{{ contractorData.foremans.count }} контрагентов</div>
-          </div>
-        </div>
-        
-        <div class="type-item office" @click="navigateTo('/cabinet/admin/contractors/office')">
-          <div class="type-icon">
-            <Icon name="mdi:office-building" size="24" />
-          </div>
-          <div class="type-info">
-            <div class="type-label">Офис</div>
-            <div class="type-value" :class="{
-              'positive-balance': contractorData.offices.totalBalance > 0,
-              'negative-balance': contractorData.offices.totalBalance < 0
-            }">
-              {{ formatCurrency(contractorData.offices.totalBalance) }}
-            </div>
-            <div class="type-count">{{ contractorData.offices.count }} контрагентов</div>
-          </div>
-        </div>
-      </div>
+      <!-- Должники и кредиторы -->
+      <div class="cf__sections">
 
-      <!-- Контрагенты, которые должны нам -->
-      <div class="debtors-section" v-if="debtors.length > 0">
-        <div class="section-header">
-          <h3>Контрагенты, которые должны нам</h3>
-          <span class="count-badge">{{ debtors.length }}</span>
-        </div>
-        
-        <div class="debtors-list">
-          <div v-for="(debtor, index) in debtors" :key="index" class="debtor-item">
-            <div class="debtor-header" @click.stop="toggleContractorDetails(debtor)">
-              <div class="debtor-name">
-                <Icon :name="getContractorIcon(debtor.type)" size="18" />
-                {{ debtor.name }}
-              </div>
-              <Icon 
-              name="mdi:chevron-down" 
-              size="20" 
-              class="expand-icon" 
-              :class="{ 'rotated': expandedContractorId === debtor.id }" 
-              />
-              <div class="debtor-balance">{{ formatCurrency(debtor.balance) }}</div>
-            </div>
-            
-            <div class="debtor-details">
-              <div class="detail-row">
-                <span class="detail-label">Тип:</span>
-                <span class="detail-value">{{ getTypeLabel(debtor.type) }}</span>
-              </div>
-              <div class="detail-row">
-                <span class="detail-label">Баланс:</span>
-                <span class="detail-value">{{ formatCurrency(debtor.balance) }}</span>
-              </div>
-              <div class="detail-row">
-                <span class="detail-label">Статус:</span>
-                <span class="detail-value">{{ debtor.isOnSalary ? 'На зарплате' : 'Сдельная' }}</span>
-              </div>
-            </div>
-            
-            <!-- Транзакции контрагента -->
-            <div v-if="expandedContractorId === debtor.id" class="transactions-section">
-              <div class="transactions-columns">
-                <!-- Расходы (слева) -->
-                <div class="column expenses-column">
-                  <div class="column-header">
-                    <h4>Расходы</h4>
-                    <span class="count-badge">{{ contractorTransactions[debtor.id]?.expenses?.length || 0 }}</span>
-                  </div>
-                  
-                  <div v-if="contractorTransactions[debtor.id]?.expenses?.length > 0" class="transactions-list">
-                    <div v-for="(tx, txIndex) in contractorTransactions[debtor.id].expenses" :key="txIndex" class="transaction-item">
-                      <div class="transaction-header">
-                        <div class="transaction-date">{{ formatDate(tx.operationDate) }}</div>
-                      </div>
-                      
-                      <div class="transaction-details">
-                        <div class="transaction-amount" :class="{
-                          'positive-balance': tx.amount > 0,
-                          'negative-balance': tx.amount < 0
-                        }">
-                          {{ formatCurrency(tx.amount) }}
-                        </div>
-                        <div class="transaction-object" v-if="tx.objectName">
-                          <Icon name="mdi:map-marker" size="16" class="object-icon" />
-                          {{ tx.objectName }}
-                        </div>
-                        <div class="transaction-comment" v-if="tx.comment">
-                          <Icon name="mdi:comment-text-outline" size="16" class="comment-icon" />
-                          {{ tx.comment }}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div v-else class="no-transactions">
-                    <Icon name="mdi:history" size="24" class="no-transactions-icon" />
-                    <span>Нет расходов за последнее время</span>
-                  </div>
-                </div>
-                
-                <!-- Работы (справа) -->
-                <div class="column works-column">
-                  <div class="column-header">
-                    <h4>Работы</h4>
-                    <span class="count-badge">{{ contractorTransactions[debtor.id]?.comings?.length || 0 }}</span>
-                  </div>
-                  
-                  <div v-if="contractorTransactions[debtor.id]?.comings?.length > 0" class="transactions-list">
-                    <div v-for="(tx, txIndex) in contractorTransactions[debtor.id].comings" :key="txIndex" class="transaction-item">
-                      <div class="transaction-header">
-                        <div class="transaction-date">{{ formatDate(tx.operationDate) }}</div>
-                      </div>
-                      
-                      <div class="transaction-details">
-                        <div class="transaction-amount" :class="{
-                          'positive-balance': tx.amount > 0,
-                          'negative-balance': tx.amount < 0
-                        }">
-                          {{ formatCurrency(tx.amount) }}
-                        </div>
-                        <div class="transaction-object" v-if="tx.objectName">
-                          <Icon name="mdi:map-marker" size="16" class="object-icon" />
-                          {{ tx.objectName }}
-                        </div>
-                        <div class="transaction-comment" v-if="tx.comment">
-                          <Icon name="mdi:comment-text-outline" size="16" class="comment-icon" />
-                          {{ tx.comment }}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div v-else class="no-transactions">
-                    <Icon name="mdi:history" size="24" class="no-transactions-icon" />
-                    <span>Нет работ за последнее время</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+        <!-- Нам должны -->
+        <div v-if="debtors.length" class="cf-section cf-section--debtors">
+          <div class="cf-section__header">
+            <span class="cf-section__title">
+              <Icon name="mdi:arrow-bottom-left" size="14" />
+              Нам должны
+            </span>
+            <span class="cf-section__count cf-section__count--danger">{{ debtors.length }}</span>
           </div>
-        </div>
-      </div>
 
-      <!-- Контрагенты, кому мы должны -->
-      <div class="creditors-section" v-if="creditors.length > 0">
-        <div class="section-header">
-          <h3>Контрагенты, кому мы должны</h3>
-          <span class="count-badge">{{ creditors.length }}</span>
-        </div>
-        
-        <div class="creditors-list">
-          <div v-for="(creditor, index) in creditors" :key="index" class="creditor-item">
-            <div class="creditor-header" @click.stop="toggleContractorDetails(creditor)">
-              <div class="creditor-name">
-                <Icon :name="getContractorIcon(creditor.type)" size="18" />
-                {{ creditor.name }}
+          <div class="contractor-list">
+            <div v-for="c in debtors" :key="c.id" class="contractor-item"
+              :class="{ 'contractor-item--open': expandedId === c.id }">
+              <div class="contractor-item__row" @click="toggleExpand(c)">
+                <div class="contractor-item__icon">
+                  <Icon :name="getTypeIcon(c.type)" size="14" />
+                </div>
+                <span class="contractor-item__name">{{ c.name }}</span>
+                <Icon name="mdi:chevron-down" size="16" class="contractor-item__chevron"
+                  :class="{ 'contractor-item__chevron--open': expandedId === c.id }" />
+                <span class="contractor-item__balance contractor-item__balance--danger">
+                  {{ formatCurrency(c.balance) }}
+                </span>
               </div>
-              <Icon 
-              name="mdi:chevron-down" 
-              size="20" 
-              class="expand-icon" 
-              :class="{ 'rotated': expandedContractorId === creditor.id }" 
-              />
-              <div class="creditor-balance">{{ formatCurrency(creditor.balance) }}</div>
-            </div>
-            
-            <div class="creditor-details">
-              <div class="detail-row">
-                <span class="detail-label">Тип:</span>
-                <span class="detail-value">{{ getTypeLabel(creditor.type) }}</span>
-              </div>
-              <div class="detail-row">
-                <span class="detail-label">Баланс:</span>
-                <span class="detail-value">{{ formatCurrency(creditor.balance) }}</span>
-              </div>
-              <div class="detail-row">
-                <span class="detail-label">Следующая выплата:</span>
-                <span class="detail-value">{{ getNextPaymentDate(creditor) }}</span>
-              </div>
-            </div>
-            
-            <!-- Транзакции контрагента -->
-            <div v-if="expandedContractorId === creditor.id" class="transactions-section">
-              <div class="transactions-columns">
-                <!-- Расходы (слева) -->
-                <div class="column expenses-column">
-                  <div class="column-header">
-                    <h4>Расходы</h4>
-                    <span class="count-badge">{{ contractorTransactions[creditor.id]?.expenses?.length || 0 }}</span>
+
+              <!-- Раскрытые транзакции -->
+             <Transition name="expand">
+                <div v-if="expandedId === c.id" class="contractor-item__transactions">
+                  <div v-if="loadingTransactions === c.id" class="tx-loading">
+                    <Icon name="mdi:loading" class="spin" size="14" /> Загрузка...
                   </div>
-                  
-                  <div v-if="contractorTransactions[creditor.id]?.expenses?.length > 0" class="transactions-list">
-                    <div v-for="(tx, txIndex) in contractorTransactions[creditor.id].expenses" :key="txIndex" class="transaction-item">
-                      <div class="transaction-header">
-                        <div class="transaction-date">{{ formatDate(tx.operationDate) }}</div>
-                      </div>
-                      
-                      <div class="transaction-details">
-                        <div class="transaction-amount" :class="{
-                          'positive-balance': tx.amount > 0,
-                          'negative-balance': tx.amount < 0
-                        }">
-                          {{ formatCurrency(tx.amount) }}
-                        </div>
-                        <div class="transaction-object" v-if="tx.objectName">
-                          <Icon name="mdi:map-marker" size="16" class="object-icon" />
-                          {{ tx.objectName }}
-                        </div>
-                        <div class="transaction-comment" v-if="tx.comment">
-                          <Icon name="mdi:comment-text-outline" size="16" class="comment-icon" />
-                          {{ tx.comment }}
+                  <div v-else class="tx-cols">
+                    <div class="tx-col">
+                      <div class="tx-col__header">Расходы</div>
+                      <div v-if="(transactions[c.id]?.expenses ?? []).length" class="tx-list">
+                        <div v-for="tx in (transactions[c.id]?.expenses ?? [])" :key="tx.id" class="tx-item">
+                          <span class="tx-item__date">{{ formatDate(tx.operationDate) }}</span>
+                          <span v-if="tx.objectName" class="tx-item__obj">{{ tx.objectName }}</span>
+                          <span v-if="tx.comment" class="tx-item__comment">{{ tx.comment }}</span>
+                          <span class="tx-item__amount tx-item__amount--expense">{{ formatCurrency(tx.amount) }}</span>
                         </div>
                       </div>
+                      <div v-else class="tx-empty">Нет расходов</div>
+                    </div>
+
+                    <div class="tx-col">
+                      <div class="tx-col__header">Работы</div>
+                      <div v-if="(transactions[c.id]?.comings ?? []).length" class="tx-list">
+                        <div v-for="tx in (transactions[c.id]?.comings ?? [])" :key="tx.id" class="tx-item">
+                          <span class="tx-item__date">{{ formatDate(tx.operationDate) }}</span>
+                          <span v-if="tx.objectName" class="tx-item__obj">{{ tx.objectName }}</span>
+                          <span v-if="tx.comment" class="tx-item__comment">{{ tx.comment }}</span>
+                          <span class="tx-item__amount tx-item__amount--income">{{ formatCurrency(tx.amount) }}</span>
+                        </div>
+                      </div>
+                      <div v-else class="tx-empty">Нет работ</div>
                     </div>
                   </div>
-                  
-                  <div v-else class="no-transactions">
-                    <Icon name="mdi:history" size="24" class="no-transactions-icon" />
-                    <span>Нет расходов за последнее время</span>
-                  </div>
                 </div>
-                
-                <!-- Работы (справа) -->
-                <div class="column works-column">
-                  <div class="column-header">
-                    <h4>Работы</h4>
-                    <span class="count-badge">{{ contractorTransactions[creditor.id]?.comings?.length || 0 }}</span>
-                  </div>
-                  
-                  <div v-if="contractorTransactions[creditor.id]?.comings?.length > 0" class="transactions-list">
-                    <div v-for="(tx, txIndex) in contractorTransactions[creditor.id].comings" :key="txIndex" class="transaction-item">
-                      <div class="transaction-header">
-                        <div class="transaction-date">{{ formatDate(tx.operationDate) }}</div>
-                      </div>
-                      
-                      <div class="transaction-details">
-                        <div class="transaction-amount" :class="{
-                          'positive-balance': tx.amount > 0,
-                          'negative-balance': tx.amount < 0
-                        }">
-                          {{ formatCurrency(tx.amount) }}
-                        </div>
-                        <div class="transaction-object" v-if="tx.objectName">
-                          <Icon name="mdi:map-marker" size="16" class="object-icon" />
-                          {{ tx.objectName }}
-                        </div>
-                        <div class="transaction-comment" v-if="tx.comment">
-                          <Icon name="mdi:comment-text-outline" size="16" class="comment-icon" />
-                          {{ tx.comment }}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div v-else class="no-transactions">
-                    <Icon name="mdi:history" size="24" class="no-transactions-icon" />
-                    <span>Нет работ за последнее время</span>
-                  </div>
-                </div>
-              </div>
+              </Transition>
             </div>
           </div>
         </div>
+
+        <!-- Мы должны -->
+        <div v-if="creditors.length" class="cf-section cf-section--creditors">
+          <div class="cf-section__header">
+            <span class="cf-section__title">
+              <Icon name="mdi:arrow-top-right" size="14" />
+              Мы должны
+            </span>
+            <span class="cf-section__count cf-section__count--warning">{{ creditors.length }}</span>
+          </div>
+
+          <div class="contractor-list">
+            <div v-for="c in creditors" :key="c.id" class="contractor-item"
+              :class="{ 'contractor-item--open': expandedId === c.id }">
+              <div class="contractor-item__row" @click="toggleExpand(c)">
+                <div class="contractor-item__icon">
+                  <Icon :name="getTypeIcon(c.type)" size="14" />
+                </div>
+                <span class="contractor-item__name">{{ c.name }}</span>
+                <Icon name="mdi:chevron-down" size="16" class="contractor-item__chevron"
+                  :class="{ 'contractor-item__chevron--open': expandedId === c.id }" />
+                <span class="contractor-item__balance contractor-item__balance--warning">
+                  {{ formatCurrency(c.balance) }}
+                </span>
+              </div>
+
+            <Transition name="expand">
+                <div v-if="expandedId === c.id" class="contractor-item__transactions">
+                  <div v-if="loadingTransactions === c.id" class="tx-loading">
+                    <Icon name="mdi:loading" class="spin" size="14" /> Загрузка...
+                  </div>
+                  <div v-else class="tx-cols">
+                    <div class="tx-col">
+                      <div class="tx-col__header">Расходы</div>
+                      <div v-if="(transactions[c.id]?.expenses ?? []).length" class="tx-list">
+                        <div v-for="tx in (transactions[c.id]?.expenses ?? [])" :key="tx.id" class="tx-item">
+                          <span class="tx-item__date">{{ formatDate(tx.operationDate) }}</span>
+                          <span v-if="tx.objectName" class="tx-item__obj">{{ tx.objectName }}</span>
+                          <span v-if="tx.comment" class="tx-item__comment">{{ tx.comment }}</span>
+                          <span class="tx-item__amount tx-item__amount--expense">{{ formatCurrency(tx.amount) }}</span>
+                        </div>
+                      </div>
+                      <div v-else class="tx-empty">Нет расходов</div>
+                    </div>
+
+                    <div class="tx-col">
+                      <div class="tx-col__header">Работы</div>
+                      <div v-if="(transactions[c.id]?.comings ?? []).length" class="tx-list">
+                        <div v-for="tx in (transactions[c.id]?.comings ?? [])" :key="tx.id" class="tx-item">
+                          <span class="tx-item__date">{{ formatDate(tx.operationDate) }}</span>
+                          <span v-if="tx.objectName" class="tx-item__obj">{{ tx.objectName }}</span>
+                          <span v-if="tx.comment" class="tx-item__comment">{{ tx.comment }}</span>
+                          <span class="tx-item__amount tx-item__amount--income">{{ formatCurrency(tx.amount) }}</span>
+                        </div>
+                      </div>
+                      <div v-else class="tx-empty">Нет работ</div>
+                    </div>
+                  </div>
+                </div>
+              </Transition>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
 
-    <!-- Ошибка загрузки -->
-    <div v-else-if="error" class="error-state">
-      <Icon name="ic:outline-warning" size="40" class="error-icon" />
-      <p>Не удалось загрузить финансовую информацию по контрагентам</p>
-      <button class="btn btn-secondary" @click="fetchData">
-        <Icon name="mdi:refresh" size="18" />
-        Повторить
+    <!-- Ошибка -->
+    <div v-else-if="error" class="cf-state">
+      <Icon name="mdi:alert-circle-outline" size="32" />
+      <p>Не удалось загрузить данные</p>
+      <button class="crm-btn crm-btn--ghost crm-btn--sm" @click="fetchData">
+        <Icon name="mdi:refresh" size="14" /> Повторить
       </button>
     </div>
 
-    <!-- Пустое состояние -->
-    <div v-else class="empty-state">
-      <Icon name="mdi:account-group" size="40" class="empty-icon" />
+    <!-- Пусто -->
+    <div v-else class="cf-state">
+      <Icon name="mdi:account-group-outline" size="32" />
       <p>Нет данных по контрагентам</p>
     </div>
 
-    <template #actions>
-      <button class="btn btn-primary" @click="navigateTo('/cabinet/contractors')">
-        Все контрагенты
-        <Icon name="mdi:arrow-right" size="18" />
-      </button>
-    </template>
-
     <template #footer>
-      Данные актуальны на {{ currentDate }}
+      Обновлено: {{ updatedAt }}
     </template>
   </PagesCabinetUiCardsCard>
 </template>
 
-<script setup>
-import { ref, onMounted, computed } from 'vue'
+<script setup lang="ts">
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { navigateTo } from '#app'
 
-// Состояние компонента
-const contractorData = ref(null)
-const expandedContractorId = ref(null)
-const contractorTransactions = ref({})
+// ── Справочники ─────────────────────────────────────────────────────
+const contractorTypes = [
+  { key: 'master', dataKey: 'masters', label: 'Мастера', icon: 'mdi:hammer', color: '#5b8def', bgColor: 'rgba(91,141,239,.15)' },
+  { key: 'worker', dataKey: 'workers', label: 'Рабочие', icon: 'mdi:account-hard-hat', color: '#f5a623', bgColor: 'rgba(245,166,35,.15)' },
+  { key: 'foreman', dataKey: 'foremans', label: 'Прорабы', icon: 'mdi:briefcase', color: '#00c3f5', bgColor: 'rgba(0,195,245,.15)' },
+  { key: 'office', dataKey: 'offices', label: 'Офис', icon: 'mdi:office-building', color: '#9aa0b8', bgColor: 'rgba(154,160,184,.15)' },
+]
+
+const typeIconMap: Record<string, string> = {
+  master: 'mdi:hammer',
+  worker: 'mdi:account-hard-hat',
+  foreman: 'mdi:briefcase',
+  office: 'mdi:office-building',
+}
+
+// ── Состояние ───────────────────────────────────────────────────────
+const contractorData = ref < any > (null)
+const expandedId = ref < number | null > (null)
+const loadingTransactions = ref < number | null > (null)
+const transactions = ref<Record<number, { expenses: any[]; comings: any[] } | undefined>>({})
 const isLoading = ref(true)
-const error = ref(null)
+const error = ref < string | null > (null)
+const updatedAt = ref('—')
 
-// Форматирование даты
-const currentDate = computed(() => {
-  return new Date().toLocaleDateString('ru-RU', {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-})
+let refreshTimer: ReturnType<typeof setInterval>
 
-// Форматирование валюты
-const formatCurrency = (amount) => {
-  const num = parseFloat(amount) || 0
-  const absAmount = Math.abs(num)
-  const formatted = absAmount.toLocaleString('ru-RU', {
-    style: 'currency',
-    currency: 'RUB',
-    minimumFractionDigits: 2
-  })
-  
-  // Если баланс положительный, это долг контрагента нам (он должен нам)
-  // Если отрицательный, это наш долг контрагенту (мы должны ему)
-  if (num > 0) {
-    return `+${formatted}`
-  } else if (num < 0) {
-    return `-${formatted}`
-  }
-  return formatted
-}
-
-// Получение иконки для типа контрагента
-const getContractorIcon = (type) => {
-  switch (type) {
-    case 'master': return 'mdi:hammer'
-    case 'worker': return 'mdi:account-hard-hat'
-    case 'foreman': return 'mdi:briefcase'
-    case 'office': return 'mdi:office-building'
-    default: return 'mdi:account'
-  }
-}
-
-// Получение метки для типа контрагента
-const getTypeLabel = (type) => {
-  switch (type) {
-    case 'master': return 'Мастер'
-    case 'worker': return 'Рабочий'
-    case 'foreman': return 'Прораб'
-    case 'office': return 'Офисный сотрудник'
-    default: return type
-  }
-}
-
-// Получение даты следующей выплаты
-const getNextPaymentDate = (contractor) => {
-  if (!contractor.isOnSalary) return 'Не на зарплате'
-  
-  const today = new Date()
-  let nextPayment = new Date(today.getFullYear(), today.getMonth(), contractor.salaryDay)
-  
-  if (nextPayment < today) {
-    nextPayment = new Date(today.getFullYear(), today.getMonth() + 1, contractor.salaryDay)
-  }
-  
-  return nextPayment.toLocaleDateString('ru-RU', {
-    day: '2-digit',
-    month: 'short'
-  })
-}
-
-// Форматирование даты
-const formatDate = (dateString) => {
-  if (!dateString) return '—'
-  const date = new Date(dateString)
-  return isNaN(date.getTime()) ? '—' : date.toLocaleDateString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
-// Общий баланс
+// ── Computed ────────────────────────────────────────────────────────
 const totalBalance = computed(() => {
   if (!contractorData.value) return 0
-  
-  return (
-    contractorData.value.masters.totalBalance +
-    contractorData.value.workers.totalBalance +
-    contractorData.value.foremans.totalBalance +
-    contractorData.value.offices.totalBalance
-  )
+  return ['masters', 'workers', 'foremans', 'offices']
+    .reduce((sum, k) => sum + (contractorData.value[k].totalBalance || 0), 0)
 })
 
-// Должники (контрагенты, которые должны нам - положительный баланс)
-const debtors = computed(() => {
+const allContractors = computed(() => {
   if (!contractorData.value) return []
-  
-  const allContractors = [
-    ...contractorData.value.masters.list,
-    ...contractorData.value.workers.list,
-    ...contractorData.value.foremans.list,
-    ...contractorData.value.offices.list
-  ]
-  
-  // Фильтруем контрагентов с положительным балансом (они должны нам)
-  return allContractors
+  return ['masters', 'workers', 'foremans', 'offices']
+    .flatMap(k => contractorData.value[k].list || [])
+})
+
+const debtors = computed(() =>
+  allContractors.value
     .filter(c => c.balance > 0)
     .sort((a, b) => b.balance - a.balance)
     .slice(0, 5)
-})
+)
 
-// Кредиторы (контрагенты, кому мы должны - отрицательный баланс)
-const creditors = computed(() => {
-  if (!contractorData.value) return []
-  
-  const allContractors = [
-    ...contractorData.value.masters.list,
-    ...contractorData.value.workers.list,
-    ...contractorData.value.foremans.list,
-    ...contractorData.value.offices.list
-  ]
-  
-  // Фильтруем контрагентов с отрицательным балансом (мы должны им)
-  return allContractors
+const creditors = computed(() =>
+  allContractors.value
     .filter(c => c.balance < 0)
     .sort((a, b) => a.balance - b.balance)
     .slice(0, 3)
-})
+)
 
-// Загрузка данных
-const fetchData = async () => {
+// ── Вспомогательные ─────────────────────────────────────────────────
+const getTypeIcon = (type: string) => typeIconMap[type] ?? 'mdi:account'
+
+const formatCurrency = (amount: any) => {
+  const n = parseFloat(amount) || 0
+  const abs = Math.abs(n).toLocaleString('ru-RU', {
+    style: 'currency', currency: 'RUB', minimumFractionDigits: 0
+  })
+  return n >= 0 ? abs : `−${abs}`
+}
+
+const formatDate = (dateStr: string) => {
+  if (!dateStr) return '—'
+  const d = new Date(dateStr)
+  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('ru-RU', {
+    day: '2-digit', month: '2-digit',
+    hour: '2-digit', minute: '2-digit'
+  })
+}
+
+// ── Загрузка ────────────────────────────────────────────────────────
+async function fetchData() {
   isLoading.value = true
   error.value = null
-  
   try {
-    // Загрузка всех типов контрагентов
-    const [mastersData, workersData, foremansData, officesData] = await Promise.all([
-      $fetch('/api/contractors/masters'),
-      $fetch('/api/contractors/workers'),
-      $fetch('/api/contractors/foremans'),
-      $fetch('/api/contractors/offices')
+    const [masters, workers, foremans, offices] = await Promise.all([
+      $fetch < any[] > ('/api/contractors/masters'),
+      $fetch < any[] > ('/api/contractors/workers'),
+      $fetch < any[] > ('/api/contractors/foremans'),
+      $fetch < any[] > ('/api/contractors/offices'),
     ])
-    
-    // Обработка данных
-    const processContractors = (data, type) => {
-      return data.map(c => ({
-        ...c,
-        type,
-        balance: parseFloat(c.balance) || 0
-      }))
-    }
-    
-    const masters = processContractors(mastersData, 'master')
-    const workers = processContractors(workersData, 'worker')
-    const foremans = processContractors(foremansData, 'foreman')
-    const offices = processContractors(officesData, 'office')
-    
-    // Вычисляем общие балансы по типам
-    const calculateTotalBalance = (contractors) => {
-      return contractors.reduce((sum, c) => sum + c.balance, 0)
-    }
-    
+
+    const process = (list: any[], type: string) =>
+      (list || []).map(c => ({ ...c, type, balance: parseFloat(c.balance) || 0 }))
+
+    const m = process(masters, 'master')
+    const w = process(workers, 'worker')
+    const f = process(foremans, 'foreman')
+    const o = process(offices, 'office')
+
+    const sum = (arr: any[]) => arr.reduce((acc, c) => acc + c.balance, 0)
+
     contractorData.value = {
-      masters: {
-        totalBalance: calculateTotalBalance(masters),
-        count: masters.length,
-        list: masters
-      },
-      workers: {
-        totalBalance: calculateTotalBalance(workers),
-        count: workers.length,
-        list: workers
-      },
-      foremans: {
-        totalBalance: calculateTotalBalance(foremans),
-        count: foremans.length,
-        list: foremans
-      },
-      offices: {
-        totalBalance: calculateTotalBalance(offices),
-        count: offices.length,
-        list: offices
-      }
+      masters: { totalBalance: sum(m), count: m.length, list: m },
+      workers: { totalBalance: sum(w), count: w.length, list: w },
+      foremans: { totalBalance: sum(f), count: f.length, list: f },
+      offices: { totalBalance: sum(o), count: o.length, list: o },
     }
-  } catch (err) {
-    console.error('Ошибка загрузки финансовых данных по контрагентам:', err)
-    error.value = 'Не удалось загрузить данные'
+
+    updatedAt.value = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+  } catch (e) {
+    console.error('[КонтрФинансы] Ошибка загрузки:', e)
+    error.value = 'Ошибка загрузки'
   } finally {
     isLoading.value = false
   }
 }
 
-// Загрузка транзакций контрагента
-const loadContractorTransactions = async (contractor) => {
-  // Если транзакции уже загружены, не загружаем повторно
-  if (contractorTransactions.value[contractor.id]) {
-    return
-  }
-
+async function loadTransactions(contractor: any) {
+  if (transactions.value[contractor.id]) return
+  loadingTransactions.value = contractor.id
   try {
-    // Загрузка расходов и приходов по контрагенту
     const [expenses, comings] = await Promise.all([
-      $fetch('/api/expenses', {
-        params: {
-          contractorType: contractor.type,
-          contractorId: contractor.id
-        }
-      }),
-      $fetch('/api/comings', {
-        params: {
-          contractorType: contractor.type,
-          contractorId: contractor.id
-        }
-      })
+      $fetch < any[] > ('/api/expenses', { params: { contractorType: contractor.type, contractorId: contractor.id } }),
+      $fetch < any[] > ('/api/comings', { params: { contractorType: contractor.type, contractorId: contractor.id } }),
     ])
-    
-    // Форматирование данных
-    const formattedExpenses = expenses.map(expense => ({
-      type: 'expense',
-      amount: parseFloat(expense.amount) || 0,
-      operationDate: expense.operationDate,
-      comment: expense.comment,
-      objectName: expense.objectName
-    }))
-    
-    const formattedComings = comings.map(coming => ({
-      type: 'income',
-      amount: parseFloat(coming.amount) || 0,
-      operationDate: coming.operationDate,
-      comment: coming.comment,
-      objectName: coming.objectName
-    }))
-    
-    // Обновляем состояние
-    contractorTransactions.value = {
-      ...contractorTransactions.value,
-      [contractor.id]: {
-        expenses: formattedExpenses,
-        comings: formattedComings
-      }
+    transactions.value[contractor.id] = {
+      expenses: (expenses || []).map(e => ({ ...e, amount: parseFloat(e.amount) })),
+      comings: (comings || []).map(c => ({ ...c, amount: parseFloat(c.amount) })),
     }
-  } catch (err) {
-    console.error(`Ошибка загрузки транзакций для контрагента ${contractor.id}:`, err)
+  } catch (e) {
+    console.error(`[КонтрФинансы] Ошибка загрузки транзакций для ${contractor.id}:`, e)
+  } finally {
+    loadingTransactions.value = null
   }
 }
 
-// Переключение раскрытия деталей контрагента
-const toggleContractorDetails = async (contractor) => {
-  if (expandedContractorId.value === contractor.id) {
-    expandedContractorId.value = null
+async function toggleExpand(contractor: any) {
+  if (expandedId.value === contractor.id) {
+    expandedId.value = null
     return
   }
-  
-  expandedContractorId.value = contractor.id
-  await loadContractorTransactions(contractor)
+  expandedId.value = contractor.id
+  await loadTransactions(contractor)
 }
 
-// Обновление данных
-const refreshData = () => {
-  fetchData()
-}
-
-// Обновление каждые 5 минут
-let refreshInterval
 onMounted(() => {
   fetchData()
-  refreshInterval = setInterval(refreshData, 5 * 60 * 1000)
+  refreshTimer = setInterval(fetchData, 5 * 60 * 1000)
 })
 
-onBeforeUnmount(() => {
-  clearInterval(refreshInterval)
-})
+onBeforeUnmount(() => clearInterval(refreshTimer))
 </script>
 
 <style lang="scss" scoped>
-.contractor-finance-card {
-  :deep(.card__body) {
-    padding: 1.5rem;
-  }
-}
-
-.finance-content {
+.cf {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
 }
 
-.summary-item {
-  padding: 1rem;
-  border-radius: $border-radius;
-  text-align: center;
-  
-  &.total-balance {
-    background: $color-dark;
-    color: white;
-    border-radius: 10px;
-    padding: 1.2rem;
-    
-    .item-label {
-      color: rgba(255, 255, 255, 0.8);
-      font-weight: 500;
-      margin-bottom: 0.3rem;
-    }
-    
-    .item-value {
-      font-size: 1.8rem;
-      font-weight: 700;
-      color: white;
-    }
+// ── Итог ────────────────────────────────────────────────────────────
+.cf__total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 16px 14px;
+  border-bottom: 1px solid var(--crm-border);
+
+  &-label {
+    font-size: var(--crm-text-sm);
+    color: var(--crm-text-muted);
   }
-  
-  .item-label {
-    font-size: 0.9rem;
-    color: $color-muted;
-    margin-bottom: 0.3rem;
-  }
-  
-  .item-value {
-    font-size: 1.3rem;
-    font-weight: 600;
-    line-height: 1.4;
+
+  &-value {
+    font-size: var(--crm-text-xl);
+    font-weight: 700;
+
+    &--pos {
+      color: var(--crm-success);
+    }
+
+    &--neg {
+      color: var(--crm-danger);
+    }
   }
 }
 
-.types-grid {
+// ── Типы контрагентов ───────────────────────────────────────────────
+.cf__types {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(4, 1fr);
+  border-bottom: 1px solid var(--crm-border);
+
+  @media (max-width: 700px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.cf-type {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-right: 1px solid var(--crm-border);
   cursor: pointer;
-  transition: all 0.2s ease;
-  
+  transition: var(--crm-transition);
+
+  &:last-child {
+    border-right: none;
+  }
+
   &:hover {
-    opacity: 0.95;
+    background: var(--crm-bg-elevated);
   }
-  
-  .type-item {
-    padding: 1rem;
-    border-radius: $border-radius;
-    transition: all 0.2s ease;
-    
-    &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    }
-    
-    &.master {
-      background: rgba($color-primary, 0.1);
-      border: 1px solid rgba($color-primary, 0.3);
-      
-      .type-icon {
-        color: $color-primary;
-        background: rgba($color-primary, 0.15);
-      }
-      
-      .type-value {
-        color: $color-primary;
-      }
-    }
-    
-    &.worker {
-      background: rgba($color-warning, 0.1);
-      border: 1px solid rgba($color-warning, 0.3);
-      
-      .type-icon {
-        color: $color-warning;
-        background: rgba($color-warning, 0.15);
-      }
-      
-      .type-value {
-        color: $color-warning;
-      }
-    }
-    
-    &.foreman {
-      background: rgba($color-info, 0.1);
-      border: 1px solid rgba($color-info, 0.3);
-      
-      .type-icon {
-        color: $color-info;
-        background: rgba($color-info, 0.15);
-      }
-      
-      .type-value {
-        color: $color-info;
-      }
-    }
-    
-    &.office {
-      background: rgba($color-muted, 0.1);
-      border: 1px solid rgba($color-muted, 0.3);
-      
-      .type-icon {
-        color: $color-muted;
-        background: rgba($color-muted, 0.15);
-      }
-      
-      .type-value {
-        color: $color-muted;
-      }
-    }
-    
-    .type-icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 40px;
-      height: 40px;
-      border-radius: 8px;
-      margin-bottom: 0.5rem;
-    }
-    
-    .type-info {
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-      
-      .type-label {
-        font-size: 0.9rem;
-        color: $color-dark;
-        font-weight: 500;
-      }
-      
-      .type-value {
-        font-size: 1.3rem;
-        font-weight: 700;
-      }
-      
-      .type-count {
-        font-size: 0.85rem;
-        color: $color-muted;
-      }
-    }
-  }
-}
 
-.debtors-section, .creditors-section {
-  background: $background-light;
-  border: 1px solid $border-color;
-  border-radius: $border-radius;
-  padding: 1rem;
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.75rem;
-  
-  h3 {
-    font-size: 1.1rem;
-    margin: 0;
-    color: $color-dark;
-  }
-  
-  .count-badge {
-    font-size: 0.8rem;
-    padding: 0.2rem 0.5rem;
-    border: 1px solid $border-color;
-    border-radius: $border-radius;
-    color: $color-dark;
-    font-weight: 600;
-  }
-}
-
-.debtors-list, .creditors-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.debtor-item, .creditor-item {
-  background: white;
-  border: 1px solid $border-color;
-  border-radius: $border-radius;
-  padding: 0.75rem;
-  transition: all 0.2s ease;
-  
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  }
-}
-
-.debtor-header, .creditor-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: $border-radius;
-  transition: all 0.2s ease;
-  
-  &:hover {
-    background: rgba(0, 0, 0, 0.02);
-  }
-}
-
-.debtor-name, .creditor-name {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: 600;
-  color: $color-dark;
-}
-
-.debtor-balance, .creditor-balance {
-  font-weight: 600;
-  flex: 2;
-  text-align: right;
-  color: $color-danger;
-}
-
-.creditor-balance {
-  color: $color-success;
-}
-
-.expand-icon {
-  transition: transform 0.3s ease;
-  
-  &.rotated {
-    transform: rotate(180deg);
-  }
-}
-
-.debtor-details, .creditor-details {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.85rem;
-  color: $color-muted;
-}
-
-.detail-row {
-  display: flex;
-  justify-content: space-between;
-}
-
-.detail-label {
-  font-weight: 500;
-  color: $color-dark;
-}
-
-.transactions-section {
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid $border-color;
-}
-
-.transactions-columns {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-}
-
-.column {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  
-  &.expenses-column {
-    border-right: 1px solid $border-color;
-    padding-right: 1rem;
-  }
-  
-  &.works-column {
-    padding-left: 1rem;
-  }
-}
-
-.column-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.75rem;
-  
-  h4 {
-    font-size: 1rem;
-    margin: 0;
-    color: $color-dark;
-  }
-}
-
-.transactions-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.transaction-item {
-  background: $background-light;
-  border: 1px solid $border-color;
-  border-radius: $border-radius;
-  padding: 0.75rem;
-}
-
-.transaction-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-}
-
-.transaction-date {
-  font-size: 0.85rem;
-  color: $color-muted;
-}
-
-.transaction-details {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.9rem;
-  
-  .transaction-amount {
-    font-weight: 600;
-    
-    &.positive-balance {
-      color: $color-danger;
-    }
-    
-    &.negative-balance {
-      color: $color-success;
-    }
-  }
-  
-  .transaction-object,
-  .transaction-comment {
+  &__icon {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--crm-radius-md);
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    color: $color-muted;
-    font-size: 0.85rem;
-    
-    .object-icon,
-    .comment-icon {
-      opacity: 0.7;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  &__info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  &__label {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+    white-space: nowrap;
+  }
+
+  &__count {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-disabled);
+  }
+
+  &__balance {
+    font-size: var(--crm-text-sm);
+    font-weight: 700;
+    flex-shrink: 0;
+
+    &--pos {
+      color: var(--crm-success);
+    }
+
+    &--neg {
+      color: var(--crm-danger);
     }
   }
 }
 
-.no-transactions {
+// ── Секции должников/кредиторов ─────────────────────────────────────
+.cf__sections {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-  text-align: center;
-  color: $color-muted;
-  font-size: 0.9rem;
-  
-  .no-transactions-icon {
-    margin-bottom: 0.5rem;
-    opacity: 0.7;
+}
+
+.cf-section {
+  border-bottom: 1px solid var(--crm-border);
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px 8px;
+  }
+
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: var(--crm-text-sm);
+    font-weight: 600;
+    color: var(--crm-text-secondary);
+  }
+
+  &__count {
+    font-size: var(--crm-text-xs);
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 10px;
+
+    &--danger {
+      background: var(--crm-danger-dim);
+      color: var(--crm-danger);
+      border: 1px solid rgba(242, 95, 92, .3);
+    }
+
+    &--warning {
+      background: var(--crm-warning-dim);
+      color: var(--crm-warning);
+      border: 1px solid rgba(245, 166, 35, .3);
+    }
   }
 }
 
-.empty-state, .error-state {
+// ── Список контрагентов ─────────────────────────────────────────────
+.contractor-list {
+  display: flex;
+  flex-direction: column;
+  padding: 0 8px 8px;
+  gap: 2px;
+}
+
+.contractor-item {
+  border-radius: var(--crm-radius-md);
+  overflow: hidden;
+  border: 1px solid transparent;
+  transition: var(--crm-transition);
+
+  &--open {
+    border-color: var(--crm-border-hover);
+    background: var(--crm-bg-elevated);
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: var(--crm-transition);
+
+    &:hover {
+      background: var(--crm-bg-elevated);
+    }
+  }
+
+  &__icon {
+    width: 24px;
+    height: 24px;
+    border-radius: var(--crm-radius-sm);
+    background: var(--crm-bg-overlay);
+    color: var(--crm-text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  &__name {
+    flex: 1;
+    font-size: var(--crm-text-sm);
+    color: var(--crm-text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__chevron {
+    color: var(--crm-text-muted);
+    transition: transform var(--crm-transition);
+    flex-shrink: 0;
+
+    &--open {
+      transform: rotate(180deg);
+    }
+  }
+
+  &__balance {
+    font-size: var(--crm-text-sm);
+    font-weight: 700;
+    flex-shrink: 0;
+
+    &--danger {
+      color: var(--crm-danger);
+    }
+
+    &--warning {
+      color: var(--crm-warning);
+    }
+  }
+
+  // Транзакции
+  &__transactions {
+    padding: 0 10px 10px;
+    border-top: 1px solid var(--crm-border);
+    margin-top: 4px;
+  }
+}
+
+// ── Транзакции ───────────────────────────────────────────────────────
+.tx-loading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 0;
+  font-size: var(--crm-text-sm);
+  color: var(--crm-text-muted);
+}
+
+.tx-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding-top: 10px;
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.tx-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  &__header {
+    font-size: var(--crm-text-xs);
+    font-weight: 600;
+    color: var(--crm-text-muted);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--crm-border);
+  }
+}
+
+.tx-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tx-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 7px 8px;
+  background: var(--crm-bg-base);
+  border-radius: var(--crm-radius-sm);
+  font-size: var(--crm-text-xs);
+
+  &__date {
+    color: var(--crm-text-disabled);
+    flex-shrink: 0;
+  }
+
+  &__obj {
+    color: var(--crm-text-muted);
+  }
+
+  &__comment {
+    color: var(--crm-text-muted);
+    font-style: italic;
+  }
+
+  &__amount {
+    font-weight: 700;
+    margin-left: auto;
+    flex-shrink: 0;
+
+    &--income {
+      color: var(--crm-success);
+    }
+
+    &--expense {
+      color: var(--crm-danger);
+    }
+  }
+}
+
+.tx-empty {
+  padding: 10px 0;
+  font-size: var(--crm-text-xs);
+  color: var(--crm-text-disabled);
+  text-align: center;
+}
+
+// ── Состояния ───────────────────────────────────────────────────────
+.cf-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2rem 1rem;
-  text-align: center;
-  min-height: 200px;
-  
-  .empty-icon, .error-icon {
-    margin-bottom: 1rem;
-    opacity: 0.7;
-  }
-  
+  gap: 10px;
+  padding: 40px 20px;
+  color: var(--crm-text-muted);
+
   p {
-    margin: 0.5rem 0 1.5rem 0;
-    color: $color-muted;
-  }
-  
-  .btn {
-    margin-top: 0.5rem;
+    margin: 0;
+    font-size: var(--crm-text-sm);
   }
 }
 
-.btn {
+// ── Анимация раскрытия ───────────────────────────────────────────────
+.expand-enter-active,
+.expand-leave-active {
+  transition: all .2s ease;
+  overflow: hidden;
+}
+
+.expand-enter-from,
+.expand-leave-to {
+  opacity: 0;
+  max-height: 0;
+}
+
+.expand-enter-to,
+.expand-leave-from {
+  opacity: 1;
+  max-height: 600px;
+}
+
+// ── Спиннер ─────────────────────────────────────────────────────────
+.spin {
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// ── Кнопки ──────────────────────────────────────────────────────────
+.crm-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
+  gap: 5px;
+  border-radius: var(--crm-radius-md);
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
-  
-  &-primary {
-    background-color: $blue;
-    color: white;
-    border: 1px solid $blue;
-    
-    &:hover {
-      background-color: $blue;
-      opacity: 0.9;
-    }
+  transition: var(--crm-transition);
+  white-space: nowrap;
+
+  &--sm {
+    padding: 6px 12px;
+    font-size: var(--crm-text-sm);
   }
-  
-  &-secondary {
-    background-color: $background-light;
-    color: #495057;
-    border: 1px solid $border-color;
-    
+
+  &--ghost {
+    background: transparent;
+    border: 1px solid var(--crm-border-hover);
+    color: var(--crm-text-secondary);
+
     &:hover {
-      border: 1px solid $blue;
+      background: var(--crm-bg-elevated);
+      color: var(--crm-text-primary);
     }
   }
 }

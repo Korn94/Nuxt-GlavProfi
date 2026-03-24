@@ -1,163 +1,228 @@
 <template>
-  <div class="home-page">
-    <!-- Заголовок -->
-    <section class="price-list">
-      <h2>Ремонт помещений, <span>цены на работы - 2025</span></h2>
-      <p>Ознакомьтесь с нашим полным прайс-листом для точного расчета</p>
-      <NuxtLink to="/prices/floor">
-          <UiButtonsPrimary text="Перейти к ценам" />
-      </NuxtLink>
-    </section>
+  <section class="prices-section">
 
-    <!-- Ключевые категории -->
-    <section class="key-categories">
-      <div class="categories-grid">
-        <NuxtLink v-for="category in categories" :key="category.id" :to="`/${category.id}`" class="category-card">
-          <div class="ico">
-            <div></div>
-            <Icon :name="category.icon" size="24px" />
-            <Icon name="weui:arrow-filled" class="arrow-icon" size="24px" />
-          </div>
-          <h3>{{ category.name }}</h3>
-          <div class="line"></div>
-          <p>{{ category.text }}</p>
+    <div class="top-grid">
+      <!-- Промо-блок -->
+      <div class="promo-block">
+        <span class="promo-label">Прайс-лист 2026</span>
+        <h2 class="promo-title">Ремонт и отделка коммерческих помещений под ключ</h2>
+        <NuxtLink to="/prices/otdelochnye-raboty">
+          <button class="promo-btn">Смотреть цены →</button>
         </NuxtLink>
       </div>
-    </section>
-  </div>
+
+      <!-- Статистика -->
+      <div class="stats-block">
+        <div v-for="stat in stats" :key="stat.label" class="stat-item">
+          <span class="stat-value">{{ stat.value }}</span>
+          <span class="stat-label">{{ stat.label }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Карточки категорий -->
+    <div class="categories-grid">
+      <NuxtLink v-for="cat in categories" :key="cat.id" :to="cat.href" class="category-card">
+        <div class="card-icon">
+          <Icon :name="cat.icon" size="24px" />
+        </div>
+        <h3 class="card-name">{{ cat.name }}</h3>
+        <p class="card-desc">{{ cat.desc }}</p>
+        <span class="card-arrow">→</span>
+      </NuxtLink>
+    </div>
+
+  </section>
 </template>
 
 <script setup>
-// Данные категорий (можно загрузить из JSON)
+const stats = [
+  { value: '2014 г.', label: 'На рынке с' },
+  { value: '250+', label: 'Объектов сдано' },
+  { value: 'до 20%', label: 'Экономия на материалах' },
+  { value: '5', label: 'Специализированных бригад' },
+]
+
 const categories = [
-  { id: "prices/floor", name: "Отделка полов", type: "Пол", text: "Укладка ламината, паркета, линолеума, заливка стяжки, шлифовка, плитка...", icon: "material-symbols-light:footprint-outline" },
-  { id: "prices/walls", name: "Отделка стен", type: "Стены", text: "Шпаклевка, покраска, оклейка обоями, монтаж панелей и гипсокартона...", icon: "material-symbols-light:wall-art-outline" },
-  { id: "prices/ceiling", name: "Отделка потолка", type: "Потолок", text: "Монтаж гипсокартона, покраска, оклейка обоями...", icon: "material-symbols-light:arrow-shape-up-stack-outline" },
-  { id: "prices/plumbing", name: "Сантехника", type: "Сантехнику", text: "Монтаж труб, установка санфаянса, ремонт коммуникаций...", icon: "material-symbols-light:water-drop-outline" },
-  { id: "prices/electricity", name: "Электрика", type: "Электрику", text: "Прокладка проводки, замена розеток, светильников, щитков...", icon: "material-symbols-light:electric-bolt-outline" },
-];
+  {
+    id: 'finishing',
+    name: 'Отделочные работы',
+    desc: 'Полы, стены, потолки — любые материалы и технологии',
+    icon: 'material-symbols-light:format-paint-outline',
+    href: '/prices/otdelochnye-raboty',
+  },
+  {
+    id: 'plumbing',
+    name: 'Сантехника',
+    desc: 'Монтаж труб, установка санфаянса, ремонт коммуникаций',
+    icon: 'material-symbols-light:water-drop-outline',
+    href: '/prices/plumbing',
+  },
+  {
+    id: 'electricity',
+    name: 'Электромонтаж',
+    desc: 'Прокладка проводки, освещение, щитки, розетки',
+    icon: 'material-symbols-light:electric-bolt-outline',
+    href: '/prices/electricity',
+  },
+]
 </script>
 
 <style lang="scss" scoped>
-.home-page {
+.prices-section {
   max-width: 1200px;
   margin: 6em auto;
   padding: 20px;
+}
 
-  h3 {
-    text-align: center;
-    font-size: 2rem;
-    margin-bottom: 40px;
+/* Верхняя сетка */
+.top-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 10px;
 
-    span {
-      color: #00c3f5;
-    }
-  }
-
-  section {
-    margin-bottom: 20px;
-  }
-
-  p {
-    font-size: 1rem;
-    color: #555;
-    line-height: 1.6;
-  }
-
-  button {
-    padding: 10px 20px;
-    min-width: 150px;
-    margin-top: 1.5em;
-    background: linear-gradient(to right, #00c3f5, #00a3d3);
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background 0.3s ease;
-
-    &:hover {
-      background: #00a3d3;
-    }
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
   }
 }
 
-.key-categories {
-  .categories-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 2fr));
-    gap: 20px;
-  }
-
-  .category-card {
-    background: #f7f7f7;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    padding: 20px;
-    text-align: center;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-    cursor: pointer;
-
-    .arrow-icon {
-      opacity: 0.6;
-      transition: opacity 0.2s;
-    }
-
-    .ico {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 10px;
-    }
-
-    &:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
-    }
-
-    .line {
-      display: flex;
-      width: 15%;
-      margin: 0 auto 10px;
-      border-bottom: 1px solid #777;
-    }
-
-    .btn {
-      text-align: center;
-    }
-
-    h3 {
-      font-size: 1.2rem;
-      margin-bottom: 10px;
-      color: #333;
-    }
-
-    p {
-      font-size: 0.95rem;
-      color: #555;
-    }
-  }
-}
-
-.price-list {
-  // text-align: center;
-  // max-width: 800px;
-  margin: auto;
-  padding: 30px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
+/* Промо */
+.promo-block {
+  background: $blue;
+  border-radius: $border-radius;
+  padding: 24px;
   display: flex;
   flex-direction: column;
+  gap: 10px;
+}
+
+.promo-label {
+  font-size: 11px;
+  color: $text-dark;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.promo-title {
+  font-size: 18px;
+  font-weight: 500;
+  color: $text-light;
+  line-height: 1.35;
+}
+
+.promo-btn {
+  margin-top: auto;
+  display: inline-block;
+  padding: 9px 18px;
+  background: #fff;
+  color: $text-dark;
+  border: none;
+  border-radius: $border-radius;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  width: fit-content;
+  transition: opacity 0.15s;
+
+  &:hover {
+    opacity: 0.88;
+  }
+}
+
+/* Статистика */
+.stats-block {
+  background: #f7f7f7;
+  border-radius: $border-radius;
+  padding: 20px 24px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-content: center;border: 1px solid $border-color;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 500;
+  color: $text-dark;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: $text-gray;
+}
+
+/* Сетка карточек */
+.categories-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Карточка */
+.category-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px 18px;
+  background: #fff;
+  border: 1px solid $border-color;
+  border-radius: $border-radius;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s, transform 0.15s;
+  position: relative;
+
+  &:hover {
+    border-color: $blue;
+    transform: translateY(-2px);
+
+    .card-arrow {
+      opacity: 1;
+      transform: translateX(3px);
+    }
+  }
+}
+
+.card-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: $border-radius;
+  background: #e8f7fb;
+  display: flex;
   align-items: center;
-  background-color: #f7f7f7;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  justify-content: center;
+  color: $blue;
+}
 
-  h2 {
-    margin-bottom: 10px;
-    color: #333;
-  }
+.card-name {
+  font-size: 15px;
+  font-weight: 500;
+  color: #222;
+}
 
-  p {
-    color: #666;
-    margin-bottom: 20px;
-  }
+.card-desc {
+  font-size: 13px;
+  color: #777;
+  line-height: 1.5;
+  flex: 1;
+}
+
+.card-arrow {
+  font-size: 16px;
+  color: #0090c0;
+  opacity: 0;
+  transition: opacity 0.15s, transform 0.15s;
+  align-self: flex-end;
 }
 </style>

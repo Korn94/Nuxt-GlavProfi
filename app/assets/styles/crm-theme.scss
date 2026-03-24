@@ -1,0 +1,74 @@
+// app/assets/styles/crm-theme.scss
+// ============================================================
+// CRM ТЕМА — CSS-переменные (дизайн-токены)
+// Подключается ТОЛЬКО в layouts/cabinet.vue
+// Публичный сайт эти переменные не видит
+// ============================================================
+
+.crm {
+  
+  span {
+    color: unset;
+  }
+
+  // ── Фоны ────────────────────────────────────────────────
+  --crm-bg-base: #0d0f14; // самый тёмный — body/страница
+  --crm-bg-surface: #13161e; // карточки, сайдбар
+  --crm-bg-elevated: #1a1e28; // приподнятые элементы, дропдауны
+  --crm-bg-overlay: #222736; // ховеры, выделения
+
+  // ── Границы ─────────────────────────────────────────────
+  --crm-border: rgba(255, 255, 255, 0.07); // стандартная граница
+  --crm-border-hover: rgba(255, 255, 255, 0.12); // при наведении
+  --crm-border-focus: rgba(0, 195, 245, 0.5); // фокус на инпутах
+
+  // ── Текст ───────────────────────────────────────────────
+  --crm-text-primary: #e2e4ec; // основной текст
+  --crm-text-secondary: #9aa0b8; // вторичный текст
+  --crm-text-muted: #7a7f96; // подсказки, метки
+  --crm-text-disabled: #4a4f63; // неактивные элементы
+
+  // ── Акцент (основной — голубой) ─────────────────────────
+  --crm-accent: #00c3f5;
+  --crm-accent-hover: #00a8d3;
+  --crm-accent-dim: rgba(0, 195, 245, 0.15);
+  --crm-accent-border: rgba(0, 195, 245, 0.35);
+
+  // ── Статусные цвета ─────────────────────────────────────
+  --crm-success: #3dd68c;
+  --crm-success-dim: rgba(61, 214, 140, 0.15);
+
+  --crm-warning: #f5a623;
+  --crm-warning-dim: rgba(245, 166, 35, 0.15);
+
+  --crm-danger: #f25f5c;
+  --crm-danger-dim: rgba(242, 95, 92, 0.15);
+
+  --crm-info: #5b8def;
+  --crm-info-dim: rgba(91, 141, 239, 0.15);
+
+  // ── Типографика ─────────────────────────────────────────
+  --crm-font-sans: 'Rubik', sans-serif;
+  --crm-font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+
+  --crm-text-xs: 11px;
+  --crm-text-sm: 12px;
+  --crm-text-base: 13px;
+  --crm-text-md: 14px;
+  --crm-text-lg: 16px;
+  --crm-text-xl: 20px;
+
+  // ── Скругления ──────────────────────────────────────────
+  --crm-radius-sm: 4px;
+  --crm-radius-md: 6px;
+  --crm-radius-lg: 8px;
+  --crm-radius-xl: 12px;
+
+  // ── Тени ────────────────────────────────────────────────
+  --crm-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --crm-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --crm-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+
+  // ── Переходы ────────────────────────────────────────────
+  --crm-transition: 0.2s ease;
+}

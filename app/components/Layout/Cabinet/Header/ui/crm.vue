@@ -1,18 +1,21 @@
 <!-- app/components/Layout/Cabinet/Header/ui/crm.vue -->
 <template>
-  <ul>
+  <ul class="nav-list">
     <template v-for="(item, index) in filteredMenu" :key="index">
-      <!-- Обычный пункт меню -->
-      <li v-if="!item.divider" class="menu-item">
-        <NuxtLink :to="item.path" @click="handleClick" class="menu-link">
-          <Icon :name="item.icon" class="menu-icon" />
-          <span class="menu-text">{{ item.title }}</span>
+
+      <!-- Разделитель -->
+      <li v-if="item.divider" class="nav-divider" />
+
+      <!-- Пункт меню -->
+      <li v-else class="nav-item">
+        <NuxtLink :to="item.path" class="nav-link" @click="handleClick">
+          <span class="nav-link__icon">
+            <Icon :name="item.icon" size="18" />
+          </span>
+          <span class="nav-link__label">{{ item.title }}</span>
         </NuxtLink>
       </li>
-      <!-- Разделитель -->
-      <li v-else class="divider">
-        <hr />
-      </li>
+
     </template>
   </ul>
 </template>
@@ -21,176 +24,177 @@
 import { computed } from 'vue'
 import { useAuthStore } from 'stores/auth'
 
-// Emits
-const emit = defineEmits<{
-  closeSidebar: []
-}>()
-
-// Store
+const emit = defineEmits<{ closeSidebar: [] }>()
 const authStore = useAuthStore()
 
-// Menu items с иконками
 const menuItems = [
-  { 
-    title: 'Главная', 
-    path: '/cabinet', 
+  {
+    title: 'Главная',
+    path: '/cabinet',
     icon: 'mdi:home-outline',
-    roles: ['admin', 'manager', 'foreman', 'master', 'worker'] 
+    roles: ['admin', 'manager', 'foreman', 'master', 'worker']
   },
-  { 
-    title: 'Сотрудники', 
-    path: '/cabinet/admin/contractors', 
+  {
+    title: 'Сотрудники',
+    path: '/cabinet/admin/contractors',
     icon: 'mdi:account-group-outline',
-    roles: ['admin'] 
+    roles: ['admin']
   },
-  { 
-    title: 'Объекты', 
-    path: '/cabinet/objects', 
+  {
+    title: 'Объекты',
+    path: '/cabinet/objects',
     icon: 'mdi:office-building-outline',
-    roles: ['admin', 'foreman', 'master', 'worker'] 
+    roles: ['admin', 'foreman', 'master', 'worker']
   },
-  { 
-    title: 'Чеки', 
-    path: '/cabinet/materials', 
+  {
+    title: 'Чеки',
+    path: '/cabinet/materials',
     icon: 'mdi:receipt-text-outline',
-    roles: ['admin'] 
+    roles: ['admin']
   },
-  { 
-    title: 'Операции', 
-    path: '/cabinet/operation', 
+  {
+    title: 'Операции',
+    path: '/cabinet/operation',
     icon: 'mdi:instant-transfer',
-    roles: ['admin'] 
+    roles: ['admin']
   },
   { divider: true },
-  { 
-    title: 'Онлайн', 
-    path: '/cabinet/online', 
+  {
+    title: 'Онлайн',
+    path: '/cabinet/online',
     icon: 'mdi:account-multiple-check-outline',
-    roles: ['admin'] 
+    roles: ['admin']
   },
-  { 
-    title: 'Тест', 
-    path: '/cabinet/testpage', 
+  {
+    title: 'Тест',
+    path: '/cabinet/testpage',
     icon: 'mdi:flask-outline',
-    roles: ['admin'] 
+    roles: ['admin']
   },
   { divider: true },
-  { 
-    title: 'На сайт', 
-    path: '/', 
+  {
+    title: 'На сайт',
+    path: '/',
     icon: 'mdi:web',
-    roles: ['admin', 'manager', 'foreman', 'master', 'worker'] 
+    roles: ['admin', 'manager', 'foreman', 'master', 'worker']
   },
-  { 
-    title: 'Новый кейс', 
-    path: '/projects/create', 
+  {
+    title: 'Новый кейс',
+    path: '/projects/create',
     icon: 'mdi:plus-circle-outline',
-    roles: ['admin', 'manager'] 
+    roles: ['admin', 'manager']
   },
   { divider: true },
-  { 
-    title: 'Баланс', 
-    path: '/cabinet/balance', 
+  {
+    title: 'Баланс',
+    path: '/cabinet/balance',
     icon: 'mdi:currency-rub',
-    roles: ['admin'] 
+    roles: ['admin']
   },
 ]
 
-// Filtered menu based on user role
+// Фильтрация по роли
 const filteredMenu = computed(() => {
   const user = authStore.user
   if (!user) return []
-  
-  const filtered: any[] = []
-  let previousItem: any = null
-  
+
+  const result: any[] = []
+  let hasPrevItem = false
+
   for (const item of menuItems) {
-    // Divider - add only if there was a visible item before
     if (item.divider) {
-      if (previousItem) {
-        filtered.push(item)
-      }
+      if (hasPrevItem) result.push(item)
       continue
     }
-    // Regular menu item - check roles
     if (!item.roles || item.roles.includes(user.role)) {
-      filtered.push(item)
-      previousItem = item
+      result.push(item)
+      hasPrevItem = true
     }
   }
-  
-  return filtered
+
+  // Убираем разделитель в конце если он последний
+  while (result.length && result[result.length - 1].divider) {
+    result.pop()
+  }
+
+  return result
 })
 
-// Handle click on menu item
-const handleClick = () => {
+function handleClick() {
   emit('closeSidebar')
 }
 </script>
 
 <style lang="scss" scoped>
-ul {
+.nav-list {
   list-style: none;
-  padding: 12px 0;
+  padding: 4px 8px;
   margin: 0;
-  
-  li {
-    margin-bottom: 0;
-    
-    &.menu-item {
-      .menu-link {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        color: #ccc;
-        text-decoration: none;
-        padding: 10px 16px;
-        border-radius: 6px;
-        transition: all 0.2s ease;
-        
-        &:hover {
-          background: rgba(0, 195, 245, 0.15);
-          color: #00c3f5;
-          
-          .menu-icon {
-            color: #00c3f5;
-          }
-        }
-        
-        &.router-link-active {
-          background: rgba(52, 73, 94, 0.5);
-          color: white;
-          
-          .menu-icon {
-            color: white;
-          }
-        }
-        
-        .menu-icon {
-          width: 20px;
-          height: 20px;
-          color: #7f8c8d;
-          flex-shrink: 0;
-          transition: color 0.2s ease;
-        }
-        
-        .menu-text {
-          font-size: 14px;
-          font-weight: 500;
-          white-space: nowrap;
-        }
-      }
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nav-divider {
+  height: 1px;
+  background: var(--crm-border);
+  margin: 6px 8px;
+}
+
+// .nav-item {
+  // пустой — стили на .nav-link
+// }
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--crm-radius-md);
+  color: var(--crm-text-secondary);
+  text-decoration: none;
+  font-size: var(--crm-text-md);
+  font-weight: 400;
+  transition: var(--crm-transition);
+
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    color: var(--crm-accent);
+    flex-shrink: 0;
+    transition: var(--crm-transition);
+  }
+
+  &__label {
+    color: inherit;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &:hover {
+    background: var(--crm-bg-elevated);
+    color: var(--crm-text-primary);
+
+    .nav-link__icon {
+      color: var(--crm-accent);
     }
-    
-    &.divider {
-      margin: 12px 0;
-      pointer-events: none;
-      
-      hr {
-        border: 0;
-        border-top: 1px solid #444;
-        margin: 0;
-      }
+  }
+
+  // Активная страница
+  &.router-link-exact-active {
+    background: var(--crm-accent-dim);
+    color: var(--crm-accent);
+
+    .nav-link__icon {
+      color: var(--crm-accent);
+    }
+
+    &:hover {
+      background: var(--crm-accent-dim);
     }
   }
 }

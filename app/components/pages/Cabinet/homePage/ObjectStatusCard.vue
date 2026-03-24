@@ -1,713 +1,572 @@
+<!-- app/components/pages/cabinet/homePage/ObjectStatusCard.vue -->
 <template>
-  <PagesCabinetUiCardsCard :loading="isLoading" title="Статусы объектов" elevated class="object-status-card">
+  <PagesCabinetUiCardsCard :loading="isLoading" title="Статусы объектов" flush>
     <template #icon>
-      <Icon name="mdi:home-city" size="24" />
+      <Icon name="mdi:office-building-outline" size="18" />
     </template>
 
-    <div v-if="objectStats" class="stats-content">
-      <!-- Основные статусы -->
-      <div class="stats-grid">
-        <div class="status-item active">
-          <div class="status-icon">
-            <Icon name="mdi:work-outline" size="24" />
+    <template #actions>
+      <button class="crm-btn crm-btn--ghost crm-btn--sm" @click="navigateTo('/cabinet/objects')">
+        Все объекты
+        <Icon name="mdi:arrow-right" size="14" />
+      </button>
+    </template>
+
+    <div v-if="objectStats" class="obj">
+
+      <!-- Статистика по статусам -->
+      <div class="obj__stats">
+        <div class="stat stat--active">
+          <div class="stat__icon">
+            <Icon name="mdi:play-circle-outline" size="20" />
           </div>
-          <div class="status-info">
-            <div class="status-label">Активные</div>
-            <div class="status-value">{{ objectStats.active }}</div>
-          </div>
-        </div>
-        
-        <div class="status-item waiting">
-          <div class="status-icon">
-            <Icon name="mdi:clock-outline" size="24" />
-          </div>
-          <div class="status-info">
-            <div class="status-label">В ожидании</div>
-            <div class="status-value">{{ objectStats.waiting }}</div>
+          <div class="stat__info">
+            <span class="stat__value">{{ objectStats.active }}</span>
+            <span class="stat__label">Активные</span>
           </div>
         </div>
-        
-        <div class="status-item completed">
-          <div class="status-icon">
-            <Icon name="mdi:check-circle-outline" size="24" />
+
+        <div class="stat stat--waiting">
+          <div class="stat__icon">
+            <Icon name="mdi:clock-outline" size="20" />
           </div>
-          <div class="status-info">
-            <div class="status-label">Завершенные</div>
-            <div class="status-value">{{ objectStats.completed }}</div>
+          <div class="stat__info">
+            <span class="stat__value">{{ objectStats.waiting }}</span>
+            <span class="stat__label">Ожидание</span>
+          </div>
+        </div>
+
+        <div class="stat stat--done">
+          <div class="stat__icon">
+            <Icon name="mdi:check-circle-outline" size="20" />
+          </div>
+          <div class="stat__info">
+            <span class="stat__value">{{ objectStats.completed }}</span>
+            <span class="stat__label">Завершены</span>
+          </div>
+        </div>
+
+        <div class="stat stat--docs">
+          <div class="stat__icon">
+            <Icon name="mdi:file-document-outline" size="20" />
+          </div>
+          <div class="stat__info">
+            <span class="stat__value">{{ totalDocsIssues }}</span>
+            <span class="stat__label">Проблем с документами</span>
           </div>
         </div>
       </div>
 
       <!-- Критические объекты -->
-      <div class="critical-section" v-if="criticalObjects.length > 0">
-        <div class="section-header">
-          <h3>Критические объекты</h3>
-          <span class="count-badge">{{ criticalObjects.length }}</span>
+      <div v-if="criticalObjects.length" class="obj__critical">
+        <div class="obj__critical-header">
+          <span class="obj__critical-title">
+            <Icon name="mdi:alert" size="14" />
+            Просроченные объекты
+          </span>
+          <span class="obj__critical-count">{{ criticalObjects.length }}</span>
         </div>
-        
+
         <div class="critical-list">
-          <div v-for="(obj, index) in criticalObjects" :key="index" class="critical-item">
-            <div class="critical-item-header">
-              <div class="critical-item-title">
-                <Icon name="mdi:alert" size="18" class="critical-icon" />
-                <span>{{ obj.name }}</span>
-              </div>
-              <span class="days-overdue">{{ getDaysOverdue(obj.plannedEndDate) }} дн.</span>
+          <div v-for="obj in criticalObjects" :key="obj.id" class="critical-item">
+            <div class="critical-item__left">
+              <span class="critical-item__name">{{ obj.name }}</span>
+              <span class="critical-item__address">{{ obj.address || 'Адрес не указан' }}</span>
             </div>
-            
-            <div class="critical-item-details">
-              <div class="detail-row">
-                <span class="detail-label">Адрес:</span>
-                <span class="detail-value">{{ obj.address || 'Не указан' }}</span>
-              </div>
-              <div class="detail-row">
-                <span class="detail-label">Прораб:</span>
-                <span class="detail-value">{{ obj.foreman?.name || 'Не назначен' }}</span>
-              </div>
-              <div class="detail-row">
-                <span class="detail-label">Плановая дата:</span>
-                <span class="detail-value">{{ formatDate(obj.plannedEndDate) }}</span>
-              </div>
+            <div class="critical-item__right">
+              <span class="critical-item__foreman">{{ obj.foreman?.name || '—' }}</span>
+              <span class="critical-item__days">
+                +{{ getDaysOverdue(obj.plannedEndDate) }} дн.
+              </span>
             </div>
           </div>
         </div>
       </div>
 
       <!-- Документооборот -->
-      <div class="document-section">
-        <div class="section-header">
-          <h3>Документооборот</h3>
+      <div class="obj__docs">
+        <div class="obj__docs-header">
+          <span class="obj__docs-title">Документооборот</span>
         </div>
-        
-        <!-- Документы по объектам в работе -->
-        <div class="document-subsection">
-          <div class="subsection-header">
-            <h4>В работе (активные + ожидание)</h4>
-            <span class="count-badge">{{ objectStats.inProgress }}</span>
-          </div>
-          
-          <div class="document-grid">
-            <div class="document-item">
-              <div class="document-icon">
-                <Icon name="mdi:document-sign" size="24" />
-              </div>
-              <div class="document-info">
-                <div class="document-label">Неподписанные договоры</div>
-                <div class="document-value">{{ documentStats.inProgress.unsignedContracts }}</div>
-              </div>
+
+        <div class="docs-grid">
+          <!-- В работе -->
+          <div class="docs-section">
+            <div class="docs-section__label">
+              В работе
+              <span class="docs-section__count">{{ objectStats.inProgress }}</span>
             </div>
-            
-            <div class="document-item">
-              <div class="document-icon">
-                <Icon name="mdi:invoice-schedule-outline" size="24" />
+            <div class="docs-row">
+              <div class="docs-item">
+                <Icon name="mdi:file-sign" size="14" class="docs-item__icon" />
+                <span class="docs-item__label">Неподписанные договоры</span>
+                <span class="docs-item__value">{{ documentStats.inProgress.unsignedContracts }}</span>
               </div>
-              <div class="document-info">
-                <div class="document-label">Неоплаченные счета</div>
-                <div class="document-value">{{ documentStats.inProgress.unpaidInvoices }}</div>
+              <div class="docs-item">
+                <Icon name="mdi:receipt" size="14" class="docs-item__icon" />
+                <span class="docs-item__label">Неоплаченные счета</span>
+                <span class="docs-item__value">{{ documentStats.inProgress.unpaidInvoices }}</span>
               </div>
-            </div>
-            
-            <div class="document-item">
-              <div class="document-icon">
-                <Icon name="mdi:file-clock-outline" size="24" />
-              </div>
-              <div class="document-info">
-                <div class="document-label">Акты на подписание</div>
-                <div class="document-value">{{ documentStats.inProgress.actsToSign }}</div>
+              <div class="docs-item">
+                <Icon name="mdi:file-clock-outline" size="14" class="docs-item__icon" />
+                <span class="docs-item__label">Акты на подписание</span>
+                <span class="docs-item__value">{{ documentStats.inProgress.actsToSign }}</span>
               </div>
             </div>
           </div>
-        </div>
-        
-        <!-- Документы по завершенным объектам -->
-        <div class="document-subsection">
-          <div class="subsection-header">
-            <h4>Завершенные</h4>
-            <span class="count-badge">{{ objectStats.completed }}</span>
-          </div>
-          
-          <div class="document-grid">
-            <div class="document-item">
-              <div class="document-icon">
-                <Icon name="mdi:document-sign" size="24" />
-              </div>
-              <div class="document-info">
-                <div class="document-label">Неподписанные договоры</div>
-                <div class="document-value">{{ documentStats.completed.unsignedContracts }}</div>
-              </div>
+
+          <!-- Завершены -->
+          <div class="docs-section">
+            <div class="docs-section__label">
+              Завершённые
+              <span class="docs-section__count">{{ objectStats.completed }}</span>
             </div>
-            
-            <div class="document-item">
-              <div class="document-icon">
-                <Icon name="mdi:invoice-schedule-outline" size="24" />
+            <div class="docs-row">
+              <div class="docs-item">
+                <Icon name="mdi:file-sign" size="14" class="docs-item__icon" />
+                <span class="docs-item__label">Неподписанные договоры</span>
+                <span class="docs-item__value">{{ documentStats.completed.unsignedContracts }}</span>
               </div>
-              <div class="document-info">
-                <div class="document-label">Неоплаченные счета</div>
-                <div class="document-value">{{ documentStats.completed.unpaidInvoices }}</div>
+              <div class="docs-item">
+                <Icon name="mdi:receipt" size="14" class="docs-item__icon" />
+                <span class="docs-item__label">Неоплаченные счета</span>
+                <span class="docs-item__value">{{ documentStats.completed.unpaidInvoices }}</span>
               </div>
-            </div>
-            
-            <div class="document-item">
-              <div class="document-icon">
-                <Icon name="mdi:file-clock-outline" size="24" />
-              </div>
-              <div class="document-info">
-                <div class="document-label">Акты на подписание</div>
-                <div class="document-value">{{ documentStats.completed.actsToSign }}</div>
+              <div class="docs-item">
+                <Icon name="mdi:file-clock-outline" size="14" class="docs-item__icon" />
+                <span class="docs-item__label">Акты на подписание</span>
+                <span class="docs-item__value">{{ documentStats.completed.actsToSign }}</span>
               </div>
             </div>
           </div>
         </div>
       </div>
+
     </div>
 
-    <!-- Ошибка загрузки -->
-    <div v-else-if="error" class="error-state">
-      <Icon name="mdi:user-alert" size="40" class="error-icon" />
-      <p>Не удалось загрузить данные по объектам</p>
-      <button class="btn btn-secondary" @click="fetchData">
-        <Icon name="mdi:refresh" size="18" />
-        Повторить
+    <!-- Ошибка -->
+    <div v-else-if="error" class="obj-state">
+      <Icon name="mdi:alert-circle-outline" size="32" />
+      <p>Не удалось загрузить данные</p>
+      <button class="crm-btn crm-btn--ghost crm-btn--sm" @click="fetchData">
+        <Icon name="mdi:refresh" size="14" /> Повторить
       </button>
     </div>
 
-    <!-- Пустое состояние -->
-    <div v-else class="empty-state">
-      <Icon name="mdi:home-city" size="40" class="empty-icon" />
+    <!-- Пусто -->
+    <div v-else class="obj-state">
+      <Icon name="mdi:office-building-outline" size="32" />
       <p>Нет данных по объектам</p>
     </div>
 
-    <template #actions>
-      <button class="btn btn-secondary" @click="navigateTo('/cabinet/objects')">
-        Подробнее
-        <Icon name="mdi:arrow-right" size="18" />
-      </button>
-    </template>
-
     <template #footer>
-      Данные актуальны на {{ currentDate }}
+      Обновлено: {{ updatedAt }}
     </template>
   </PagesCabinetUiCardsCard>
 </template>
 
-<script setup>
-import { ref, onMounted, computed, watch } from 'vue'
+<script setup lang="ts">
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { navigateTo } from '#app'
 
-// Состояние компонента
-const objectStats = ref({
-  active: 0,
-  waiting: 0,
-  completed: 0,
-  inProgress: 0,
-  total: 0
-})
-const criticalObjects = ref([])
-const documentStats = ref({
-  inProgress: {
-    unsignedContracts: 0,
-    unpaidInvoices: 0,
-    actsToSign: 0
-  },
-  completed: {
-    unsignedContracts: 0,
-    unpaidInvoices: 0,
-    actsToSign: 0
-  }
+// ── Типы ────────────────────────────────────────────────────────────
+interface DocStats {
+  unsignedContracts: number
+  unpaidInvoices: number
+  actsToSign: number
+}
+
+interface ObjectStats {
+  active: number
+  waiting: number
+  completed: number
+  inProgress: number
+  total: number
+}
+
+// ── Состояние ───────────────────────────────────────────────────────
+const objectStats = ref < ObjectStats | null > (null)
+const criticalObjects = ref < any[] > ([])
+const documentStats = ref < { inProgress: DocStats; completed: DocStats } > ({
+  inProgress: { unsignedContracts: 0, unpaidInvoices: 0, actsToSign: 0 },
+  completed: { unsignedContracts: 0, unpaidInvoices: 0, actsToSign: 0 },
 })
 const isLoading = ref(true)
-const error = ref(null)
+const error = ref < string | null > (null)
+const updatedAt = ref('—')
 
-// Форматирование даты
-const currentDate = computed(() => {
-  return new Date().toLocaleDateString('ru-RU', {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+let refreshTimer: ReturnType<typeof setInterval>
+
+// ── Computed ────────────────────────────────────────────────────────
+const totalDocsIssues = computed(() => {
+  const ip = documentStats.value.inProgress
+  const cp = documentStats.value.completed
+  return ip.unsignedContracts + ip.unpaidInvoices + ip.actsToSign +
+    cp.unsignedContracts + cp.unpaidInvoices + cp.actsToSign
 })
 
-// Форматирование даты
-const formatDate = (dateString) => {
-  if (!dateString) return '—'
-  const date = new Date(dateString)
-  return isNaN(date.getTime()) ? '—' : date.toLocaleDateString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: '2-digit'
-  })
+// ── Вспомогательные ─────────────────────────────────────────────────
+function getDaysOverdue(dateStr: string) {
+  if (!dateStr) return 0
+  const diff = Date.now() - new Date(dateStr).setHours(0, 0, 0, 0)
+  return Math.max(0, Math.ceil(diff / 86_400_000))
 }
 
-// Вычисление просрочки
-const getDaysOverdue = (dateString) => {
-  if (!dateString) return 0
-  const plannedDate = new Date(dateString)
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  plannedDate.setHours(0, 0, 0, 0)
-  
-  const diffTime = today - plannedDate
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-  return diffDays > 0 ? diffDays : 0
-}
-
-// Загрузка данных
-const fetchData = async () => {
+// ── Загрузка ────────────────────────────────────────────────────────
+async function fetchData() {
   isLoading.value = true
   error.value = null
-  
   try {
-    const data = await $fetch('/api/objects')
-    
-    // Статистика по статусам
-    const stats = {
-      active: 0,
-      waiting: 0,
-      completed: 0,
-      inProgress: 0,
-      total: data.length
-    }
-    
-    // Сбор критических объектов
-    const critical = []
-    
-    // Статистика по документам
+    const data = await $fetch < any[] > ('/api/objects')
+
+    const stats: ObjectStats = { active: 0, waiting: 0, completed: 0, inProgress: 0, total: data.length }
     const docs = {
-      inProgress: {
-        unsignedContracts: 0,
-        unpaidInvoices: 0,
-        actsToSign: 0
-      },
-      completed: {
-        unsignedContracts: 0,
-        unpaidInvoices: 0,
-        actsToSign: 0
-      }
+      inProgress: { unsignedContracts: 0, unpaidInvoices: 0, actsToSign: 0 },
+      completed: { unsignedContracts: 0, unpaidInvoices: 0, actsToSign: 0 },
     }
-    
-    data.forEach(obj => {
-      // Статистика по статусам
+    const critical: any[] = []
+
+    for (const obj of data) {
       if (obj.status === 'active') stats.active++
       if (obj.status === 'waiting') stats.waiting++
       if (obj.status === 'completed') stats.completed++
-      
-      // Объекты в работе (активные + ожидание)
-      if (obj.status === 'active' || obj.status === 'waiting') {
-        stats.inProgress++
-        
-        // Критические объекты (активные с просроченной датой)
-        if (obj.status === 'active' && obj.plannedEndDate) {
-          const plannedDate = new Date(obj.plannedEndDate)
-          const today = new Date()
-          
-          if (plannedDate < today) {
-            critical.push(obj)
-          }
-        }
+
+      const inProgress = obj.status === 'active' || obj.status === 'waiting'
+      if (inProgress) stats.inProgress++
+
+      const target = inProgress ? docs.inProgress : docs.completed
+      if (obj.contract?.status !== 'signed') target.unsignedContracts++
+      target.unpaidInvoices += (obj.invoiceStats?.total || 0) - (obj.invoiceStats?.signed || 0)
+      target.actsToSign += (obj.actStats?.total || 0) - (obj.actStats?.signed || 0)
+
+      if (obj.status === 'active' && obj.plannedEndDate && new Date(obj.plannedEndDate) < new Date()) {
+        critical.push(obj)
       }
-      
-      // Статистика по документам для объектов в работе
-      if (obj.status === 'active' || obj.status === 'waiting') {
-        if (obj.contract && obj.contract.status !== 'signed') {
-          docs.inProgress.unsignedContracts++
-        }
-        
-        if (obj.invoiceStats) {
-          docs.inProgress.unpaidInvoices += (obj.invoiceStats.total - obj.invoiceStats.signed)
-        }
-        
-        if (obj.actStats) {
-          docs.inProgress.actsToSign += (obj.actStats.total - obj.actStats.signed)
-        }
-      }
-      
-      // Статистика по документам для завершенных объектов
-      if (obj.status === 'completed') {
-        if (obj.contract && obj.contract.status !== 'signed') {
-          docs.completed.unsignedContracts++
-        }
-        
-        if (obj.invoiceStats) {
-          docs.completed.unpaidInvoices += (obj.invoiceStats.total - obj.invoiceStats.signed)
-        }
-        
-        if (obj.actStats) {
-          docs.completed.actsToSign += (obj.actStats.total - obj.actStats.signed)
-        }
-      }
-    })
-    
-    // Сортируем критические объекты по дате (сначала самые просроченные)
-    critical.sort((a, b) => {
-      const dateA = new Date(a.plannedEndDate)
-      const dateB = new Date(b.plannedEndDate)
-      return dateB - dateA
-    })
-    
+    }
+
     objectStats.value = stats
-    criticalObjects.value = critical.slice(0, 3) // Топ-3 самых просроченных
     documentStats.value = docs
-  } catch (err) {
-    console.error('Ошибка загрузки данных по объектам:', err)
-    error.value = 'Не удалось загрузить данные'
+    criticalObjects.value = critical
+      .sort((a, b) => new Date(a.plannedEndDate).getTime() - new Date(b.plannedEndDate).getTime())
+      .slice(0, 3)
+
+    updatedAt.value = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+
+  } catch (e) {
+    console.error('[Объекты] Ошибка загрузки:', e)
+    error.value = 'Ошибка загрузки'
   } finally {
     isLoading.value = false
   }
 }
 
-// Обновление данных
-const refreshData = () => {
-  fetchData()
-}
-
-// Обновление каждые 5 минут
-let refreshInterval
 onMounted(() => {
   fetchData()
-  refreshInterval = setInterval(refreshData, 5 * 60 * 1000)
+  refreshTimer = setInterval(fetchData, 5 * 60 * 1000)
 })
 
-onBeforeUnmount(() => {
-  clearInterval(refreshInterval)
-})
+onBeforeUnmount(() => clearInterval(refreshTimer))
 </script>
 
 <style lang="scss" scoped>
-.object-status-card {
-  :deep(.card__body) {
-    padding: 1.5rem;
-  }
-}
-
-.stats-content {
+.obj {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
 }
 
-.stats-grid {
+// ── Статистика ───────────────────────────────────────────────────────
+.obj__stats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-  
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
+  grid-template-columns: repeat(4, 1fr);
+  border-bottom: 1px solid var(--crm-border);
+
+  @media (max-width: 700px) {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
-.status-item {
+.stat {
   display: flex;
   align-items: center;
-  padding: 1rem;
-  border-radius: $border-radius;
-  gap: 1rem;
-  transition: all 0.3s ease;
-  
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  gap: 10px;
+  padding: 14px 16px;
+  border-right: 1px solid var(--crm-border);
+
+  &:last-child {
+    border-right: none;
   }
-  
-  &.active {
-    background: rgba($blue, 0.1);
-    border: 1px solid rgba($blue, 0.3);
-    
-    .status-icon {
-      color: $color-primary;
-    }
-    
-    .status-value {
-      // color: $color-primary;
-      font-weight: 600;
-    }
-  }
-  
-  &.waiting {
-    background: rgba($color-warning, 0.1);
-    border: 1px solid rgba($color-warning, 0.3);
-    
-    .status-icon {
-      color: $color-warning;
-    }
-    
-    .status-value {
-      // color: $color-warning;
-      font-weight: 600;
-    }
-  }
-  
-  &.completed {
-    background: rgba($color-success, 0.1);
-    border: 1px solid rgba($color-success, 0.3);
-    
-    .status-icon {
-      color: $color-success;
-    }
-    
-    .status-value {
-      // color: $color-success;
-      font-weight: 600;
-    }
-  }
-  
-  .status-icon {
+
+  &__icon {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--crm-radius-md);
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
+    flex-shrink: 0;
   }
-  
-  .status-info {
+
+  &__info {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
-    
-    .status-label {
-      font-size: 0.9rem;
-      color: $color-muted;
-      font-weight: 500;
-    }
-    
-    .status-value {
-      font-size: 1.5rem;
-      font-weight: 700;
-    }
+    gap: 2px;
+  }
+
+  &__value {
+    font-size: var(--crm-text-xl);
+    font-weight: 700;
+    color: var(--crm-text-primary);
+    line-height: 1;
+  }
+
+  &__label {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+  }
+
+  &--active .stat__icon {
+    background: var(--crm-accent-dim);
+    color: var(--crm-accent);
+  }
+
+  &--waiting .stat__icon {
+    background: var(--crm-warning-dim);
+    color: var(--crm-warning);
+  }
+
+  &--done .stat__icon {
+    background: var(--crm-success-dim);
+    color: var(--crm-success);
+  }
+
+  &--docs .stat__icon {
+    background: var(--crm-danger-dim);
+    color: var(--crm-danger);
   }
 }
 
-.critical-section {
-  background: rgba($color-warning, 0.05);
-  border: 1px solid rgba($color-warning, 0.2);
-  border-radius: $border-radius;
-  padding: 1rem;
-}
-
-.section-header {
+// ── Критические объекты ─────────────────────────────────────────────
+.obj__critical {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--crm-border);
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.75rem;
-  
-  h3 {
-    font-size: 1.1rem;
-    margin: 0;
-    color: $color-dark;
-  }
-  
-  .count-badge {
-    background: $color-warning;
-    color: white;
-    font-size: 0.8rem;
-    padding: 0.2rem 0.5rem;
-    border-radius: $border-radius;
-    font-weight: 600;
-  }
-}
+  flex-direction: column;
+  gap: 10px;
 
-.subsection-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.75rem;
-  
-  h4 {
-    font-size: 1rem;
-    margin: 0;
-    color: $color-dark;
+  &-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
-  
-  .count-badge {
-    font-size: 0.8rem;
-    padding: 0.2rem 0.5rem;
-    border: 1px solid $border-color;
-    border-radius: $border-radius;
-    color: $color-dark;
+
+  &-title {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: var(--crm-text-sm);
     font-weight: 600;
+    color: var(--crm-warning);
+  }
+
+  &-count {
+    font-size: var(--crm-text-xs);
+    font-weight: 700;
+    padding: 1px 7px;
+    background: var(--crm-warning-dim);
+    border: 1px solid rgba(245, 166, 35, 0.3);
+    border-radius: 10px;
+    color: var(--crm-warning);
   }
 }
 
 .critical-list {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 6px;
 }
 
 .critical-item {
-  background: white;
-  border: 1px solid $border-color;
-  border-radius: $border-radius;
-  padding: 0.75rem;
-  
-  &:last-child {
-    margin-bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--crm-warning-dim);
+  border: 1px solid rgba(245, 166, 35, 0.2);
+  border-radius: var(--crm-radius-md);
+
+  &__left {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  &__name {
+    font-size: var(--crm-text-sm);
+    font-weight: 600;
+    color: var(--crm-text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__address {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+
+  &__foreman {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+  }
+
+  &__days {
+    font-size: var(--crm-text-sm);
+    font-weight: 700;
+    color: var(--crm-danger);
   }
 }
 
-.critical-item-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-}
-
-.critical-item-title {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: 600;
-  color: $color-dark;
-}
-
-.critical-icon {
-  color: $color-warning;
-}
-
-.days-overdue {
-  font-weight: 600;
-  color: $color-danger;
-}
-
-.critical-item-details {
+// ── Документооборот ─────────────────────────────────────────────────
+.obj__docs {
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.85rem;
-  color: $color-muted;
-}
+  gap: 12px;
 
-.detail-row {
-  display: flex;
-  justify-content: space-between;
-}
+  &-header {
+    margin-bottom: 2px;
+  }
 
-.detail-label {
-  font-weight: 500;
-  color: $color-dark;
-}
-
-.document-section {
-  margin-top: 1.5rem;
-}
-
-.document-subsection {
-  margin-bottom: 1.5rem;
-  
-  &:last-child {
-    margin-bottom: 0;
+  &-title {
+    font-size: var(--crm-text-sm);
+    font-weight: 600;
+    color: var(--crm-text-secondary);
   }
 }
 
-.document-grid {
+.docs-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-  
-  @media (max-width: 768px) {
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+
+  @media (max-width: 600px) {
     grid-template-columns: 1fr;
   }
 }
 
-.document-item {
+.docs-section {
   display: flex;
-  align-items: center;
-  padding: 1rem;
-  border-radius: $border-radius;
-  background: $background-light;
-  border: 1px solid $border-color;
-  transition: all 0.3s ease;
-  
-  &:hover {
-    background: white;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  }
-  
-  .document-icon {
+  flex-direction: column;
+  gap: 6px;
+
+  &__label {
     display: flex;
     align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
-    background: rgba($blue, 0.1);
-    color: $blue;
-    margin-right: 0.75rem;
+    justify-content: space-between;
+    font-size: var(--crm-text-xs);
+    font-weight: 600;
+    color: var(--crm-text-muted);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--crm-border);
   }
-  
-  .document-info {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    
-    .document-label {
-      font-size: 0.9rem;
-      color: $color-muted;
-      font-weight: 500;
-    }
-    
-    .document-value {
-      font-size: 1.3rem;
-      font-weight: 700;
-      color: $color-dark;
-    }
+
+  &__count {
+    font-size: var(--crm-text-xs);
+    padding: 1px 6px;
+    background: var(--crm-bg-overlay);
+    border-radius: 10px;
+    color: var(--crm-text-muted);
   }
 }
 
-.empty-state, .error-state {
+.docs-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.docs-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: var(--crm-bg-elevated);
+  border-radius: var(--crm-radius-md);
+
+  &__icon {
+    color: var(--crm-text-muted);
+    flex-shrink: 0;
+  }
+
+  &__label {
+    flex: 1;
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-secondary);
+  }
+
+  &__value {
+    font-size: var(--crm-text-sm);
+    font-weight: 700;
+    color: var(--crm-text-primary);
+    flex-shrink: 0;
+  }
+}
+
+// ── Пустые состояния ────────────────────────────────────────────────
+.obj-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2rem 1rem;
-  text-align: center;
-  min-height: 200px;
-  
-  .empty-icon, .error-icon {
-    margin-bottom: 1rem;
-    opacity: 0.7;
-  }
-  
+  gap: 10px;
+  padding: 40px 20px;
+  color: var(--crm-text-muted);
+
   p {
-    margin: 0.5rem 0 1.5rem 0;
-    color: $color-muted;
-  }
-  
-  .btn {
-    margin-top: 0.5rem;
+    margin: 0;
+    font-size: var(--crm-text-sm);
   }
 }
 
-.btn {
+// ── Кнопки ──────────────────────────────────────────────────────────
+.crm-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
+  gap: 5px;
+  border-radius: var(--crm-radius-md);
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
-  
-  &-primary {
-    background-color: $blue;
-    color: white;
-    border: 1px solid $blue;
-    
-    &:hover {
-      background-color: $blue;
-      opacity: 0.9;
-    }
+  transition: var(--crm-transition);
+  white-space: nowrap;
+
+  &--sm {
+    padding: 6px 12px;
+    font-size: var(--crm-text-sm);
   }
-  
-  &-secondary {
-    background-color: $background-light;
-    color: #495057;
-    border: 1px solid $border-color;
-    
+
+  &--ghost {
+    background: transparent;
+    border: 1px solid var(--crm-border-hover);
+    color: var(--crm-text-secondary);
+
     &:hover {
-      border: 1px solid $blue;
+      background: var(--crm-bg-elevated);
+      color: var(--crm-text-primary);
     }
   }
 }

@@ -1,426 +1,475 @@
+<!-- app/components/pages/cabinet/Operation/BalanceSummary.vue -->
 <template>
-  <section class="balance-section">
-    <!-- <header class="balance-header">
-      <h2>Общий баланс</h2>
-    </header> -->
-    <div v-if="loading" class="loading">Загрузка баланса...</div>
-    <div v-else-if="error" class="error">{{ error }}</div>
-    <div v-else class="balance-grid">
-      <!-- Приходы -->
-      <div class="balance-item incoming">
-        <span class="label">Приходы</span>
-        <span class="value">+ {{ formatCurrency(props.balance.totalComings) }}</span>
-      </div>
-      <!-- Расходы -->
-      <div class="balance-item expense">
-        <span class="label">Расходы</span>
-        <span class="value">- {{ formatCurrency(props.balance.totalExpenses) }}</span>
-      </div>
-      <!-- Материалы -->
-      <div class="balance-item material">
-        <span class="label">Материалы</span>
-        <span class="value">{{ formatCurrency(props.balance.materials.balance) }}</span>
-        <small class="details">
-          (+{{ formatCurrency(props.balance.materials.incoming) }} / -{{ formatCurrency(props.balance.materials.outgoing) }})
-        </small>
-      </div>
-      <div></div>
-      <!-- Итого -->
-      <div class="balance-item total">
-        <span class="label">Итого</span>
-        <span class="value">{{ formatCurrency(totalBalance) }}</span>
-      </div>
-      <div></div>
+  <div class="balance">
 
-      <!-- Можно добавить пустое место, если нужно -->
-      <!-- <div></div> -->
-
-      <!-- График и список расходов -->
-      <div class="balance-item chart" v-show="props.expenseStats.length > 0">
-        <span class="label">Расходы по категориям</span>
-
-        <div style="display: flex; margin-top: 10px; align-items: stretch;">
-
-          <!-- График -->
-          <div ref="chartRef" style="flex: 1; height: 200px;"></div>
-
-          <!-- Цифры справа -->
-          <!-- <div class="stats-list" style="flex: 0 0 140px; display: flex; flex-direction: column; justify-content: center; font-size: 0.95rem;">
-            <div
-              v-for="stat in props.expenseStats"
-              :key="stat.expenseType"
-              class="stat-item"
-              style="display: flex; justify-content: space-between;"
-            >
-              <span style="color: #6c757d; margin-right: 10px;">{{ stat.expenseType }}</span>
-              <span style="font-weight: 600; color: #dc3545;">-{{ formatCurrency(stat.total) }}</span>
-            </div>
-          </div> -->
-
-        </div>
+    <!-- Загрузка -->
+    <div v-if="loading" class="balance__skeleton">
+      <div class="skel skel--wide" />
+      <div class="balance__metrics-skeleton">
+        <div class="skel" />
+        <div class="skel" />
+        <div class="skel" />
+        <div class="skel" />
       </div>
     </div>
-  </section>
+
+    <!-- Ошибка -->
+    <div v-else-if="error" class="balance__state">
+      <Icon name="mdi:alert-circle-outline" size="28" />
+      <span>{{ error }}</span>
+    </div>
+
+    <!-- Данные -->
+    <template v-else-if="balance">
+
+      <!-- Итоговый баланс -->
+      <div class="balance__total">
+        <div class="balance__total-left">
+          <span class="balance__total-label">Итого за период</span>
+          <span class="balance__total-value"
+            :class="totalBalance >= 0 ? 'balance__total-value--pos' : 'balance__total-value--neg'">
+            {{ formatCurrency(totalBalance) }}
+          </span>
+        </div>
+        <div class="balance__total-right">
+          <div class="balance__period">
+            <Icon name="mdi:calendar-range" size="14" />
+            <span>Текущий период</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Метрики -->
+      <div class="balance__metrics">
+        <div class="bm bm--income">
+          <div class="bm__icon">
+            <Icon name="mdi:trending-up" size="16" />
+          </div>
+          <div class="bm__info">
+            <span class="bm__label">Приходы</span>
+            <span class="bm__value">+{{ formatCurrency(balance.totalComings) }}</span>
+          </div>
+        </div>
+
+        <div class="bm bm--expense">
+          <div class="bm__icon">
+            <Icon name="mdi:trending-down" size="16" />
+          </div>
+          <div class="bm__info">
+            <span class="bm__label">Расходы</span>
+            <span class="bm__value">-{{ formatCurrency(balance.totalExpenses) }}</span>
+          </div>
+        </div>
+
+        <div class="bm bm--materials">
+          <div class="bm__icon">
+            <Icon name="mdi:package-variant" size="16" />
+          </div>
+          <div class="bm__info">
+            <span class="bm__label">Материалы</span>
+            <span class="bm__value">{{ formatCurrency(balance.materials?.balance) }}</span>
+            <span class="bm__sub">
+              +{{ formatCurrency(balance.materials?.incoming) }} /
+              -{{ formatCurrency(balance.materials?.outgoing) }}
+            </span>
+          </div>
+        </div>
+
+        <div class="bm bm--pending">
+          <div class="bm__icon">
+            <Icon name="mdi:clock-outline" size="16" />
+          </div>
+          <div class="bm__info">
+            <span class="bm__label">В работе</span>
+            <span class="bm__value">{{ formatCurrency(balance.pendingWorks) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- График -->
+      <div v-if="expenseStats?.length" class="balance__chart">
+        <div class="balance__chart-header">
+          <span class="balance__chart-title">Расходы по категориям</span>
+          <span class="balance__chart-count">{{ expenseStats.length }}</span>
+        </div>
+        <div ref="chartRef" class="balance__chart-canvas" />
+      </div>
+
+    </template>
+
+  </div>
 </template>
 
-<script setup>
-import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+<script setup lang="ts">
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import * as echarts from 'echarts'
 
-const props = defineProps({
-  balance: { type: Object, default: null },
-  loading: { type: Boolean, required: true },
-  error: { type: String, default: null },
-  expenseStats: { type: Array, default: () => [] }
-})
+const props = defineProps < {
+  balance?: any
+  loading: boolean
+  error?: string | null
+  expenseStats?: any[]
+} > ()
 
-// Вычисления и форматирование...
-const totalBalance = computed(() => {
-  return (
-    (props.balance?.totalComings || 0) -
-    (props.balance?.totalExpenses || 0) +
-    (props.balance?.materials?.balance || 0)
-  )
-})
+// ── График ───────────────────────────────────────────────────────────
+const chartRef = ref < HTMLElement | null > (null)
+let chartInstance: echarts.ECharts | null = null
 
-const formatCurrency = (amount) => {
-  const num = parseFloat(amount) || 0
-  return num.toLocaleString('ru-RU', {
-    style: 'currency',
-    currency: 'RUB',
-    minimumFractionDigits: 2
+const totalBalance = computed(() =>
+  (props.balance?.totalComings || 0) -
+  (props.balance?.totalExpenses || 0) +
+  (props.balance?.materials?.balance || 0)
+)
+
+const formatCurrency = (amount: any) =>
+  (parseFloat(amount) || 0).toLocaleString('ru-RU', {
+    style: 'currency', currency: 'RUB', minimumFractionDigits: 0
   })
-}
 
-// Ссылка на DOM
-const chartRef = ref(null)
-let chartInstance = null
-
-// Инициализация графика (с защитой от SSR)
-const initChart = async () => {
-  await nextTick() // Ждём монтирования
+// ── Инициализация графика ─────────────────────────────────────────────
+async function initChart() {
+  await nextTick()
   if (!chartRef.value) return
 
-  // Уничтожаем старый экземпляр, если есть
   if (chartInstance) {
     chartInstance.dispose()
+    chartInstance = null
   }
 
-  // Инициализируем только на клиенте
   chartInstance = echarts.init(chartRef.value)
-
-  // Обновляем график с текущими данными
   updateChart()
 }
 
-// Обновление графика
-const updateChart = () => {
-  if (!chartInstance) return
-  if (!props.expenseStats?.length) {
-    chartInstance.clear()
+function updateChart() {
+  if (!chartInstance || !props.expenseStats?.length) {
+    chartInstance?.clear()
     return
   }
 
-  // Сортируем по убыванию
-  const sortedStats = props.expenseStats
-    .slice()
-    .sort((a, b) => b.total - a.total)
+  const sorted = [...props.expenseStats].sort((a, b) => b.total - a.total)
+  const total = sorted.reduce((sum, s) => sum + s.total, 0)
 
-  // Общая сумма расходов
-  const totalExpenses = sortedStats.reduce((sum, stat) => sum + stat.total, 0)
-
-  // Форматируем категории: добавляем сумму и процент
-  const categories = sortedStats.map(stat => {
-    const amount = stat.total
-    const percentage = totalExpenses > 0 ? ((amount / totalExpenses) * 100).toFixed(1) : 0
-    const formattedAmount = amount.toLocaleString('ru-RU')
-    return `${stat.expenseType}: ${formattedAmount} ₽ (${percentage}%)`
+  const categories = sorted.map(s => {
+    const pct = total > 0 ? ((s.total / total) * 100).toFixed(1) : '0'
+    return `${s.expenseType}  ${s.total.toLocaleString('ru-RU')} ₽ (${pct}%)`
   })
 
-  const values = sortedStats.map(stat => stat.total)
+  const values = sorted.map(s => s.total)
 
-  const option = {
+  chartInstance.setOption({
+    backgroundColor: 'transparent',
     tooltip: {
       trigger: 'axis',
-      axisPointer: {
-        type: 'shadow'
-      },
-      formatter: (params) => {
-        const data = params[0].data
-        const value = data.toLocaleString('ru-RU')
-        const category = params[0].name.split(':')[0] // имя без суммы и %
-        return `${category}: <b>${value} ₽</b>`
+      axisPointer: { type: 'shadow' },
+      backgroundColor: '#1a1e28',
+      borderColor: 'rgba(255,255,255,0.07)',
+      textStyle: { color: '#e2e4ec', fontSize: 12 },
+      formatter: (params: any) => {
+        const cat = params[0].name.split('  ')[0]
+        const val = params[0].data.toLocaleString('ru-RU')
+        return `<b>${cat}</b><br/>${val} ₽`
       }
     },
     grid: {
-      left: '5%',
-      right: '10%',
-      top: '10%',
-      bottom: '5%',
+      left: '2%', right: '4%', top: '4%', bottom: '2%',
       containLabel: true
     },
     xAxis: {
       type: 'value',
       axisLabel: {
-        formatter: (value) => {
-          return value.toLocaleString('ru-RU')
-        }
+        color: '#7a7f96',
+        fontSize: 11,
+        formatter: (v: number) => v.toLocaleString('ru-RU')
       },
-      splitLine: {
-        show: true,
-        lineStyle: { color: '#eee' }
-      }
+      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } },
+      axisLine: { show: false },
+      axisTick: { show: false },
     },
     yAxis: {
       type: 'category',
       data: categories,
       axisLabel: {
-        color: '#444',
-        fontWeight: 500,
+        color: '#9aa0b8',
         fontSize: 12,
-        // Убедимся, что длинные строки не обрезаются
-        overflow: 'breakAll',
-        width: 250
+        fontWeight: 400,
+        width: 280,
+        overflow: 'truncate',
       },
-      axisTick: { show: false }
+      axisTick: { show: false },
+      axisLine: { show: false },
     },
-    series: [
-      {
-        name: 'Расходы',
-        type: 'bar',
-        data: values,
-        barWidth: '16px',
-        itemStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
-            { offset: 0, color: '#dc3545' },
-            { offset: 1, color: '#ff8080' }
-          ])
-        },
-        emphasis: {
-          itemStyle: {
-            color: '#c00'
-          }
-        }
-      }
-    ],
-    animationDuration: 800
-  }
-
-  chartInstance.setOption(option, true)
+    series: [{
+      type: 'bar',
+      data: values,
+      barWidth: '14px',
+      itemStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+          { offset: 0, color: 'rgba(242,95,92,0.4)' },
+          { offset: 1, color: '#f25f5c' },
+        ]),
+        borderRadius: [0, 4, 4, 0],
+      },
+      emphasis: {
+        itemStyle: { color: '#f25f5c' }
+      },
+    }],
+    animationDuration: 600,
+  }, true)
 }
 
-// Только на клиенте и после монтирования
-onMounted(() => {
-  // Попробуем инициализировать график
-  initChart()
+// ── Resize ────────────────────────────────────────────────────────────
+function onResize() {
+  chartInstance?.resize()
+}
 
-  // Если данные придут позже — обновим
-  if (props.expenseStats.length > 0) {
-    updateChart()
-  }
+// ── Lifecycle ────────────────────────────────────────────────────────
+onMounted(() => {
+  if (props.expenseStats?.length) initChart()
+  window.addEventListener('resize', onResize)
 })
 
 onBeforeUnmount(() => {
-  if (chartInstance) {
-    chartInstance.dispose()
-    chartInstance = null
-  }
+  chartInstance?.dispose()
+  chartInstance = null
+  window.removeEventListener('resize', onResize)
 })
 
-// Следим за изменениями данных
-watch(
-  () => props.expenseStats,
-  (newStats) => {
-    if (newStats?.length > 0) {
-      // Если график ещё не инициализирован — инициализируем
-      if (!chartInstance && chartRef.value) {
-        initChart()
-      } else {
-        updateChart()
-      }
-    } else if (chartInstance) {
-      chartInstance.clear()
-    }
-  },
-  { deep: true, immediate: true }
-)
+watch(() => props.expenseStats, (stats) => {
+  if (!stats?.length) { chartInstance?.clear(); return }
+  if (!chartInstance && chartRef.value) initChart()
+  else updateChart()
+}, { deep: true })
 
-// Следим за появлением DOM-элемента
-watch(chartRef, (newVal) => {
-  if (newVal && props.expenseStats.length > 0) {
-    initChart()
-  }
+watch(chartRef, (el) => {
+  if (el && props.expenseStats?.length) initChart()
 })
 </script>
 
 <style lang="scss" scoped>
-// Переиспользуемый миксин для теней
-@mixin hover-shadow {
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+.balance {
+  display: flex;
+  flex-direction: column;
+  background: var(--crm-bg-surface);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-lg);
+  overflow: hidden;
 }
 
-.balance-header {
-  text-align: center;
-  margin-bottom: 1.5rem;
+// ── Итог ────────────────────────────────────────────────────────────
+.balance__total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--crm-border);
 
-  h2 {
-    font-size: 1.75rem;
+  &-left {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  &-label {
+    font-size: var(--crm-text-sm);
+    color: var(--crm-text-muted);
+  }
+
+  &-value {
+    font-size: 28px;
     font-weight: 700;
-    color: $color-dark;
-    margin: 0;
+    line-height: 1;
+
+    &--pos {
+      color: var(--crm-success);
+    }
+
+    &--neg {
+      color: var(--crm-danger);
+    }
+  }
+
+  &-right {
+    flex-shrink: 0;
   }
 }
 
-.loading,
-.error {
-  text-align: center;
-  padding: 3rem 1rem;
-  font-style: italic;
-  color: $text-gray;
-  font-size: 1.1rem;
+.balance__period {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--crm-text-xs);
+  color: var(--crm-text-muted);
+  background: var(--crm-bg-elevated);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-md);
+  padding: 5px 10px;
 }
 
-.error {
-  color: $color-danger;
-}
-
-.balance-grid {
+// ── Метрики ─────────────────────────────────────────────────────────
+.balance__metrics {
   display: grid;
-  // grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 1.2rem;
-  margin-top: 1rem;
+  grid-template-columns: repeat(4, 1fr);
+  border-bottom: 1px solid var(--crm-border);
 
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-    gap: 1rem;
+  @media (max-width: 700px) {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
-.balance-item {
-  padding: 1.2rem;
-  background: white;
-  border-radius: $border-radius;
-  box-shadow: $box-shadow;
-  transition: $transition;
-  text-align: center;
+.bm {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-right: 1px solid var(--crm-border);
 
-  &.chart {
-    grid-column: span 3;
-    background: $color-light;
-    text-align: left;
-    padding: 1.2rem 1.2rem 1rem;
-
-    .label {
-      color: $color-dark;
-      font-size: 1rem;
-      font-weight: 600;
-    }
-
-    @media (max-width: 768px) {
-      grid-column: span 1;
-      padding: 1rem;
-    }
+  &:last-child {
+    border-right: none;
   }
 
-
-  &:hover {
-    transform: translateY(-2px);
-    @include hover-shadow;
+  &__icon {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--crm-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
   }
 
-  .label {
-    display: block;
-    font-size: 0.95rem;
-    color: $text-gray;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
+  &__info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
   }
 
-  .value {
-    font-size: 1.4rem;
+  &__label {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+    white-space: nowrap;
+  }
+
+  &__value {
+    font-size: var(--crm-text-md);
     font-weight: 700;
-    line-height: 1.4;
+    color: var(--crm-text-primary);
+    white-space: nowrap;
   }
 
-  small.details {
-    display: block;
-    font-size: 0.8rem;
-    color: $text-gray;
-    margin-top: 0.3rem;
-    opacity: 0.9;
+  &__sub {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-disabled);
+    white-space: nowrap;
   }
 
-  &.incoming .value { color: $color-success; }
-  &.expense .value { color: $color-danger; }
-  &.material .value { color: $color-primary; }
-  &.total .value { color: $color-info; }
-
-  &.total {
-    // grid-column: span 3;
-    background: $color-dark;
-    color: white;
-    text-align: center;
-    padding: 1.5rem;
-
-    .label {
-      color: rgba(255, 255, 255, 0.9);
-      font-size: 1rem;
-    }
-
-    .value {
-      font-size: 1.8rem;
-      font-weight: 800;
-      color: white;
-    }
-
-    @media (max-width: 768px) {
-      grid-column: span 1;
-    }
+  &--income .bm__icon {
+    background: var(--crm-success-dim);
+    color: var(--crm-success);
   }
 
-  &.stats {
-    // grid-column: span 2;
-    text-align: left;
-    background: $color-light;
-    font-size: 0.95rem;
-
-    .label {
-      color: $color-dark;
-      font-size: 1rem;
-      font-weight: 600;
-    }
-
-    .stats-list {
-      margin-top: 0.6rem;
-    }
-
-    .stat-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0.3rem 0;
-      font-size: 0.95rem;
-
-      &:last-child {
-        border-bottom: none;
-      }
-
-      .stat-label {
-        color: $text-gray;
-        flex: 1;
-      }
-
-      .stat-amount {
-        font-weight: 600;
-        color: $color-danger;
-        white-space: nowrap;
-        margin-left: 1rem;
-      }
-    }
-
-    @media (max-width: 768px) {
-      grid-column: span 1;
-    }
+  &--expense .bm__icon {
+    background: var(--crm-danger-dim);
+    color: var(--crm-danger);
   }
+
+  &--materials .bm__icon {
+    background: var(--crm-info-dim);
+    color: var(--crm-info);
+  }
+
+  &--pending .bm__icon {
+    background: var(--crm-warning-dim);
+    color: var(--crm-warning);
+  }
+}
+
+// ── График ──────────────────────────────────────────────────────────
+.balance__chart {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  &-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  &-title {
+    font-size: var(--crm-text-sm);
+    font-weight: 600;
+    color: var(--crm-text-secondary);
+  }
+
+  &-count {
+    font-size: var(--crm-text-xs);
+    font-weight: 600;
+    padding: 1px 7px;
+    background: var(--crm-bg-overlay);
+    border: 1px solid var(--crm-border-hover);
+    border-radius: 10px;
+    color: var(--crm-text-muted);
+  }
+
+  &-canvas {
+    height: 220px;
+    width: 100%;
+  }
+}
+
+// ── Скелетон ────────────────────────────────────────────────────────
+.balance__skeleton {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.balance__metrics-skeleton {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+
+  @media (max-width: 700px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.skel {
+  height: 52px;
+  border-radius: var(--crm-radius-md);
+  background: linear-gradient(90deg,
+      var(--crm-bg-elevated) 25%,
+      var(--crm-bg-overlay) 50%,
+      var(--crm-bg-elevated) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s infinite;
+
+  &--wide {
+    height: 36px;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+// ── Состояние ошибки ────────────────────────────────────────────────
+.balance__state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 30px 20px;
+  color: var(--crm-danger);
+  font-size: var(--crm-text-sm);
 }
 </style>

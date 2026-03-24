@@ -1,130 +1,130 @@
 <!-- app/pages/cabinet/online.vue -->
 <template>
   <div class="online-page">
-    <h1>👥 Онлайн пользователи</h1>
-    
-    <!-- Статистика -->
-    <div class="online-stats">
-      <div class="stat-card">
-        <h3>Всего онлайн</h3>
-        <p class="stat-number">{{ onlineStore.getOnlineCount }}</p>
-      </div>
-      <div class="stat-card">
-        <h3>Активны</h3>
-        <p class="stat-number">{{ onlineStore.getActiveUsers.length }}</p>
-      </div>
-      <div class="stat-card">
-        <h3>В АФК</h3>
-        <p class="stat-number">{{ onlineStore.getAFKUsers.length }}</p>
-      </div>
-      <div class="stat-card">
-        <h3>Всего вкладок</h3>
-        <p class="stat-number">{{ onlineStore.getTotalTabsCount }}</p>
-      </div>
-    </div>
-    
-    <!-- Загрузка -->
-    <!-- ✅ ИСПРАВЛЕНО: loading → isLoading -->
-    <div v-if="onlineStore.isLoading" class="loading-state">
-      <Icon name="mdi:loading" size="48" class="spin" />
-      <span>Загрузка данных...</span>
-    </div>
-    
-    <!-- Ошибка -->
-    <div v-else-if="onlineStore.error" class="error-state">
-      <Icon name="mdi:alert-circle" size="48" />
-      <p>{{ onlineStore.error }}</p>
-      <button class="btn btn-secondary" @click="refreshData">
-        Повторить
-      </button>
-    </div>
-    
-    <!-- Пустое состояние -->
-    <!-- ✅ ИСПРАВЛЕНО: onlineUsers → getOnlineUsers -->
-    <div v-else-if="onlineUsers.length === 0" class="empty-state">
-      <Icon name="mdi:account-off" size="64" />
-      <p>Нет онлайн-пользователей</p>
-      <span class="empty-hint">Пользователи появятся здесь, когда кто-то войдёт в систему</span>
-    </div>
-    
-    <!-- Таблица пользователей -->
-    <div v-else class="online-table-container">
-      <div class="table-header">
-        <span class="table-title">Пользователи ({{ onlineUsers.length }})</span>
-        <button class="btn btn-sm btn-secondary" @click="refreshData" :disabled="onlineStore.isLoading">
-          <Icon name="mdi:refresh" size="16" :class="{ spin: onlineStore.isLoading }" />
+    <!-- Заголовок -->
+    <PagesCabinetUiLayoutPageTitle title="Онлайн" icon="mdi:account-group-outline">
+      <template #actions>
+        <button class="crm-btn crm-btn--ghost crm-btn--sm" @click="refreshData" :disabled="onlineStore.isLoading">
+          <Icon name="mdi:refresh" size="14" :class="{ spin: onlineStore.isLoading }" />
           Обновить
         </button>
+      </template>
+    </PagesCabinetUiLayoutPageTitle>
+
+    <div class="online-page__content">
+      <!-- Статистика -->
+      <div class="stats-row">
+        <div class="stat-card" v-for="s in statCards" :key="s.label">
+          <div class="stat-card__icon" :style="{ background: s.bgColor, color: s.color }">
+            <Icon :name="s.icon" size="18" />
+          </div>
+          <div class="stat-card__info">
+            <span class="stat-card__value">{{ s.value }}</span>
+            <span class="stat-card__label">{{ s.label }}</span>
+          </div>
+        </div>
       </div>
-      
-      <table class="online-table">
-        <thead>
-          <tr>
-            <th>Пользователь</th>
-            <th>Вкладки</th>
-            <th>Статус</th>
-            <th>В сети</th>
-            <th>Активность</th>
-            <th>Страница</th>
-            <th>IP</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr 
-            v-for="user in onlineUsers" 
-            :key="user.userId"
-            class="user-row"
-            :class="{ 'is-current-user': user.userId === authStore.user?.id }"
-          >
-            <td>
-              <div class="user-cell">
-                <div class="user-avatar" :style="{ background: getUserAvatarColor(user.userId) }">
-                  {{ getUserInitials(user.user?.name) }}
-                </div>
-                <div class="user-details">
-                  <span class="user-name">
-                    {{ user.user?.name || 'Неизвестный' }}
-                    <span v-if="user.userId === authStore.user?.id" class="current-user-badge">(Вы)</span>
+
+      <!-- Загрузка -->
+      <div v-if="onlineStore.isLoading" class="online-state">
+        <Icon name="mdi:loading" size="32" class="spin" />
+        <span>Загрузка...</span>
+      </div>
+
+      <!-- Ошибка -->
+      <div v-else-if="onlineStore.error" class="online-state online-state--error">
+        <Icon name="mdi:alert-circle-outline" size="32" />
+        <span>{{ onlineStore.error }}</span>
+        <button class="crm-btn crm-btn--ghost crm-btn--sm" @click="refreshData">
+          Повторить
+        </button>
+      </div>
+
+      <!-- Пусто -->
+      <div v-else-if="!onlineUsers.length" class="online-state">
+        <Icon name="mdi:account-off-outline" size="40" />
+        <span>Нет онлайн-пользователей</span>
+        <span class="online-state__hint">Пользователи появятся здесь после входа в систему</span>
+      </div>
+
+      <!-- Таблица -->
+      <div v-else class="online-card">
+        <div class="online-card__header">
+          <span class="online-card__title">
+            Пользователи
+            <span class="badge">{{ onlineUsers.length }}</span>
+          </span>
+        </div>
+        <div class="online-table-wrap">
+          <table class="online-table">
+            <thead>
+              <tr>
+                <th>Пользователь</th>
+                <th>Статус</th>
+                <th>В сети</th>
+                <th>Активность</th>
+                <th class="col-page">Страница</th>
+                <th class="col-ip">IP</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="user in onlineUsers" :key="user.userId" class="online-row"
+                :class="{ 'online-row--current': user.userId === authStore.user?.id }">
+                <!-- Пользователь -->
+                <td class="online-td">
+                  <div class="user-cell">
+                    <div class="user-avatar" :style="{ background: getAvatarColor(user.userId) }">
+                      {{ getUserInitials(user.user?.name) }}
+                    </div>
+                    <div class="user-info">
+                      <div class="user-name">
+                        {{ user.user?.name || 'Неизвестный' }}
+                        <span v-if="user.userId === authStore.user?.id" class="you-badge">Вы</span>
+                      </div>
+                      <span v-if="user.user?.role" :class="['role-badge', `role-badge--${user.user.role}`]">
+                        {{ roleLabels[user.user.role] || user.user.role }}
+                      </span>
+                    </div>
+                  </div>
+                </td>
+
+                <!-- Статус -->
+                <td class="online-td">
+                  <UiStatusOnlineStatus :status="user.status" :show-text="true" :show-tooltip="true" />
+                </td>
+
+                <!-- В сети -->
+                <td class="online-td online-td--muted">
+                  <span :title="formatFullDate(user.startedAt)">
+                    {{ getDuration(user.startedAt) }}
                   </span>
-                  <span v-if="user.user?.role" class="user-role" :class="`role-${user.user.role}`">
-                    {{ roleLabels[user.user.role] || user.user.role }}
+                </td>
+
+                <!-- Активность -->
+                <td class="online-td">
+                  <span :class="['activity', { 'activity--stale': isActivityStale(user.lastActivity) }]"
+                    :title="formatFullDate(user.lastActivity)">
+                    {{ formatTimeAgo(user.lastActivity) }}
                   </span>
-                </div>
-              </div>
-            </td>
-            <td>
-              <div class="tabs-badge">
-                <Icon name="mdi:window-restore" size="14" />
-                <span>{{ user.tabsCount }}</span>
-              </div>
-            </td>
-            <td>
-              <UiStatusOnlineStatus :status="user.status" :show-text="false" :show-tooltip="true" />
-            </td>
-            <td>
-              <span class="duration" :title="formatFullDate(user.startedAt)">
-                {{ getDuration(user.startedAt) }}
-              </span>
-            </td>
-            <td>
-              <span class="activity-time" :class="{ stale: isActivityStale(user.lastActivity) }" :title="formatFullDate(user.lastActivity)">
-                {{ formatTimeAgo(user.lastActivity) }}
-              </span>
-            </td>
-            <td>
-              <div class="page-cell" :title="user.activePath">
-                <Icon :name="getPageIcon(user.activePath)" size="14" class="page-icon" />
-                <span>{{ formatPath(user.activePath) }}</span>
-              </div>
-            </td>
-            <td>
-              <span class="ip-address" :title="user.ipAddress">
-                {{ formatIp(user.ipAddress) }}
-              </span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+                </td>
+
+                <!-- Страница -->
+                <td class="online-td col-page">
+                  <div class="page-pill" :title="user.activePath ?? ''">
+                    <Icon :name="getPageIcon(user.activePath)" size="13" />
+                    {{ formatPath(user.activePath) }}
+                  </div>
+                </td>
+
+                <!-- IP -->
+                <td class="online-td col-ip online-td--mono">
+                  {{ formatIp(user.ipAddress) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -137,648 +137,536 @@ import { socketService } from 'services/socket.service'
 import type { OnlineUser } from '~/types'
 import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
 
-// ============================================
-// PAGE META
-// ============================================
+// ── Мета ─────────────────────────────────────────────────────────────
 definePageMeta({
   layout: 'cabinet',
   middleware: ['require-auth']
 })
 
-// ============================================
-// STORES
-// ============================================
+// ── Stores ───────────────────────────────────────────────────────────
 const onlineStore = useOnlineStore()
 const authStore = useAuthStore()
 
-// ============================================
-// STATE
-// ============================================
+// ── Таймер ───────────────────────────────────────────────────────────
 const currentTime = ref(Date.now())
-let timeInterval: NodeJS.Timeout | null = null
+let timeInterval: ReturnType<typeof setInterval> | null = null
 
-// ============================================
-// CONFIG
-// ============================================
+// ── Справочники ──────────────────────────────────────────────────────
 const roleLabels: Record<string, string> = {
   admin: 'Админ',
   manager: 'Менеджер',
   foreman: 'Прораб',
   master: 'Мастер',
-  worker: 'Рабочий'
+  worker: 'Рабочий',
 }
 
 const avatarColors = [
-  '#00c3f5', '#00A12A', '#7c3aed', '#FAB702',
-  '#e83e8c', '#17a2b8', '#28a745', '#dc3545'
+  '#00c3f5', '#3dd68c', '#7c3aed', '#f5a623',
+  '#e85d9e', '#5b8def', '#f25f5c', '#17a2b8'
 ]
 
-// ============================================
-// COMPUTED
-// ============================================
-// ✅ ИСПРАВЛЕНО: Используем геттер getOnlineUsers
-const onlineUsers = computed<OnlineUser[]>(() => {
-  return onlineStore.getOnlineUsers
-    .sort((a: OnlineUser, b: OnlineUser) => {
-      // Сначала текущий пользователь
-      if (a.userId === authStore.user?.id) return -1
-      if (b.userId === authStore.user?.id) return 1
-      
-      // Затем по статусу (online > afk > offline)
-      const statusOrder: Record<string, number> = { online: 0, afk: 1, offline: 2 }
-      const statusDiff = (statusOrder[a.status] ?? 2) - (statusOrder[b.status] ?? 2)
-      if (statusDiff !== 0) return statusDiff
-      
-      // Затем по последней активности
-      return new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime()
-    })
-})
+// ── Computed ─────────────────────────────────────────────────────────
+const onlineUsers = computed<OnlineUser[]>(() =>
+  [...onlineStore.getOnlineUsers].sort((a: OnlineUser, b: OnlineUser) => {
+    // ✅ Сначала текущий пользователь
+    if (a.userId === authStore.user?.id) return -1
+    if (b.userId === authStore.user?.id) return 1
+    
+    // ✅ Затем по статусу (online > afk > offline)
+    const order: Record<string, number> = { online: 0, afk: 1, offline: 2 }
+    const diff = (order[a.status] ?? 2) - (order[b.status] ?? 2)
+    if (diff !== 0) return diff
+    
+    // ✅ Затем по последней активности
+    return new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime()
+  })
+)
 
-// ============================================
-// METHODS - Форматирование
-// ============================================
-const formatTimeAgo = (dateString: string): string => {
-  if (!dateString) return '—'
-  
-  const date = new Date(dateString)
-  const now = currentTime.value
-  const diff = now - date.getTime()
-  
-  const seconds = Math.floor(diff / 1000)
-  const minutes = Math.floor(seconds / 60)
-  const hours = Math.floor(minutes / 60)
-  const days = Math.floor(hours / 24)
-  
-  if (seconds < 60) return 'только что'
-  if (minutes < 60) return `${minutes} мин назад`
-  if (hours < 24) return `${hours} ч назад`
-  if (days < 7) return `${days} дн назад`
-  
-  return date.toLocaleDateString('ru-RU', {
-    day: 'numeric',
-    month: 'short'
+const statCards = computed(() => [
+  {
+    label: 'Всего онлайн',
+    value: onlineStore.getOnlineCount,
+    icon: 'mdi:account-group-outline',
+    color: 'var(--crm-accent)',
+    bgColor: 'var(--crm-accent-dim)',
+  },
+  {
+    label: 'Активны',
+    value: onlineStore.getActiveUsers.length,
+    icon: 'mdi:check-circle-outline',
+    color: 'var(--crm-success)',
+    bgColor: 'var(--crm-success-dim)',
+  },
+  {
+    label: 'В АФК',
+    value: onlineStore.getAFKUsers.length,
+    icon: 'mdi:clock-outline',
+    color: 'var(--crm-warning)',
+    bgColor: 'var(--crm-warning-dim)',
+  },
+  // ✅ УДАЛЕНО: Карточка "Всего вкладок"
+])
+
+// ── Форматирование ───────────────────────────────────────────────────
+function formatTimeAgo(dateStr: string): string {
+  if (!dateStr) return '—'
+  const diff = currentTime.value - new Date(dateStr).getTime()
+  const s = Math.floor(diff / 1000)
+  const m = Math.floor(s / 60)
+  const h = Math.floor(m / 60)
+  if (s < 60) return 'только что'
+  if (m < 60) return `${m} мин назад`
+  if (h < 24) return `${h} ч назад`
+  return `${Math.floor(h / 24)} дн назад`
+}
+
+function formatFullDate(dateStr: string): string {
+  if (!dateStr) return ''
+  return new Date(dateStr).toLocaleDateString('ru-RU', {
+    day: 'numeric', month: 'long', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
   })
 }
 
-const formatFullDate = (dateString: string): string => {
-  if (!dateString) return ''
-  const date = new Date(dateString)
-  return date.toLocaleDateString('ru-RU', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+function getDuration(startedAt: string): string {
+  if (!startedAt) return '—'
+  const diff = currentTime.value - new Date(startedAt).getTime()
+  const h = Math.floor(diff / 3_600_000)
+  const m = Math.floor((diff % 3_600_000) / 60_000)
+  return h > 0 ? `${h}ч ${m}м` : `${m}м`
 }
 
-const formatPath = (path: string | null | undefined): string => {
+function isActivityStale(lastActivity: string): boolean {
+  if (!lastActivity) return true
+  return currentTime.value - new Date(lastActivity).getTime() > 5 * 60 * 1000
+}
+
+function formatPath(path: string | null | undefined): string {
   if (!path || path === '/' || path === 'null') return '—'
-  
-  const cleanPath = path.replace(/^\/+/, '')
-  
-  const pathLabels: Record<string, string> = {
+  const clean = path.replace(/^\/+/, '')
+  const labels: Record<string, string> = {
     'cabinet': 'Кабинет',
     'cabinet/online': 'Онлайн',
-    'cabinet/tasks': 'Задачи',
     'cabinet/boards': 'Доски',
     'cabinet/objects': 'Объекты',
-    'cabinet/users': 'Пользователи',
-    'cabinet/profile': 'Профиль',
-    'login': 'Вход'
+    'cabinet/operation': 'Операции',
+    'cabinet/materials': 'Материалы',
+    'login': 'Вход',
   }
-  
-  if (pathLabels[cleanPath]) return pathLabels[cleanPath]
-  
-  if (cleanPath.startsWith('cabinet/')) {
-    const parts = cleanPath.split('/')
-    const page = parts[1] // ✅ Безопасное получение
-    if (!page) return cleanPath // ✅ Проверка на undefined
-    return page.charAt(0).toUpperCase() + page.slice(1)
-  }
-  
-  return cleanPath.length > 25 ? cleanPath.substring(0, 22) + '...' : cleanPath
+  if (labels[clean]) return labels[clean]
+  const parts = clean.split('/')
+  const page = parts[1]
+  if (page) return page.charAt(0).toUpperCase() + page.slice(1)
+  return clean.length > 25 ? clean.substring(0, 22) + '…' : clean
 }
 
-const getPageIcon = (path: string | null | undefined): string => {
+function getPageIcon(path: string | null | undefined): string {
   if (!path) return 'mdi:web'
-  
+  const clean = path.replace(/^\/+/, '')
   const icons: Record<string, string> = {
     'cabinet/online': 'mdi:account-group',
-    'cabinet/tasks': 'mdi:clipboard-list',
     'cabinet/boards': 'mdi:view-dashboard',
-    'cabinet/objects': 'mdi:home-outline',
-    'cabinet/users': 'mdi:account-multiple',
-    'cabinet/profile': 'mdi:account',
-    'login': 'mdi:login'
+    'cabinet/objects': 'mdi:office-building-outline',
+    'cabinet/operation': 'mdi:swap-horizontal',
+    'cabinet/materials': 'mdi:receipt-text-outline',
+    'login': 'mdi:login',
   }
-  
-  const cleanPath = path.replace(/^\/+/, '')
-  return icons[cleanPath] || 'mdi:web'
+  return icons[clean] || 'mdi:web'
 }
 
-const getDuration = (startedAt: string): string => {
-  if (!startedAt) return '—'
-  
-  const startDate = new Date(startedAt)
-  const diff = currentTime.value - startDate.getTime()
-  
-  const hours = Math.floor(diff / (1000 * 60 * 60))
-  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-  
-  if (hours > 0) return `${hours}ч ${minutes}м`
-  return `${minutes}м`
-}
-
-const isActivityStale = (lastActivity: string): boolean => {
-  if (!lastActivity) return true
-  const diff = currentTime.value - new Date(lastActivity).getTime()
-  return diff > 5 * 60 * 1000 // Более 5 минут
-}
-
-const formatIp = (ip: string | null | undefined): string => {
+function formatIp(ip: string | null | undefined): string {
   if (!ip) return '—'
-  // Скрываем последнюю часть IP для приватности
   const parts = ip.split('.')
-  if (parts.length === 4) {
-    return `${parts[0]}.${parts[1]}.*.*`
-  }
-  return ip
+  return parts.length === 4 ? `${parts[0]}.${parts[1]}.*.*` : ip
 }
 
-const getUserInitials = (name?: string | null): string => {
-  if (!name || name.trim() === '') return 'U'
-  const parts = name.trim().split(' ').filter(p => p.length > 0)
+function getUserInitials(name?: string | null): string {
+  if (!name?.trim()) return '?'
+  const parts = name.trim().split(' ').filter(Boolean)
   if (parts.length >= 2) {
-    return (parts[0][0] + parts[1][0]).toUpperCase()
+    const first = parts[0]?.charAt(0) ?? ''
+    const second = parts[1]?.charAt(0) ?? ''
+    return (first + second).toUpperCase()
   }
-  return parts[0].substring(0, 2).toUpperCase()
+  return parts[0]?.substring(0, 2).toUpperCase() ?? '?'
 }
 
-const getUserAvatarColor = (userId: number): string => {
-  const index = userId % avatarColors.length
-  return avatarColors[index]
+function getAvatarColor(userId: number): string {
+  return avatarColors[userId % avatarColors.length]!
 }
 
-// ============================================
-// METHODS - Управление данными
-// ============================================
-const refreshData = async () => {
-  try {
-    await onlineStore.fetchOnlineUsers()
-  } catch (error) {
-    console.error('Failed to refresh online users:', error)
-  }
+// ── Данные ───────────────────────────────────────────────────────────
+async function refreshData() {
+  try { await onlineStore.fetchOnlineUsers() }
+  catch (e) { console.error('[Онлайн] Ошибка обновления:', e) }
 }
 
-// ✅ ПОДПИСКА НА СОКЕТ-СОБЫТИЯ ЧЕРЕЗ SOCKET SERVICE
-const setupSocketSubscriptions = () => {
-  console.log('[OnlinePage] Setting up socket subscriptions...')
-  
-  // ✅ Используем socketService.on вместо socketStore.on
+// ── Сокет ────────────────────────────────────────────────────────────
+function setupSocket() {
   socketService.on('online-users:update', (users: OnlineUser[]) => {
-    console.log('[OnlinePage] Received online-users:update:', users.length, 'users')
-    // ✅ ИСПРАВЛЕНО: Прямое обновление состояния store
     onlineStore.users = users
   })
-  
-  socketService.on('user:status', (data: any) => {
-    console.log('[OnlinePage] Received user:status:', data)
-    // ✅ ИСПРАВЛЕНО: Прямое обновление состояния store
-    // При получении события статуса — перезагружаем список
-    onlineStore.fetchOnlineUsers().catch(err => {
-      console.error('Failed to refetch users on status update:', err)
-    })
+  socketService.on('user:status', () => {
+    onlineStore.fetchOnlineUsers().catch(console.error)
   })
 }
 
-// ✅ ОТПИСКА ОТ СОКЕТ-СОБЫТИЙ
-const cleanupSocketSubscriptions = () => {
-  console.log('[OnlinePage] Cleaning up socket subscriptions...')
-  
-  // ✅ Используем socketService.off вместо socketStore.off
+function cleanupSocket() {
   socketService.off('online-users:update')
   socketService.off('user:status')
 }
 
-// ============================================
-// LIFECYCLE
-// ============================================
+// ── Lifecycle ────────────────────────────────────────────────────────
 onMounted(() => {
-  console.log('[OnlinePage] 📦 Mounted')
-  
-  // Загружаем данные
   refreshData()
-  
-  // Настраиваем сокет-подписки
-  setupSocketSubscriptions()
-  
-  // Запускаем интервал обновления времени
-  timeInterval = setInterval(() => {
-    currentTime.value = Date.now()
-  }, 1000)
+  setupSocket()
+  timeInterval = setInterval(() => { currentTime.value = Date.now() }, 1000)
 })
 
 onUnmounted(() => {
-  console.log('[OnlinePage] 🗑️ Unmounted')
-  
-  // Очищаем сокет-подписки
-  cleanupSocketSubscriptions()
-  
-  // Очищаем интервал
-  if (timeInterval) {
-    clearInterval(timeInterval)
-    timeInterval = null
-  }
+  cleanupSocket()
+  if (timeInterval) clearInterval(timeInterval)
 })
 </script>
 
 <style lang="scss" scoped>
-@use '@/assets/styles/variables.scss' as *;
-
 .online-page {
-  padding: 24px;
-  
-  h1 {
-    margin: 0 0 24px 0;
-    color: $text-light;
-    font-size: 28px;
-    font-weight: 700;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  &__content {
+    padding: 20px 24px;
     display: flex;
-    align-items: center;
-    gap: 12px;
+    flex-direction: column;
+    gap: 16px;
   }
 }
 
-// Статистика
-.online-stats {
+// ── Статистика ───────────────────────────────────────────────────────
+.stats-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
-  margin-bottom: 32px;
+  grid-template-columns: repeat(3, 1fr); // ✅ Было 4, стало 3
+  gap: 12px;
+  @media (max-width: 800px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  @media (max-width: 400px) {
+    grid-template-columns: 1fr;
+  }
 }
 
 .stat-card {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  border-radius: 12px;
-  padding: 20px;
-  text-align: center;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  transition: all 0.2s ease;
-  
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--crm-bg-surface);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-lg);
+  transition: var(--crm-transition);
   &:hover {
-    border-color: rgba($blue, 0.3);
+    border-color: var(--crm-border-hover);
     transform: translateY(-2px);
   }
-  
-  h3 {
-    margin: 0 0 8px 0;
-    color: #94a3b8;
-    font-size: 14px;
-    font-weight: 500;
+  &__icon {
+    width: 38px;
+    height: 38px;
+    border-radius: var(--crm-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
   }
-  
-  .stat-number {
-    margin: 0;
-    font-size: 36px;
+  &__info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  &__value {
+    font-size: 24px;
     font-weight: 700;
-    color: $text-light;
+    color: var(--crm-text-primary);
     line-height: 1;
+  }
+  &__label {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+    white-space: nowrap;
   }
 }
 
-// Состояния
-.loading-state,
-.error-state,
-.empty-state {
+// ── Состояния ────────────────────────────────────────────────────────
+.online-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 10px;
   padding: 60px 20px;
+  color: var(--crm-text-muted);
+  font-size: var(--crm-text-sm);
   text-align: center;
-  color: $text-light;
-  
-  .icon {
-    margin-bottom: 16px;
-    opacity: 0.5;
+  &--error {
+    color: var(--crm-danger);
   }
-  
-  p {
-    margin: 0 0 16px 0;
-    font-size: 16px;
-    color: $text-light;
-  }
-  
-  .empty-hint {
-    font-size: 14px;
-    color: #64748b;
+  &__hint {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-disabled);
+    max-width: 300px;
   }
 }
 
-.error-state {
-  color: $red;
-  
-  p {
-    color: $text-light;
+// ── Карточка таблицы ────────────────────────────────────────────────
+.online-card {
+  background: var(--crm-bg-surface);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-lg);
+  overflow: hidden;
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--crm-border);
+  }
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--crm-text-md);
+    font-weight: 600;
+    color: var(--crm-text-primary);
   }
 }
 
-// Кнопки
-.btn {
+.badge {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
+  padding: 1px 8px;
+  background: var(--crm-bg-overlay);
+  border: 1px solid var(--crm-border-hover);
+  border-radius: 10px;
+  font-size: var(--crm-text-xs);
+  font-weight: 600;
+  color: var(--crm-text-muted);
 }
 
-.btn-sm {
-  padding: 6px 12px;
-  font-size: 13px;
-}
-
-.btn-secondary {
-  background: #475569;
-  color: $text-light;
-  
-  &:hover:not(:disabled) {
-    background: #64748b;
-  }
-}
-
-// Таблица
-.online-table-container {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  overflow: hidden;
-}
-
-.table-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  
-  .table-title {
-    font-size: 16px;
-    font-weight: 600;
-    color: $text-light;
-  }
+// ── Таблица ──────────────────────────────────────────────────────────
+.online-table-wrap {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--crm-bg-overlay) transparent;
 }
 
 .online-table {
   width: 100%;
   border-collapse: collapse;
-  
   th {
-    background: rgba(255, 255, 255, 0.05);
-    padding: 14px 20px;
-    text-align: left;
+    padding: 10px 14px;
+    background: var(--crm-bg-elevated);
+    font-size: var(--crm-text-xs);
     font-weight: 600;
-    color: #94a3b8;
-    font-size: 12px;
+    color: var(--crm-text-muted);
+    text-align: left;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: .05em;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--crm-border);
   }
-  
-  td {
-    padding: 16px 20px;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-    color: #cbd5e1;
-    font-size: 14px;
+}
+
+.online-row {
+  border-bottom: 1px solid var(--crm-border);
+  transition: var(--crm-transition);
+  &:last-child {
+    border-bottom: none;
   }
-  
-  .user-row {
-    transition: background 0.2s ease;
-    
+  &:hover {
+    background: var(--crm-bg-elevated);
+  }
+  &--current {
+    background: var(--crm-accent-dim);
+    border-left: 3px solid var(--crm-accent);
     &:hover {
-      background: rgba(255, 255, 255, 0.03);
-    }
-    
-    &.is-current-user {
-      background: rgba($blue, 0.08);
-      border-left: 3px solid $blue;
+      background: rgba(0, 195, 245, 0.12);
     }
   }
 }
 
-// Ячейки таблицы
+.online-td {
+  padding: 12px 14px;
+  font-size: var(--crm-text-sm);
+  color: var(--crm-text-secondary);
+  white-space: nowrap;
+  &--muted {
+    color: var(--crm-text-muted);
+  }
+  &--mono {
+    font-family: var(--crm-font-mono);
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-disabled);
+  }
+}
+
+// ── Ячейка пользователя ──────────────────────────────────────────────
 .user-cell {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .user-avatar {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  color: $text-light;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
-  font-size: 14px;
+  font-size: var(--crm-text-sm);
+  font-weight: 700;
+  color: #fff;
   flex-shrink: 0;
   text-transform: uppercase;
 }
 
-.user-details {
+.user-info {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
+  min-width: 0;
 }
 
 .user-name {
-  font-weight: 500;
-  color: $text-light;
   display: flex;
   align-items: center;
   gap: 6px;
-}
-
-.current-user-badge {
-  font-size: 11px;
-  color: $blue;
-  background: rgba($blue, 0.15);
-  padding: 2px 8px;
-  border-radius: 4px;
+  font-size: var(--crm-text-sm);
   font-weight: 500;
+  color: var(--crm-text-primary);
 }
 
-.user-role {
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-weight: 500;
-  text-transform: uppercase;
-  
-  &.role-admin { background: rgba($red, 0.15); color: $red; }
-  &.role-manager { background: rgba($blue, 0.15); color: $blue; }
-  &.role-foreman { background: rgba($yellow, 0.15); color: $yellow; }
-  &.role-master { background: rgba($green, 0.15); color: $green; }
-  &.role-worker { background: rgba(#64748b, 0.15); color: #94a3b8; }
-}
-
-.tabs-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: rgba(255, 255, 255, 0.05);
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 13px;
+.you-badge {
+  font-size: var(--crm-text-xs);
   font-weight: 600;
-  color: $text-light;
-  
-  .icon {
-    color: $blue;
+  padding: 1px 6px;
+  background: var(--crm-accent-dim);
+  border: 1px solid var(--crm-accent-border);
+  border-radius: var(--crm-radius-sm);
+  color: var(--crm-accent);
+}
+
+.role-badge {
+  display: inline-flex;
+  font-size: var(--crm-text-xs);
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: var(--crm-radius-sm);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  &--admin {
+    background: var(--crm-danger-dim);
+    color: var(--crm-danger);
+  }
+  &--manager {
+    background: var(--crm-accent-dim);
+    color: var(--crm-accent);
+  }
+  &--foreman {
+    background: var(--crm-warning-dim);
+    color: var(--crm-warning);
+  }
+  &--master {
+    background: var(--crm-success-dim);
+    color: var(--crm-success);
+  }
+  &--worker {
+    background: var(--crm-bg-overlay);
+    color: var(--crm-text-muted);
   }
 }
 
-.duration {
-  font-weight: 500;
-  color: $text-light;
-}
+// ✅ УДАЛЕНО: Стили .tabs-pill (больше не используется)
 
-.activity-time {
-  color: #94a3b8;
-  
-  &.stale {
-    color: #64748b;
+// ── Активность ───────────────────────────────────────────────────────
+.activity {
+  color: var(--crm-text-secondary);
+  &--stale {
+    color: var(--crm-text-disabled);
     font-style: italic;
   }
 }
 
-.page-cell {
+// ── Страница ─────────────────────────────────────────────────────────
+.page-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  background: rgba(255, 255, 255, 0.05);
-  padding: 4px 12px;
-  border-radius: 6px;
-  font-size: 13px;
-  color: #cbd5e1;
-  max-width: 180px;
+  gap: 5px;
+  padding: 3px 10px;
+  background: var(--crm-bg-elevated);
+  border-radius: var(--crm-radius-md);
+  font-size: var(--crm-text-xs);
+  color: var(--crm-text-muted);
+  max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  
-  .page-icon {
-    color: $yellow;
-    flex-shrink: 0;
+}
+
+// ── Адаптив ──────────────────────────────────────────────────────────
+.col-page,
+.col-ip {
+  @media (max-width: 1000px) {
+    display: none;
   }
 }
 
-.ip-address {
-  color: #64748b;
-  font-family: monospace;
-  font-size: 13px;
-}
-
-// Анимации
+// ── Спиннер ──────────────────────────────────────────────────────────
 .spin {
   animation: spin 1s linear infinite;
+  display: inline-block;
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-// Адаптивность
-@media (max-width: 1200px) {
-  .online-stats {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  from {
+    transform: rotate(0deg);
   }
-  
-  .page-cell {
-    max-width: 140px;
+  to {
+    transform: rotate(360deg);
   }
 }
 
-@media (max-width: 900px) {
-  .online-table {
-    font-size: 13px;
-    
-    th, td {
-      padding: 12px 16px;
+// ── Кнопки ───────────────────────────────────────────────────────────
+.crm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: var(--crm-radius-md);
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--crm-transition);
+  &--sm {
+    padding: 6px 12px;
+    font-size: var(--crm-text-sm);
+  }
+  &--ghost {
+    background: transparent;
+    border: 1px solid var(--crm-border-hover);
+    color: var(--crm-text-secondary);
+    &:hover:not(:disabled) {
+      background: var(--crm-bg-elevated);
+      color: var(--crm-text-primary);
+    }
+    &:disabled {
+      opacity: .45;
+      cursor: not-allowed;
     }
   }
-  
-  // Скрываем IP на средних экранах
-  .online-table {
-    thead tr th:nth-child(7),
-    tbody tr td:nth-child(7) {
-      display: none;
-    }
-  }
 }
 
-@media (max-width: 768px) {
-  .online-page {
+@media (max-width: 767.98px) {
+  .online-page__content {
     padding: 16px;
-  }
-  
-  .online-stats {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  .table-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-  
-  // Скрываем менее важные колонки
-  .online-table {
-    thead tr th:nth-child(2),
-    thead tr th:nth-child(5),
-    thead tr th:nth-child(7),
-    tbody tr td:nth-child(2),
-    tbody tr td:nth-child(5),
-    tbody tr td:nth-child(7) {
-      display: none;
-    }
-  }
-}
-
-@media (max-width: 480px) {
-  .online-stats {
-    grid-template-columns: 1fr;
-  }
-  
-  // Оставляем только основные колонки
-  .online-table {
-    thead tr th:nth-child(4),
-    tbody tr td:nth-child(4) {
-      display: none;
-    }
-  }
-  
-  .user-cell {
-    flex-wrap: wrap;
-  }
-  
-  .user-role {
-    order: 3;
-    width: 100%;
-    margin-top: 4px;
   }
 }
 </style>

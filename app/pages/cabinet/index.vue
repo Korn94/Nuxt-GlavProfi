@@ -1,3 +1,4 @@
+<!-- app\pages\cabinet\index.vue -->
 <template>
   <PagesCabinet />
 </template>

@@ -1,7 +1,7 @@
 // server/utils/sessions.ts
 import { db } from '../db'
 import { users, userSessions } from '../db/schema'
-import { eq, and, sql, desc, or, count, max } from 'drizzle-orm'
+import { eq, and, sql, desc, or, count, max, lt } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 
 /**
@@ -20,12 +20,6 @@ function formatMySQLDate(date: Date): string {
 
 /**
  * Создание новой сессии при входе пользователя
- * @param userId ID пользователя
- * @param ipAddress IP-адрес
- * @param userAgent User-Agent браузера
- * @param tabId Уникальный ID вкладки (генерируется на клиенте)
- * @param currentPath Текущий путь страницы
- * @param isActiveTab Флаг активной вкладки
  */
 export async function createSession(
   userId: number,
@@ -50,7 +44,7 @@ export async function createSession(
     startedAt: formatMySQLDate(new Date()),
     lastActivity: formatMySQLDate(new Date())
   })
-
+  
   // Получаем созданную сессию
   const [session] = await db
     .select({
@@ -71,9 +65,7 @@ export async function createSession(
 
 /**
  * Обновление статуса и данных сессии
- * @param sessionId ID сессии
- * @param status Новый статус
- * @param updates Дополнительные поля для обновления
+ * ✅ ИСПРАВЛЕНО: При статусе 'offline' теперь ставится endedAt
  */
 export async function updateSessionStatus(
   sessionId: string,
@@ -89,7 +81,12 @@ export async function updateSessionStatus(
     status,
     lastActivity: formatMySQLDate(new Date())
   }
-
+  
+  // ✅ КРИТИЧНО: При статусе offline ставим endedAt
+  if (status === 'offline') {
+    updateData.endedAt = formatMySQLDate(new Date())
+  }
+  
   // Обновляем только переданные поля
   if (updates) {
     if (updates.ipAddress !== undefined) updateData.ipAddress = updates.ipAddress
@@ -97,13 +94,13 @@ export async function updateSessionStatus(
     if (updates.isActiveTab !== undefined) updateData.isActiveTab = updates.isActiveTab
     if (updates.tabId !== undefined) updateData.tabId = updates.tabId
   }
-
+  
   // Обновляем сессию
   await db
     .update(userSessions)
     .set(updateData)
     .where(eq(userSessions.sessionId, sessionId))
-
+  
   // Получаем обновлённую сессию
   const [session] = await db
     .select({
@@ -113,7 +110,8 @@ export async function updateSessionStatus(
       isActiveTab: userSessions.isActiveTab,
       tabId: userSessions.tabId,
       currentPath: userSessions.currentPath,
-      lastActivity: userSessions.lastActivity
+      lastActivity: userSessions.lastActivity,
+      endedAt: userSessions.endedAt
     })
     .from(userSessions)
     .where(eq(userSessions.sessionId, sessionId))
@@ -132,7 +130,7 @@ export async function endSession(sessionId: string) {
       endedAt: formatMySQLDate(new Date())
     })
     .where(eq(userSessions.sessionId, sessionId))
-
+  
   const [session] = await db
     .select({
       id: userSessions.id,
@@ -170,12 +168,12 @@ export async function getUserSessions(userId: number) {
 
 /**
  * Очистка старых сессий (старше указанного количества дней)
- * @param days Количество дней для хранения данных
- * @returns Количество удалённых записей
+ * ✅ ИСПРАВЛЕНО: Теперь чистит и с endedAt, и без него (зомби-сессии)
  */
 export async function cleanupOldSessions(days: number = 30) {
   try {
-    const result = await db
+    // ✅ Чистим сессии со статусом offline и endedAt старше N дней
+    const result1 = await db
       .delete(userSessions)
       .where(
         and(
@@ -185,9 +183,27 @@ export async function cleanupOldSessions(days: number = 30) {
       )
       .execute()
     
-    const affectedRows = (result as any)[0]?.affectedRows || 0
-    console.log(`[Cleanup] Removed ${affectedRows} old sessions`)
-    return affectedRows
+    // ✅ Чистим "зомби"-сессии: статус online/afk, но lastActivity старше 2 часов
+    // Это страховка на случай обрыва соединения без disconnect
+    const result2 = await db
+      .delete(userSessions)
+      .where(
+        and(
+          or(
+            eq(userSessions.status, 'online'),
+            eq(userSessions.status, 'afk')
+          ),
+          sql`${userSessions.lastActivity} < DATE_SUB(NOW(), INTERVAL 2 HOUR)`
+        )
+      )
+      .execute()
+    
+    const affectedRows1 = (result1 as any)[0]?.affectedRows || 0
+    const affectedRows2 = (result2 as any)[0]?.affectedRows || 0
+    const total = affectedRows1 + affectedRows2
+    
+    console.log(`[Cleanup] Removed ${total} old sessions (${affectedRows1} ended + ${affectedRows2} zombie)`)
+    return total
   } catch (error) {
     console.error('[Cleanup] Ошибка при очистке старых сеансов:', error)
     throw error
@@ -195,8 +211,42 @@ export async function cleanupOldSessions(days: number = 30) {
 }
 
 /**
+ * ✅ НОВАЯ ФУНКЦИЯ: Очистка зомби-сессий для конкретного пользователя
+ * Вызывается при создании новой сессии, чтобы закрыть старые
+ */
+export async function closeZombieSessions(userId: number, excludeSessionId?: string) {
+  try {
+    const updateData: any = {
+      status: 'offline',
+      endedAt: formatMySQLDate(new Date())
+    }
+    
+    const conditions = [
+      eq(userSessions.userId, userId),
+      or(
+        eq(userSessions.status, 'online'),
+        eq(userSessions.status, 'afk')
+      )
+    ]
+    
+    // Исключаем текущую сессию если передан sessionId
+    if (excludeSessionId) {
+      conditions.push(sql`${userSessions.sessionId} != ${excludeSessionId}`)
+    }
+    
+    await db
+      .update(userSessions)
+      .set(updateData)
+      .where(and(...conditions))
+    
+    console.log(`[Sessions] Closed zombie sessions for user ${userId}`)
+  } catch (error) {
+    console.error('[Sessions] Error closing zombie sessions:', error)
+  }
+}
+
+/**
  * Получение онлайн-пользователей с агрегацией по пользователю
- * ОПТИМИЗИРОВАННАЯ ВЕРСИЯ с агрегацией на уровне SQL
  */
 export async function getOnlineUsers() {
   const activeSessions = await db
@@ -223,9 +273,9 @@ export async function getOnlineUsers() {
       )
     )
     .orderBy(desc(userSessions.lastActivity))
-
+  
   const usersMap = new Map<number, any>()
-
+  
   for (const session of activeSessions) {
     if (!usersMap.has(session.userId)) {
       usersMap.set(session.userId, {
@@ -240,19 +290,19 @@ export async function getOnlineUsers() {
         tabsCount: 0
       })
     }
-
+    
     const userData = usersMap.get(session.userId)!
     userData.sessions.push(session)
     userData.tabsCount += 1
-
-    // ✅ ИСПРАВЛЕНО: Всегда выбираем сессию с самым свежим lastActivity
-    if (!userData.activeSession || 
-        (session.lastActivity && userData.activeSession.lastActivity && 
-         new Date(session.lastActivity) > new Date(userData.activeSession.lastActivity))) {
+    
+    // Выбираем сессию с самым свежим lastActivity
+    if (!userData.activeSession ||
+      (session.lastActivity && userData.activeSession.lastActivity &&
+        new Date(session.lastActivity) > new Date(userData.activeSession.lastActivity))) {
       userData.activeSession = session
     }
   }
-
+  
   const result = Array.from(usersMap.values()).map(userData => {
     const activeSession = userData.activeSession
     return {
@@ -266,7 +316,7 @@ export async function getOnlineUsers() {
       ipAddress: activeSession?.ipAddress || 'unknown'
     }
   })
-
+  
   return result.sort((a, b) => {
     if (b.tabsCount !== a.tabsCount) {
       return b.tabsCount - a.tabsCount

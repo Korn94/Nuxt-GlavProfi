@@ -1,340 +1,286 @@
+<!-- app/components/pages/cabinet/homePage/RecentOperationsCard.vue -->
 <template>
-  <PagesCabinetUiCardsCard :loading="isLoading" title="Последние операции" elevated class="recent-operations-card">
+  <PagesCabinetUiCardsCard :loading="isLoading" title="Последние операции" flush>
     <template #icon>
-      <Icon name="mdi:history" size="24" />
+      <Icon name="mdi:history" size="18" />
     </template>
 
-    <div v-if="recentOperations.length > 0" class="operations-list">
-      <div v-for="(operation, index) in recentOperations" :key="index" class="operation-item">
-        <div class="operation-header">
-          <div class="operation-type">
-            <Icon :name="getIcon(operation.type)" size="18" class="type-icon" />
-            <span>{{ getTypeLabel(operation.type) }}</span>
-          </div>
-          <div class="operation-date">{{ formatDate(operation.operationDate) }}</div>
+    <template #actions>
+      <button class="crm-btn crm-btn--ghost crm-btn--sm" @click="navigateTo('/cabinet/operation')">
+        Все операции
+        <Icon name="mdi:arrow-right" size="14" />
+      </button>
+    </template>
+
+    <!-- Список операций -->
+    <div v-if="operations.length" class="ops">
+      <div v-for="op in operations" :key="op.id" :class="['op', `op--${op.type}`]">
+        <!-- Иконка типа -->
+        <div class="op__icon">
+          <Icon :name="op.type === 'income' ? 'mdi:arrow-bottom-left' : 'mdi:arrow-top-right'" size="16" />
         </div>
-        
-        <div class="operation-details">
-          <div class="operation-amount">{{ formatCurrency(operation.amount) }}</div>
-          <div class="operation-object" v-if="operation.objectName">
-            <Icon name="mdi:map-marker" size="16" class="object-icon" />
-            {{ operation.objectName }}
+
+        <!-- Основная инфо -->
+        <div class="op__body">
+          <div class="op__top">
+            <span class="op__type">{{ op.type === 'income' ? 'Приход' : 'Расход' }}</span>
+            <span :class="['op__amount', `op__amount--${op.type}`]">
+              {{ op.type === 'income' ? '+' : '−' }}{{ formatCurrency(op.amount) }}
+            </span>
           </div>
-          <div class="operation-comment" v-if="operation.comment">
-            <Icon name="mdi:comment-text-outline" size="16" class="comment-icon" />
-            {{ operation.comment }}
+          <div class="op__bottom">
+            <span v-if="op.objectName" class="op__meta">
+              <Icon name="mdi:map-marker-outline" size="12" />
+              {{ op.objectName }}
+            </span>
+            <span v-if="op.comment" class="op__meta">
+              <Icon name="mdi:comment-outline" size="12" />
+              {{ op.comment }}
+            </span>
+            <span class="op__date">{{ formatDate(op.operationDate) }}</span>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Ошибка загрузки -->
-    <div v-else-if="error" class="error-state">
-      <Icon name="mdi:warning" size="40" class="error-icon" />
-      <p>Не удалось загрузить последние операции</p>
-      <button class="btn btn-secondary" @click="fetchData">
-        <Icon name="mdi:refresh" size="18" />
-        Повторить
+    <!-- Ошибка -->
+    <div v-else-if="error" class="ops-state">
+      <Icon name="mdi:alert-circle-outline" size="32" />
+      <p>Не удалось загрузить операции</p>
+      <button class="crm-btn crm-btn--ghost crm-btn--sm" @click="fetchData">
+        <Icon name="mdi:refresh" size="14" /> Повторить
       </button>
     </div>
 
-    <!-- Пустое состояние -->
-    <div v-else class="empty-state">
-      <Icon name="mdi:history" size="40" class="empty-icon" />
-      <p>Нет операций за последнее время</p>
+    <!-- Пусто -->
+    <div v-else class="ops-state">
+      <Icon name="mdi:history" size="32" />
+      <p>Нет операций</p>
     </div>
-
-    <template #actions>
-      <button class="btn btn-secondary" @click="navigateTo('/cabinet/operation')">
-        Операции
-        <Icon name="mdi:arrow-right" size="18" />
-      </button>
-    </template>
 
     <template #footer>
-      Последние {{ recentOperations.length }} операции
+      Показаны последние {{ operations.length }} операции
     </template>
   </PagesCabinetUiCardsCard>
 </template>
 
-<script setup>
-import { ref, onMounted, computed } from 'vue'
+<script setup lang="ts">
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { navigateTo } from '#app'
 
-// Состояние компонента
-const recentOperations = ref([])
+interface Operation {
+  id: number
+  type: 'income' | 'expense'
+  amount: number
+  operationDate: string
+  comment?: string
+  objectName?: string
+}
+
+const operations = ref < Operation[] > ([])
 const isLoading = ref(true)
-const error = ref(null)
+const error = ref < string | null > (null)
+let refreshTimer: ReturnType<typeof setInterval>
 
-// Форматирование даты
-const formatDate = (dateString) => {
-  if (!dateString) return '—'
-  const date = new Date(dateString)
-  return isNaN(date.getTime()) ? '—' : date.toLocaleDateString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
+// ── Форматирование ───────────────────────────────────────────────────
+const formatCurrency = (amount: number) =>
+  Math.abs(amount).toLocaleString('ru-RU', {
+    style: 'currency', currency: 'RUB', minimumFractionDigits: 0
+  })
+
+const formatDate = (dateStr: string) => {
+  if (!dateStr) return '—'
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return '—'
+  return d.toLocaleDateString('ru-RU', {
+    day: '2-digit', month: '2-digit',
+    hour: '2-digit', minute: '2-digit'
   })
 }
 
-// Форматирование валюты
-const formatCurrency = (amount) => {
-  const num = parseFloat(amount) || 0
-  return num.toLocaleString('ru-RU', {
-    style: 'currency',
-    currency: 'RUB',
-    minimumFractionDigits: 2
-  })
-}
-
-// Получение иконки для типа операции
-const getIcon = (type) => {
-  if (type === 'income') return 'mdi:arrow-left-bold'
-  if (type === 'expense') return 'mdi:arrow-right-bold'
-  return 'mdi:history'
-}
-
-// Получение метки для типа операции
-const getTypeLabel = (type) => {
-  if (type === 'income') return 'Приход'
-  if (type === 'expense') return 'Расход'
-  return 'Операция'
-}
-
-// Загрузка данных
-const fetchData = async () => {
+// ── Загрузка ────────────────────────────────────────────────────────
+async function fetchData() {
   isLoading.value = true
   error.value = null
-  
   try {
-    // Загрузка приходов и расходов
-    const [comingsData, expensesData] = await Promise.all([
-      $fetch('/api/comings'),
-      $fetch('/api/expenses')
+    const [comings, expenses] = await Promise.all([
+      $fetch < any[] > ('/api/comings'),
+      $fetch < any[] > ('/api/expenses'),
     ])
-    
-    // Объединение и преобразование операций
-    const allOperations = [
-      ...comingsData.map(op => ({
-        ...op,
-        type: 'income',
-        amount: parseFloat(op.amount),
-        objectName: op.objectName || op.object?.name
-      })),
-      ...expensesData.map(op => ({
-        ...op,
-        type: 'expense',
-        amount: parseFloat(op.amount),
-        objectName: op.objectName || op.object?.name
-      }))
+
+    const all: Operation[] = [
+      ...(comings || []).map(op => ({ ...op, type: 'income' as const, amount: parseFloat(op.amount), objectName: op.objectName || op.object?.name })),
+      ...(expenses || []).map(op => ({ ...op, type: 'expense' as const, amount: parseFloat(op.amount), objectName: op.objectName || op.object?.name })),
     ]
-    
-    // Сортировка по дате (новые первыми)
-    const sortedOperations = allOperations
-      .sort((a, b) => new Date(b.operationDate) - new Date(a.operationDate))
-      .slice(0, 5) // Ограничение до 5 операций
-    
-    recentOperations.value = sortedOperations
-  } catch (err) {
-    console.error('Ошибка загрузки операций:', err)
-    error.value = 'Не удалось загрузить данные'
+
+    operations.value = all
+      .sort((a, b) => new Date(b.operationDate).getTime() - new Date(a.operationDate).getTime())
+      .slice(0, 8)
+
+  } catch (e) {
+    console.error('[Операции] Ошибка загрузки:', e)
+    error.value = 'Ошибка загрузки'
   } finally {
     isLoading.value = false
   }
 }
 
-// Обновление данных
-const refreshData = () => {
-  fetchData()
-}
-
-// Обновление каждые 5 минут
-let refreshInterval
 onMounted(() => {
   fetchData()
-  refreshInterval = setInterval(refreshData, 5 * 60 * 1000)
+  refreshTimer = setInterval(fetchData, 5 * 60 * 1000)
 })
 
-onBeforeUnmount(() => {
-  clearInterval(refreshInterval)
-})
+onBeforeUnmount(() => clearInterval(refreshTimer))
 </script>
 
 <style lang="scss" scoped>
-.recent-operations-card {
-  // Убираем фиксированные высоты
-  :deep(.card__body) {
-    padding: 1rem;
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .operations-list {
-    flex-grow: 1;
-    overflow-y: auto;
-    max-height: 100%;
-    padding-right: 5px;
-    
-    // Стили полосы прокрутки
-    &::-webkit-scrollbar {
-      width: 8px;
-    }
-    
-    &::-webkit-scrollbar-track {
-      background: rgba(0,0,0,0.05);
-      border-radius: 4px;
-    }
-    
-    &::-webkit-scrollbar-thumb {
-      background: rgba(0,0,0,0.2);
-      border-radius: 4px;
-      
-      &:hover {
-        background: rgba(0,0,0,0.3);
-      }
-    }
-  }
-  
-  .operation-item {
-    padding: 0.75rem;
-    gap: 0.5rem;
-  }
-  
-  .operation-details {
-    gap: 0.2rem;
-  }
-}
-
-.operations-list {
+// ── Список ──────────────────────────────────────────────────────────
+.ops {
   display: flex;
   flex-direction: column;
-  gap: 1.2rem;
 }
 
-.operation-item {
-  padding: 1rem;
-  border-radius: $border-radius;
-  border: 1px solid $border-color;
-  transition: all 0.2s ease;
-  
+.op {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--crm-border);
+  transition: var(--crm-transition);
+
+  &:last-child {
+    border-bottom: none;
+  }
+
   &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    background: var(--crm-bg-elevated);
   }
-  
-  .operation-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.5rem;
-  }
-  
-  .operation-type {
+
+  // ── Иконка ──
+  &__icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    font-weight: 600;
-    
-    &.income {
-      color: $color-success;
-    }
-    
-    &.expense {
-      color: $color-danger;
-    }
-    
-    .type-icon {
-      &.income {
-        color: $color-success;
-      }
-      
-      &.expense {
-        color: $color-danger;
-      }
-    }
+    justify-content: center;
+    flex-shrink: 0;
   }
-  
-  .operation-date {
-    font-size: 0.85rem;
-    color: $color-muted;
+
+  &--income .op__icon {
+    background: var(--crm-success-dim);
+    color: var(--crm-success);
   }
-  
-  .operation-details {
+
+  &--expense .op__icon {
+    background: var(--crm-danger-dim);
+    color: var(--crm-danger);
+  }
+
+  // ── Контент ──
+  &__body {
+    flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.3rem;
-    font-size: 0.9rem;
-    
-    .operation-amount {
-      font-weight: 600;
-      
-      &.income {
-        color: $color-success;
-      }
-      
-      &.expense {
-        color: $color-danger;
-      }
+    gap: 3px;
+  }
+
+  &__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  &__type {
+    font-size: var(--crm-text-sm);
+    font-weight: 500;
+    color: var(--crm-text-secondary);
+  }
+
+  &__amount {
+    font-size: var(--crm-text-md);
+    font-weight: 700;
+    flex-shrink: 0;
+
+    &--income {
+      color: var(--crm-success);
     }
-    
-    .operation-object,
-    .operation-comment {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      color: $color-muted;
-      font-size: 0.85rem;
-      
-      .object-icon,
-      .comment-icon {
-        opacity: 0.7;
-      }
+
+    &--expense {
+      color: var(--crm-danger);
     }
+  }
+
+  &__bottom {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    // max-width: 140px;
+  }
+
+  &__date {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-disabled);
+    margin-left: auto;
+    flex-shrink: 0;
   }
 }
 
-.empty-state, .error-state {
+// ── Пустые состояния ────────────────────────────────────────────────
+.ops-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2rem 1rem;
-  text-align: center;
-  min-height: 200px;
-  
-  .empty-icon, .error-icon {
-    margin-bottom: 1rem;
-    opacity: 0.7;
-  }
-  
+  gap: 10px;
+  padding: 40px 20px;
+  color: var(--crm-text-muted);
+
   p {
-    margin: 0.5rem 0 1.5rem 0;
-    color: $color-muted;
-  }
-  
-  .btn {
-    margin-top: 0.5rem;
+    margin: 0;
+    font-size: var(--crm-text-sm);
   }
 }
 
-.btn {
+// ── Кнопки ──────────────────────────────────────────────────────────
+.crm-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
+  gap: 5px;
+  border-radius: var(--crm-radius-md);
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: var(--crm-transition);
+  white-space: nowrap;
 
-  &-secondary {
-    background-color: $background-light;
-    color: #495057;
-    border: 1px solid $border-color;
+  &--sm {
+    padding: 6px 12px;
+    font-size: var(--crm-text-sm);
+  }
+
+  &--ghost {
+    background: transparent;
+    border: 1px solid var(--crm-border-hover);
+    color: var(--crm-text-secondary);
 
     &:hover {
-      border: 1px solid $blue;
+      background: var(--crm-bg-elevated);
+      color: var(--crm-text-primary);
     }
   }
 }

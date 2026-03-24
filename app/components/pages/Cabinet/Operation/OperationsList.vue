@@ -1,344 +1,532 @@
+<!-- app/components/pages/cabinet/Operation/OperationsList.vue -->
 <template>
-  <div>
-  <!-- Фильтр по категории -->
-    <div class="filter-controls">
-      <label for="expense-type-filter">Фильтр по категории:</label>
-      <select
-        id="expense-type-filter"
-        v-model="selectedExpenseType"
-        class="type-filter"
-        @change="$emit('filter-type', selectedExpenseType)"
-      >
-      <option value="">Все категории</option>
-      <option
-        v-for="type in expenseTypes"
-        :key="type"
-        :value="type"
-      >
-        {{ type }}
-      </option>
-      </select>
+  <div class="ops-list">
+
+    <!-- Фильтр по категории -->
+    <div class="ops-list__filter">
+      <div class="cat-filter">
+        <button class="cat-btn" :class="{ 'cat-btn--active': selectedExpenseType === '' }" @click="setFilter('')">
+          Все
+        </button>
+        <button v-for="type in expenseTypes" :key="type.value" class="cat-btn"
+          :class="{ 'cat-btn--active': selectedExpenseType === type.value }" @click="setFilter(type.value)">
+          <Icon :name="type.icon" size="13" />
+          {{ type.label }}
+        </button>
+      </div>
     </div>
-    
-    <div class="operations-grid">
+
+    <!-- Сетка колонок -->
+    <div class="ops-list__grid">
+
       <!-- Расходы -->
-      <section class="operations-column expenses">
-        <header class="column-header">
-          <h3>Расходы</h3>
-          <span class="count">{{ filteredExpenses.length }}</span>
-        </header>
-        <div v-if="loading" class="loading">Загрузка...</div>
-        <div v-else-if="error" class="error">{{ error }}</div>
-        <div v-else-if="filteredExpenses.length === 0" class="empty">
-          Нет расходов за выбранный период
+      <div class="ops-col">
+        <div class="ops-col__header">
+          <div class="ops-col__title">
+            <div class="ops-col__dot ops-col__dot--expense" />
+            Расходы
+          </div>
+          <span class="ops-col__count">{{ filteredExpenses.length }}</span>
         </div>
-        <ul v-else class="operations-list">
-          <li
-            v-for="expense in filteredExpenses"
-            :key="expense.id"
-            class="operation-item expense"
-          >
-            <div class="operation-top">
-              <p class="operation-date">{{ formatDate(expense.operationDate) }}</p>
-              <p class="tag" :class="`tag-${expense.expenseType}`">
+
+        <!-- Загрузка -->
+        <div v-if="loading" class="ops-skeleton">
+          <div v-for="i in 4" :key="i" class="skel" />
+        </div>
+
+        <!-- Ошибка -->
+        <div v-else-if="error" class="ops-state ops-state--error">
+          <Icon name="mdi:alert-circle-outline" size="24" />
+          <span>{{ error }}</span>
+        </div>
+
+        <!-- Пусто -->
+        <div v-else-if="!filteredExpenses.length" class="ops-state">
+          <Icon name="mdi:receipt-text-outline" size="28" />
+          <span>Нет расходов за выбранный период</span>
+        </div>
+
+        <!-- Список -->
+        <div v-else class="ops-items">
+          <div v-for="expense in filteredExpenses" :key="expense.id" class="op-item op-item--expense">
+            <div class="op-item__head">
+              <span :class="['op-tag', `op-tag--${expense.expenseType}`]">
+                <Icon :name="getTypeIcon(expense.expenseType)" size="11" />
                 {{ expense.expenseType }}
-              </p>
-              <p class="operation-amount">- {{ formatCurrency(expense.amount) }}</p>
+              </span>
+              <span class="op-item__date">{{ formatDate(expense.operationDate) }}</span>
+              <span class="op-item__amount op-item__amount--expense">
+                −{{ formatCurrency(expense.amount) }}
+              </span>
             </div>
-            <div class="operation-details">
-              <NuxtLink
-                v-if="expense.contractorType && expense.contractorId"
+
+            <div class="op-item__body">
+              <NuxtLink v-if="expense.contractorType && expense.contractorId"
                 :to="`/cabinet/admin/contractors/${expense.contractorType}/${expense.contractorId}`"
-                class="contractor-link"
-              >
-                {{ expense.contractorName }} <small>- {{ getContractorLabel(expense.contractorType) }}</small>
+                class="op-item__link">
+                <Icon name="mdi:account-outline" size="13" />
+                {{ expense.contractorName }}
+                <span class="op-item__link-sub">{{ getContractorLabel(expense.contractorType) }}</span>
               </NuxtLink>
-              <p v-else class="contractor-link">Контрагент не указан</p>
-              <NuxtLink
-                v-if="expense.objectId"
-                :to="`/cabinet/objects/${expense.objectId}`"
-                class="object-link"
-              >
+              <span v-else class="op-item__empty">Контрагент не указан</span>
+
+              <NuxtLink v-if="expense.objectId" :to="`/cabinet/objects/${expense.objectId}`" class="op-item__link">
+                <Icon name="mdi:map-marker-outline" size="13" />
                 {{ expense.objectName }}
               </NuxtLink>
-              <span v-else class="object-link">{{ expense.objectName }}</span>
-              <p class="comment">{{ expense.comment }}</p>
+
+              <span v-if="expense.comment" class="op-item__comment">
+                <Icon name="mdi:comment-outline" size="13" />
+                {{ expense.comment }}
+              </span>
             </div>
-          </li>
-        </ul>
-      </section>
-    
-      <!-- Приходы (без фильтрации по типу) -->
-      <section class="operations-column comings">
-        <header class="column-header">
-          <h3>Приходы</h3>
-          <span class="count">{{ comings.length }}</span>
-        </header>
-        <div v-if="loading" class="loading">Загрузка...</div>
-        <div v-else-if="error" class="error">{{ error }}</div>
-        <div v-else-if="comings.length === 0" class="empty">
-          Нет приходов за выбранный период
+          </div>
         </div>
-        <ul v-else class="operations-list">
-          <li
-            v-for="coming in comings"
-            :key="coming.id"
-            class="operation-item coming"
-          >
-            <div class="operation-top">
-              <p class="operation-date">{{ formatDate(coming.operationDate) }}</p>
-              <p class="operation-amount">+ {{ formatCurrency(coming.amount) }}</p>
+      </div>
+
+      <!-- Приходы -->
+      <div class="ops-col">
+        <div class="ops-col__header">
+          <div class="ops-col__title">
+            <div class="ops-col__dot ops-col__dot--income" />
+            Приходы
+          </div>
+          <span class="ops-col__count">{{ comings.length }}</span>
+        </div>
+
+        <div v-if="loading" class="ops-skeleton">
+          <div v-for="i in 4" :key="i" class="skel" />
+        </div>
+
+        <div v-else-if="error" class="ops-state ops-state--error">
+          <Icon name="mdi:alert-circle-outline" size="24" />
+          <span>{{ error }}</span>
+        </div>
+
+        <div v-else-if="!comings.length" class="ops-state">
+          <Icon name="mdi:cash-plus" size="28" />
+          <span>Нет приходов за выбранный период</span>
+        </div>
+
+        <div v-else class="ops-items">
+          <div v-for="coming in comings" :key="coming.id" class="op-item op-item--income">
+            <div class="op-item__head">
+              <span class="op-tag op-tag--income">
+                <Icon name="mdi:trending-up" size="11" />
+                Приход
+              </span>
+              <span class="op-item__date">{{ formatDate(coming.operationDate) }}</span>
+              <span class="op-item__amount op-item__amount--income">
+                +{{ formatCurrency(coming.amount) }}
+              </span>
             </div>
-            <div class="operation-details">
-              <NuxtLink
-                :to="`/cabinet/objects/${coming.objectId}`"
-                class="object-link"
-              >
+
+            <div class="op-item__body">
+              <NuxtLink v-if="coming.objectId" :to="`/cabinet/objects/${coming.objectId}`" class="op-item__link">
+                <Icon name="mdi:map-marker-outline" size="13" />
                 {{ getObjectLabel(coming.objectId) }}
               </NuxtLink>
-              <p class="comment">{{ coming.comment }}</p>
+              <span v-else class="op-item__empty">Объект не указан</span>
+
+              <span v-if="coming.comment" class="op-item__comment">
+                <Icon name="mdi:comment-outline" size="13" />
+                {{ coming.comment }}
+              </span>
             </div>
-          </li>
-        </ul>
-      </section>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </template>
 
-<script setup>
-// Определение пропсов
-const props = defineProps({
-  expenses: {
-    type: Array,
-    required: true,
-  },
-  comings: {
-    type: Array,
-    required: true,
-  },
-  loading: {
-    type: Boolean,
-    default: false,
-  },
-  error: {
-    type: String,
-    default: null,
-  },
-  objectLabels: {
-    type: Object,
-    default: () => ({}),
-  },
-})
+<script setup lang="ts">
+import { ref, computed } from 'vue'
 
-// События
-const emit = defineEmits(['filter-type'])
+const props = defineProps < {
+  expenses: any[]
+  comings: any[]
+  loading: boolean
+  error?: string | null
+  objectLabels: Record < number, string>
+}> ()
 
-// Фильтр по типу расхода
+const emit = defineEmits < { 'filter-type': [type: string] } > ()
+
+// ── Фильтр ──────────────────────────────────────────────────────────
 const selectedExpenseType = ref('')
 
-// Список типов расходов (должен совпадать с enum в БД)
+function setFilter(type: string) {
+  selectedExpenseType.value = type
+  emit('filter-type', type)
+}
+
+// ── Справочники ─────────────────────────────────────────────────────
 const expenseTypes = [
-  'Работа', 'Налог', 'Зарплата', 'Реклама', 'Кредит', 'Топливо', 'ГлавПрофи'
+  { value: 'Работа', label: 'Работа', icon: 'mdi:hammer' },
+  { value: 'Налог', label: 'Налог', icon: 'mdi:currency-usd' },
+  { value: 'Зарплата', label: 'Зарплата', icon: 'mdi:cash' },
+  { value: 'Реклама', label: 'Реклама', icon: 'mdi:bullhorn' },
+  { value: 'Кредит', label: 'Кредит', icon: 'mdi:bank' },
+  { value: 'Топливо', label: 'Топливо', icon: 'mdi:gas-station' },
+  { value: 'ГлавПрофи', label: 'ГлавПрофи', icon: 'mdi:star' },
 ]
 
-// Отфильтрованные расходы
+const typeIconMap: Record<string, string> = Object.fromEntries(
+  expenseTypes.map(t => [t.value, t.icon])
+)
+
+function getTypeIcon(type: string) {
+  return typeIconMap[type] ?? 'mdi:file-document-outline'
+}
+
+function getContractorLabel(type: string) {
+  const map: Record<string, string> = {
+    master: 'Мастер', worker: 'Рабочий', foreman: 'Прораб', office: 'Офис'
+  }
+  return map[type] ?? 'Неизвестно'
+}
+
+function getObjectLabel(id: number) {
+  return props.objectLabels[id] || 'Объект не найден'
+}
+
+// ── Форматирование ───────────────────────────────────────────────────
+const formatCurrency = (amount: any) =>
+  (parseFloat(amount) || 0).toLocaleString('ru-RU', {
+    style: 'currency', currency: 'RUB', minimumFractionDigits: 0
+  })
+
+const formatDate = (dateStr: string) => {
+  if (!dateStr) return '—'
+  const d = new Date(dateStr)
+  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('ru-RU', {
+    day: '2-digit', month: '2-digit', year: '2-digit'
+  })
+}
+
+// ── Фильтрация ───────────────────────────────────────────────────────
 const filteredExpenses = computed(() => {
-  let list = props.expenses
-  if (!Array.isArray(list)) return []
-
-  // Фильтр по дате уже должен быть применён выше, но можно добавить доп. фильтры
-  if (selectedExpenseType.value) {
-    list = list.filter(expense => expense.expenseType === selectedExpenseType.value)
-  }
-  return list
+  if (!Array.isArray(props.expenses)) return []
+  if (!selectedExpenseType.value) return props.expenses
+  return props.expenses.filter(e => e.expenseType === selectedExpenseType.value)
 })
-
-// Вспомогательные функции
-const formatDate = (dateString) => {
-  if (!dateString) return '—'
-  const date = new Date(dateString)
-  return isNaN(date.getTime()) ? '—' : date.toLocaleDateString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: '2-digit'
-  })
-}
-
-const formatCurrency = (amount) => {
-  const num = parseFloat(amount) || 0
-  return num.toLocaleString('ru-RU', {
-    style: 'currency',
-    currency: 'RUB',
-    minimumFractionDigits: 2,
-  })
-}
-
-const getObjectLabel = (id) => props.objectLabels[id] || 'Объект не найден'
-
-const getContractorLabel = (type) => {
-  switch (type) {
-    case 'master': return 'Мастер'
-    case 'worker': return 'Рабочий'
-    case 'foreman': return 'Прораб'
-    case 'office': return 'Офис'
-    default: return 'Неизвестно'
-  }
-}
 </script>
 
 <style lang="scss" scoped>
-.filter-controls {
-  margin-bottom: 1.5rem;
-  padding: 1rem;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+.ops-list {
   display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 12px;
+}
 
-  label {
-    font-size: 0.95rem;
-    font-weight: 500;
-    color: #333;
-    $color-light-space: nowrap;
+// ── Фильтр категорий ────────────────────────────────────────────────
+.ops-list__filter {
+  background: var(--crm-bg-surface);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-lg);
+  padding: 12px 14px;
+}
+
+.cat-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cat-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  background: var(--crm-bg-elevated);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-md);
+  color: var(--crm-text-secondary);
+  font-size: var(--crm-text-sm);
+  cursor: pointer;
+  transition: var(--crm-transition);
+  white-space: nowrap;
+
+  &:hover {
+    border-color: var(--crm-border-hover);
+    color: var(--crm-text-primary);
   }
 
-  .type-filter {
-    flex: 1;
-    min-width: 200px;
-    padding: 0.6rem 0.8rem;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    font-size: 0.95rem;
-    background-color: #fafafa;
-    color: #333;
-    cursor: pointer;
-    transition: all 0.2s ease;
+  &--active {
+    background: var(--crm-accent-dim);
+    border-color: var(--crm-accent-border);
+    color: var(--crm-accent);
 
-    &:focus {
-      outline: none;
-      border-color: $color-primary;
-      box-shadow: 0 0 0 3px rgba($color-primary, 0.1);
-    }
-
-    option {
-      background: #fff;
-      color: #333;
-      padding: 0.4rem 0.8rem;
+    &:hover {
+      background: var(--crm-accent-dim);
     }
   }
 }
 
-.operations-grid {
+// ── Сетка ───────────────────────────────────────────────────────────
+.ops-list__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 1.5rem;
-  .operations-column {
-    background: #fff;
-    border-radius: 12px;
-    padding: 1rem 1.25rem;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
-    .column-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 1rem;
-      h3 {
-        margin: 0;
-        font-size: 1.1rem;
-        font-weight: 600;
-      }
-      .count {
-        background: #f0f2f5;
-        border-radius: 6px;
-        padding: 2px 5px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.9rem;
-        font-weight: 600;
-        color: #555;
-      }
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+
+  @media (max-width: 800px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// ── Колонка ─────────────────────────────────────────────────────────
+.ops-col {
+  background: var(--crm-bg-surface);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--crm-border);
+    flex-shrink: 0;
+  }
+
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--crm-text-md);
+    font-weight: 600;
+    color: var(--crm-text-primary);
+  }
+
+  &__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+
+    &--expense {
+      background: var(--crm-danger);
     }
-    .operations-list {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      gap: .5rem;
+
+    &--income {
+      background: var(--crm-success);
     }
-    .operation-item {
-      border-left: 4px solid transparent;
-      padding: 0.75rem 1rem;
-      border-radius: 4px;
-      background: #fafafa;
-      transition: all 0.2s ease;
-      &:hover {
-        background: #f3f3f3;
-      }
-      &.expense {
-        border-color: #ff5a5a;
-      }
-      &.coming {
-        border-color: #4caf50;
-      }
-      .operation-top {
-        display: flex;
-        justify-content: space-between;
-        font-weight: 600;
-        margin-bottom: 0.5rem;
-        .operation-date {
-          font-size: 0.85rem;
-          color: #777;
-          flex: 2;
-        }
-        .tag {
-          flex: 1;
-        }
-        .operation-amount {
-          font-size: 1rem;
-          text-align: right;
-          flex: 2;
-        }
-      }
-      .tag {
-        display: inline-block;
-        padding: 0.2rem 0.6rem;
-        margin-bottom: 1em;
-        border-radius: 6px;
-        text-align: center;
-        font-size: 0.7rem;
-        font-weight: 500;
-        background: #eef0f3;
-        color: #333;
-        &-Работа { background: $color-muted; color: $color-light; }
-        &-Налог { background: $color-danger; color: $color-light; }
-        &-Зарплата { background: $color-success; color: $color-light; }
-        &-Реклама { background: $color-warning; color: $color-dark; }
-        &-Кредит { background: $color-pink; color: $color-light; }
-        &-Топливо { background: $color-primary; color: $color-light; }
-        &-ГлавПрофи { background: $blue; color: $color-light; }
-      }
-      .operation-details {
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
-        .contractor-link,
-        .object-link {
-          font-size: 0.85rem;
-          &:hover {
-            text-decoration: underline;
-          }
-        }
-        .comment {
-          font-size: 0.85rem;
-          color: #555;
-        }
-      }
+  }
+
+  &__count {
+    font-size: var(--crm-text-xs);
+    font-weight: 600;
+    padding: 2px 8px;
+    background: var(--crm-bg-overlay);
+    border: 1px solid var(--crm-border-hover);
+    border-radius: 10px;
+    color: var(--crm-text-muted);
+  }
+}
+
+// ── Список операций ─────────────────────────────────────────────────
+.ops-items {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  max-height: 80vh;
+  scrollbar-width: thin;
+  scrollbar-color: var(--crm-bg-overlay) transparent;
+}
+
+// ── Элемент операции ────────────────────────────────────────────────
+.op-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--crm-border);
+  transition: var(--crm-transition);
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background: var(--crm-bg-elevated);
+  }
+
+  // Левая цветная полоска
+  &--expense {
+    border-left: 3px solid var(--crm-danger);
+  }
+
+  &--income {
+    border-left: 3px solid var(--crm-success);
+  }
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+
+  &__date {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+    flex-shrink: 0;
+  }
+
+  &__amount {
+    font-size: var(--crm-text-md);
+    font-weight: 700;
+    margin-left: auto;
+    flex-shrink: 0;
+
+    &--expense {
+      color: var(--crm-danger);
     }
+
+    &--income {
+      color: var(--crm-success);
+    }
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  &__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--crm-text-sm);
+    color: var(--crm-text-secondary);
+    text-decoration: none;
+    transition: var(--crm-transition);
+
+    &:hover {
+      color: var(--crm-accent);
+    }
+
+    &-sub {
+      font-size: var(--crm-text-xs);
+      color: var(--crm-text-muted);
+    }
+  }
+
+  &__empty {
+    font-size: var(--crm-text-sm);
+    color: var(--crm-text-disabled);
+  }
+
+  &__comment {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+    font-style: italic;
+  }
+}
+
+// ── Теги типов расходов ─────────────────────────────────────────────
+.op-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--crm-radius-sm);
+  font-size: var(--crm-text-xs);
+  font-weight: 600;
+  flex-shrink: 0;
+
+  // Цвета по типу
+  &--Работа {
+    background: rgba(154, 160, 184, .2);
+    color: #9aa0b8;
+  }
+
+  &--Налог {
+    background: var(--crm-danger-dim);
+    color: var(--crm-danger);
+  }
+
+  &--Зарплата {
+    background: var(--crm-success-dim);
+    color: var(--crm-success);
+  }
+
+  &--Реклама {
+    background: var(--crm-warning-dim);
+    color: var(--crm-warning);
+  }
+
+  &--Кредит {
+    background: rgba(232, 93, 158, .15);
+    color: #e85d9e;
+  }
+
+  &--Топливо {
+    background: var(--crm-info-dim);
+    color: var(--crm-info);
+  }
+
+  &--ГлавПрофи {
+    background: var(--crm-accent-dim);
+    color: var(--crm-accent);
+  }
+
+  &--income {
+    background: var(--crm-success-dim);
+    color: var(--crm-success);
+  }
+}
+
+// ── Скелетон ────────────────────────────────────────────────────────
+.ops-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+}
+
+.skel {
+  height: 64px;
+  border-radius: var(--crm-radius-md);
+  background: linear-gradient(90deg,
+      var(--crm-bg-elevated) 25%,
+      var(--crm-bg-overlay) 50%,
+      var(--crm-bg-elevated) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+// ── Пустые состояния ────────────────────────────────────────────────
+.ops-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 40px 20px;
+  color: var(--crm-text-muted);
+  font-size: var(--crm-text-sm);
+  text-align: center;
+
+  &--error {
+    color: var(--crm-danger);
   }
 }
 </style>

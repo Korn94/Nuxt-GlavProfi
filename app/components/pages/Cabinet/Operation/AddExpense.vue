@@ -1,158 +1,127 @@
-<!-- app\components\pages\cabinet\Operation\AddExpense.vue -->
+<!-- app/components/pages/cabinet/Operation/AddExpense.vue -->
 <template>
-  <PagesCabinetUiModal
-    :visible="isOpen"
-    @close="close"
-    title="Добавить расход"
-    size="md"
-    closable
-  >
-    <!-- Контент -->
-    <div class="modal-content">
+  <PagesCabinetUiModal :visible="isOpen" title="Добавить расход" size="md" closable @close="close">
+    <div class="op-form">
+
       <!-- Тип расхода -->
-      <div class="form-group expense-types">
-        <label>Тип расхода:</label>
-        <div class="type-buttons">
-          <button
-            v-for="type in expenseTypes"
-            :key="type"
-            :class="['type-btn', { active: selectedType === type }]"
-            @click="selectType(type)"
-          >
-            {{ type }}
+      <div class="field">
+        <label class="field__label">Тип расхода</label>
+        <div class="type-grid">
+          <button v-for="type in expenseTypes" :key="type.value" class="type-btn"
+            :class="{ 'type-btn--active': selectedType === type.value }" @click="selectType(type.value)">
+            <Icon :name="type.icon" size="15" />
+            {{ type.label }}
           </button>
         </div>
       </div>
 
-      <!-- Форма -->
-      <form @submit.prevent="submitExpense">
-        <!-- Сумма -->
-        <div class="form-group">
-          <label>Сумма <span class="required">*</span></label>
-          <input
-            type="text"
-            v-model="displayAmount"
-            placeholder="Введите сумму"
-            @blur="formatOnBlur"
-            @focus="unformatOnFocus"
-            @input="syncAmount"
-            required
-          />
-          <span v-if="errors.amount" class="error-message">{{ errors.amount }}</span>
+      <!-- Сумма -->
+      <div class="field">
+        <label class="field__label">Сумма <span class="field__req">*</span></label>
+        <input type="text" class="field__input" :class="{ 'field__input--error': errors.amount }"
+          v-model="displayAmount" placeholder="0" @blur="formatOnBlur" @focus="unformatOnFocus" @input="syncAmount" />
+        <span v-if="errors.amount" class="field__error">{{ errors.amount }}</span>
+      </div>
+
+      <!-- Дата -->
+      <div class="field">
+        <label class="field__label">Дата операции <span class="field__req">*</span></label>
+        <input type="date" class="field__input" :class="{ 'field__input--error': errors.operationDate }"
+          v-model="form.operationDate" />
+        <span v-if="errors.operationDate" class="field__error">{{ errors.operationDate }}</span>
+      </div>
+
+      <!-- Контрагент (для Работа / Зарплата / Топливо) -->
+      <template v-if="needsContractor">
+        <div class="field">
+          <label class="field__label">Категория контрагента <span class="field__req">*</span></label>
+          <select class="field__input" :class="{ 'field__input--error': errors.contractorType }"
+            v-model="form.contractorType">
+            <option value="">— Выберите категорию —</option>
+            <option value="worker">Разнорабочий</option>
+            <option value="master">Мастер</option>
+            <option value="foreman">Прораб</option>
+            <option value="office">Офис</option>
+          </select>
+          <span v-if="errors.contractorType" class="field__error">{{ errors.contractorType }}</span>
         </div>
 
-        <!-- Дата операции -->
-        <div class="form-group">
-          <label>Дата операции <span class="required">*</span></label>
-          <input type="date" v-model="form.operationDate" required />
-          <span v-if="errors.operationDate" class="error-message">{{ errors.operationDate }}</span>
+        <div class="field">
+          <label class="field__label">Контрагент <span class="field__req">*</span></label>
+          <select class="field__input" :class="{ 'field__input--error': errors.contractorId }"
+            v-model="form.contractorId">
+            <option value="">— Выберите контрагента —</option>
+            <option v-for="c in contractorsByType" :key="c.id" :value="c.id">
+              {{ c.name }}
+            </option>
+          </select>
+          <span v-if="errors.contractorId" class="field__error">{{ errors.contractorId }}</span>
         </div>
+      </template>
 
-        <!-- Поля по типу -->
-        <div v-if="selectedType === 'Работа'" class="nested-form">
-          <div class="form-group">
-            <label>Категория контрагента <span class="required">*</span></label>
-            <select v-model="form.contractorType" required>
-              <option value="">Выберите категорию</option>
-              <option value="worker">Разнорабочий</option>
-              <option value="master">Мастер</option>
-              <option value="foreman">Прораб</option>
-              <option value="office">Офис</option>
-            </select>
-            <span v-if="errors.contractorType" class="error-message">{{ errors.contractorType }}</span>
-          </div>
+      <!-- Объект (для Работа / Налог) -->
+      <div v-if="needsObject" class="field">
+        <label class="field__label">Объект</label>
+        <select class="field__input" v-model="form.objectId">
+          <option value="">— Без объекта —</option>
+          <option v-for="o in objects" :key="o.id" :value="o.id">{{ o.name }}</option>
+        </select>
+      </div>
 
-          <div class="form-group">
-            <label>Контрагент <span class="required">*</span></label>
-            <select v-model="form.contractorId" required>
-              <option value="">Выберите контрагента</option>
-              <option v-for="c in contractorsByType" :key="c.id" :value="c.id">
-                {{ c.name }}
-              </option>
-            </select>
-            <span v-if="errors.contractorId" class="error-message">{{ errors.contractorId }}</span>
-          </div>
+      <!-- Комментарий -->
+      <div class="field">
+        <label class="field__label">Комментарий</label>
+        <textarea class="field__input field__input--textarea" v-model="form.comment"
+          placeholder="Дополнительная информация..." rows="2" />
+      </div>
 
-          <div class="form-group">
-            <label>Объект</label>
-            <select v-model="form.objectId">
-              <option value="">Без объекта</option>
-              <option v-for="o in objects" :key="o.id" :value="o.id">
-                {{ o.name }}
-              </option>
-            </select>
-          </div>
-        </div>
+      <!-- Ошибка формы -->
+      <div v-if="errors.form" class="form-error">
+        <Icon name="mdi:alert-circle-outline" size="14" />
+        {{ errors.form }}
+      </div>
 
-        <div v-if="selectedType === 'Налог'" class="nested-form">
-          <div class="form-group">
-            <label>Объект</label>
-            <select v-model="form.objectId">
-              <option value="">Без объекта</option>
-              <option v-for="o in objects" :key="o.id" :value="o.id">
-                {{ o.name }}
-              </option>
-            </select>
-          </div>
-        </div>
-
-        <div v-if="['Зарплата', 'Топливо'].includes(selectedType)" class="nested-form">
-          <div class="form-group">
-            <label>Категория контрагента <span class="required">*</span></label>
-            <select v-model="form.contractorType" required>
-              <option value="">Выберите категорию</option>
-              <option value="worker">Разнорабочий</option>
-              <option value="master">Мастер</option>
-              <option value="foreman">Прораб</option>
-              <option value="office">Офис</option>
-            </select>
-            <span v-if="errors.contractorType" class="error-message">{{ errors.contractorType }}</span>
-          </div>
-
-          <div class="form-group">
-            <label>Контрагент <span class="required">*</span></label>
-            <select v-model="form.contractorId" required>
-              <option value="">Выберите контрагента</option>
-              <option v-for="c in contractorsByType" :key="c.id" :value="c.id">
-                {{ c.name }}
-              </option>
-            </select>
-            <span v-if="errors.contractorId" class="error-message">{{ errors.contractorId }}</span>
-          </div>
-        </div>
-
-        <!-- Комментарий -->
-        <div class="form-group">
-          <label>Комментарий</label>
-          <textarea v-model="form.comment" placeholder="Дополнительная информация"></textarea>
-        </div>
-
-        <!-- Ошибка формы -->
-        <div v-if="errors.form" class="error-message form-error">
-          {{ errors.form }}
-        </div>
-      </form>
     </div>
 
-    <!-- Футер -->
     <template #footer>
-      <button type="button" @click="close" class="btn btn-secondary">Отмена</button>
-      <button type="submit" @click="submitExpense" class="btn btn-primary" :disabled="loading">
+      <button class="crm-btn crm-btn--ghost" @click="close" :disabled="loading">
+        Отмена
+      </button>
+      <button class="crm-btn crm-btn--danger" @click="submitExpense" :disabled="loading">
+        <Icon v-if="loading" name="mdi:loading" class="spin" size="14" />
         {{ loading ? 'Сохранение...' : 'Добавить расход' }}
       </button>
     </template>
   </PagesCabinetUiModal>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 
-const props = defineProps({ isOpen: Boolean })
-const emit = defineEmits(['close', 'expense-added'])
+const props = defineProps < { isOpen: boolean } > ()
+const emit = defineEmits < { close: []; 'expense-added': [result: any] } > ()
 
-// Форма
+// ── Справочники ─────────────────────────────────────────────────────
+const expenseTypes = [
+  { value: 'Работа', label: 'Работа', icon: 'mdi:hammer' },
+  { value: 'Налог', label: 'Налог', icon: 'mdi:currency-usd' },
+  { value: 'Зарплата', label: 'Зарплата', icon: 'mdi:cash' },
+  { value: 'Реклама', label: 'Реклама', icon: 'mdi:bullhorn' },
+  { value: 'Кредит', label: 'Кредит', icon: 'mdi:bank' },
+  { value: 'Топливо', label: 'Топливо', icon: 'mdi:gas-station' },
+  { value: 'ГлавПрофи', label: 'ГлавПрофи', icon: 'mdi:star' },
+]
+
+// ── Состояние ───────────────────────────────────────────────────────
+const selectedType = ref('')
+const loading = ref(false)
+const errors = ref < Record < string, string>> ({})
+const contractors = ref < any[] > ([])
+const objects = ref < any[] > ([])
+const localDisplay = ref('')
+
 const form = ref({
-  amount: null,
+  amount: null as number | null,
   contractorType: '',
   contractorId: '',
   objectId: '',
@@ -161,149 +130,103 @@ const form = ref({
   operationDate: new Date().toISOString().split('T')[0],
 })
 
-const selectedType = ref('')
-const loading = ref(false)
-const errors = ref({})
-const contractors = ref([])
-const objects = ref([])
+// ── Computed ────────────────────────────────────────────────────────
+const needsContractor = computed(() => ['Работа', 'Зарплата', 'Топливо'].includes(selectedType.value))
+const needsObject = computed(() => ['Работа', 'Налог'].includes(selectedType.value))
 
-// Локальное состояние для отображаемой строки
-const localDisplayValue = ref('')
+const contractorsByType = computed(() =>
+  contractors.value.filter(c => c.type === form.value.contractorType)
+)
 
-// Вычисляемое поле для отображения суммы с пробелами
 const displayAmount = computed({
   get() {
-    if (form.value.amount === null || form.value.amount === '') return ''
+    if (form.value.amount === null) return ''
     return new Intl.NumberFormat('ru-RU').format(form.value.amount)
   },
-  set(value) {
-    localDisplayValue.value = value
-  }
+  set(value: string) { localDisplay.value = value }
 })
 
-// Парсинг строки в число
-function parseNumber(str) {
+// ── Форматирование суммы ─────────────────────────────────────────────
+function parseNumber(str: string) {
   if (!str) return NaN
-  const cleaned = str.replace(/[^\d,.-]/g, '').replace(',', '.')
-  return parseFloat(cleaned)
+  return parseFloat(str.replace(/[^\d,.-]/g, '').replace(',', '.'))
 }
 
-// При фокусе — показываем "сырое" число
 function unformatOnFocus() {
-  if (form.value.amount !== null) {
-    localDisplayValue.value = String(form.value.amount)
-  } else {
-    localDisplayValue.value = ''
-  }
+  localDisplay.value = form.value.amount !== null ? String(form.value.amount) : ''
 }
 
-// При потере фокуса — форматируем обратно
 function formatOnBlur() {
-  const num = parseNumber(localDisplayValue.value)
+  const num = parseNumber(localDisplay.value)
   if (!isNaN(num) && num >= 0) {
     form.value.amount = num
-    localDisplayValue.value = new Intl.NumberFormat('ru-RU').format(num)
-  } else {
-    localDisplayValue.value = form.value.amount
-      ? new Intl.NumberFormat('ru-RU').format(form.value.amount)
-      : ''
   }
 }
 
-// При каждом вводе — обновляем локальную строку и синхронизируем число
 function syncAmount() {
-  const raw = localDisplayValue.value
-  const num = parseNumber(raw)
-  if (!isNaN(num)) {
-    form.value.amount = num
-  } else if (raw === '' || raw === null) {
-    form.value.amount = null
-  }
+  const num = parseNumber(localDisplay.value)
+  if (!isNaN(num)) form.value.amount = num
+  else if (!localDisplay.value) form.value.amount = null
 }
 
-// Вычисляем контрагентов по типу
-const contractorsByType = computed(() => {
-  return contractors.value.filter(c => c.type === form.value.contractorType)
-})
-
-const expenseTypes = ['Работа', 'Налог', 'Зарплата', 'Реклама', 'Кредит', 'Топливо', 'ГлавПрофи']
-
-function selectType(type) {
+// ── Методы ──────────────────────────────────────────────────────────
+function selectType(type: string) {
   selectedType.value = type
   form.value.expenseType = type
   form.value.contractorType = ''
   form.value.contractorId = ''
   form.value.objectId = ''
-  form.value.comment = ''
 }
 
 async function loadData() {
   try {
-    const [workers, masters, foremans, offices] = await Promise.all([
-      $fetch('/api/contractors/workers'),
-      $fetch('/api/contractors/masters'),
-      $fetch('/api/contractors/foremans'),
-      $fetch('/api/contractors/offices'),
+    const [workers, masters, foremans, offices, objs] = await Promise.all([
+      $fetch < any[] > ('/api/contractors/workers'),
+      $fetch < any[] > ('/api/contractors/masters'),
+      $fetch < any[] > ('/api/contractors/foremans'),
+      $fetch < any[] > ('/api/contractors/offices'),
+      $fetch < any[] > ('/api/objects'),
     ])
-
     contractors.value = [
-      ...workers.map(w => ({ ...w, type: 'worker' })),
-      ...masters.map(m => ({ ...m, type: 'master' })),
-      ...foremans.map(f => ({ ...f, type: 'foreman' })),
-      ...offices.map(o => ({ ...o, type: 'office' })),
+      ...(workers || []).map(w => ({ ...w, type: 'worker' })),
+      ...(masters || []).map(m => ({ ...m, type: 'master' })),
+      ...(foremans || []).map(f => ({ ...f, type: 'foreman' })),
+      ...(offices || []).map(o => ({ ...o, type: 'office' })),
     ]
-
-    objects.value = await $fetch('/api/objects')
-  } catch (error) {
-    console.error('Ошибка загрузки данных:', error)
+    objects.value = objs || []
+  } catch (e) {
+    console.error('[ДобавитьРасход] Ошибка загрузки данных:', e)
   }
 }
 
-function validateForm() {
+function validate() {
   errors.value = {}
-  let isValid = true
-
   if (!form.value.amount || form.value.amount <= 0) {
     errors.value.amount = 'Сумма обязательна и должна быть больше нуля'
-    isValid = false
   }
-
   if (!form.value.operationDate) {
     errors.value.operationDate = 'Дата операции обязательна'
-    isValid = false
   }
-
-  const contractorRequired = ['Работа', 'Зарплата', 'Топливо'].includes(selectedType.value)
-  if (contractorRequired) {
-    if (!form.value.contractorType) {
-      errors.value.contractorType = 'Категория контрагента обязательна'
-      isValid = false
-    }
-    if (!form.value.contractorId) {
-      errors.value.contractorId = 'Контрагент обязателен'
-      isValid = false
-    }
+  if (needsContractor.value) {
+    if (!form.value.contractorType) errors.value.contractorType = 'Выберите категорию контрагента'
+    if (!form.value.contractorId) errors.value.contractorId = 'Выберите контрагента'
   }
-
-  return isValid
+  return Object.keys(errors.value).length === 0
 }
 
 async function submitExpense() {
-  if (!validateForm()) return
-
+  if (!validate()) return
   loading.value = true
   try {
-    const payload = { ...form.value }
     const result = await $fetch('/api/expenses', {
       method: 'POST',
-      body: payload,
+      body: { ...form.value },
       credentials: 'include',
     })
-
     emit('expense-added', result)
     close()
-  } catch (error) {
-    errors.value.form = 'Не удалось добавить расход'
+  } catch {
+    errors.value.form = 'Не удалось добавить расход. Попробуйте снова.'
   } finally {
     loading.value = false
   }
@@ -316,127 +239,186 @@ function close() {
 
 function resetForm() {
   form.value = {
-    amount: null,
-    contractorType: '',
-    contractorId: '',
-    objectId: '',
-    comment: '',
-    expenseType: '',
+    amount: null, contractorType: '', contractorId: '',
+    objectId: '', comment: '', expenseType: '',
     operationDate: new Date().toISOString().split('T')[0],
   }
   selectedType.value = ''
-  localDisplayValue.value = ''
+  localDisplay.value = ''
   errors.value = {}
 }
 
-watch(() => props.isOpen, async (val) => {
-  if (val) await loadData()
-})
+watch(() => props.isOpen, val => { if (val) loadData() })
 </script>
 
 <style lang="scss" scoped>
-@use 'sass:map';
+.op-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
 
-.modal-content {
-  .expense-types {
-    margin-bottom: 1.5rem;
+// ── Типы расходов ────────────────────────────────────────────────────
+.type-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 6px;
+}
+
+.type-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 7px 10px;
+  background: var(--crm-bg-elevated);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-md);
+  color: var(--crm-text-secondary);
+  font-size: var(--crm-text-sm);
+  cursor: pointer;
+  transition: var(--crm-transition);
+
+  &:hover {
+    border-color: var(--crm-border-hover);
+    color: var(--crm-text-primary);
   }
 
-  .type-buttons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-  }
-
-  .type-btn {
-    padding: 0.5rem 1rem;
-    border: 1px solid $border-color;
-    border-radius: $border-radius;
-    background: $background-light;
-    cursor: pointer;
-    transition: $transition;
-
-    &.active {
-      background: $blue;
-      color: $text-light;
-      border-color: $blue;
-    }
-
-    &:hover:not(.active) {
-      border-color: $blue;
-    }
-  }
-
-  .form-group {
-    margin-bottom: 1rem;
-  }
-
-  label {
-    display: block;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-    color: $text-dark;
-  }
-
-  input,
-  select,
-  textarea {
-    width: 100%;
-    padding: 0.75rem;
-    border: 1px solid $border-color;
-    border-radius: $border-radius;
-    background: $background-light;
-    transition: $transition;
-
-    &:focus {
-      outline: none;
-      border-color: $blue;
-      box-shadow: 0 0 0 2px $blue20;
-    }
-  }
-
-  textarea {
-    resize: vertical;
-    min-height: 80px;
-  }
-
-  .required {
-    color: $red;
-  }
-
-  .error-message {
-    color: $color-danger;
-    font-size: 0.875rem;
-    margin-top: 0.25rem;
-  }
-
-  .form-error {
-    margin-bottom: 1rem;
+  &--active {
+    background: var(--crm-accent-dim);
+    border-color: var(--crm-accent-border);
+    color: var(--crm-accent);
   }
 }
 
-.btn {
-  padding: 0.6rem 1.2rem;
-  border: none;
-  border-radius: $border-radius;
-  cursor: pointer;
-  font-weight: 500;
-  transition: $transition;
+// ── Поле ────────────────────────────────────────────────────────────
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 
-  &-secondary {
-    background: $color-muted;
-    color: $text-light;
-    &:hover { background: $blue; }
+  &__label {
+    font-size: var(--crm-text-sm);
+    font-weight: 500;
+    color: var(--crm-text-secondary);
   }
 
-  &-primary {
-    background: $red;
-    color: $text-light;
-    &:not(:disabled):hover { background: $blue; }
-    &:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
+  &__req {
+    color: var(--crm-danger);
+  }
+
+  &__input {
+    background: var(--crm-bg-elevated);
+    border: 1px solid var(--crm-border-hover);
+    border-radius: var(--crm-radius-md);
+    color: var(--crm-text-primary);
+    font-size: var(--crm-text-md);
+    font-family: var(--crm-font-sans);
+    padding: 8px 12px;
+    outline: none;
+    transition: var(--crm-transition);
+    width: 100%;
+
+    &::placeholder {
+      color: var(--crm-text-disabled);
     }
+
+    &:focus {
+      border-color: var(--crm-accent);
+      box-shadow: 0 0 0 3px var(--crm-accent-dim);
+    }
+
+    &--error {
+      border-color: var(--crm-danger);
+
+      &:focus {
+        box-shadow: 0 0 0 3px var(--crm-danger-dim);
+      }
+    }
+
+    &--textarea {
+      resize: vertical;
+      min-height: 64px;
+    }
+
+    option {
+      background: var(--crm-bg-elevated);
+      color: var(--crm-text-primary);
+    }
+
+    color-scheme: dark;
+  }
+
+  &__error {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-danger);
+  }
+}
+
+// ── Ошибка формы ─────────────────────────────────────────────────────
+.form-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--crm-danger-dim);
+  border: 1px solid rgba(242, 95, 92, 0.3);
+  border-radius: var(--crm-radius-md);
+  color: var(--crm-danger);
+  font-size: var(--crm-text-sm);
+}
+
+// ── Кнопки ──────────────────────────────────────────────────────────
+.crm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border-radius: var(--crm-radius-md);
+  font-size: var(--crm-text-md);
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--crm-transition);
+
+  &:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+  }
+
+  &--ghost {
+    background: var(--crm-bg-elevated);
+    border: 1px solid var(--crm-border-hover);
+    color: var(--crm-text-secondary);
+
+    &:hover:not(:disabled) {
+      background: var(--crm-bg-overlay);
+      color: var(--crm-text-primary);
+    }
+  }
+
+  &--danger {
+    background: var(--crm-danger-dim);
+    border: 1px solid rgba(242, 95, 92, 0.35);
+    color: var(--crm-danger);
+
+    &:hover:not(:disabled) {
+      background: rgba(242, 95, 92, 0.25);
+    }
+  }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
   }
 }
 </style>

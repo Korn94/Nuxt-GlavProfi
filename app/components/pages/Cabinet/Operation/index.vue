@@ -1,120 +1,90 @@
+<!-- app/components/pages/cabinet/Operation/index.vue -->
 <template>
-  <PagesCabinetUiLayoutPageTitle title="Операции">
-    <template #actions>
-      <div class="action-buttons">
-        <button @click="showExpenseModal = true" class="btn btn-danger">
-          + Расход
+  <div class="operation-page">
+
+    <!-- Заголовок -->
+    <PagesCabinetUiLayoutPageTitle title="Операции" icon="mdi:swap-horizontal">
+      <template #actions>
+        <button class="crm-btn crm-btn--expense" @click="showExpenseModal = true">
+          <Icon name="mdi:minus" size="15" />
+          Расход
         </button>
-        <button @click="showIncomeModal = true" class="btn btn-success">
-          + Приход
+        <button class="crm-btn crm-btn--income" @click="showIncomeModal = true">
+          <Icon name="mdi:plus" size="15" />
+          Приход
         </button>
-      </div>
-    </template>
-  </PagesCabinetUiLayoutPageTitle>
+      </template>
+    </PagesCabinetUiLayoutPageTitle>
 
-  <div class="operations-history">
-    <!-- Фильтр -->
-    <div class="filter-wrapper">
-      <PagesCabinetOperationDateFilter
-        :start-date="startDate"
-        :end-date="endDate"
-        @update:start-date="startDate = $event"
-        @update:end-date="endDate = $event"
-        @apply="applyFilter"
-        @reset="resetFilter"
-      />
+    <div class="operation-page__content">
+
+      <!-- Фильтр дат -->
+      <div class="operation-page__filter">
+        <PagesCabinetOperationDateFilter :start-date="startDate" :end-date="endDate"
+          @update:start-date="startDate = $event" @update:end-date="endDate = $event" @apply="applyFilter"
+          @reset="resetFilter" />
+      </div>
+
+      <!-- Баланс -->
+      <PagesCabinetOperationBalanceSummary :balance="balance" :loading="loadingBalance" :error="errorBalance"
+        :expense-stats="expenseStats" />
+
+      <!-- Список операций -->
+      <PagesCabinetOperationOperationsList :expenses="filteredExpenses" :comings="filteredComings"
+        :loading="loadingExpenses || loadingComings" :error="errorExpenses || errorComings"
+        :object-labels="objectLabels" @filter-type="handleExpenseTypeFilter" />
+
     </div>
-
-    <!-- Баланс -->
-    <div class="balance-wrapper">
-      <PagesCabinetOperationBalanceSummary
-        :balance="balance"
-        :loading="loadingBalance"
-        :error="errorBalance"
-        :expense-stats="expenseStats"
-      />
-    </div>
-
-    <!-- Уведомления -->
-    <transition name="fade">
-      <div v-if="successMessage" class="notification success">
-        {{ successMessage }}
-      </div>
-    </transition>
-    <transition name="fade">
-      <div v-if="errorMessage" class="notification error">
-        {{ errorMessage }}
-      </div>
-    </transition>
 
     <!-- Модальные окна -->
-    <PagesCabinetOperationAddExpense
-      :is-open="showExpenseModal"
-      @close="showExpenseModal = false"
-      @expense-added="handleExpenseAdded"
-    />
-    <PagesCabinetOperationAddIncome
-      :is-open="showIncomeModal"
-      @close="showIncomeModal = false"
-      @income-added="handleIncomeAdded"
-    />
+    <PagesCabinetOperationAddExpense :is-open="showExpenseModal" @close="showExpenseModal = false"
+      @expense-added="handleExpenseAdded" />
+    <PagesCabinetOperationAddIncome :is-open="showIncomeModal" @close="showIncomeModal = false"
+      @income-added="handleIncomeAdded" />
 
-    <!-- Операции (вынесено в отдельный компонент) -->
-    <PagesCabinetOperationOperationsList
-      :expenses="filteredExpenses"
-      :comings="filteredComings"
-      :loading="loadingExpenses || loadingComings"
-      :error="errorExpenses || errorComings"
-      :object-labels="objectLabels"
-      @filter-type="handleExpenseTypeFilter"
-    />
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 
-// Фильтры
+// ── Фильтры ─────────────────────────────────────────────────────────
 const startDate = ref('')
 const endDate = ref('')
 
-// Баланс
-const balance = ref(null)
+// ── Баланс ──────────────────────────────────────────────────────────
+const balance = ref < any > (null)
 const loadingBalance = ref(true)
-const errorBalance = ref(null)
+const errorBalance = ref < string | null > (null)
 
-// Операции
-const expenses = ref([])
-const comings = ref([])
+// ── Операции ────────────────────────────────────────────────────────
+const expenses = ref < any[] > ([])
+const comings = ref < any[] > ([])
 const loadingExpenses = ref(false)
 const loadingComings = ref(false)
-const errorExpenses = ref(null)
-const errorComings = ref(null)
+const errorExpenses = ref < string | null > (null)
+const errorComings = ref < string | null > (null)
 
-// Статистика расходов
-const expenseStats = ref([])
-const loadingStats = ref(false)
-const errorStats = ref(null)
+// ── Статистика ───────────────────────────────────────────────────────
+const expenseStats = ref < any[] > ([])
 
-// Дополнительные данные (справочники)
-const objectLabels = ref({})
-const contractorLabels = ref({ master: {}, worker: {} })
+// ── Справочники ─────────────────────────────────────────────────────
+const objectLabels = ref < Record < number, string>> ({})
 
-// UI состояния
+// ── UI ───────────────────────────────────────────────────────────────
 const showExpenseModal = ref(false)
 const showIncomeModal = ref(false)
-const successMessage = ref('')
-const errorMessage = ref('')
+const selectedExpenseType = ref('')
 
-// Вычисляемые отфильтрованные списки
+// ── Computed ────────────────────────────────────────────────────────
 const filteredExpenses = computed(() => {
   if (!startDate.value || !endDate.value) return expenses.value
   const start = new Date(startDate.value)
   const end = new Date(endDate.value)
-  return expenses.value.filter(expense => {
-    if (!expense?.operationDate) return false
-    const date = new Date(expense.operationDate)
-    return date >= start && date <= end
+  return expenses.value.filter(e => {
+    if (!e?.operationDate) return false
+    const d = new Date(e.operationDate)
+    return d >= start && d <= end
   })
 })
 
@@ -122,214 +92,176 @@ const filteredComings = computed(() => {
   if (!startDate.value || !endDate.value) return comings.value
   const start = new Date(startDate.value)
   const end = new Date(endDate.value)
-  return comings.value.filter(coming => {
-    if (!coming?.operationDate) return false
-    const date = new Date(coming.operationDate)
-    return date >= start && date <= end
+  return comings.value.filter(c => {
+    if (!c?.operationDate) return false
+    const d = new Date(c.operationDate)
+    return d >= start && d <= end
   })
 })
 
-// Загрузка данных
-const loadBalance = async () => {
+// ── Загрузка ────────────────────────────────────────────────────────
+function getParams() {
+  return startDate.value && endDate.value
+    ? { startDate: startDate.value, endDate: endDate.value }
+    : {}
+}
+
+async function loadBalance() {
   loadingBalance.value = true
   errorBalance.value = null
   try {
-    const params = {}
-    if (startDate.value && endDate.value) {
-      params.startDate = startDate.value
-      params.endDate = endDate.value
-    }
-    balance.value = await $fetch('/api/balance', { params })
-  } catch (e) {
+    balance.value = await $fetch('/api/balance', { params: getParams() })
+  } catch {
     errorBalance.value = 'Не удалось загрузить баланс'
   } finally {
     loadingBalance.value = false
   }
 }
 
-const loadExpenses = async () => {
+async function loadExpenses() {
   loadingExpenses.value = true
   errorExpenses.value = null
   try {
-    const params = {}
-    if (startDate.value && endDate.value) {
-      params.startDate = startDate.value
-      params.endDate = endDate.value
-    }
-    const data = await $fetch('/api/expenses', { params })
+    const data = await $fetch < any[] > ('/api/expenses', { params: getParams() })
     expenses.value = Array.isArray(data) ? data : []
-  } catch (e) {
+  } catch {
     errorExpenses.value = 'Не удалось загрузить расходы'
   } finally {
     loadingExpenses.value = false
   }
 }
 
-const loadComings = async () => {
+async function loadComings() {
   loadingComings.value = true
   errorComings.value = null
   try {
-    const params = {}
-    if (startDate.value && endDate.value) {
-      params.startDate = startDate.value
-      params.endDate = endDate.value
-    }
-    const data = await $fetch('/api/comings', { params })
+    const data = await $fetch < any[] > ('/api/comings', { params: getParams() })
     comings.value = Array.isArray(data) ? data : []
-  } catch (e) {
+  } catch {
     errorComings.value = 'Не удалось загрузить приходы'
   } finally {
     loadingComings.value = false
   }
 }
 
-// Загрузка статистики по расходам
-const loadExpenseStats = async () => {
-  loadingStats.value = true
-  errorStats.value = null
+async function loadExpenseStats() {
   try {
-    const params = {}
-    if (startDate.value && endDate.value) {
-      params.startDate = startDate.value
-      params.endDate = endDate.value
-    }
-    expenseStats.value = await $fetch('/api/expenses/stats', { params })
+    expenseStats.value = await $fetch < any[] > ('/api/expenses/stats', { params: getParams() }) || []
   } catch (e) {
-    errorStats.value = 'Не удалось загрузить статистику расходов'
-    console.error(e)
-  } finally {
-    loadingStats.value = false
+    console.error('[Операции] Ошибка загрузки статистики:', e)
   }
 }
 
-// Загрузка справочников
-const loadObjectLabels = async () => {
+async function loadObjectLabels() {
   try {
-    const data = await $fetch('/api/objects')
-    data.forEach(obj => (objectLabels.value[obj.id] = obj.name))
+    const data = await $fetch < any[] > ('/api/objects')
+      ; (data || []).forEach(obj => { objectLabels.value[obj.id] = obj.name })
   } catch (e) {
-    console.error('Ошибка загрузки объектов:', e)
+    console.error('[Операции] Ошибка загрузки объектов:', e)
   }
 }
 
-const loadContractorLabels = async () => {
-  try {
-    const [masters, workers] = await Promise.all([
-      $fetch('/api/contractors/masters'),
-      $fetch('/api/contractors/workers')
-    ])
-    masters.forEach(m => (contractorLabels.value.master[m.id] = m.name))
-    workers.forEach(w => (contractorLabels.value.worker[w.id] = w.name))
-  } catch (e) {
-    console.error('Ошибка загрузки контрагентов:', e)
-  }
+// ── Управление фильтрами ─────────────────────────────────────────────
+function applyFilter() {
+  if (!startDate.value || !endDate.value) return
+  loadBalance()
+  loadExpenses()
+  loadComings()
+  loadExpenseStats()
 }
 
-// Фильтр по типу расхода
-const selectedExpenseType = ref('')
+function resetFilter() {
+  startDate.value = ''
+  endDate.value = ''
+  loadBalance()
+  loadExpenses()
+  loadComings()
+  loadExpenseStats()
+}
 
-const handleExpenseTypeFilter = (type) => {
+// ── Обработка событий ────────────────────────────────────────────────
+function handleExpenseTypeFilter(type: string) {
   selectedExpenseType.value = type
 }
 
-// Управление фильтрами
-const applyFilter = () => {
-  if (startDate.value && endDate.value) {
-    loadExpenses()
-    loadComings()
-    loadBalance()
-    loadExpenseStats()
-  }
-}
-
-const resetFilter = () => {
-  startDate.value = ''
-  endDate.value = ''
+function handleExpenseAdded() {
   loadExpenses()
-  loadComings()
   loadBalance()
   loadExpenseStats()
 }
 
-// Обработка событий из модальных окон
-const handleExpenseAdded = () => {
-  successMessage.value = 'Расход успешно добавлен'
-  loadExpenses()
-  loadBalance()
-}
-
-const handleIncomeAdded = () => {
-  successMessage.value = 'Приход успешно добавлен'
+function handleIncomeAdded() {
   loadComings()
   loadBalance()
 }
 
-// Загрузка при монтировании
+// ── Инициализация ────────────────────────────────────────────────────
 onMounted(() => {
   loadBalance()
   loadExpenseStats()
   loadObjectLabels()
-  loadContractorLabels()
   loadExpenses()
   loadComings()
 })
 </script>
 
 <style lang="scss" scoped>
-.operations-history {
+.operation-page {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  padding: 1.5rem;
+  min-height: 100%;
 
-  .filter-wrapper {
-    background: #fff;
-    border-radius: 12px;
-    padding: 1.5rem;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 20px 24px;
   }
 
-  .notification {
-    padding: 0.75rem 1rem;
-    border-radius: 8px;
-    font-size: 0.9rem;
-    font-weight: 500;
-    &.success {
-      background: #e6f9ee;
-      color: #207d40;
-      border: 1px solid #b3e6c8;
-    }
-    &.error {
-      background: #fdeaea;
-      color: #b12d2d;
-      border: 1px solid #f5c2c2;
-    }
-  }
-
-  /* Анимации */
-  .fade-enter-active, .fade-leave-active {
-    transition: opacity .3s;
-  }
-  .fade-enter-from, .fade-leave-to {
-    opacity: 0;
+  &__filter {
+    background: var(--crm-bg-surface);
+    border: 1px solid var(--crm-border);
+    border-radius: var(--crm-radius-lg);
+    padding: 14px 16px;
   }
 }
 
-.action-buttons {
-  display: flex;
-  gap: 1rem;
-  .btn {
-    padding: 0.5rem 1.25rem;
-    &-danger {
-      background: #ff5a5a;
-      color: #fff;
-      &:hover { background: #e64a4a; }
+// ── Кнопки действий ─────────────────────────────────────────────────
+.crm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: var(--crm-radius-md);
+  font-size: var(--crm-text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--crm-transition);
+
+  &--expense {
+    background: var(--crm-danger-dim);
+    border: 1px solid rgba(242, 95, 92, 0.35);
+    color: var(--crm-danger);
+
+    &:hover {
+      background: rgba(242, 95, 92, 0.25);
     }
-    &-success {
-      background: #4caf50;
-      color: #fff;
-      &:hover { background: #449d48; }
+  }
+
+  &--income {
+    background: var(--crm-success-dim);
+    border: 1px solid rgba(61, 214, 140, 0.35);
+    color: var(--crm-success);
+
+    &:hover {
+      background: rgba(61, 214, 140, 0.25);
     }
+  }
+}
+
+@media (max-width: 767.98px) {
+  .operation-page__content {
+    padding: 16px;
   }
 }
 </style>

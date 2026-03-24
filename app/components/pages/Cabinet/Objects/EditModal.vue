@@ -1,43 +1,42 @@
 <!-- app/components/pages/cabinet/objects/EditModal.vue -->
 <template>
-  <PagesCabinetUiModal
-    :visible="modelValue"
-    @update:visible="$emit('update:modelValue', false)"
-    title="Редактирование объекта"
-    size="lg"
-    closable
-  >
-    <!-- Форма редактирования -->
-    <form @submit.prevent="handleSubmit" class="edit-object-form">
-      <div class="form-group">
-        <label>Название</label>
-        <input v-model="form.name" type="text" class="form-input" required />
+  <PagesCabinetUiModal :visible="modelValue" title="Редактирование объекта" size="lg" closable
+    @update:visible="$emit('update:modelValue', false)">
+    <div class="edit-form">
+
+      <!-- Название -->
+      <div class="field">
+        <label class="field__label">Название</label>
+        <input v-model="form.name" type="text" class="field__input" required />
       </div>
 
-      <div class="form-group">
-        <label>Адрес</label>
-        <textarea v-model="form.address" class="form-input" rows="2"></textarea>
+      <!-- Адрес -->
+      <div class="field">
+        <label class="field__label">Адрес</label>
+        <textarea v-model="form.address" class="field__input field__input--textarea" rows="2" />
       </div>
 
-      <div class="form-row">
-        <div class="form-group">
-          <label>Дата начала</label>
-          <input v-model="form.startDate" type="date" class="form-input" />
+      <!-- Даты -->
+      <div class="field-row">
+        <div class="field">
+          <label class="field__label">Дата начала</label>
+          <input v-model="form.startDate" type="date" class="field__input" />
         </div>
-        <div class="form-group">
-          <label>Плановая дата завершения</label>
-          <input v-model="form.plannedEndDate" type="date" class="form-input" />
+        <div class="field">
+          <label class="field__label">Плановая дата завершения</label>
+          <input v-model="form.plannedEndDate" type="date" class="field__input" />
+        </div>
+        <div class="field">
+          <label class="field__label">Фактическая дата завершения</label>
+          <input v-model="form.completedDate" type="date" class="field__input" />
         </div>
       </div>
 
-      <div class="form-row">
-        <div class="form-group">
-          <label>Фактическая дата завершения</label>
-          <input v-model="form.completedDate" type="date" class="form-input" />
-        </div>
-        <div class="form-group">
-          <label>Источник</label>
-          <select v-model="form.source" class="form-select">
+      <!-- Источник + тип договора -->
+      <div class="field-row">
+        <div class="field">
+          <label class="field__label">Источник</label>
+          <select v-model="form.source" class="field__input">
             <option value="">— Не указан —</option>
             <option value="Avito">Avito</option>
             <option value="Сарафанка">Сарафанка</option>
@@ -47,492 +46,376 @@
             <option value="Прочее">Прочее</option>
           </select>
         </div>
+        <div class="field">
+          <label class="field__label">Тип договора</label>
+          <select v-model="form.contractType" class="field__input">
+            <option value="unassigned">— Не выбрано —</option>
+            <option value="none">Не нужен</option>
+            <option value="edo">ЭДО</option>
+            <option value="paper">Бумажный</option>
+            <option value="invoice">Счёт-договор</option>
+          </select>
+        </div>
       </div>
 
-      <!-- Тип договора (вместо documentType) -->
-      <div class="form-group">
-        <label>Тип договора</label>
-        <select v-model="form.contractType" class="form-select">
-          <option value="unassigned">— Не выбрано —</option>
-          <option value="none">Не нужен</option>
-          <option value="edo">ЭДО</option>
-          <option value="paper">Бумажный</option>
-          <option value="invoice">Счёт-договор</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label>Комментарий</label>
-        <textarea v-model="form.comment" class="form-input" rows="3"></textarea>
-      </div>
-
-      <!-- Назначение прораба -->
-      <div class="form-group">
-        <label>Прораб</label>
-        <select v-model="form.foremanId" class="form-select">
+      <!-- Прораб -->
+      <div class="field">
+        <label class="field__label">Прораб</label>
+        <select v-model="form.foremanId" class="field__input">
           <option :value="null">— Не выбран —</option>
-          <option v-for="foreman in foremans" :key="foreman.id" :value="foreman.id">
-            {{ foreman.name }}
-          </option>
+          <option v-for="f in foremans" :key="f.id" :value="f.id">{{ f.name }}</option>
         </select>
       </div>
-    </form>
 
-    <!-- Кнопки управления -->
+      <!-- Комментарий -->
+      <div class="field">
+        <label class="field__label">Комментарий</label>
+        <textarea v-model="form.comment" class="field__input field__input--textarea" rows="3" />
+      </div>
+
+    </div>
+
     <template #footer>
-      <div class="modal-footer-controls">
-        <!-- Статус и действия -->
-        <div class="status-actions">
-          <button
-            v-if="object.status === 'active'"
-            type="button"
-            @click="confirmComplete"
-            class="btn btn-success btn-sm"
-          >
-            Завершить
-          </button>
-          <button
-            v-if="object.status === 'active'"
-            type="button"
-            @click="setWaitingStatus"
-            class="btn btn-info btn-sm"
-          >
-            В ожидание
-          </button>
-          <button
-            v-else-if="object.status === 'waiting'"
-            type="button"
-            @click="reactivateObject"
-            class="btn btn-success btn-sm"
-          >
-            Возобновить
-          </button>
-          <button
-            v-else-if="object.status === 'canceled'"
-            type="button"
-            @click="reactivateObject"
-            class="btn btn-success btn-sm"
-          >
-            Возобновить
-          </button>
-          <button
-            v-else
-            type="button"
-            @click="toggleStatus"
-            class="btn btn-success btn-sm"
-          >
-            Возобновить
-          </button>
+      <div class="modal-footer">
 
-          <button
-            v-if="object.status !== 'canceled'"
-            type="button"
-            @click="confirmCancel"
-            class="btn btn-danger btn-sm"
-          >
-            Отменить
-          </button>
-          
-          <button
-            type="button"
-            @click="confirmDelete"
-            class="btn btn-danger btn-sm"
-          >
-            Удалить
+        <!-- Статусные действия слева -->
+        <div class="modal-footer__actions">
+          <!-- Активный -->
+          <template v-if="object.status === 'active'">
+            <button class="crm-btn crm-btn--warning" @click="setStatus('waiting')">
+              <Icon name="mdi:clock-outline" size="14" /> В ожидание
+            </button>
+            <button class="crm-btn crm-btn--success" @click="confirmAction('complete')">
+              <Icon name="mdi:check" size="14" /> Завершить
+            </button>
+            <button class="crm-btn crm-btn--danger" @click="confirmAction('cancel')">
+              <Icon name="mdi:close" size="14" /> Отменить
+            </button>
+          </template>
+
+          <!-- Ожидание -->
+          <template v-else-if="object.status === 'waiting'">
+            <button class="crm-btn crm-btn--success" @click="setStatus('active')">
+              <Icon name="mdi:play" size="14" /> Возобновить
+            </button>
+            <button class="crm-btn crm-btn--danger" @click="confirmAction('cancel')">
+              <Icon name="mdi:close" size="14" /> Отменить
+            </button>
+          </template>
+
+          <!-- Завершён / Отменён -->
+          <template v-else>
+            <button class="crm-btn crm-btn--success" @click="setStatus('active')">
+              <Icon name="mdi:play" size="14" /> Возобновить
+            </button>
+          </template>
+
+          <button class="crm-btn crm-btn--ghost-danger" @click="confirmAction('delete')">
+            <Icon name="mdi:trash-can-outline" size="14" /> Удалить
           </button>
         </div>
 
-        <!-- Сохранить / Отмена -->
-        <div class="form-actions">
-          <button type="button" @click="$emit('update:modelValue', false)" class="btn btn-secondary">
+        <!-- Сохранить / Отмена справа -->
+        <div class="modal-footer__submit">
+          <button class="crm-btn crm-btn--ghost" @click="$emit('update:modelValue', false)">
             Отмена
           </button>
-          <button type="submit" @click="handleSubmit" class="btn btn-primary">
-            Сохранить изменения
+          <button class="crm-btn crm-btn--accent" :disabled="saving" @click="handleSubmit">
+            <Icon v-if="saving" name="mdi:loading" class="spin" size="14" />
+            {{ saving ? 'Сохранение...' : 'Сохранить' }}
           </button>
         </div>
+
       </div>
     </template>
+
   </PagesCabinetUiModal>
 </template>
 
-<script setup>
-import { ref, watch, defineProps, defineEmits } from 'vue'
+<script setup lang="ts">
+import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
-const props = defineProps({
-  modelValue: Boolean,
-  object: {
-    type: Object,
-    required: true
+const props = defineProps < {
+  modelValue: boolean
+  object: any
+} > ()
+
+const emit = defineEmits < {
+  'update:modelValue': [value: boolean]
+  'updated': [obj: any]
+  'completed': [obj: any]
+  'deleted': []
+} > ()
+
+const router = useRouter()
+const form = ref < any > ({ ...props.object })
+const foremans = ref < any[] > ([])
+const saving = ref(false)
+
+// ── Синхронизация формы при изменении объекта ────────────────────────
+watch(() => props.object, obj => { form.value = { ...obj } }, { deep: true })
+
+// ── Загрузка прорабов при открытии ───────────────────────────────────
+watch(() => props.modelValue, async visible => {
+  if (!visible) return
+  try {
+    foremans.value = await $fetch < any[] > ('/api/contractors/foremans') || []
+  } catch (e) {
+    console.error('[EditModal] Ошибка загрузки прорабов:', e)
   }
 })
 
-const emit = defineEmits(['update:modelValue', 'updated', 'completed', 'deleted'])
-
-const router = useRouter()
-
-// Локальная форма
-const form = ref({ ...props.object })
-
-// Все прорабы
-const foremans = ref([])
-
-// Загружаем прорабов при открытии модалки
-watch(
-  () => props.modelValue,
-  async (visible) => {
-    if (visible) {
-      try {
-        const data = await $fetch('/api/contractors/foremans')
-        foremans.value = data
-      } catch (error) {
-        console.error('Ошибка загрузки прорабов:', error)
-        foremans.value = []
-      }
-    }
-  },
-  { immediate: false }
-)
-
-// При изменении объекта — обновляем форму
-watch(
-  () => props.object,
-  (newObj) => {
-    Object.assign(form.value, { ...newObj })
-  },
-  { deep: true }
-)
-
-// --- Методы ---
-
+// ── Сохранение ───────────────────────────────────────────────────────
 async function handleSubmit() {
+  saving.value = true
   try {
-    const updated = await $fetch(`/api/objects/${props.object.id}`, {
-      method: 'PUT',
-      body: form.value,
-      credentials: 'include'
+    const updated = await $fetch < any > (`/api/objects/${props.object.id}`, {
+      method: 'PUT', body: form.value, credentials: 'include'
     })
-
     emit('updated', updated)
     emit('update:modelValue', false)
-  } catch (error) {
-    console.error('Ошибка сохранения:', error)
+  } catch (e) {
+    console.error('[EditModal] Ошибка сохранения:', e)
     alert('Не удалось сохранить изменения')
+  } finally {
+    saving.value = false
   }
 }
 
-async function toggleStatus() {
-  let newStatus
-  if (props.object.status === 'active') {
-    newStatus = 'completed'
-  } else if (props.object.status === 'completed') {
-    newStatus = 'active'
-  } else {
-    // Для других статусов (waiting, canceled) возвращаем в активный
-    newStatus = 'active'
-  }
-  
+// ── Смена статуса ────────────────────────────────────────────────────
+async function setStatus(status: string) {
   try {
-    const updated = await $fetch(`/api/objects/${props.object.id}`, {
-      method: 'PUT',
-      body: { status: newStatus },
-      credentials: 'include'
+    const updated = await $fetch < any > (`/api/objects/${props.object.id}`, {
+      method: 'PUT', body: { status }, credentials: 'include'
     })
-
     emit('updated', updated)
     emit('completed', updated)
-  } catch (error) {
-    console.error('Ошибка изменения статуса:', error)
+    emit('update:modelValue', false)
+  } catch (e) {
+    console.error('[EditModal] Ошибка смены статуса:', e)
     alert('Не удалось изменить статус')
   }
 }
 
-function confirmCancel() {
-  const confirmed = window.confirm('Вы уверены, что хотите отменить этот объект?')
-  if (confirmed) cancelObject()
-}
-
-async function cancelObject() {
-  try {
-    const updated = await $fetch(`/api/objects/${props.object.id}`, {
-      method: 'PUT',
-      body: { status: 'canceled' },
-      credentials: 'include'
-    })
-    
-    emit('updated', updated)
-    emit('completed', updated)
-  } catch (error) {
-    console.error('Ошибка отмены объекта:', error)
-    alert('Не удалось отменить объект')
+// ── Подтверждение опасных действий ───────────────────────────────────
+function confirmAction(action: 'complete' | 'cancel' | 'delete') {
+  const messages = {
+    complete: 'Завершить объект?',
+    cancel: 'Отменить объект?',
+    delete: 'Удалить объект? Это действие нельзя отменить.',
   }
-}
+  if (!confirm(messages[action])) return
 
-async function reactivateObject() {
-  try {
-    const updated = await $fetch(`/api/objects/${props.object.id}`, {
-      method: 'PUT',
-      body: { status: 'active' },
-      credentials: 'include'
-    })
-    
-    emit('updated', updated)
-    emit('completed', updated)
-  } catch (error) {
-    console.error('Ошибка возобновления объекта:', error)
-    alert('Не удалось возобновить объект')
-  }
-}
-
-async function setWaitingStatus() {
-  try {
-    const updated = await $fetch(`/api/objects/${props.object.id}`, {
-      method: 'PUT',
-      body: { status: 'waiting' },
-      credentials: 'include'
-    })
-    
-    emit('updated', updated)
-    emit('completed', updated)
-  } catch (error) {
-    console.error('Ошибка перевода в ожидание:', error)
-    alert('Не удалось перевести объект в ожидание')
-  }
-}
-
-function confirmComplete() {
-  const confirmed = window.confirm('Вы уверены, что хотите завершить этот объект?')
-  if (confirmed) toggleStatus()
-}
-
-function confirmDelete() {
-  const confirmed = window.confirm(
-    'Вы уверены, что хотите удалить этот объект?\n\n' +
-    'Это действие нельзя отменить. Все данные будут потеряны.'
-  )
-  if (confirmed) deleteObject()
+  if (action === 'complete') setStatus('completed')
+  else if (action === 'cancel') setStatus('canceled')
+  else deleteObject()
 }
 
 async function deleteObject() {
   try {
     await $fetch(`/api/objects/${props.object.id}`, {
-      method: 'DELETE',
-      credentials: 'include'
+      method: 'DELETE', credentials: 'include'
     })
-
-    emit('deleted', props.object.id)
+    emit('deleted')
     emit('update:modelValue', false)
     router.push('/cabinet/objects')
-  } catch (error) {
-    console.error('Ошибка удаления:', error)
+  } catch (e) {
+    console.error('[EditModal] Ошибка удаления:', e)
     alert('Не удалось удалить объект')
   }
 }
 </script>
 
 <style lang="scss" scoped>
-.edit-object-form {
+.edit-form {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
-  padding: 0.5rem 0;
+  gap: 14px;
 }
 
-.form-row {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-
-  .form-group {
-    flex: 1 1 200px;
-    min-width: 200px;
-  }
+.field-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
 }
 
-.form-group {
+.field {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 5px;
 
-  label {
+  &__label {
+    font-size: var(--crm-text-sm);
     font-weight: 500;
-    color: $text-dark;
-    font-size: 0.95rem;
+    color: var(--crm-text-secondary);
   }
 
-  .form-input,
-  .form-select {
-    padding: 0.6rem 0.8rem;
-    border: 1px solid $border-color;
-    border-radius: $border-radius;
-    background: white;
-    font-size: 0.95rem;
-    transition: $transition;
-
-    &:focus {
-      outline: none;
-      border-color: $blue;
-      box-shadow: 0 0 0 2px rgba($blue, 0.1);
-    }
+  &__input {
+    background: var(--crm-bg-elevated);
+    border: 1px solid var(--crm-border-hover);
+    border-radius: var(--crm-radius-md);
+    color: var(--crm-text-primary);
+    font-size: var(--crm-text-md);
+    font-family: var(--crm-font-sans);
+    padding: 8px 12px;
+    outline: none;
+    transition: var(--crm-transition);
+    width: 100%;
+    color-scheme: dark;
 
     &::placeholder {
-      color: $blue;
-      opacity: 0.7;
+      color: var(--crm-text-disabled);
+    }
+
+    &:focus {
+      border-color: var(--crm-accent);
+      box-shadow: 0 0 0 3px var(--crm-accent-dim);
+    }
+
+    &--textarea {
+      resize: vertical;
+      min-height: 64px;
+    }
+
+    option {
+      background: var(--crm-bg-elevated);
+      color: var(--crm-text-primary);
     }
   }
-
-  .form-select {
-    appearance: none;
-    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23{$text-gray}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-    background-repeat: no-repeat;
-    background-position: right 0.8rem center;
-    background-size: 1rem;
-    padding-right: 2.2rem;
-  }
-
-  textarea.form-input {
-    resize: vertical;
-    min-height: 80px;
-  }
 }
 
-// --- Футер модалки ---
-.modal-footer-controls {
-  width: 100%;
+// ── Футер ───────────────────────────────────────────────────────────
+.modal-footer {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
+  gap: 10px;
+  width: 100%;
   flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  &__submit {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+  }
 }
 
-.status-actions {
-  display: flex;
-  gap: 0.75rem;
+// ── Кнопки ──────────────────────────────────────────────────────────
+.crm-btn {
+  display: inline-flex;
   align-items: center;
-
-  @media (max-width: 500px) {
-    width: 100%;
-    justify-content: center;
-  }
-}
-
-.form-actions {
-  display: flex;
-  gap: 0.75rem;
-
-  @media (max-width: 500px) {
-    width: 100%;
-    justify-content: center;
-  }
-}
-
-.btn {
-  padding: 0.45rem 0.9rem;
-  border: none;
-  border-radius: $border-radius;
-  font-size: 0.95rem;
+  gap: 5px;
+  padding: 7px 12px;
+  border-radius: var(--crm-radius-md);
+  font-size: var(--crm-text-sm);
   font-weight: 500;
   cursor: pointer;
-  transition: $transition;
+  transition: var(--crm-transition);
+  white-space: nowrap;
 
   &:disabled {
-    opacity: 0.6;
+    opacity: .5;
     cursor: not-allowed;
   }
 
-  &.btn-secondary {
-    background: $sub-item-bg;
-    color: $text-dark;
+  &--accent {
+    background: var(--crm-accent-dim);
+    border: 1px solid var(--crm-accent-border);
+    color: var(--crm-accent);
 
     &:hover:not(:disabled) {
-      background: $blue;
+      background: rgba(0, 195, 245, .25);
     }
   }
 
-  &.btn-primary {
-    background: $blue;
-    color: white;
+  &--ghost {
+    background: var(--crm-bg-elevated);
+    border: 1px solid var(--crm-border-hover);
+    color: var(--crm-text-secondary);
 
-    &:hover:not(:disabled) {
-      background: $blue;
+    &:hover {
+      background: var(--crm-bg-overlay);
+      color: var(--crm-text-primary);
     }
   }
 
-  &.btn-info {
-    background: $yellow;
-    color: white;
-    &:hover:not(:disabled) {
-      background: $blue;
+  &--success {
+    background: var(--crm-success-dim);
+    border: 1px solid rgba(61, 214, 140, .35);
+    color: var(--crm-success);
+
+    &:hover {
+      background: rgba(61, 214, 140, .25);
     }
   }
 
-  &.btn-success {
-    background: $color-success;
-    color: white;
+  &--warning {
+    background: var(--crm-warning-dim);
+    border: 1px solid rgba(245, 166, 35, .35);
+    color: var(--crm-warning);
 
-    &:hover:not(:disabled) {
-      background: $blue;
+    &:hover {
+      background: rgba(245, 166, 35, .25);
     }
   }
 
-  &.btn-danger {
-    background: $red;
-    color: white;
+  &--danger {
+    background: var(--crm-danger-dim);
+    border: 1px solid rgba(242, 95, 92, .35);
+    color: var(--crm-danger);
 
-    &:hover:not(:disabled) {
-      background: $blue;
+    &:hover {
+      background: rgba(242, 95, 92, .25);
     }
   }
 
-  // Размеры
-  &.btn-sm {
-    padding: 0.35rem 0.7rem;
-    font-size: 0.85rem;
+  &--ghost-danger {
+    background: transparent;
+    border: 1px solid var(--crm-border-hover);
+    color: var(--crm-text-muted);
+
+    &:hover {
+      background: var(--crm-danger-dim);
+      border-color: rgba(242, 95, 92, .35);
+      color: var(--crm-danger);
+    }
   }
 }
 
-// --- Адаптивность ---
-@media (max-width: 768px) {
-  .edit-object-form {
-    gap: 1rem;
-    padding: 0 0.5rem;
+.spin {
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
   }
 
-  .form-row {
-    flex-direction: column;
-    gap: 1rem;
+  to {
+    transform: rotate(360deg);
   }
+}
 
-  .form-group {
-    min-width: auto;
-  }
-
-  .modal-footer-controls {
+@media (max-width: 600px) {
+  .modal-footer {
     flex-direction: column;
     align-items: stretch;
-    gap: 1rem;
-  }
 
-  .status-actions,
-  .form-actions {
-    justify-content: center;
-  }
-}
-
-// --- Плавная анимация появления формы ---
-.edit-object-form {
-  opacity: 0;
-  transform: translateY(10px);
-  animation: fadeInUp 0.3s ease forwards;
-}
-
-@keyframes fadeInUp {
-  to {
-    opacity: 1;
-    transform: translateY(0);
+    &__actions,
+    &__submit {
+      width: 100%;
+      justify-content: center;
+    }
   }
 }
 </style>

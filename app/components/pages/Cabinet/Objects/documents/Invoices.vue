@@ -1,87 +1,89 @@
 <!-- app/components/pages/cabinet/objects/documents/Invoices.vue -->
 <template>
-  <PagesCabinetUiCardsCard title="Счета" bordered elevated no-padding-body>
-    <!-- Заголовок + кнопка -->
-    <template #actions>
-      <div class="table-header">
-        <button v-if="isAdmin" @click="openModal()" class="btn btn-sm primary">+ Добавить</button>
-      </div>
-    </template>
+  <div class="docs-card">
 
-    <!-- Пусто -->
-    <div v-if="items.length === 0" class="empty-state">
-      Пока не создано ни одного счёта
+    <div class="docs-card__header">
+      <div class="docs-card__title">
+        <Icon name="mdi:receipt" size="16" />
+        Счета
+        <span v-if="localItems.length" class="docs-card__count">{{ localItems.length }}</span>
+      </div>
+      <button v-if="isAdmin" class="crm-btn crm-btn--accent crm-btn--sm" @click="openModal()">
+        <Icon name="mdi:plus" size="14" /> Добавить
+      </button>
     </div>
 
-    <!-- Таблица -->
-    <table v-else class="invoices-table">
-      <thead>
-        <tr>
-          <th>Название</th>
-          <th>Сумма</th>
-          <th>Тип</th>
-          <th>Комментарий</th>
-          <th>Статус</th>
-          <th v-if="isAdmin">Действия</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="item in items" :key="item.id">
-          <td>{{ item.name }}</td>
-          <td>{{ formatCurrency(item.amount) }}</td>
-          <td>
-            <span class="tag">{{ subtypeText[item.subtype] || '—' }}</span>
-          </td>
-          <td>{{ item.comment || '—' }}</td>
-          <td>
-            <span :class="`badge status-${item.status}`">{{ statusText[item.status] }}</span>
-          </td>
-          <td v-if="isAdmin" class="actions-cell">
-            <div class="action-buttons">
-              <button v-if="item.status === 'prepared'" @click="setStatus(item, 'sent')" class="btn btn-xs">Отправить</button>
-              <button v-else-if="item.status === 'sent'" @click="setStatus(item, 'paid')" class="btn btn-success btn-xs">Оплачено</button>
-              <button @click="openModal(item)" class="btn btn-xs">Ред</button>
-              <button @click="confirmDelete(item.id)" class="btn btn-danger btn-xs">✕</button>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div v-if="!localItems.length" class="docs-card__empty">
+      <Icon name="mdi:receipt-outline" size="28" />
+      <span>Нет счётов</span>
+    </div>
 
-    <!-- Модальное окно -->
-    <PagesCabinetUiModal
-      :visible="isModalOpen"
-      @update:visible="isModalOpen = false"
-      :title="editing ? 'Редактировать счёт' : 'Добавить счёт'"
-      size="md"
-    >
-      <form @submit.prevent="save" class="modal-form">
-        <div class="form-group">
-          <label>Название *</label>
-          <input
-            v-model="form.name"
-            type="text"
-            class="form-input"
-            placeholder="Аванс, Закрывающий и т.п."
-            required
-          />
+    <div v-else class="docs-table-wrap">
+      <table class="docs-table">
+        <thead>
+          <tr>
+            <th>Название</th>
+            <th>Сумма</th>
+            <th>Тип</th>
+            <th>Статус</th>
+            <th>Комментарий</th>
+            <th v-if="isAdmin">—</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(item, idx) in localItems" :key="item.id" :class="{ 'tr--alt': idx % 2 === 1 }">
+            <td class="td--name">{{ item.name }}</td>
+            <td class="td--amount">{{ formatCurrency(item.amount) }}</td>
+            <td>
+              <span v-if="item.subtype" class="subtype-badge">
+                {{ subtypeText[item.subtype] || item.subtype }}
+              </span>
+              <span v-else class="td--muted">—</span>
+            </td>
+            <td>
+              <span :class="['status-badge', `status-badge--${item.status}`]">
+                {{ statusText[item.status] || item.status }}
+              </span>
+            </td>
+            <td class="td--comment">{{ item.comment || '—' }}</td>
+            <td v-if="isAdmin" class="td--actions">
+              <!-- Быстрые действия -->
+              <button v-if="item.status === 'prepared'" class="action-btn action-btn--send"
+                @click="setStatus(item, 'sent')" title="Отправить">
+                <Icon name="mdi:send-outline" size="13" />
+              </button>
+              <button v-if="item.status === 'sent'" class="action-btn action-btn--pay" @click="setStatus(item, 'paid')"
+                title="Оплачено">
+                <Icon name="mdi:check" size="13" />
+              </button>
+              <button class="action-btn" @click="openModal(item)" title="Редактировать">
+                <Icon name="mdi:pencil-outline" size="14" />
+              </button>
+              <button class="action-btn action-btn--danger" @click="confirmDelete(item.id)" title="Удалить">
+                <Icon name="mdi:trash-can-outline" size="14" />
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Модалка -->
+    <PagesCabinetUiModal :visible="isModalOpen" :title="editing ? 'Редактировать счёт' : 'Добавить счёт'" size="md"
+      closable @update:visible="isModalOpen = false">
+      <div class="modal-form">
+        <div class="field">
+          <label class="field__label">Название <span class="field__req">*</span></label>
+          <input type="text" v-model="form.name" class="field__input" placeholder="Аванс, Закрывающий..." />
         </div>
-        <div class="form-row">
-          <div class="form-group flex-1">
-            <label>Сумма *</label>
-            <input
-              v-model="form.amount"
-              type="number"
-              step="0.01"
-              min="0"
-              class="form-input text-right"
-              placeholder="0.00"
-              required
-            />
+        <div class="field-row">
+          <div class="field field--grow">
+            <label class="field__label">Сумма <span class="field__req">*</span></label>
+            <input type="number" step="0.01" min="0" v-model="form.amount" class="field__input" placeholder="0" />
           </div>
-          <div class="form-group" style="width: 140px;">
-            <label>Тип</label>
-            <select v-model="form.subtype" class="form-select">
+          <div class="field field--grow">
+            <label class="field__label">Тип</label>
+            <select v-model="form.subtype" class="field__input">
               <option value="">— Не указан —</option>
               <option value="advance">Аванс</option>
               <option value="intermediate">Промежуточный</option>
@@ -90,281 +92,404 @@
             </select>
           </div>
         </div>
-        <div class="form-group">
-          <label>Комментарий</label>
-          <textarea
-            v-model="form.comment"
-            class="form-input"
-            rows="3"
-            placeholder="Дополнительная информация..."
-          ></textarea>
+        <div class="field">
+          <label class="field__label">Комментарий</label>
+          <textarea v-model="form.comment" class="field__input field__input--textarea" rows="2" />
         </div>
-      </form>
-
+      </div>
       <template #footer>
-        <div class="modal-footer-controls">
-          <button type="button" @click="isModalOpen = false" class="btn btn-secondary">Отмена</button>
-          <button type="submit" @click="save" class="btn btn-primary">
-            {{ editing ? 'Сохранить' : 'Добавить' }}
-          </button>
-        </div>
+        <button class="crm-btn crm-btn--ghost" @click="isModalOpen = false">Отмена</button>
+        <button class="crm-btn crm-btn--accent" @click="save">
+          {{ editing ? 'Сохранить' : 'Добавить' }}
+        </button>
       </template>
     </PagesCabinetUiModal>
-  </PagesCabinetUiCardsCard>
+
+  </div>
 </template>
 
-<script setup>
-import { ref, computed } from 'vue'
+<script setup lang="ts">
+import { ref, watch } from 'vue'
 
-const props = defineProps({
-  objectId: {
-    type: Number,
-    required: true
-  },
-  invoices: {
-    type: Array,
-    default: () => []
-  },
-  isAdmin: {
-    type: Boolean,
-    default: false
-  }
-})
+const props = defineProps < {
+  objectId: number
+  invoices: any[]
+  isAdmin: boolean
+} > ()
 
-const emit = defineEmits(['add', 'update', 'delete'])
+const emit = defineEmits < {
+  add: [item: any]
+  update: [item: any]
+  delete: [id: number]
+} > ()
 
-// Локальные данные
-const items = ref(props.invoices)
+const localItems = ref < any[] > (props.invoices || [])
 const isModalOpen = ref(false)
-const editing = ref(null)
+const editing = ref < any > (null)
 const form = ref({ name: '', amount: '', comment: '', subtype: '' })
 
-// Тексты
-const statusText = {
-  prepared: 'Подготовлен',
-  sent: 'Отправлен',
-  paid: 'Оплачен'
+watch(() => props.invoices, v => { localItems.value = v || [] }, { deep: true })
+
+const statusText: Record<string, string> = {
+  prepared: 'Подготовлен', sent: 'Отправлен', paid: 'Оплачен'
+}
+const subtypeText: Record<string, string> = {
+  advance: 'Аванс', intermediate: 'Промежуточный', final: 'Закрывающий', additional: 'Дополнительный'
 }
 
-const subtypeText = {
-  advance: 'Аванс',
-  intermediate: 'Промежуточный',
-  final: 'Закрывающий',
-  additional: 'Дополнительный'
+function formatCurrency(v: any) {
+  return new Intl.NumberFormat('ru-RU').format(Number(v) || 0) + ' ₽'
 }
 
-// --- Открытие модалки ---
-function openModal(item = null) {
+function openModal(item: any = null) {
   editing.value = item
-  if (item) {
-    form.value = { ...item }
-  } else {
-    form.value = { name: '', amount: '', comment: '', subtype: '' }
-  }
+  form.value = item
+    ? { name: item.name, amount: item.amount, comment: item.comment || '', subtype: item.subtype || '' }
+    : { name: '', amount: '', comment: '', subtype: '' }
   isModalOpen.value = true
 }
 
-// --- Сохранение ---
 async function save() {
   const { name, amount, comment, subtype } = form.value
-  if (!name || amount == null || amount < 0) {
-    alert('Введите корректные название и сумму')
-    return
-  }
+  if (!name || amount == null || Number(amount) < 0) { alert('Введите корректные название и сумму'); return }
 
   try {
-    let result
+    let result: any
     if (editing.value) {
-      // Обновляем
-      result = await $fetch(`/api/objects/invoices/${editing.value.id}`, {
-        method: 'PUT',
-        body: { name, amount, comment, subtype },
-        credentials: 'include'
+      result = await $fetch < any > (`/api/objects/invoices/${editing.value.id}`, {
+        method: 'PUT', body: { name, amount, comment, subtype }, credentials: 'include'
       })
-      const index = items.value.findIndex(i => i.id === editing.value.id)
-      if (index !== -1) {
-        items.value.splice(index, 1, result)
-      }
+      const idx = localItems.value.findIndex(i => i.id === editing.value.id)
+      if (idx !== -1) localItems.value.splice(idx, 1, result)
       emit('update', result)
     } else {
-      // Создаём
-      result = await $fetch(`/api/objects/${props.objectId}/invoices`, {
-        method: 'POST',
-        body: { name, amount, comment, subtype },
-        credentials: 'include'
+      result = await $fetch < any > (`/api/objects/${props.objectId}/invoices`, {
+        method: 'POST', body: { name, amount, comment, subtype }, credentials: 'include'
       })
-      items.value.push(result)
+      localItems.value.push(result)
       emit('add', result)
     }
-
     isModalOpen.value = false
-  } catch (error) {
-    console.error('Ошибка сохранения счёта:', error)
-    alert('Не удалось сохранить счёт')
-  }
+  } catch { alert('Не удалось сохранить счёт') }
 }
 
-// --- Смена статуса ---
-async function setStatus(item, newStatus) {
+async function setStatus(item: any, newStatus: string) {
   try {
-    const updated = await $fetch(`/api/objects/invoices/${item.id}`, {
-      method: 'PUT',
-      body: { status: newStatus },
-      credentials: 'include'
+    const updated = await $fetch < any > (`/api/objects/invoices/${item.id}`, {
+      method: 'PUT', body: { status: newStatus }, credentials: 'include'
     })
-
-    const index = items.value.findIndex(i => i.id === item.id)
-    if (index !== -1) {
-      items.value.splice(index, 1, updated)
-    }
-
+    const idx = localItems.value.findIndex(i => i.id === item.id)
+    if (idx !== -1) localItems.value.splice(idx, 1, updated)
     emit('update', updated)
-  } catch (error) {
-    console.error('Ошибка изменения статуса:', error)
-    alert('Не удалось изменить статус счёта')
-  }
+  } catch { alert('Не удалось изменить статус') }
 }
 
-// --- Удаление ---
-function confirmDelete(id) {
-  if (window.confirm('Удалить этот счёт?')) {
-    deleteItem(id)
-  }
+function confirmDelete(id: number) {
+  if (confirm('Удалить этот счёт?')) deleteItem(id)
 }
 
-async function deleteItem(id) {
+async function deleteItem(id: number) {
   try {
-    await $fetch(`/api/objects/invoices/${id}`, {
-      method: 'DELETE',
-      credentials: 'include'
-    })
-
-    items.value = items.value.filter(i => i.id !== id)
+    await $fetch(`/api/objects/invoices/${id}`, { method: 'DELETE', credentials: 'include' })
+    localItems.value = localItems.value.filter(i => i.id !== id)
     emit('delete', id)
-  } catch (error) {
-    console.error('Ошибка удаления:', error)
-    alert('Не удалось удалить счёт')
-  }
-}
-
-// --- Утилиты ---
-const formatCurrency = (value) => {
-  return new Intl.NumberFormat('ru-RU').format(value || 0) + ' ₽'
+  } catch { alert('Не удалось удалить счёт') }
 }
 </script>
 
 <style lang="scss" scoped>
-.table-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
+.docs-card {
+  background: var(--crm-bg-surface);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-lg);
+  overflow: hidden;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--crm-border);
+    background: var(--crm-bg-elevated);
+  }
+
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: var(--crm-text-md);
+    font-weight: 600;
+    color: var(--crm-text-primary);
+  }
+
+  &__count {
+    font-size: var(--crm-text-xs);
+    font-weight: 700;
+    padding: 1px 7px;
+    background: var(--crm-bg-overlay);
+    border: 1px solid var(--crm-border-hover);
+    border-radius: 10px;
+    color: var(--crm-text-muted);
+  }
+
+  &__empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 30px;
+    color: var(--crm-text-muted);
+    font-size: var(--crm-text-sm);
+  }
 }
 
-.empty-state {
-  padding: 2rem;
-  text-align: center;
-  color: $color-muted;
-  background: #f9f9f9;
-  border-radius: $border-radius;
-  font-style: italic;
+.docs-table-wrap {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--crm-bg-overlay) transparent;
 }
 
-.invoices-table {
+.docs-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.95rem;
+  font-size: var(--crm-text-sm);
 
   th {
-    text-align: left;
-    padding: 0.75rem;
-    background: $sub-item-bg;
-    color: $text-dark;
+    padding: 9px 14px;
+    background: var(--crm-bg-elevated);
+    font-size: var(--crm-text-xs);
     font-weight: 600;
-    border-bottom: 2px solid $border-color;
+    color: var(--crm-text-muted);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    text-align: left;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--crm-border);
   }
 
   td {
-    padding: 0.75rem;
-    border-bottom: 1px solid $border-color;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--crm-border);
+    color: var(--crm-text-secondary);
+    vertical-align: middle;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+
+  tr.tr--alt td {
+    background: rgba(255, 255, 255, .02);
+  }
+
+  tr:hover td {
+    background: var(--crm-bg-elevated);
   }
 }
 
-.tag {
-  font-size: 0.8rem;
-  padding: 0.2rem 0.5rem;
-  background: #e3f2fd;
-  color: #1565c0;
-  border-radius: 999px;
+.td--name {
   font-weight: 500;
+  color: var(--crm-text-primary);
 }
 
-.badge {
-  padding: 0.25rem 0.75rem;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  font-weight: 500;
-
-  &.status-prepared { background: #fff3e0; color: #ef6c00; }
-  &.status-sent { background: #e8f5e9; color: #2e7d32; }
-  &.status-paid { background: #c8e6c9; color: #1b5e20; }
+.td--amount {
+  font-weight: 700;
+  color: var(--crm-text-primary);
+  white-space: nowrap;
 }
 
-.action-buttons {
+.td--comment {
+  color: var(--crm-text-muted);
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.td--muted {
+  color: var(--crm-text-disabled);
+}
+
+.td--actions {
+  white-space: nowrap;
   display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
+  gap: 4px;
+  align-items: center;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--crm-radius-sm);
+  font-size: var(--crm-text-xs);
+  font-weight: 600;
+
+  &--prepared {
+    background: var(--crm-warning-dim);
+    color: var(--crm-warning);
+  }
+
+  &--sent {
+    background: var(--crm-accent-dim);
+    color: var(--crm-accent);
+  }
+
+  &--paid {
+    background: var(--crm-success-dim);
+    color: var(--crm-success);
+  }
+}
+
+.subtype-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--crm-radius-sm);
+  font-size: var(--crm-text-xs);
+  font-weight: 500;
+  background: var(--crm-bg-overlay);
+  border: 1px solid var(--crm-border-hover);
+  color: var(--crm-text-muted);
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--crm-radius-sm);
+  color: var(--crm-text-muted);
+  cursor: pointer;
+  transition: var(--crm-transition);
+
+  &:hover {
+    background: var(--crm-bg-overlay);
+    border-color: var(--crm-border-hover);
+    color: var(--crm-text-primary);
+  }
+
+  &--send:hover {
+    background: var(--crm-accent-dim);
+    border-color: var(--crm-accent-border);
+    color: var(--crm-accent);
+  }
+
+  &--pay:hover {
+    background: var(--crm-success-dim);
+    border-color: rgba(61, 214, 140, .3);
+    color: var(--crm-success);
+  }
+
+  &--danger:hover {
+    background: var(--crm-danger-dim);
+    border-color: rgba(242, 95, 92, .3);
+    color: var(--crm-danger);
+  }
 }
 
 .modal-form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 14px;
 }
 
-.form-row {
+.field-row {
   display: flex;
-  gap: 1rem;
+  gap: 12px;
   flex-wrap: wrap;
-
-  .flex-1 {
-    flex: 1 1 200px;
-  }
 }
 
-.form-group {
+.field {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 5px;
 
-  label {
+  &--grow {
+    flex: 1;
+    min-width: 140px;
+  }
+
+  &__label {
+    font-size: var(--crm-text-sm);
     font-weight: 500;
-    color: $text-dark;
+    color: var(--crm-text-secondary);
   }
 
-  .form-input,
-  .form-select {
-    padding: 0.5rem;
-    border: 1px solid $border-color;
-    border-radius: $border-radius;
-    font-size: 0.95rem;
-    background: white;
+  &__req {
+    color: var(--crm-danger);
   }
 
-  .text-right {
-    text-align: right;
+  &__input {
+    background: var(--crm-bg-elevated);
+    border: 1px solid var(--crm-border-hover);
+    border-radius: var(--crm-radius-md);
+    color: var(--crm-text-primary);
+    font-size: var(--crm-text-md);
+    font-family: var(--crm-font-sans);
+    padding: 8px 12px;
+    outline: none;
+    transition: var(--crm-transition);
+    width: 100%;
+    color-scheme: dark;
+
+    &::placeholder {
+      color: var(--crm-text-disabled);
+    }
+
+    &:focus {
+      border-color: var(--crm-accent);
+      box-shadow: 0 0 0 3px var(--crm-accent-dim);
+    }
+
+    &--textarea {
+      resize: vertical;
+      min-height: 60px;
+    }
+
+    option {
+      background: var(--crm-bg-elevated);
+      color: var(--crm-text-primary);
+    }
   }
 }
 
-.modal-footer-controls {
-  display: flex;
-  gap: 0.75rem;
-  justify-content: flex-end;
-  width: 100%;
+.crm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: var(--crm-radius-md);
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--crm-transition);
 
-  .btn {
-    padding: 0.4rem 0.8rem;
-    font-size: 0.9rem;
+  &--sm {
+    padding: 6px 12px;
+    font-size: var(--crm-text-sm);
+  }
+
+  &--accent {
+    background: var(--crm-accent-dim);
+    border: 1px solid var(--crm-accent-border);
+    color: var(--crm-accent);
+
+    &:hover {
+      background: rgba(0, 195, 245, .25);
+    }
+  }
+
+  &--ghost {
+    background: var(--crm-bg-elevated);
+    border: 1px solid var(--crm-border-hover);
+    color: var(--crm-text-secondary);
+
+    &:hover {
+      background: var(--crm-bg-overlay);
+      color: var(--crm-text-primary);
+    }
   }
 }
 </style>

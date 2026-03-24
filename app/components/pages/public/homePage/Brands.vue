@@ -7,11 +7,11 @@
     <hr class="line" style="max-width: 1200px; margin-top: 2em;">
     <div class="imgbox">
       <img src="/brands/logo-sber.png" alt="ремонт сбербанка">
-      <img src="/brands/ddx.png" alt="ремонт сбербанка">
-      <img src="/brands/gos.png" alt="ремонт сбербанка">
-      <img src="/brands/marmacs.png" alt="ремонт сбербанка">
-      <img src="/brands/gasprombank.png" alt="ремонт сбербанка">
-      <img src="/brands/nearmedic.png" alt="ремонт сбербанка">
+      <img src="/brands/ddx.png" alt="ремонт фитнес центра DDX">
+      <img src="/brands/gos.png" alt="ремонт гос. учреждений">
+      <img src="/brands/marmacs.png" alt="ремонт мармакс">
+      <img src="/brands/gasprombank.png" alt="ремонт газпромбанк">
+      <img src="/brands/nearmedic.png" alt="ремонт клиники Неармедик">
     </div>
   </div>
 </template>

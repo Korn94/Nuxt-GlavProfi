@@ -1,67 +1,73 @@
 <!-- app/components/Layout/Cabinet/Header/index.vue -->
 <template>
-  <!-- Мобильный хедер -->
+  <!-- Мобильная шапка -->
   <div class="mobile-header">
-    <span class="burger-btn" @click="toggleSidebar" aria-label="Меню">
-      <Icon name="bx:menu-alt-left" size="24" />
-    </span>
-    <h2>CRM</h2>
+    <button class="mobile-header__burger" @click="toggleSidebar" aria-label="Меню">
+      <Icon name="bx:menu-alt-left" size="22" />
+    </button>
+    <span class="mobile-header__title">CRM</span>
   </div>
-  
-  <!-- Боковая панель -->
-  <aside
-    class="sidebar"
-    :class="{
-      open: sidebarOpen,
-      mobile: isMobile
-    }"
-  >
-    <!-- Основное содержимое (шапка и меню) -->
-    <div class="sidebar-content">
-      <header class="sidebar-header">
-        <h2>CRM Система</h2>
-        <p>Добро пожаловать, {{ user?.name || 'Загрузка...' }}!</p>
-      </header>
-      
-      <!-- Переключатель режимов меню -->
-      <div class="menu-mode-switcher">
-        <button
-          class="menu-mode-btn"
-          :class="{ active: menuMode === 'crm' }"
-          @click="setMenuMode('crm')"
-          title="Режим CRM"
-        >
-          <Icon name="mdi:database" size="18" />
+
+  <!-- Затемнение фона на мобиле при открытом сайдбаре -->
+  <Transition name="overlay-fade">
+    <div v-if="sidebarOpen && isMobile" class="sidebar-overlay" @click="toggleSidebar" />
+  </Transition>
+
+  <!-- Сайдбар -->
+  <Transition name="sidebar-slide">
+    <aside class="sidebar" :class="{ 'sidebar--mobile': isMobile, 'sidebar--open': sidebarOpen }">
+
+      <!-- Логотип / заголовок -->
+      <div class="sidebar-logo">
+        <div class="sidebar-logo__icon">
+          <Icon name="mdi:briefcase-outline" size="20" />
+        </div>
+        <div class="sidebar-logo__text">
+          <span class="sidebar-logo__name">CRM Система</span>
+          <span class="sidebar-logo__sub">{{ user?.name || '...' }}</span>
+        </div>
+      </div>
+
+      <!-- Переключатель режимов -->
+      <div class="mode-switcher">
+        <button class="mode-switcher__btn" :class="{ 'mode-switcher__btn--active': menuMode === 'crm' }"
+          @click="setMenuMode('crm')">
+          <Icon name="mdi:database" size="16" />
           <span>CRM</span>
         </button>
-        <button
-          class="menu-mode-btn"
-          :class="{ active: menuMode === 'boards' }"
-          @click="setMenuMode('boards')"
-          title="Режим Досок"
-        >
-          <Icon name="mdi:clipboard-text-multiple-outline" size="18" />
+        <button class="mode-switcher__btn" :class="{ 'mode-switcher__btn--active': menuMode === 'boards' }"
+          @click="setMenuMode('boards')">
+          <Icon name="mdi:clipboard-text-multiple-outline" size="16" />
           <span>Доски</span>
         </button>
       </div>
-      
-      <!-- Динамическое меню в зависимости от режима -->
-      <CrmMenu v-if="menuMode === 'crm'" @close-sidebar="closeSidebarOnMobile" />
-      <BoardsMenu v-else-if="menuMode === 'boards'" @close-sidebar="closeSidebarOnMobile" />
-    </div>
-    
-    <!-- Кнопка "Выйти" в самом низу -->
-    <div class="sidebar-footer">
-      <div class="role">
-        <p>{{ roleLabels[user?.role] || 'Пользователь' }}</p>
+
+      <!-- Меню -->
+      <nav class="sidebar-nav">
+        <CrmMenu v-if="menuMode === 'crm'" @close-sidebar="closeSidebarOnMobile" />
+        <BoardsMenu v-else-if="menuMode === 'boards'" @close-sidebar="closeSidebarOnMobile" />
+      </nav>
+
+      <!-- Футер сайдбара -->
+      <div class="sidebar-footer">
+        <div class="sidebar-footer__user">
+          <div class="sidebar-footer__avatar">{{ userInitials }}</div>
+          <div class="sidebar-footer__info">
+            <span class="sidebar-footer__name">{{ user?.name || '...' }}</span>
+            <span class="sidebar-footer__role">{{ roleLabels[user?.role] || 'Пользователь' }}</span>
+          </div>
+        </div>
+        <button class="sidebar-footer__logout" @click="handleLogout" title="Выйти">
+          <Icon name="mdi:logout" size="18" />
+        </button>
       </div>
-      <button @click="handleLogout">Выйти</button>
-    </div>
-  </aside>
+
+    </aside>
+  </Transition>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from 'stores/auth'
 import CrmMenu from './ui/crm.vue'
@@ -73,54 +79,59 @@ const authStore = useAuthStore()
 const user = ref<any>(null)
 const sidebarOpen = ref(false)
 const isMobile = ref(false)
-const menuMode = ref<'crm' | 'boards'>('crm') // Режим меню по умолчанию
+const menuMode = ref<'crm' | 'boards'>('crm')
 
-// --- Перевод ролей на русский ---
+// Перевод ролей
 const roleLabels: Record<string, string> = {
-  admin: 'Админ',
+  admin: 'Администратор',
   manager: 'Менеджер',
   foreman: 'Прораб',
   master: 'Мастер',
   worker: 'Рабочий'
 }
 
-// --- Загрузка данных пользователя ---
+// Инициалы пользователя для аватара
+const userInitials = computed(() => {
+  const name = user.value?.name || ''
+  return name.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase() || '?'
+})
+
+// Загрузка данных пользователя
 async function fetchUserData() {
   try {
     const response = await fetch('/api/me', { method: 'GET', credentials: 'include' })
-    if (!response.ok) throw new Error('Не удалось загрузить данные')
+    if (!response.ok) throw new Error('Не удалось загрузить данные пользователя')
     const data = await response.json()
     user.value = data.user
   } catch (err) {
-    console.error(err)
+    console.error('[Сайдбар] Ошибка загрузки пользователя:', err)
     router.push('/')
   }
 }
 
-// --- Установка режима меню ---
+// Режим меню
 function setMenuMode(mode: 'crm' | 'boards') {
   menuMode.value = mode
 }
 
-// --- Проверка мобильного устройства ---
+// Определение мобильного устройства
 function checkIsMobile() {
   if (typeof window !== 'undefined') {
     isMobile.value = window.innerWidth < 768
+    if (!isMobile.value) sidebarOpen.value = false
   }
 }
 
-// --- Управление боковой панелью ---
+// Управление сайдбаром
 function toggleSidebar() {
   sidebarOpen.value = !sidebarOpen.value
 }
 
 function closeSidebarOnMobile() {
-  if (isMobile.value) {
-    sidebarOpen.value = false
-  }
+  if (isMobile.value) sidebarOpen.value = false
 }
 
-// --- Обработка выхода из системы ---
+// Выход
 function handleLogout() {
   authStore.logout()
   user.value = null
@@ -132,203 +143,304 @@ onMounted(() => {
   window.addEventListener('resize', checkIsMobile)
   fetchUserData()
 })
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkIsMobile)
+})
 </script>
 
 <style lang="scss" scoped>
+// ── Константы ───────────────────────────────────────────────────────
+$sidebar-width: 256px;
+
+// ── Мобильная шапка ─────────────────────────────────────────────────
 .mobile-header {
   display: none;
   align-items: center;
-  justify-content: space-between;
-  padding: 10px 15px;
-  background-color: #27282a;
-  color: $color-light;
+  gap: 12px;
+  padding: 0 16px;
+  height: 52px;
+  background: var(--crm-bg-surface);
+  border-bottom: 1px solid var(--crm-border);
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  z-index: 1000;
-  box-shadow: $box-shadow;
-  
-  h2 {
-    margin: 0;
-    font-size: 1.3rem;
-  }
-  
-  span {
-    color: $color-light;
+  right: 0;
+  z-index: 100;
+
+  &__burger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: var(--crm-bg-elevated);
+    border: 1px solid var(--crm-border);
+    border-radius: var(--crm-radius-md);
+    color: var(--crm-text-primary);
     cursor: pointer;
+    transition: var(--crm-transition);
+
+    &:hover {
+      border-color: var(--crm-border-hover);
+      background: var(--crm-bg-overlay);
+    }
+  }
+
+  &__title {
+    font-size: var(--crm-text-lg);
+    font-weight: 600;
+    color: var(--crm-text-primary);
+  }
+
+  @media (max-width: 767.98px) {
+    display: flex;
   }
 }
 
-.sidebar {
-  width: 250px;
-  background-color: #27282a;
-  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+// ── Затемнение фона ──────────────────────────────────────────────────
+.sidebar-overlay {
   position: fixed;
-  height: 100%;
-  padding: 20px;
-  z-index: 900;
-  transform: translateX(0);
-  transition: transform 0.3s ease;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 110;
+  backdrop-filter: blur(2px);
+}
+
+.overlay-fade-enter-active,
+.overlay-fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.overlay-fade-enter-from,
+.overlay-fade-leave-to {
+  opacity: 0;
+}
+
+// ── Сайдбар ─────────────────────────────────────────────────────────
+.sidebar {
+  width: $sidebar-width;
+  height: 100vh;
+  background: var(--crm-bg-surface);
+  border-right: 1px solid var(--crm-border);
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 120;
   display: flex;
   flex-direction: column;
-  
-  &.mobile {
+  overflow: hidden;
+
+  // На мобиле скрыт по умолчанию
+  &--mobile {
+    top: 0;
     transform: translateX(-100%);
+    box-shadow: var(--crm-shadow-lg);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   }
-  
-  &.open {
+
+  &--mobile.sidebar--open {
     transform: translateX(0);
   }
-  
-  .sidebar-content {
+}
+
+.sidebar-slide-enter-active,
+.sidebar-slide-leave-active {
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-slide-enter-from,
+.sidebar-slide-leave-to {
+  transform: translateX(-100%);
+}
+
+// ── Логотип ─────────────────────────────────────────────────────────
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 16px 14px;
+  border-bottom: 1px solid var(--crm-border);
+  flex-shrink: 0;
+
+  &__icon {
+    width: 36px;
+    height: 36px;
+    background: var(--crm-accent-dim);
+    border: 1px solid var(--crm-accent-border);
+    border-radius: var(--crm-radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--crm-accent);
+    flex-shrink: 0;
+  }
+
+  &__name {
+    display: block;
+    font-size: var(--crm-text-md);
+    font-weight: 600;
+    color: var(--crm-text-primary);
+    line-height: 1.2;
+  }
+
+  &__sub {
+    display: block;
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+    margin-top: 1px;
+  }
+}
+
+// ── Переключатель режимов ────────────────────────────────────────────
+.mode-switcher {
+  display: flex;
+  gap: 4px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--crm-border);
+  flex-shrink: 0;
+
+  &__btn {
     flex: 1;
     display: flex;
-    flex-direction: column;
-    
-    .sidebar-header {
-      margin-bottom: 20px;
-      
-      h2 {
-        font-size: 1.5rem;
-        margin: 0;
-        color: #fff;
-      }
-      
-      p {
-        margin: 0;
-        font-size: 0.9rem;
-        color: #7f8c8d;
-      }
-    }
-    
-    // Переключатель режимов меню
-    .menu-mode-switcher {
-      display: flex;
-      gap: 4px;
-      margin-bottom: 20px;
-      background: rgba(0, 0, 0, 0.3);
-      border-radius: 12px;
-      overflow: hidden;
-      padding: 4px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-    }
-    
-    .menu-mode-btn {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 10px 14px;
-      background: rgba(255, 255, 255, 0.05);
-      border: none;
-      border-radius: 8px;
-      color: #aaa;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      position: relative;
-      overflow: hidden;
-      
-      &:hover {
-        background: rgba(0, 195, 245, 0.15);
-        color: #00c3f5;
-        transform: translateY(-1px);
-      }
-      
-      &.active {
-        color: white;
-        background: rgba(0, 195, 245, 0.2);
-        
-        &::before {
-          content: '';
-          position: absolute;
-          top: -50%;
-          left: -50%;
-          width: 200%;
-          height: 200%;
-          background: radial-gradient(circle, rgba(255, 255, 255, 0.2) 0%, transparent 70%);
-          animation: pulse-glow 2s ease-in-out infinite;
-        }
-      }
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 7px 10px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--crm-radius-md);
+    color: var(--crm-text-muted);
+    font-size: var(--crm-text-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--crm-transition);
 
-      span {
-        color: unset;
-      }
-      
-      .icon {
-        font-size: 18px;
-        transition: transform 0.3s ease;
-      }
-      
-      &.active .icon {
-        transform: scale(1.1);
-      }
+    span {
+      color: inherit;
     }
 
-    @keyframes pulse-glow {
-      0%, 100% {
-        opacity: 0.3;
-        transform: scale(1);
-      }
-      50% {
-        opacity: 0.6;
-        transform: scale(1.05);
-      }
+    &:hover {
+      background: var(--crm-bg-elevated);
+      color: var(--crm-text-secondary);
     }
-  }
-  
-  .sidebar-footer {
-    margin-top: auto;
-    
-    .role {
-      text-align: center;
-      border-bottom: 1px solid #444;
-      padding-bottom: 10px;
-      margin-bottom: 10px;
-      
-      p {
-        color: $color-light;
-        font-size: 0.9rem;
-      }
-    }
-    
-    button {
-      width: 100%;
-      background: $color-danger;
-      border: none;
-      padding: 10px;
-      cursor: pointer;
-      font-size: 1rem;
-      color: white;
-      border-radius: 5px;
-      transition: background-color 0.3s ease;
-      
+
+    &--active {
+      background: var(--crm-accent-dim);
+      border-color: var(--crm-accent-border);
+      color: var(--crm-accent);
+
       &:hover {
-        background-color: $red;
-        color: white;
+        background: var(--crm-accent-dim);
+        color: var(--crm-accent);
       }
     }
   }
 }
 
-@media (max-width: 767.98px) {
-  .mobile-header {
-    display: flex;
+// ── Навигация ────────────────────────────────────────────────────────
+.sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--crm-bg-overlay) transparent;
+
+  &::-webkit-scrollbar {
+    width: 4px;
   }
-  
-  .sidebar {
-    &.mobile {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 250px;
-      height: 100%;
-      overflow-y: auto;
-      z-index: 950;
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--crm-bg-overlay);
+    border-radius: 2px;
+  }
+}
+
+// ── Футер сайдбара ───────────────────────────────────────────────────
+.sidebar-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--crm-border);
+  flex-shrink: 0;
+
+  &__user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--crm-accent-dim);
+    border: 1px solid var(--crm-accent-border);
+    color: var(--crm-accent);
+    font-size: var(--crm-text-sm);
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  &__name {
+    font-size: var(--crm-text-sm);
+    font-weight: 500;
+    color: var(--crm-text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__role {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__logout {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--crm-radius-md);
+    color: var(--crm-text-muted);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: var(--crm-transition);
+
+    &:hover {
+      background: var(--crm-danger-dim);
+      border-color: rgba(242, 95, 92, 0.3);
+      color: var(--crm-danger);
     }
+  }
+}
+
+// ── Адаптив ─────────────────────────────────────────────────────────
+@media (max-width: 767.98px) {
+  .sidebar:not(.sidebar--mobile) {
+    display: none;
   }
 }
 </style>

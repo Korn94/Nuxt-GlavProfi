@@ -1,476 +1,569 @@
 <!-- app/components/pages/cabinet/objects/documents/Budget.vue -->
 <template>
-  <PagesCabinetUiCardsCard title="Смета" bordered elevated no-padding-body>
-    <!-- Заголовок с кнопкой -->
-    <template #actions>
-      <button v-if="isAdmin" @click="openModal()" class="btn btn-sm primary">+ Добавить</button>
-    </template>
+  <div class="budget">
 
-    <!-- Список позиций -->
-    <div v-if="items.length === 0" class="empty-state">
-      Пока нет данных о смете
+    <!-- Заголовок -->
+    <div class="budget__header">
+      <div class="budget__title">
+        <Icon name="mdi:calculator-variant-outline" size="16" />
+        Смета
+        <span v-if="items.length" class="budget__count">{{ items.length }}</span>
+      </div>
+      <button v-if="isAdmin" class="crm-btn crm-btn--accent crm-btn--sm" @click="openModal()">
+        <Icon name="mdi:plus" size="14" /> Добавить
+      </button>
     </div>
 
-    <table v-else class="budget-table">
-      <thead>
-        <tr>
-          <th>Название</th>
-          <th>Сумма</th>
-          <th>Комментарий</th>
-          <th>Работы</th>
-          <th>Приложение</th>
-          <th v-if="isAdmin" width="80">Действия</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="item in items" :key="item.id">
-          <td>{{ item.name }}</td>
-          <td>{{ formatCurrency(item.amount) }}</td>
-          <td>{{ item.comment || '—' }}</td>
-          <td>
-            <span :class="`badge work-${item.workProgress}`">
-              {{ workProgressText[item.workProgress] }}
-            </span>
-          </td>
-          <td>
-            <span v-if="item.actStatus !== 'none'" :class="`badge act-${item.actStatus}`">
-              {{ actStatusText[item.actStatus] }}
-            </span>
-            <span v-else class="text-muted">—</span>
-          </td>
-          <td v-if="isAdmin" class="actions-cell">
-            <div class="action-buttons">
-              <button @click="openModal(item)" class="btn btn-xs">Ред</button>
-              <button @click="confirmDelete(item.id)" class="btn btn-danger btn-xs">✕</button>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <!-- Пусто -->
+    <div v-if="!items.length" class="budget__empty">
+      <Icon name="mdi:table-large" size="28" />
+      <span>Смета пуста</span>
+    </div>
 
-    <!-- Итог -->
-    <div v-if="items.length > 0" class="budget-summary">
-      <div class="divider"></div>
-      <div class="summary-row">
-        <strong>Итого по смете:</strong>
-        <strong>{{ formatCurrency(totalBudget) }}</strong>
+    <!-- Таблица -->
+    <div v-else class="budget__body">
+      <div class="budget-table-wrap">
+        <table class="budget-table">
+          <thead>
+            <tr>
+              <th>Название</th>
+              <th>Сумма</th>
+              <th>Работы</th>
+              <th>Приложение</th>
+              <th>Комментарий</th>
+              <th v-if="isAdmin">—</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(item, idx) in items" :key="item.id" :class="{ 'tr--alt': idx % 2 === 1 }">
+              <td class="td--name">{{ item.name }}</td>
+              <td class="td--amount">{{ formatCurrency(item.amount) }}</td>
+              <td>
+                <span :class="['work-badge', `work-badge--${item.workProgress}`]">
+                  {{ workProgressText[item.workProgress] || item.workProgress }}
+                </span>
+              </td>
+              <td>
+                <span v-if="item.actStatus !== 'none'" :class="['act-badge', `act-badge--${item.actStatus}`]">
+                  {{ actStatusText[item.actStatus] || '—' }}
+                </span>
+                <span v-else class="td--muted">—</span>
+              </td>
+              <td class="td--comment">{{ item.comment || '—' }}</td>
+              <td v-if="isAdmin" class="td--actions">
+                <button class="action-btn" @click="openModal(item)" title="Редактировать">
+                  <Icon name="mdi:pencil-outline" size="14" />
+                </button>
+                <button class="action-btn action-btn--danger" @click="confirmDelete(item.id)" title="Удалить">
+                  <Icon name="mdi:trash-can-outline" size="14" />
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      <div class="summary-row muted">
-        <span>Фактический приход:</span>
-        <span>{{ formatCurrency(objectIncome) }}</span>
-      </div>
-      <div class="summary-row" :class="{ 'text-danger': difference < 0 }">
-        <strong>Разница:</strong>
-        <strong>{{ formatCurrency(difference) }}</strong>
+
+      <!-- Итог -->
+      <div class="budget__summary">
+        <div class="summary-row">
+          <span>Итого по смете</span>
+          <strong>{{ formatCurrency(totalBudget) }}</strong>
+        </div>
+        <div class="summary-row summary-row--muted">
+          <span>Фактический приход</span>
+          <span>{{ formatCurrency(objectIncome) }}</span>
+        </div>
+        <div class="summary-row summary-row--divider">
+          <span>Разница</span>
+          <strong :class="difference >= 0 ? 'pos' : 'neg'">{{ formatCurrency(difference) }}</strong>
+        </div>
       </div>
     </div>
 
-    <!-- Модальное окно -->
-    <PagesCabinetUiModal
-      :visible="isModalOpen"
-      @update:visible="isModalOpen = false"
-      :title="editingItem ? 'Редактировать позицию' : 'Добавить позицию'"
-      size="lg"
-      closable
-    >
-      <!-- Форма -->
-      <form @submit.prevent="save" class="modal-form">
-        <div class="form-row">
-          <div class="form-group flex-1">
-            <label>Название *</label>
-            <input
-              v-model="form.name"
-              type="text"
-              class="form-input"
-              placeholder="Основная смета, Утепление пола..."
-              required
-            />
+    <!-- Модалка -->
+    <PagesCabinetUiModal :visible="isModalOpen" :title="editingItem ? 'Редактировать позицию' : 'Добавить позицию'"
+      size="lg" closable @update:visible="isModalOpen = false">
+      <div class="modal-form">
+        <div class="field-row">
+          <div class="field field--grow">
+            <label class="field__label">Название <span class="field__req">*</span></label>
+            <input type="text" v-model="form.name" class="field__input" placeholder="Основная смета..." />
           </div>
-          <div class="form-group" style="width: 140px;">
-            <label>Сумма *</label>
-            <input
-              v-model="form.amount"
-              type="number"
-              step="0.01"
-              min="0"
-              class="form-input text-right"
-              placeholder="0.00"
-              required
-            />
+          <div class="field" style="width: 150px;">
+            <label class="field__label">Сумма <span class="field__req">*</span></label>
+            <input type="number" step="0.01" min="0" v-model="form.amount" class="field__input" placeholder="0" />
           </div>
         </div>
 
-        <div class="form-group">
-          <label>Комментарий</label>
-          <textarea
-            v-model="form.comment"
-            class="form-input"
-            rows="3"
-            placeholder="Дополнительная информация..."
-          ></textarea>
-        </div>
-
-        <!-- Статусы -->
-        <div class="form-row">
-          <div class="form-group flex-1">
-            <label>Ход работ</label>
-            <select v-model="form.workProgress" class="form-select">
+        <div class="field-row">
+          <div class="field field--grow">
+            <label class="field__label">Ход работ</label>
+            <select v-model="form.workProgress" class="field__input">
               <option value="queued">На очереди</option>
               <option value="in_progress">В работе</option>
               <option value="completed">Выполнено</option>
               <option value="cancelled">Отменено</option>
             </select>
           </div>
-          <div class="form-group flex-1">
-            <label>Статус акта</label>
-            <select v-model="form.actStatus" class="form-select" :disabled="form.workProgress !== 'completed' && form.actStatus === 'none'">
+          <div class="field field--grow">
+            <label class="field__label">Статус акта</label>
+            <select v-model="form.actStatus" class="field__input">
               <option value="none">—</option>
               <option value="required">Нужно сделать</option>
               <option value="awaiting">Ждёт подписи</option>
               <option value="signed">Подписан</option>
             </select>
-            <small v-if="form.workProgress === 'completed' && form.actStatus === 'none'" class="text-muted">
-              Рекомендуется установить "Нужно сделать"
-            </small>
           </div>
         </div>
-      </form>
 
-      <!-- Кнопки в футере -->
-      <template #footer>
-        <div class="modal-footer-controls">
-          <button type="button" @click="isModalOpen = false" class="btn btn-secondary">
-            Отмена
-          </button>
-          <button type="submit" @click="save" class="btn btn-primary">
-            {{ editingItem ? 'Сохранить' : 'Добавить' }}
-          </button>
+        <div class="field">
+          <label class="field__label">Комментарий</label>
+          <textarea v-model="form.comment" class="field__input field__input--textarea" rows="2" />
         </div>
+      </div>
+
+      <template #footer>
+        <button class="crm-btn crm-btn--ghost" @click="isModalOpen = false">Отмена</button>
+        <button class="crm-btn crm-btn--accent" @click="save">
+          {{ editingItem ? 'Сохранить' : 'Добавить' }}
+        </button>
       </template>
     </PagesCabinetUiModal>
-  </PagesCabinetUiCardsCard>
+
+  </div>
 </template>
 
-<script setup>
-import { ref, computed, defineProps, nextTick } from 'vue'
+<script setup lang="ts">
+import { ref, computed, nextTick } from 'vue'
 
-const props = defineProps({
-  objectId: {
-    type: Number,
-    required: true
-  },
-  isAdmin: {
-    type: Boolean,
-    default: false
-  },
-  objectIncome: {
-    type: Number,
-    default: 0
-  }
-})
+const props = defineProps < {
+  objectId: number
+  isAdmin: boolean
+  objectIncome: number
+} > ()
 
-// Данные
-const items = ref([])
-
-// Модальное окно
+const items = ref < any[] > ([])
 const isModalOpen = ref(false)
-const editingItem = ref(null)
-const form = ref({
-  name: '',
-  amount: '',
-  comment: '',
-  workProgress: 'queued',
-  actStatus: 'none'
-})
+const editingItem = ref < any > (null)
+const form = ref({ name: '', amount: '', comment: '', workProgress: 'queued', actStatus: 'none' })
 
-// Текстовые отображения
-const workProgressText = {
-  queued: 'На очереди',
-  in_progress: 'В работе',
-  completed: 'Выполнено',
-  cancelled: 'Отменено'
+const workProgressText: Record<string, string> = {
+  queued: 'На очереди', in_progress: 'В работе', completed: 'Выполнено', cancelled: 'Отменено'
+}
+const actStatusText: Record<string, string> = {
+  none: '—', required: 'Нужно сделать', awaiting: 'Без подписи', signed: 'Подписан'
 }
 
-const actStatusText = {
-  none: '—',
-  required: 'Нужно сделать',
-  awaiting: 'Без подписи',
-  signed: 'Подписан'
+const totalBudget = computed(() =>
+  items.value.reduce((s, i) => s + (Number(i.amount) || 0), 0)
+)
+const difference = computed(() => props.objectIncome - totalBudget.value)
+
+function formatCurrency(v: any) {
+  return new Intl.NumberFormat('ru-RU').format(Number(v) || 0) + ' ₽'
 }
 
-// --- Загрузка ---
 async function loadBudget() {
   try {
-    const data = await $fetch(`/api/objects/${props.objectId}/budget`)
-    items.value = data.map(i => ({
-      ...i,
-      amount: typeof i.amount === 'string' ? parseFloat(i.amount) : i.amount
-    }))
-  } catch (error) {
-    console.error('Ошибка загрузки сметы:', error)
-    alert('Не удалось загрузить смету')
-  }
+    const data = await $fetch < any[] > (`/api/objects/${props.objectId}/budget`)
+    items.value = (data || []).map(i => ({ ...i, amount: parseFloat(i.amount) || 0 }))
+  } catch (e) { console.error('[Смета] Ошибка загрузки:', e) }
 }
 
-loadBudget()
-
-// --- Модальное окно ---
-function openModal(item = null) {
+function openModal(item: any = null) {
   editingItem.value = item
-
-  if (item) {
-    // Редактирование
-    form.value = { ...item }
-  } else {
-    // Новая позиция
-    form.value = {
-      name: '',
-      amount: '',
-      comment: '',
-      workProgress: 'queued',
-      actStatus: 'none'
-    }
-  }
-
+  form.value = item
+    ? { name: item.name, amount: item.amount, comment: item.comment || '', workProgress: item.workProgress, actStatus: item.actStatus }
+    : { name: '', amount: '', comment: '', workProgress: 'queued', actStatus: 'none' }
   isModalOpen.value = true
-
-  nextTick(() => {
-    const input = document.querySelector('.modal-body .form-input')
-    input?.focus()
-  })
 }
 
-// --- Сохранение ---
 async function save() {
   const { name, amount, comment, workProgress, actStatus } = form.value
-  if (!name || amount == null || amount < 0) {
-    alert('Заполните корректные название и сумму')
-    return
-  }
+  if (!name || amount == null || Number(amount) < 0) { alert('Введите корректные название и сумму'); return }
 
   try {
-    let updatedItem
     if (editingItem.value) {
-      // Обновляем позицию
-      updatedItem = await $fetch(`/api/objects/budget/${editingItem.value.id}`, {
-        method: 'PUT',
-        body: { name, amount, comment },
-        credentials: 'include'
+      const updated = await $fetch < any > (`/api/objects/budget/${editingItem.value.id}`, {
+        method: 'PUT', body: { name, amount, comment }, credentials: 'include'
       })
-
-      // Обновляем статусы отдельно
-      if (
-        workProgress !== editingItem.value.workProgress ||
-        actStatus !== editingItem.value.actStatus
-      ) {
+      if (workProgress !== editingItem.value.workProgress || actStatus !== editingItem.value.actStatus) {
         await $fetch(`/api/objects/budget/${editingItem.value.id}/status`, {
-          method: 'PUT',
-          body: { workProgress, actStatus },
-          credentials: 'include'
+          method: 'PUT', body: { workProgress, actStatus }, credentials: 'include'
         })
       }
-
-      Object.assign(updatedItem, { workProgress, actStatus })
-      const index = items.value.findIndex(i => i.id === editingItem.value.id)
-      if (index !== -1) {
-        items.value.splice(index, 1, updatedItem)
-      }
+      const idx = items.value.findIndex(i => i.id === editingItem.value.id)
+      if (idx !== -1) items.value.splice(idx, 1, { ...updated, workProgress, actStatus })
     } else {
-      // Создаём новую
-      updatedItem = await $fetch(`/api/objects/${props.objectId}/budget`, {
+      const created = await $fetch < any > (`/api/objects/${props.objectId}/budget`, {
         method: 'POST',
         body: { name, amount, comment, workProgress, actStatus, order: items.value.length },
         credentials: 'include'
       })
-      items.value.push(updatedItem)
+      items.value.push(created)
     }
-
     isModalOpen.value = false
-  } catch (error) {
-    console.error('Ошибка сохранения:', error)
-    alert(`Не удалось ${editingItem.value ? 'обновить' : 'добавить'} позицию`)
-  }
+  } catch (e) { console.error('[Смета] Ошибка сохранения:', e) }
 }
 
-// --- Удаление ---
-function confirmDelete(id) {
-  const confirmed = window.confirm('Удалить эту позицию сметы?')
-  if (confirmed) deleteItem(id)
+function confirmDelete(id: number) {
+  if (confirm('Удалить позицию сметы?')) deleteItem(id)
 }
 
-async function deleteItem(id) {
+async function deleteItem(id: number) {
   try {
-    await $fetch(`/api/objects/budget/${id}`, {
-      method: 'DELETE',
-      credentials: 'include'
-    })
+    await $fetch(`/api/objects/budget/${id}`, { method: 'DELETE', credentials: 'include' })
     items.value = items.value.filter(i => i.id !== id)
-  } catch (error) {
-    console.error('Ошибка удаления:', error)
-    alert('Не удалось удалить позицию')
-  }
+  } catch (e) { console.error('[Смета] Ошибка удаления:', e) }
 }
 
-// --- Вычисляемые значения ---
-const totalBudget = computed(() => {
-  return items.value.reduce((sum, i) => sum + (Number(i.amount) || 0), 0)
-})
-
-const difference = computed(() => {
-  return props.objectIncome - totalBudget.value
-})
-
-// --- Утилиты ---
-const formatCurrency = (value) => {
-  return new Intl.NumberFormat('ru-RU').format(value || 0) + ' ₽'
-}
+loadBudget()
 </script>
 
 <style lang="scss" scoped>
-.empty-state {
-  padding: 2rem;
-  text-align: center;
-  color: $color-muted;
-  background: #f9f9f9;
-  border-radius: $border-radius;
-  font-style: italic;
-}
+.budget {
+  background: var(--crm-bg-surface);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-lg);
+  overflow: hidden;
 
-.budget-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.95rem;
-
-  th {
-    text-align: left;
-    padding: 0.75rem;
-    background: $sub-item-bg;
-    color: $text-dark;
-    font-weight: 600;
-    border-bottom: 2px solid $border-color;
-  }
-
-  td {
-    padding: 0.75rem;
-    border-bottom: 1px solid $border-color;
-  }
-
-  .actions-cell {
-    text-align: right;
-  }
-
-  .action-buttons {
+  &__header {
     display: flex;
-    gap: 0.5rem;
-    justify-content: flex-end;
-  }
-}
-
-// Бейджи статусов
-.badge {
-  padding: 0.25rem 0.5rem;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  font-weight: 500;
-
-  &.work-queued { background: #e3f2fd; color: #1565c0; }
-  &.work-in_progress { background: #fff8e1; color: #f57f17; }
-  &.work-completed { background: #e8f5e9; color: #2e7d32; }
-  &.work-cancelled { background: #ffebee; color: #c62828; }
-
-  &.act-required { background: #ffecb3; color: #ff8f00; }
-  &.act-awaiting { background: #bbdefb; color: #0d47a1; }
-  &.act-signed { background: #c8e6c9; color: #1b5e20; }
-}
-
-.text-muted {
-  color: $color-muted !important;
-  font-style: italic;
-}
-
-// Форма в модалке
-.modal-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.form-row {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-
-  .flex-1 {
-    flex: 1 1 200px;
-  }
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-
-  label {
-    font-weight: 500;
-    color: $text-dark;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--crm-border);
+    background: var(--crm-bg-elevated);
   }
 
-  .form-input,
-  .form-select {
-    padding: 0.5rem;
-    border: 1px solid $border-color;
-    border-radius: $border-radius;
-    font-size: 0.95rem;
-    background: white;
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: var(--crm-text-md);
+    font-weight: 600;
+    color: var(--crm-text-primary);
   }
 
-  .text-right {
-    text-align: right;
+  &__count {
+    font-size: var(--crm-text-xs);
+    font-weight: 700;
+    padding: 1px 7px;
+    background: var(--crm-bg-overlay);
+    border: 1px solid var(--crm-border-hover);
+    border-radius: 10px;
+    color: var(--crm-text-muted);
   }
-}
 
-// Итог
-.budget-summary {
-  margin-top: 1rem;
-  padding: 1.5rem;
+  &__empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 30px;
+    color: var(--crm-text-muted);
+    font-size: var(--crm-text-sm);
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__summary {
+    padding: 12px 16px;
+    border-top: 1px solid var(--crm-border);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: var(--crm-bg-elevated);
+  }
 }
 
 .summary-row {
   display: flex;
   justify-content: space-between;
-  padding: 0.5rem 0;
+  font-size: var(--crm-text-sm);
+  color: var(--crm-text-secondary);
 
-  &.muted {
-    color: $color-muted;
-    font-size: 0.95rem;
+  strong {
+    font-weight: 700;
+    color: var(--crm-text-primary);
+  }
+
+  &--muted {
+    color: var(--crm-text-muted);
+    font-size: var(--crm-text-xs);
+  }
+
+  &--divider {
+    padding-top: 8px;
+    border-top: 1px solid var(--crm-border-hover);
+    margin-top: 2px;
+    font-weight: 500;
+    color: var(--crm-text-primary);
   }
 }
 
-.divider {
-  height: 1px;
-  background-color: $border-color;
-  margin: 1rem 0;
+.budget-table-wrap {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--crm-bg-overlay) transparent;
 }
 
-.text-danger {
-  color: #c62828 !important;
-}
-
-.btn-xs {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.8rem;
-}
-
-// Футер модалки
-.modal-footer-controls {
-  display: flex;
-  gap: 0.75rem;
-  justify-content: flex-end;
+.budget-table {
   width: 100%;
+  border-collapse: collapse;
+  font-size: var(--crm-text-sm);
 
-  .btn {
-    padding: 0.4rem 0.8rem;
-    font-size: 0.9rem;
+  th {
+    padding: 9px 14px;
+    background: var(--crm-bg-elevated);
+    font-size: var(--crm-text-xs);
+    font-weight: 600;
+    color: var(--crm-text-muted);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    text-align: left;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--crm-border);
+  }
+
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--crm-border);
+    color: var(--crm-text-secondary);
+    vertical-align: middle;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+
+  tr.tr--alt td {
+    background: rgba(255, 255, 255, .02);
+  }
+
+  tr:hover td {
+    background: var(--crm-bg-elevated);
+  }
+}
+
+.td--name {
+  font-weight: 500;
+  color: var(--crm-text-primary);
+}
+
+.td--amount {
+  font-weight: 700;
+  color: var(--crm-text-primary);
+  white-space: nowrap;
+}
+
+.td--comment {
+  color: var(--crm-text-muted);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.td--muted {
+  color: var(--crm-text-disabled);
+}
+
+.td--actions {
+  white-space: nowrap;
+  display: flex;
+  gap: 4px;
+}
+
+.work-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--crm-radius-sm);
+  font-size: var(--crm-text-xs);
+  font-weight: 600;
+
+  &--queued {
+    background: var(--crm-info-dim);
+    color: var(--crm-info);
+  }
+
+  &--in_progress {
+    background: var(--crm-warning-dim);
+    color: var(--crm-warning);
+  }
+
+  &--completed {
+    background: var(--crm-success-dim);
+    color: var(--crm-success);
+  }
+
+  &--cancelled {
+    background: var(--crm-danger-dim);
+    color: var(--crm-danger);
+  }
+}
+
+.act-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--crm-radius-sm);
+  font-size: var(--crm-text-xs);
+  font-weight: 600;
+
+  &--required {
+    background: var(--crm-warning-dim);
+    color: var(--crm-warning);
+  }
+
+  &--awaiting {
+    background: var(--crm-info-dim);
+    color: var(--crm-info);
+  }
+
+  &--signed {
+    background: var(--crm-success-dim);
+    color: var(--crm-success);
+  }
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--crm-radius-sm);
+  color: var(--crm-text-muted);
+  cursor: pointer;
+  transition: var(--crm-transition);
+
+  &:hover {
+    background: var(--crm-bg-overlay);
+    border-color: var(--crm-border-hover);
+    color: var(--crm-text-primary);
+  }
+
+  &--danger:hover {
+    background: var(--crm-danger-dim);
+    border-color: rgba(242, 95, 92, .3);
+    color: var(--crm-danger);
+  }
+}
+
+.pos {
+  color: var(--crm-success);
+}
+
+.neg {
+  color: var(--crm-danger);
+}
+
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.field-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+
+  &--grow {
+    flex: 1;
+    min-width: 160px;
+  }
+
+  &__label {
+    font-size: var(--crm-text-sm);
+    font-weight: 500;
+    color: var(--crm-text-secondary);
+  }
+
+  &__req {
+    color: var(--crm-danger);
+  }
+
+  &__input {
+    background: var(--crm-bg-elevated);
+    border: 1px solid var(--crm-border-hover);
+    border-radius: var(--crm-radius-md);
+    color: var(--crm-text-primary);
+    font-size: var(--crm-text-md);
+    font-family: var(--crm-font-sans);
+    padding: 8px 12px;
+    outline: none;
+    transition: var(--crm-transition);
+    width: 100%;
+    color-scheme: dark;
+
+    &::placeholder {
+      color: var(--crm-text-disabled);
+    }
+
+    &:focus {
+      border-color: var(--crm-accent);
+      box-shadow: 0 0 0 3px var(--crm-accent-dim);
+    }
+
+    &--textarea {
+      resize: vertical;
+      min-height: 60px;
+    }
+
+    option {
+      background: var(--crm-bg-elevated);
+      color: var(--crm-text-primary);
+    }
+  }
+}
+
+.crm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: var(--crm-radius-md);
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--crm-transition);
+
+  &--sm {
+    padding: 6px 12px;
+    font-size: var(--crm-text-sm);
+  }
+
+  &--accent {
+    background: var(--crm-accent-dim);
+    border: 1px solid var(--crm-accent-border);
+    color: var(--crm-accent);
+
+    &:hover {
+      background: rgba(0, 195, 245, .25);
+    }
+  }
+
+  &--ghost {
+    background: var(--crm-bg-elevated);
+    border: 1px solid var(--crm-border-hover);
+    color: var(--crm-text-secondary);
+
+    &:hover {
+      background: var(--crm-bg-overlay);
+      color: var(--crm-text-primary);
+    }
   }
 }
 </style>

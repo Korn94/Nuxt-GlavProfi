@@ -1,44 +1,58 @@
 <!-- app/components/pages/cabinet/objects/documents/ContractStatus.vue -->
 <template>
-  <PagesCabinetUiCardsCard title="Договор" bordered elevated>
-    <!-- Отображение договора -->
-    <div v-if="contract" class="contract-info">
-      <p><strong>Тип:</strong> {{ typeText }} <span :class="`badge status-${contract.status}`">{{ statusText }}</span></p>
-      <p><strong>Договор от:</strong> {{ formatDate(contract.statusDate) }}</p>
-      <p v-if="contract.comment"><strong>Комментарий:</strong> {{ contract.comment }}</p>
-    </div>
+  <div class="contract">
 
-    <div v-else class="empty-state">
-      Договор не создан
-    </div>
-
-    <!-- Админ: действия -->
-    <template v-if="isAdmin" #actions>
-      <button
-        v-if="!contract"
-        @click="openCreateModal"
-        class="btn btn-sm primary"
-      >
-        Создать договор
-      </button>
-
-      <div v-else class="contract-actions">
-        <button @click="openEditModal" class="btn btn-sm">Редактировать</button>
-        <!-- <button @click="confirmDelete" class="btn btn-danger btn-sm">✕ Удалить</button> -->
+    <!-- Заголовок -->
+    <div class="contract__header">
+      <div class="contract__title">
+        <Icon name="mdi:file-sign" size="16" />
+        Договор
       </div>
-    </template>
+      <template v-if="isAdmin">
+        <button v-if="!contract" class="crm-btn crm-btn--accent crm-btn--sm" @click="openCreateModal">
+          <Icon name="mdi:plus" size="14" /> Создать
+        </button>
+        <button v-else class="crm-btn crm-btn--ghost crm-btn--sm" @click="openEditModal">
+          <Icon name="mdi:pencil-outline" size="14" /> Редактировать
+        </button>
+      </template>
+    </div>
 
-    <!-- Модальное окно: создание -->
-    <PagesCabinetUiModal
-      :visible="isCreateModalOpen"
-      @update:visible="isCreateModalOpen = false"
-      title="Создать договор"
-      size="md"
-    >
-      <form @submit.prevent="createContract" class="modal-form">
-        <div class="form-group">
-          <label>Тип договора *</label>
-          <select v-model="form.type" class="form-select" required>
+    <!-- Нет договора -->
+    <div v-if="!contract" class="contract__empty">
+      <Icon name="mdi:file-document-outline" size="28" />
+      <span>Договор не создан</span>
+    </div>
+
+    <!-- Данные договора -->
+    <div v-else class="contract__body">
+      <div class="contract__row">
+        <span class="contract__label">Тип</span>
+        <span class="contract__value">{{ typeText }}</span>
+      </div>
+      <div class="contract__row">
+        <span class="contract__label">Статус</span>
+        <span :class="['status-badge', `status-badge--${contract.status}`]">
+          {{ statusText }}
+        </span>
+      </div>
+      <div class="contract__row">
+        <span class="contract__label">Дата</span>
+        <span class="contract__value">{{ formatDate(contract.statusDate) }}</span>
+      </div>
+      <div v-if="contract.comment" class="contract__row">
+        <span class="contract__label">Комментарий</span>
+        <span class="contract__value">{{ contract.comment }}</span>
+      </div>
+    </div>
+
+    <!-- Модалка создания -->
+    <PagesCabinetUiModal :visible="isCreateModalOpen" title="Создать договор" size="md" closable
+      @update:visible="isCreateModalOpen = false">
+      <div class="modal-form">
+        <div class="field">
+          <label class="field__label">Тип договора <span class="field__req">*</span></label>
+          <select v-model="form.type" class="field__input">
             <option value="">— Выберите тип —</option>
             <option value="none">Не нужен</option>
             <option value="edo">ЭДО</option>
@@ -46,9 +60,9 @@
             <option value="invoice">Счёт-договор</option>
           </select>
         </div>
-        <div class="form-group">
-          <label>Статус *</label>
-          <select v-model="form.status" class="form-select" required>
+        <div class="field">
+          <label class="field__label">Статус <span class="field__req">*</span></label>
+          <select v-model="form.status" class="field__input">
             <option value="prepared">Подготовлен</option>
             <option value="sent">Отправлен</option>
             <option value="awaiting">Ожидает подписи</option>
@@ -56,37 +70,28 @@
             <option value="cancelled">Отменён</option>
           </select>
         </div>
-        <div class="form-row">
-          <div class="form-group flex-1">
-            <label>Дата статуса</label>
-            <input v-model="form.statusDate" type="date" class="form-input" />
-          </div>
+        <div class="field">
+          <label class="field__label">Дата</label>
+          <input type="date" v-model="form.statusDate" class="field__input" />
         </div>
-        <div class="form-group">
-          <label>Комментарий</label>
-          <textarea v-model="form.comment" class="form-input" rows="3"></textarea>
+        <div class="field">
+          <label class="field__label">Комментарий</label>
+          <textarea v-model="form.comment" class="field__input field__input--textarea" rows="2" />
         </div>
-      </form>
-
+      </div>
       <template #footer>
-        <div class="modal-footer-controls">
-          <button type="button" @click="isCreateModalOpen = false" class="btn btn-secondary">Отмена</button>
-          <button type="submit" @click="createContract" class="btn btn-primary">Создать</button>
-        </div>
+        <button class="crm-btn crm-btn--ghost" @click="isCreateModalOpen = false">Отмена</button>
+        <button class="crm-btn crm-btn--accent" @click="createContract">Создать</button>
       </template>
     </PagesCabinetUiModal>
 
-    <!-- Модальное окно: редактирование -->
-    <PagesCabinetUiModal
-      :visible="isEditModalOpen"
-      @update:visible="isEditModalOpen = false"
-      title="Редактировать договор"
-      size="md"
-    >
-      <form @submit.prevent="updateContract" class="modal-form">
-        <div class="form-group">
-          <label>Тип договора *</label>
-          <select v-model="form.type" class="form-select" required>
+    <!-- Модалка редактирования -->
+    <PagesCabinetUiModal :visible="isEditModalOpen" title="Редактировать договор" size="md" closable
+      @update:visible="isEditModalOpen = false">
+      <div class="modal-form">
+        <div class="field">
+          <label class="field__label">Тип договора <span class="field__req">*</span></label>
+          <select v-model="form.type" class="field__input">
             <option value="unassigned">— Не выбрано —</option>
             <option value="none">Не нужен</option>
             <option value="edo">ЭДО</option>
@@ -94,9 +99,9 @@
             <option value="invoice">Счёт-договор</option>
           </select>
         </div>
-        <div class="form-group">
-          <label>Статус *</label>
-          <select v-model="form.status" class="form-select" required>
+        <div class="field">
+          <label class="field__label">Статус <span class="field__req">*</span></label>
+          <select v-model="form.status" class="field__input">
             <option value="prepared">Подготовлен</option>
             <option value="sent">Отправлен</option>
             <option value="awaiting">Ожидает подписи</option>
@@ -104,346 +109,293 @@
             <option value="cancelled">Отменён</option>
           </select>
         </div>
-        <div class="form-row">
-          <div class="form-group flex-1">
-            <label>Дата статуса</label>
-            <input v-model="form.statusDate" type="date" class="form-input" />
-          </div>
+        <div class="field">
+          <label class="field__label">Дата</label>
+          <input type="date" v-model="form.statusDate" class="field__input" />
         </div>
-        <div class="form-group">
-          <label>Комментарий</label>
-          <textarea v-model="form.comment" class="form-input" rows="3"></textarea>
+        <div class="field">
+          <label class="field__label">Комментарий</label>
+          <textarea v-model="form.comment" class="field__input field__input--textarea" rows="2" />
         </div>
-      </form>
-
+      </div>
       <template #footer>
-        <div class="modal-footer-controls">
-          <button type="button" @click="isEditModalOpen = false" class="btn btn-secondary">Отмена</button>
-          <button type="submit" @click="updateContract" class="btn btn-primary">Сохранить</button>
-        </div>
+        <button class="crm-btn crm-btn--ghost" @click="isEditModalOpen = false">Отмена</button>
+        <button class="crm-btn crm-btn--accent" @click="updateContract">Сохранить</button>
       </template>
     </PagesCabinetUiModal>
-  </PagesCabinetUiCardsCard>
+
+  </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 
-const props = defineProps({
-  object: Object,
-  isAdmin: Boolean
-})
-const emit = defineEmits(['refresh'])
+const props = defineProps<{ object: any; isAdmin: boolean }>()
+const emit = defineEmits<{ refresh: [] }>()
 
 const contract = ref(props.object.contract || null)
-
-// Форма
-const form = ref({
-  type: '',
-  status: '',
-  statusDate: '',
-  comment: ''
-})
-
 const isCreateModalOpen = ref(false)
 const isEditModalOpen = ref(false)
 
-// Синхронизация при изменении пропса
-watch(() => props.object.contract, (newVal) => {
-  contract.value = newVal || null
-}, { deep: true })
+const form = ref({ type: '', status: 'prepared', statusDate: '', comment: '' })
 
-function formatDate(dateStr) {
-  if (!dateStr) return '—'
-  const date = new Date(dateStr)
-  return date.toLocaleDateString('ru-RU')
+watch(() => props.object.contract, v => { contract.value = v || null }, { deep: true })
+
+const typeMap: Record<string, string> = {
+  unassigned: '—', none: 'Не нужен', edo: 'ЭДО', paper: 'Бумажный', invoice: 'Счёт-договор'
+}
+const statusMap: Record<string, string> = {
+  prepared: 'Подготовлен', sent: 'Отправлен',
+  awaiting: 'Ожидает подписи', signed: 'Подписан', cancelled: 'Отменён'
 }
 
-const typeText = computed(() => {
-  const map = {
-    unassigned: 'Не выбрано',
-    none: 'Не нужен',
-    edo: 'ЭДО',
-    paper: 'Бумажный',
-    invoice: 'Счёт-договор'
-  }
-  return map[contract.value?.type] || '—'
-})
+const typeText = computed(() => typeMap[contract.value?.type] || '—')
+const statusText = computed(() => statusMap[contract.value?.status] || '—')
 
-const statusText = computed(() => {
-  const map = {
-    prepared: 'Подготовлен',
-    sent: 'Отправлен',
-    awaiting: 'Ожидает подписи',
-    signed: 'Подписан',
-    cancelled: 'Отменён'
-  }
-  return map[contract.value?.status] || '—'
-})
+function formatDate(d: string) {
+  if (!d) return '—'
+  const part = d.split(' ')[0]
+  if (!part || !/^\d{4}-\d{2}-\d{2}$/.test(part)) return '—'
+  return new Date(part).toLocaleDateString('ru-RU')
+}
 
-// --- Создание ---
 function openCreateModal() {
-  const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD
+  // ✅ slice(0, 10) всегда возвращает string, TS доволен
   form.value = {
     type: '',
     status: 'prepared',
-    statusDate: today, // ← сегодняшняя дата по умолчанию
+    statusDate: new Date().toISOString().slice(0, 10),
     comment: ''
   }
   isCreateModalOpen.value = true
 }
 
-async function createContract() {
-  if (!form.value.type || !form.value.status) {
-    alert('Заполните тип и статус')
-    return
-  }
-  try {
-    await $fetch(`/api/objects/${props.object.id}/contract`, {
-      method: 'POST',
-      body: {
-        type: form.value.type,
-        status: form.value.status,
-        statusDate: form.value.statusDate || null,
-        comment: form.value.comment || null
-      }
-    })
-    isCreateModalOpen.value = false
-    emit('refresh')
-  } catch (error) {
-    alert(error.message || 'Не удалось создать договор')
-  }
-}
-
-// --- Редактирование ---
 function openEditModal() {
   if (!contract.value) return
-
-  // Копируем данные договора
-  form.value = { ...contract.value }
-
-  // Обрабатываем statusDate: извлекаем YYYY-MM-DD из строки вида "YYYY-MM-DD HH:MM:SS"
-  if (contract.value.statusDate) {
-    const datePart = contract.value.statusDate.split(' ')[0] // ← разделяем по пробелу
-    if (datePart && /^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
-      form.value.statusDate = datePart
-    } else {
-      form.value.statusDate = '' // на всякий случай
-    }
-  } else {
-    form.value.statusDate = ''
+  const raw = (contract.value.statusDate ?? '') as string
+  const datePart = raw.split(' ')[0] ?? ''
+  form.value = {
+    type: contract.value.type ?? '',
+    status: contract.value.status ?? 'prepared',
+    statusDate: /^\d{4}-\d{2}-\d{2}$/.test(datePart) ? datePart : '',
+    comment: contract.value.comment ?? '',
   }
-
   isEditModalOpen.value = true
 }
 
+async function createContract() {
+  if (!form.value.type || !form.value.status) { alert('Заполните тип и статус'); return }
+  try {
+    await $fetch(`/api/objects/${props.object.id}/contract`, {
+      method: 'POST',
+      body: { type: form.value.type, status: form.value.status, statusDate: form.value.statusDate || null, comment: form.value.comment || null }
+    })
+    isCreateModalOpen.value = false
+    emit('refresh')
+  } catch { alert('Не удалось создать договор') }
+}
+
 async function updateContract() {
-  if (!form.value.type || !form.value.status) {
-    alert('Заполните тип и статус')
-    return
-  }
+  if (!form.value.type || !form.value.status) { alert('Заполните тип и статус'); return }
   try {
     await $fetch(`/api/objects/contract/${contract.value.id}`, {
       method: 'PUT',
-      body: {
-        type: form.value.type,
-        status: form.value.status,
-        statusDate: form.value.statusDate || null,
-        comment: form.value.comment || null
-      }
+      body: { type: form.value.type, status: form.value.status, statusDate: form.value.statusDate || null, comment: form.value.comment || null }
     })
     isEditModalOpen.value = false
     emit('refresh')
-  } catch (error) {
-    alert('Не удалось обновить договор')
-  }
-}
-
-// --- Удаление ---
-function confirmDelete() {
-  if (window.confirm('Удалить этот договор?')) {
-    deleteContract()
-  }
-}
-
-async function deleteContract() {
-  try {
-    await $fetch(`/api/objects/contract/${contract.value.id}`, {
-      method: 'DELETE',
-      credentials: 'include'
-    })
-    emit('refresh')
-  } catch (error) {
-    alert('Не удалось удалить договор')
-  }
+  } catch { alert('Не удалось обновить договор') }
 }
 </script>
 
 <style lang="scss" scoped>
-// --- Общее ---
-.empty-state {
-  padding: 1rem;
-  text-align: center;
-  color: $color-muted;
-  font-style: italic;
-}
+.contract {
+  background: var(--crm-bg-surface);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-lg);
+  overflow: hidden;
 
-.contract-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-  font-size: 0.95rem;
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--crm-border);
+    background: var(--crm-bg-elevated);
+  }
 
-  p {
-    margin: 0;
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: var(--crm-text-md);
+    font-weight: 600;
+    color: var(--crm-text-primary);
+  }
+
+  &__empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 30px;
+    color: var(--crm-text-muted);
+    font-size: var(--crm-text-sm);
+  }
+
+  &__body {
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: var(--crm-text-sm);
+  }
+
+  &__label {
+    min-width: 100px;
+    color: var(--crm-text-muted);
+    flex-shrink: 0;
+  }
+
+  &__value {
+    color: var(--crm-text-primary);
+    font-weight: 500;
   }
 }
 
-// --- Бейджи статусов ---
-.badge {
-  padding: 0.25rem 0.75rem;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  display: inline-block;
-
-  &.status-prepared { background: #fff3e0; color: #ef6c00; }
-  &.status-sent { background: #e3f2fd; color: #1565c0; }
-  &.status-awaiting { background: #ffecb3; color: #ff8f00; }
-  &.status-signed { background: #c8e6c9; color: #1b5e20; }
-  &.status-cancelled { background: #ffebee; color: #c62828; }
-}
-
-// --- Действия (в футере Card) ---
-.contract-actions {
-  display: flex;
-  gap: 0.75rem;
+.status-badge {
+  display: inline-flex;
   align-items: center;
-  flex-wrap: wrap;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: var(--crm-text-xs);
+  font-weight: 600;
 
-  .btn {
-    white-space: nowrap;
+  &--prepared {
+    background: var(--crm-warning-dim);
+    border: 1px solid rgba(245, 166, 35, .3);
+    color: var(--crm-warning);
+  }
+
+  &--sent {
+    background: var(--crm-accent-dim);
+    border: 1px solid var(--crm-accent-border);
+    color: var(--crm-accent);
+  }
+
+  &--awaiting {
+    background: var(--crm-info-dim);
+    border: 1px solid rgba(91, 141, 239, .3);
+    color: var(--crm-info);
+  }
+
+  &--signed {
+    background: var(--crm-success-dim);
+    border: 1px solid rgba(61, 214, 140, .3);
+    color: var(--crm-success);
+  }
+
+  &--cancelled {
+    background: var(--crm-danger-dim);
+    border: 1px solid rgba(242, 95, 92, .3);
+    color: var(--crm-danger);
   }
 }
 
-// --- Модальные формы ---
 .modal-form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 14px;
 }
 
-.form-row {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-
-  .flex-1 {
-    flex: 1 1 200px;
-  }
-}
-
-.form-group {
+.field {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 5px;
 
-  label {
+  &__label {
+    font-size: var(--crm-text-sm);
     font-weight: 500;
-    color: $text-dark;
-    font-size: 0.95rem;
+    color: var(--crm-text-secondary);
   }
 
-  .form-select,
-  .form-input {
-    padding: 0.6rem 0.8rem;
-    border: 1px solid $border-color;
-    border-radius: $border-radius;
-    background: white;
-    font-size: 0.95rem;
-    transition: $transition;
+  &__req {
+    color: var(--crm-danger);
+  }
+
+  &__input {
+    background: var(--crm-bg-elevated);
+    border: 1px solid var(--crm-border-hover);
+    border-radius: var(--crm-radius-md);
+    color: var(--crm-text-primary);
+    font-size: var(--crm-text-md);
+    font-family: var(--crm-font-sans);
+    padding: 8px 12px;
+    outline: none;
+    transition: var(--crm-transition);
+    width: 100%;
+    color-scheme: dark;
+
+    &::placeholder {
+      color: var(--crm-text-disabled);
+    }
 
     &:focus {
-      outline: none;
-      border-color: $blue;
-      box-shadow: 0 0 0 2px rgba($blue, 0.1);
-    }
-  }
-
-  .form-select {
-    appearance: none;
-    background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23{$text-gray}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 0.8rem center;
-    background-size: 1rem;
-    padding-right: 2.2rem;
-  }
-
-  textarea.form-input {
-    resize: vertical;
-    min-height: 80px;
-  }
-}
-
-// --- Футер модального окна ---
-.modal-footer-controls {
-  width: 100%;
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
-
-  .btn {
-    padding: 0.45rem 0.9rem;
-    font-size: 0.95rem;
-    font-weight: 500;
-    border-radius: $border-radius;
-
-    &.btn-secondary {
-      background: $sub-item-bg;
-      color: $text-dark;
-
-      &:hover {
-        background: $color-muted;
-      }
+      border-color: var(--crm-accent);
+      box-shadow: 0 0 0 3px var(--crm-accent-dim);
     }
 
-    &.btn-primary {
-      background: $blue;
-      color: white;
+    &--textarea {
+      resize: vertical;
+      min-height: 60px;
+    }
 
-      &:hover {
-        background: $color-muted;
-      }
+    option {
+      background: var(--crm-bg-elevated);
+      color: var(--crm-text-primary);
     }
   }
 }
 
-// --- Адаптивность ---
-@media (max-width: 600px) {
-  .form-row {
-    flex-direction: column;
-    gap: 1rem;
+.crm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: var(--crm-radius-md);
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--crm-transition);
+
+  &--sm {
+    padding: 6px 12px;
+    font-size: var(--crm-text-sm);
   }
 
-  .contract-actions {
-    justify-content: flex-start;
+  &--accent {
+    background: var(--crm-accent-dim);
+    border: 1px solid var(--crm-accent-border);
+    color: var(--crm-accent);
+
+    &:hover {
+      background: rgba(0, 195, 245, .25);
+    }
   }
 
-  .modal-footer-controls {
-    flex-direction: row;
-    justify-content: flex-end;
+  &--ghost {
+    background: var(--crm-bg-elevated);
+    border: 1px solid var(--crm-border-hover);
+    color: var(--crm-text-secondary);
+
+    &:hover {
+      background: var(--crm-bg-overlay);
+      color: var(--crm-text-primary);
+    }
   }
-}
-
-// --- Плавное появление ---
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.card :deep(.card-body),
-.card :deep(.card-header) {
-  animation: fadeIn 0.3s ease forwards;
 }
 </style>

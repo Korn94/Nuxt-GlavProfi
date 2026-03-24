@@ -1,767 +1,704 @@
 <!-- app/pages/cabinet/objects/index.vue -->
 <template>
-  <!-- Заголовок страницы с кнопкой добавления -->
-  <PagesCabinetUiLayoutPageTitle title="Объекты">
-    <template #actions>
-      <div v-if="['admin', 'manager'].includes(user?.role)" class="add-object-form">
-        <input
-          v-model="newObjectName"
-          placeholder="Название объекта"
-          @keyup.enter="addObject"
-          :class="{ error: addError }"
-        />
-        <button @click="addObject" :disabled="!newObjectName || loading" class="btn-primary">
-          Добавить
-        </button>
-      </div>
-    </template>
-  </PagesCabinetUiLayoutPageTitle>
+  <div class="objects-page">
 
-  <!-- Основной контент -->
-  <div class="cabinet-page">
-    <PagesCabinetUiCardsCard :loading="loading" elevated no-padding-body>
-      <!-- Вкладки слева в заголовке карточки -->
-      <template #header>
-        <div class="tabs-container">
-          <button
-            v-for="tab in tabs"
-            :key="tab.value"
-            :class="{ active: currentTab === tab.value }"
-            @click="switchTab(tab.value)"
-          >
-            {{ tab.label }}
+    <!-- Заголовок -->
+    <PagesCabinetUiLayoutPageTitle title="Объекты" icon="mdi:office-building-outline">
+      <template #actions>
+        <div v-if="['admin', 'manager'].includes(user?.role)" class="add-form">
+          <input v-model="newObjectName" class="add-form__input" placeholder="Название объекта"
+            @keyup.enter="addObject" />
+          <button class="crm-btn crm-btn--accent" @click="addObject" :disabled="!newObjectName.trim() || loading">
+            <Icon name="mdi:plus" size="15" />
+            Добавить
           </button>
         </div>
       </template>
+    </PagesCabinetUiLayoutPageTitle>
 
-      <!-- Счётчик "X / Y" справа -->
-      <template #actions>
-        <div class="card-tab-counter" title="Активные / Завершённые">
-          {{ counts.active }} / {{ counts.waiting }} / {{ counts.completed }} / {{ counts.canceled }}
+    <div class="objects-page__content">
+
+      <!-- Вкладки + счётчик -->
+      <div class="objects-nav">
+        <div class="tabs">
+          <button v-for="tab in tabs" :key="tab.value" class="tab" :class="{ 'tab--active': currentTab === tab.value }"
+            @click="currentTab = tab.value">
+            {{ tab.label }}
+            <span class="tab__count">{{ counts[tab.value as TabValue] }}</span>
+          </button>
         </div>
-      </template>
 
-      <!-- Сообщение об ошибке или успехе -->
-      <div v-if="errorMessage" class="alert alert-error">
-        {{ errorMessage }}
+        <div class="counts-summary" title="Активные / Ожидают / Завершены / Отклонены">
+          <span>{{ counts.active }}</span>
+          <span class="counts-summary__sep">/</span>
+          <span>{{ counts.waiting }}</span>
+          <span class="counts-summary__sep">/</span>
+          <span>{{ counts.completed }}</span>
+          <span class="counts-summary__sep">/</span>
+          <span>{{ counts.canceled }}</span>
+        </div>
       </div>
-      <div v-else-if="successMessage" class="alert alert-success">
-        {{ successMessage }}
-      </div>
 
-      <!-- Список объектов -->
-      <ul v-if="filteredObjects.length" class="object-list">
-        <li v-for="object in filteredObjects" :key="object.id" class="object-item">
-          <router-link :to="`/cabinet/objects/${object.id}`" class="object-name">
-            <div class="info">
-              <div class="flex-colomn">
-                <!-- Название объекта -->
-                <p><b>{{ object.name }}</b></p>
+      <!-- Список -->
+      <div class="objects-card">
 
-                <!-- Адрес объекта -->
-                <div class="object-address">
-                  <span class="balance">{{ object.address || '—' }}</span>
-                </div>
-              </div>
+        <!-- Скелетон -->
+        <div v-if="loading" class="objects-skeleton">
+          <div v-for="i in 4" :key="i" class="skel" />
+        </div>
 
-              <div v-if="object.status !== 'completed'" class="profitability-row">
-                <span class="balance">Баланс: <strong>{{ formatNumber(object.totalBalance) }} ₽</strong></span>
-                <div class="debug-info">
-                  Работы: {{ formatNumber(object.totalWorks) }} ₽, 
-                  Материалы: 
-                  <span :class="getMaterialBalance(object) >= 0 ? 'positive' : 'negative'">
-                    {{ getMaterialBalance(object) >= 0 ? '+' : '' }}{{ formatNumber(getMaterialBalance(object)) }} ₽
+        <!-- Пустое состояние -->
+        <div v-else-if="!filteredObjects.length" class="objects-empty">
+          <Icon name="mdi:office-building-outline" size="36" />
+          <span>Нет объектов в категории «{{ currentTabLabel }}»</span>
+        </div>
+
+        <!-- Список объектов -->
+        <ul v-else class="object-list">
+          <li v-for="(obj, idx) in filteredObjects" :key="obj.id" class="object-list__item"
+            :class="{ 'object-list__item--alt': idx % 2 === 1 }">
+            <NuxtLink :to="`/cabinet/objects/${obj.id}`" class="object-item">
+
+              <!-- Основная информация -->
+              <div class="object-item__main">
+                <div class="object-item__name">{{ obj.name }}</div>
+
+                <div class="object-item__meta">
+                  <span v-if="obj.address">
+                    <Icon name="mdi:map-marker-outline" size="12" />
+                    {{ obj.address }}
                   </span>
-                </div>
-              </div>
-
-              <!-- Маржинальность (только для завершённых) -->
-              <div v-if="getProfitabilityText(object)" class="profitability-row">
-                <span :class="{ 'profit-positive': getProfitabilityText(object).isProfit, 'profit-negative': !getProfitabilityText(object).isProfit }">
-                  Маржа: {{ getProfitabilityText(object).text }}
-                </span>
-                <div class="debug-info">
-                  Работы: {{ formatNumber(object.totalWorks) }} ₽, 
-                  Материалы: 
-                  <span :class="getMaterialBalance(object) >= 0 ? 'positive' : 'negative'">
-                    {{ getMaterialBalance(object) >= 0 ? '+' : '' }}{{ formatNumber(getMaterialBalance(object)) }} ₽
+                  <span v-if="obj.foreman">
+                    <Icon name="mdi:account-hard-hat-outline" size="12" />
+                    {{ obj.foreman.name }}
                   </span>
+                  <span v-if="!obj.address && !obj.foreman" class="meta-empty">Адрес не указан</span>
+                </div>
+
+                <div class="object-item__docs">
+                  <div :class="['doc-chip', `doc-chip--${getDocumentClass(obj)}`]" :title="getDocumentTooltip(obj)">
+                    <span class="doc-chip__dot" />
+                    {{ getDocumentText(obj) }}
+                  </div>
+                  <div :class="['doc-chip', `doc-chip--${getInvoiceClass(obj)}`]" :title="getInvoiceTooltip(obj)">
+                    <span class="doc-chip__dot" />
+                    Счета {{ obj.invoiceStats.signed }}/{{ obj.invoiceStats.total }}
+                  </div>
+                  <div :class="['doc-chip', `doc-chip--${getActClass(obj)}`]" :title="getActTooltip(obj)">
+                    <span class="doc-chip__dot" />
+                    Акты {{ obj.actStats.signed }}/{{ obj.actStats.total }}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div class="docs">
-              <!-- Индикатор договора -->
-              <div class="object-doc-status" :title="getDocumentTooltip(object)">
-                <span :class="`doc-indicator ${getDocumentClass(object)}`"></span>
-                <span class="doc-text">{{ getDocumentText(object) }}</span>
+              <!-- Финансы справа -->
+              <div class="object-item__finance">
+
+                <!-- Активные/ожидающие: баланс -->
+                <template v-if="obj.status !== 'completed'">
+                  <div class="fin-block">
+                    <span class="fin-block__label">Баланс</span>
+                    <span class="fin-block__value" :class="obj.totalBalance >= 0 ? 'pos' : 'neg'">
+                      {{ formatNumber(obj.totalBalance) }} ₽
+                    </span>
+                  </div>
+                  <div class="fin-detail">
+                    <span>Работы: {{ formatNumber(obj.totalWorks) }} ₽</span>
+                    <span>
+                      Мат.:
+                      <span :class="getMaterialBalance(obj) >= 0 ? 'pos' : 'neg'">
+                        {{ getMaterialBalance(obj) >= 0 ? '+' : '' }}{{ formatNumber(getMaterialBalance(obj)) }} ₽
+                      </span>
+                    </span>
+                  </div>
+                </template>
+
+                <!-- Завершённые: маржинальность -->
+                <template v-else-if="getProfitability(obj)">
+                  <div class="fin-block">
+                    <span class="fin-block__label">Маржа</span>
+                   <span class="fin-block__value" :class="getProfitabilityData(obj).isProfit ? 'pos' : 'neg'">
+                      {{ getProfitabilityData(obj).text }}
+                    </span>
+                  </div>
+                  <div class="fin-detail">
+                    <span>Работы: {{ formatNumber(obj.totalWorks) }} ₽</span>
+                    <span>
+                      Мат.:
+                      <span :class="getMaterialBalance(obj) >= 0 ? 'pos' : 'neg'">
+                        {{ getMaterialBalance(obj) >= 0 ? '+' : '' }}{{ formatNumber(getMaterialBalance(obj)) }} ₽
+                      </span>
+                    </span>
+                  </div>
+                </template>
+
               </div>
 
-              <!-- Индикатор счетов -->
-              <div class="object-doc-status" :title="getInvoiceTooltip(object)">
-                <span :class="`doc-indicator ${getInvoiceClass(object)}`"></span>
-                <span class="doc-text">Счета {{ object.invoiceStats.total }}/{{ object.invoiceStats.signed }}</span>
-              </div>
+              <Icon name="mdi:chevron-right" size="16" class="object-item__arrow" />
 
-              <!-- Индикатор актов -->
-              <div class="object-doc-status" :title="getActTooltip(object)">
-                <span :class="`doc-indicator ${getActClass(object)}`"></span>
-                <span class="doc-text">Акты {{ object.actStats.total }}/{{ object.actStats.signed }}</span>
-              </div>
-            </div>
-          </router-link>
-        </li>
-      </ul>
+            </NuxtLink>
+          </li>
+        </ul>
 
-      <!-- Пустое состояние -->
-      <div v-else class="empty-state">
-        Нет объектов в категории "{{ currentTabLabel }}"
+        <div class="objects-card__footer">
+          Всего: {{ filteredObjects.length }} объект(а)
+        </div>
       </div>
 
-      <!-- Футер с общим количеством -->
-      <template #footer>
-        Всего: {{ filteredObjects.length }} объект(а)
-      </template>
-    </PagesCabinetUiCardsCard>
+    </div>
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
+import { useHead } from 'nuxt/app'
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 
 definePageMeta({
   layout: 'cabinet',
   middleware: 'role',
-  allowedRoles: ['admin']
+  allowedRoles: ['admin'],
 })
 
-const router = useRouter()
+useHead({ title: 'CRM — Объекты', meta: [{ name: 'robots', content: 'noindex, nofollow' }] })
 
-// Текущий пользователь
-const user = ref(null)
-
-// Данные
-const objects = ref([])
+const user = ref<any>(null)
+const objects = ref<any[]>([])
 const newObjectName = ref('')
 const currentTab = ref('active')
 const loading = ref(false)
-const errorMessage = ref('')
-const successMessage = ref('')
 
-// Вкладки
 const tabs = [
   { label: 'В работе', value: 'active' },
   { label: 'Ожидают', value: 'waiting' },
   { label: 'Завершённые', value: 'completed' },
-  { label: 'Отклонены', value: 'canceled' }
+  { label: 'Отклонены', value: 'canceled' },
 ]
 
-// Вычисляем активную вкладку для отображения
-const currentTabLabel = computed(() => {
-  return tabs.find(t => t.value === currentTab.value)?.label || 'Объекты'
-})
+type TabValue = 'active' | 'waiting' | 'completed' | 'canceled'
 
-// Подсчёты по статусам
-const counts = computed(() => {
-  const active = objects.value.filter(obj => obj.status === 'active').length
-  const waiting = objects.value.filter(obj => obj.status === 'waiting').length
-  const completed = objects.value.filter(obj => obj.status === 'completed').length
-  const canceled = objects.value.filter(obj => obj.status === 'canceled').length
-  return { active, waiting, completed, canceled }
-})
+const currentTabLabel = computed(() =>
+  tabs.find(t => t.value === currentTab.value)?.label || ''
+)
 
-// Отфильтрованные объекты (для текущей вкладки)
+const counts = computed(() => ({
+  active: objects.value.filter(o => o.status === 'active').length,
+  waiting: objects.value.filter(o => o.status === 'waiting').length,
+  completed: objects.value.filter(o => o.status === 'completed').length,
+  canceled: objects.value.filter(o => o.status === 'canceled').length,
+}))
+
 const filteredObjects = computed(() => {
-  const filtered = objects.value.filter(obj => obj.status === currentTab.value)
-  
-  // Для статусов waiting, completed, canceled сортируем по statusDate (новые сверху)
+  const list = objects.value.filter(o => o.status === currentTab.value)
   if (['waiting', 'completed', 'canceled'].includes(currentTab.value)) {
-    return [...filtered].sort((a, b) => {
-      // Объекты с null statusDate идут в конец
+    return [...list].sort((a, b) => {
       if (!a.statusDate) return 1
       if (!b.statusDate) return -1
-      
-      // Сравниваем даты
-      return new Date(b.statusDate) - new Date(a.statusDate)
+      return new Date(b.statusDate).getTime() - new Date(a.statusDate).getTime()
     })
   }
-  // Для статуса active сортируем по createdAt (новые сверху)
-  else if (currentTab.value === 'active') {
-    return [...filtered].sort((a, b) => {
-      // Убедимся, что даты корректны
-      const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0)
-      const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0)
-      
-      // Новые объекты сверху
-      return dateB - dateA
-    })
-  }
-  
-  // Для других статусов (если они появятся) возвращаем как есть
-  return filtered
+  return [...list].sort((a, b) =>
+    (b.createdAt ? new Date(b.createdAt).getTime() : 0) -
+    (a.createdAt ? new Date(a.createdAt).getTime() : 0)
+  )
 })
 
-// Ошибки
-const addError = computed(() => !newObjectName.value.trim())
+function formatNumber(n: any) { return (Number(n) || 0).toLocaleString('ru-RU') }
+function getMaterialBalance(obj: any) { return (obj.materialIncoming || 0) - (obj.materialOutgoing || 0) }
 
-// Форматирование чисел
-const formatNumber = (num) => {
-  const value = Number(num) || 0
-  return value.toLocaleString('ru-RU')
+function getProfitability(obj: any) {
+  if (obj.status !== 'completed') return null
+  const income = obj.totalIncome || 0
+  const expenses = obj.expenses || 0
+  const profit = income - expenses
+  if (income === 0) return null
+  const pct = ((profit / income) * 100).toFixed(1)
+  return { text: `${formatNumber(profit)} ₽ (${pct}%)`, isProfit: profit >= 0 }
 }
 
-// Переключение вкладок
-function switchTab(tabValue) {
-  currentTab.value = tabValue
+const getProfitabilityData = (obj: any) => {
+  const data = getProfitability(obj)
+  return data || { text: '—', isProfit: true }
 }
 
-// Загрузка пользователя и объектов
-onMounted(async () => {
-  try {
-    const currentUser = await $fetch('/api/me', {
-      method: 'GET',
-      credentials: 'include'
-    })
-    user.value = currentUser.user
-  } catch (error) {
-    console.error('Ошибка получения пользователя:', error)
-    user.value = null
-    errorMessage.value = 'Не удалось загрузить данные пользователя'
-    setTimeout(() => (errorMessage.value = ''), 5000)
+const contractTypeMap: Record<string, string> = {
+  edo: 'ЭДО', paper: 'Бумажный', invoice: 'Счёт-д.', none: 'Не нужен', unassigned: '—',
+}
+
+function getDocumentClass(obj: any) {
+  if (!obj.contract) return 'red'
+  return obj.contract.status === 'signed' ? 'green' : 'yellow'
+}
+function getDocumentText(obj: any) {
+  return obj.contract ? (contractTypeMap[obj.contract.type] || '—') : 'Нет договора'
+}
+function getDocumentTooltip(obj: any) {
+  if (!obj.contract) return 'Договор не создан'
+  const sm: Record<string, string> = {
+    prepared: 'Подготовлен', sent: 'Отправлен',
+    awaiting: 'На подписи', signed: 'Подписан', cancelled: 'Отменён',
   }
+  return `${contractTypeMap[obj.contract.type] || '—'} — ${sm[obj.contract.status] || '—'}`
+}
+function getInvoiceClass(obj: any) {
+  const s = obj.invoiceStats
+  if (s.total === 0) return 'red'
+  return s.signed === s.total ? 'green' : 'yellow'
+}
+function getInvoiceTooltip(obj: any) {
+  const { total, signed } = obj.invoiceStats
+  if (total === 0) return 'Нет счётов'
+  return signed === total ? `Все ${total} оплачены` : `${signed} из ${total} оплачено`
+}
+function getActClass(obj: any) {
+  const s = obj.actStats
+  if (s.total === 0) return 'red'
+  return s.signed === s.total ? 'green' : 'yellow'
+}
+function getActTooltip(obj: any) {
+  const { total, signed } = obj.actStats
+  if (total === 0) return 'Нет актов'
+  return signed === total ? `Все ${total} подписаны` : `${signed} из ${total} подписано`
+}
 
-  await fetchObjects()
-})
-
-// Получение объектов
 async function fetchObjects() {
   loading.value = true
-  errorMessage.value = ''
-  try {
-    const data = await $fetch('/api/objects', {
-      method: 'GET',
-      credentials: 'include'
-    })
-
-    // ✅ ПРОСТО СОХРАНЯЕМ ДАННЫЕ КАК ЕСТЬ
-    objects.value = data
-  } catch (error) {
-    console.error('Ошибка загрузки объектов:', error)
-    errorMessage.value = 'Не удалось загрузить объекты'
-  } finally {
-    loading.value = false
-  }
+  try { objects.value = await $fetch<any[]>('/api/objects', { credentials: 'include' }) || [] }
+  catch (e) { console.error('[Объекты]:', e) }
+  finally { loading.value = false }
 }
 
-// Обновление балансов
-async function updateBalances() {
-  try {
-    const updatedObjects = await Promise.all(
-      objects.value.map(async (obj) => {
-        const fullData = await $fetch(`/api/objects/${obj.id}/full`, {
-          method: 'GET',
-          credentials: 'include'
-        })
-
-        return {
-          ...obj,
-          totalIncome: fullData.finances.totalIncome,
-          totalWorks: fullData.finances.totalWorks,
-          materialsTotal: fullData.materialsTotal, // нужно добавить в full.get.ts
-          expenses: fullData.finances.totalWorks + (fullData.materialsTotal || 0),
-          totalBalance: fullData.finances.totalBalance
-        }
-      })
-    )
-    objects.value = updatedObjects
-  } catch (error) {
-    console.error('Ошибка обновления балансов:', error)
-  }
-}
-
-// Добавление объекта
 async function addObject() {
   if (!newObjectName.value.trim()) return
-
   loading.value = true
-  errorMessage.value = ''
   try {
-    const created = await $fetch('/api/objects', {
+    const c = await $fetch<any>('/api/objects', {
       method: 'POST',
       body: { name: newObjectName.value.trim(), status: currentTab.value },
-      credentials: 'include'
+      credentials: 'include',
     })
-
-    objects.value.unshift({
-      ...created,
-      totalBalance: 0
-    })
-
+    objects.value.unshift({ ...c, totalBalance: 0 })
     newObjectName.value = ''
-    successMessage.value = 'Объект успешно создан!'
-    setTimeout(() => (successMessage.value = ''), 3000)
-  } catch (error) {
-    console.error('Ошибка создания объекта:', error)
-    errorMessage.value = 'Не удалось создать объект'
-  } finally {
-    loading.value = false
-  }
+  } catch (e) { console.error('[Объекты]:', e) }
+  finally { loading.value = false }
 }
 
-// --- Вспомогательная функция: баланс материалов ---
-function getMaterialBalance(object) {
-  const incoming = object.materialIncoming || 0
-  const outgoing = object.materialOutgoing || 0
-  return incoming - outgoing
-}
-
-// --- ДОКУМЕНТЫ: статус договора ---
-
-// Карта типов договоров
-const contractTypeMap = {
-  edo: 'ЭДО',
-  paper: 'Бумажный',
-  invoice: 'Счёт-договор',
-  none: 'Не нужен',
-  unassigned: '—'
-}
-
-// Карта статусов (для подсказки)
-const contractStatusMap = {
-  prepared: 'Подготовлен',
-  sent: 'Отправлен',
-  awaiting: 'На подписи',
-  signed: 'Подписан',
-  cancelled: 'Отменён'
-}
-
-// Получить класс для индикатора
-function getDocumentClass(object) {
-  if (!object.contract) return 'doc-red'
-  if (object.contract.status === 'signed') return 'doc-green'
-  if (['sent', 'awaiting'].includes(object.contract.status)) return 'doc-yellow'
-  return 'doc-yellow'
-}
-
-// Получить текстовое описание
-function getDocumentText(object) {
-  if (!object.contract) return '—'
-  return contractTypeMap[object.contract.type] || '—'
-}
-
-// Получить подсказку при наведении
-function getDocumentTooltip(object) {
-  if (!object.contract) return 'Договор не создан'
-
-  const typeTip = {
-    edo: 'Электронный документооборот',
-    paper: 'Бумажный договор',
-    invoice: 'Счёт-договор',
-    none: 'Договор не требуется',
-    unassigned: 'Тип договора не выбран'
-  }[object.contract.type] || '—'
-
-  const statusTip = contractStatusMap[object.contract.status] || '—'
-
-  return `${typeTip} — ${statusTip}`
-}
-
-// --- ИНДИКАТОРЫ ДЛЯ СЧЁТОВ ---
-
-function getInvoiceClass(object) {
-  const stats = object.invoiceStats
-  if (stats.total === 0) return 'doc-red'
-  if (stats.signed === stats.total) return 'doc-green'
-  return 'doc-yellow'
-}
-
-function getInvoiceTooltip(object) {
-  const { total, signed } = object.invoiceStats
-  if (total === 0) return 'Нет счётов'
-  if (signed === total) return `Все ${total} счётов оплачены`
-  return `${signed} из ${total} счётов оплачено`
-}
-
-// --- ИНДИКАТОРЫ ДЛЯ АКТОВ ---
-
-function getActClass(object) {
-  const stats = object.actStats
-  if (stats.total === 0) return 'doc-red'
-  if (stats.signed === stats.total) return 'doc-green'
-  return 'doc-yellow'
-}
-
-function getActTooltip(object) {
-  const { total, signed } = object.actStats
-  if (total === 0) return 'Нет актов'
-  if (signed === total) return `Все ${total} актов подписаны`
-  return `${signed} из ${total} актов подписано`
-}
-
-// --- МАРЖИНАЛЬНОСТЬ ДЛЯ ЗАВЕРШЁННЫХ ОБЪЕКТОВ ---
-function getProfitabilityText(object) {
-  if (object.status !== 'completed') return null
-
-  const income = object.totalIncome || 0
-  const expenses = object.expenses || 0
-  const profit = income - expenses
-
-  if (income === 0) return 'Приход: 0 ₽'
-
-  const marginPercent = ((profit / income) * 100).toFixed(1)
-
-  return {
-    text: `${formatNumber(profit)} ₽ (${marginPercent}%)`,
-    isProfit: profit >= 0
-  }
-}
-
-useHead({
-  meta: [
-    { name: 'robots', content: 'noindex, nofollow' },
-  ],
-  title: 'CRM — Объекты'
+onMounted(async () => {
+  try { const me = await $fetch<any>('/api/me', { credentials: 'include' }); user.value = me.user }
+  catch { user.value = null }
+  await fetchObjects()
 })
 </script>
 
 <style lang="scss" scoped>
-.cabinet-page {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 1.5rem;
-}
-
-.tabs-container {
+.objects-page {
   display: flex;
-  gap: 0.5rem;
+  flex-direction: column;
+  min-height: 100%;
 
-  button {
-    padding: 0.6rem 1rem;
-    border: none;
-    background: $background-light;
-    border-radius: $border-radius;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-size: 0.95rem;
-    font-weight: 500;
-    white-space: nowrap;
-
-    &.active {
-      background: $blue;
-      color: white;
-    }
-
-    &:hover:not(.active) {
-      background: $blue;
-    }
+  &__content {
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
   }
 }
 
-// Счётчик в правой части заголовка карточки
-.card-tab-counter {
-  font-size: 0.95rem;
-  color: $color-muted;
-  font-weight: 600;
-  padding: 0.5rem 1rem;
-  background: rgba($blue, 0.05);
-  border-radius: $border-radius;
-  min-width: 80px;
-  text-align: end;
-  font-family: 'Courier', monospace; // улучшает выравнивание цифр
-  border-left: 1px solid $border-color;
-}
-
-.add-object-form {
+// ── Форма добавления ─────────────────────────────────────────────────
+.add-form {
   display: flex;
-  gap: 0.75rem;
   align-items: center;
+  gap: 8px;
 
-  input {
-    flex: 1;
-    max-width: 300px;
-    padding: 0.6rem 0.8rem;
-    border: 1px solid $border-color;
-    border-radius: $border-radius;
-    font-size: 0.95rem;
-    transition: border-color 0.2s ease;
+  &__input {
+    background: var(--crm-bg-elevated);
+    border: 1px solid var(--crm-border-hover);
+    border-radius: var(--crm-radius-md);
+    color: var(--crm-text-primary);
+    font-size: var(--crm-text-sm);
+    font-family: var(--crm-font-sans);
+    padding: 6px 12px;
+    outline: none;
+    width: 220px;
+    transition: var(--crm-transition);
+
+    &::placeholder {
+      color: var(--crm-text-disabled);
+    }
 
     &:focus {
-      outline: none;
-      border-color: $blue;
-    }
-
-    // &.error {
-    //   border-color: $color-danger;
-    //   background: #ffebee;
-    // }
-  }
-
-  .btn-primary {
-    padding: 0.6rem 1.2rem;
-    background: $color-success;
-    color: white;
-    border: none;
-    border-radius: $border-radius;
-    cursor: pointer;
-    font-size: 0.95rem;
-    font-weight: 500;
-    transition: background 0.2s ease;
-
-    &:disabled {
-      background: $color-muted;
-      cursor: not-allowed;
-      opacity: 0.7;
-    }
-
-    &:not(:disabled):hover {
-      background: $color-success;
+      border-color: var(--crm-accent);
+      box-shadow: 0 0 0 3px var(--crm-accent-dim);
     }
   }
 }
 
-.alert {
-  padding: 0.75rem 1rem;
-  border-radius: $border-radius;
-  font-size: 0.875rem;
-  margin-bottom: 1rem;
-  border: 1px solid transparent;
+// ── Навигация ────────────────────────────────────────────────────────
+.objects-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
 
-  &-error {
-    background: #ffeaea;
-    color: $color-danger;
-    border-color: #f1948a;
+.tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: var(--crm-bg-elevated);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-md);
+  color: var(--crm-text-secondary);
+  font-size: var(--crm-text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--crm-transition);
+
+  &:hover {
+    background: var(--crm-bg-overlay);
+    color: var(--crm-text-primary);
   }
 
-  &-success {
-    background: #ecfde4;
-    color: $color-success;
-    border-color: #a3e635;
+  &--active {
+    background: var(--crm-accent-dim);
+    border-color: var(--crm-accent-border);
+    color: var(--crm-accent);
+
+    &:hover {
+      background: var(--crm-accent-dim);
+    }
+  }
+
+  &__count {
+    font-size: var(--crm-text-xs);
+    font-weight: 700;
+    padding: 1px 6px;
+    background: var(--crm-bg-overlay);
+    border-radius: 10px;
+    color: var(--crm-text-muted);
+
+    .tab--active & {
+      background: rgba(0, 195, 245, .2);
+      color: var(--crm-accent);
+    }
   }
 }
 
+.counts-summary {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--crm-font-mono);
+  font-size: var(--crm-text-sm);
+  font-weight: 600;
+  color: var(--crm-text-secondary);
+  background: var(--crm-bg-elevated);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-md);
+  padding: 5px 12px;
+
+  &__sep {
+    color: var(--crm-text-disabled);
+  }
+}
+
+// ── Карточка ─────────────────────────────────────────────────────────
+.objects-card {
+  background: var(--crm-bg-surface);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-lg);
+  overflow: hidden;
+
+  &__footer {
+    padding: 10px 16px;
+    border-top: 1px solid var(--crm-border);
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+  }
+}
+
+// ── Список ───────────────────────────────────────────────────────────
 .object-list {
   list-style: none;
   padding: 0;
   margin: 0;
 
-  .object-item {
-    // display: flex;
-    // flex-direction: column;
-    // justify-content: space-between;
-    // align-items: center;
-    padding: 1rem;
-    border-bottom: 1px solid $border-color;
-    transition: background 0.2s ease, transform 0.1s ease;
-    gap: 1rem;
-
-    &:last-child {
-      border-bottom: none;
-    }
-
-    &:hover {
-      background: rgba($blue, 0.02);
-    }
-
-    .info {
-      justify-content: space-between;
-    }
-
-    .docs {
-      gap: 1em;
-      margin-top: .5em;
-    }
-
-    .info, .docs {
-      // border: 1px solid red;
-      display: flex;
-      align-items: start;
-
-      .profitability-row {
-        font-size: 0.85rem;
-        margin-top: 0.25rem;
-        text-align: end;
-
-        span {
-          padding: 0.25rem 0.5rem;
-          border-radius: $border-radius;
-          font-weight: 600;
-          font-size: 0.9rem;
-
-          &.profit-positive {
-            color: #2e7d32;
-            background: #e8f5e9;
-          }
-
-          &.profit-negative {
-            color: #c62828;
-            background: #ffebee;
-          }
-        }
-
-        .debug-info, span {
-          font-size: 0.8rem;
-          color: $color-muted;
-          margin-top: 0.25rem;
-          padding: unset;
-        }
-      }
-    }
-  }
-
-  .object-name {
-    flex: 1;
-    font-size: 1rem;
-    color: $text-dark;
-    text-decoration: none;
-    font-weight: 500;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-
-    &:hover {
-      color: $blue;
-    }
-  }
-
-  .balance {
-    color: $color-muted;
-    font-size: 0.95rem;
-    
-    strong {
-      color: $text-dark;
-      font-weight: 600;
-      font-size: 1.2em;
+  &__item {
+    &--alt {
+      background: rgba(255, 255, 255, 0.022);
     }
   }
 }
 
-// --- Статус договора ---
-.object-doc-status {
+// ── Элемент объекта ──────────────────────────────────────────────────
+.object-item {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-  color: $text-dark;
-  flex-shrink: 0;
-  min-width: 160px;
-  padding: 0.25rem 0.5rem;
-  border-radius: $border-radius;
-  background: rgba($border-color, 0.05);
-  border: 1px solid rgba($border-color, 1);
-  transition: all 0.2s ease;
-}
+  gap: 16px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--crm-border);
+  text-decoration: none;
+  transition: var(--crm-transition);
 
-.doc-indicator {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-
-  &.doc-green {
-    background: #4caf50;
-    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+  .object-list__item:last-child & {
+    border-bottom: none;
   }
 
-  &.doc-yellow {
-    background: #ff9800;
-    box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.2);
+  &:hover {
+    background: var(--crm-bg-elevated);
   }
 
-  &.doc-red {
-    background: #f44336;
-    box-shadow: 0 0 0 2px rgba(244, 67, 54, 0.2);
+  &__main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  &__name {
+    font-size: var(--crm-text-md);
+    font-weight: 600;
+    color: var(--crm-text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+
+    span {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: var(--crm-text-xs);
+      color: var(--crm-text-muted);
+    }
+  }
+
+  &__docs {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+
+  &__finance {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    flex-shrink: 0;
+    min-width: 150px;
+  }
+
+  &__arrow {
+    color: var(--crm-text-disabled);
+    flex-shrink: 0;
+    transition: var(--crm-transition);
+  }
+
+  &:hover &__arrow {
+    color: var(--crm-accent);
+    transform: translateX(2px);
   }
 }
 
-.doc-text {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 120px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: $text-dark;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 3rem;
-  color: $color-muted;
+.meta-empty {
   font-style: italic;
-  font-size: 1rem;
-  border-top: 1px solid $border-color;
+  color: var(--crm-text-disabled) !important;
 }
 
-.btn-sm {
-  padding: 0.4rem 0.75rem;
-  border: none;
-  border-radius: $border-radius;
-  font-size: 0.8rem;
+// ── Финансовые данные ────────────────────────────────────────────────
+.fin-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+
+  &__label {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+  }
+
+  &__value {
+    font-size: var(--crm-text-lg);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+}
+
+.fin-detail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+
+  span {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+    white-space: nowrap;
+  }
+}
+
+.pos {
+  color: var(--crm-success);
+}
+
+.neg {
+  color: var(--crm-danger);
+}
+
+// ── Чипы документов ──────────────────────────────────────────────────
+.doc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: var(--crm-radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--crm-border);
+  background: var(--crm-bg-elevated);
+  color: var(--crm-text-muted);
+  white-space: nowrap;
+
+  &__dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--crm-text-disabled);
+    flex-shrink: 0;
+  }
+
+  &--green {
+    background: var(--crm-success-dim);
+    border-color: rgba(61, 214, 140, .3);
+    color: var(--crm-success);
+
+    .doc-chip__dot {
+      background: var(--crm-success);
+    }
+  }
+
+  &--yellow {
+    background: var(--crm-warning-dim);
+    border-color: rgba(245, 166, 35, .3);
+    color: var(--crm-warning);
+
+    .doc-chip__dot {
+      background: var(--crm-warning);
+    }
+  }
+
+  &--red {
+    background: var(--crm-danger-dim);
+    border-color: rgba(242, 95, 92, .3);
+    color: var(--crm-danger);
+
+    .doc-chip__dot {
+      background: var(--crm-danger);
+    }
+  }
+}
+
+// ── Скелетон / пустое ────────────────────────────────────────────────
+.objects-skeleton {
+  display: flex;
+  flex-direction: column;
+}
+
+.skel {
+  height: 76px;
+  border-bottom: 1px solid var(--crm-border);
+  background: linear-gradient(90deg, var(--crm-bg-elevated) 25%, var(--crm-bg-overlay) 50%, var(--crm-bg-elevated) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s infinite;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.objects-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 60px 20px;
+  color: var(--crm-text-muted);
+  font-size: var(--crm-text-sm);
+}
+
+// ── Кнопки ───────────────────────────────────────────────────────────
+.crm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 14px;
+  border-radius: var(--crm-radius-md);
+  font-size: var(--crm-text-sm);
+  font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: var(--crm-transition);
 
-  &.btn-success {
-    background: $color-success;
-    color: white;
+  &--accent {
+    background: var(--crm-accent-dim);
+    border: 1px solid var(--crm-accent-border);
+    color: var(--crm-accent);
 
-    &:hover {
-      background: $color-success;
+    &:hover:not(:disabled) {
+      background: rgba(0, 195, 245, .25);
     }
-  }
 
-  &.btn-warning {
-    background: $yellow;
-    color: white;
-
-    &:hover {
-      background: $yellow;
-    }
-  }
-
-  &.btn-danger {
-    background: $color-danger;
-    color: white;
-
-    &:hover {
-      background: $color-danger;
+    &:disabled {
+      opacity: .45;
+      cursor: not-allowed;
     }
   }
 }
 
-// --- Адаптивность ---
-@media (max-width: 1024px) {
-  .cabinet-page {
-    padding: 1rem;
-  }
-
-  .add-object-form input {
-    max-width: 200px;
-    font-size: 0.9rem;
-  }
-
-  .card-tab-counter {
-    font-size: 0.9rem;
-    padding: 0.4rem 0.8rem;
+@media (max-width: 767.98px) {
+  .objects-page__content {
+    padding: 16px;
   }
 
   .object-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.75rem;
-    padding: 0.75rem;
-  }
+    flex-wrap: wrap;
 
-  .object-doc-status {
-    align-self: flex-end;
-    margin-top: 0.5rem;
-  }
-
-  .doc-text {
-    max-width: 100px;
-    font-size: 0.8rem;
+    &__finance {
+      width: 100%;
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: flex-start;
+      min-width: unset;
+      border-top: 1px solid var(--crm-border);
+      padding-top: 8px;
+      margin-top: 2px;
+    }
   }
 }
 </style>

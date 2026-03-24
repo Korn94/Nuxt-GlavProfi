@@ -1,43 +1,65 @@
+<!-- app/components/pages/cabinet/objects/Operations.vue -->
 <template>
-  <div class="block">
-    <h2>Операции объекта</h2>
+  <div class="ops">
 
-    <!-- Баланс объекта -->
-    <div class="balance-summary">
-      <div class="balance-card">
-        <div class="card-header">
-          <span>Баланс объекта</span>
-          <Icon name="mdi:attach-money" size="20" />
+    <!-- Сводка -->
+    <div class="ops-summary">
+      <div class="summary-card summary-card--balance">
+        <div class="summary-card__icon">
+          <Icon name="mdi:scale-balance" size="18" />
         </div>
-        <div class="card-body">
-          <p>{{ formatAmount(objectBalance) }} ₽</p>
-          <small class="balance-description">Приходы - Вып. работы</small>
+        <div class="summary-card__info">
+          <span class="summary-card__label">Баланс объекта</span>
+          <span class="summary-card__value" :class="objectBalance >= 0 ? 'pos' : 'neg'">
+            {{ formatAmount(objectBalance) }} ₽
+          </span>
+          <span class="summary-card__sub">Приходы − выплаченные работы</span>
         </div>
       </div>
 
-      <div class="balance-card">
-        <div class="card-header">
-          <span>Сумма работ в работе</span>
-          <Icon name="mdi:clock-time-eight-outline" size="20" />
+      <div class="summary-card summary-card--pending">
+        <div class="summary-card__icon">
+          <Icon name="mdi:clock-outline" size="18" />
         </div>
-        <div class="card-body">
-          <p>{{ formatAmount(pendingWorksTotal) }} ₽</p>
-          <small class="balance-description">Сумма не принятых работ</small>
+        <div class="summary-card__info">
+          <span class="summary-card__label">В работе</span>
+          <span class="summary-card__value">
+            {{ formatAmount(pendingWorksTotal) }} ₽
+          </span>
+          <span class="summary-card__sub">Непринятые работы</span>
         </div>
       </div>
     </div>
 
     <!-- Кнопки добавления -->
-    <div class="add-buttons">
-      <button @click="openComingModal" class="btn primary">Добавить приход</button>
-      <button @click="openWorkModal" class="btn primary">Добавить работу</button>
+    <div class="ops-actions">
+      <button class="crm-btn crm-btn--income" @click="openComingModal">
+        <Icon name="mdi:plus" size="15" />
+        Добавить приход
+      </button>
+      <button class="crm-btn crm-btn--work" @click="openWorkModal">
+        <Icon name="mdi:hammer" size="15" />
+        Добавить работу
+      </button>
     </div>
 
-    <!-- Таблица приходов -->
-    <div class="table-section">
-      <h3><Icon name="mdi:arrow-left" width="24" height="24" /> Приходы</h3>
-      <div class="table-wrapper">
-        <table>
+    <!-- Приходы -->
+    <div class="ops-section">
+      <div class="ops-section__header">
+        <div class="ops-section__title">
+          <Icon name="mdi:arrow-bottom-left" size="16" class="ops-section__icon ops-section__icon--income" />
+          Приходы
+        </div>
+        <span class="ops-section__count">{{ comings.length }}</span>
+      </div>
+
+      <div v-if="!comings.length" class="ops-empty">
+        <Icon name="mdi:cash-plus" size="24" />
+        <span>Нет приходов</span>
+      </div>
+
+      <div v-else class="ops-table-wrap">
+        <table class="ops-table">
           <thead>
             <tr>
               <th>Дата</th>
@@ -46,69 +68,89 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(coming, $index) in sortByDateDesc(comings)" :key="coming.id" :class="{ 'odd-row': $index % 2 === 0 }">
-              <td>{{ formatDate(coming.operationDate) }}</td>
-              <td>{{ formatAmount(coming.amount) }} ₽</td>
-              <td>{{ coming.comment || '-' }}</td>
+            <tr v-for="(c, idx) in sortByDateDesc(comings)" :key="c.id" :class="{ 'tr--alt': idx % 2 === 1 }">
+              <td class="td--date">{{ formatDate(c.operationDate) }}</td>
+              <td class="td--amount pos">+{{ formatAmount(c.amount) }} ₽</td>
+              <td class="td--comment">{{ c.comment || '—' }}</td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
 
-    <!-- Таблица работ -->
-    <div class="table-section">
-      <h3><Icon name="mdi:work-outline" width="24" height="24" /> Работы</h3>
-      <button class="btn btn-secondary" @click="refreshData">
-        <Icon name="mdi:refresh" size="18" />
-        Обновить
-      </button>
-      <div class="table-wrapper">
-        <table>
+    <!-- Работы -->
+    <div class="ops-section">
+      <div class="ops-section__header">
+        <div class="ops-section__title">
+          <Icon name="mdi:hammer" size="16" class="ops-section__icon ops-section__icon--work" />
+          Работы
+        </div>
+        <span class="ops-section__count">{{ works.length }}</span>
+        <button class="crm-btn crm-btn--ghost crm-btn--xs" @click="fetchOperations">
+          <Icon name="mdi:refresh" size="13" />
+        </button>
+      </div>
+
+      <div v-if="!works.length" class="ops-empty">
+        <Icon name="mdi:briefcase-outline" size="24" />
+        <span>Нет работ</span>
+      </div>
+
+      <div v-else class="ops-table-wrap">
+        <table class="ops-table ops-table--works">
           <thead>
             <tr>
               <th>Дата</th>
               <th>Сумма</th>
               <th>Статус</th>
-              <th>Комментарий</th>
               <th>Контрагент</th>
               <th>Вид работы</th>
               <th>Прораб</th>
-              <th>Принято заказчиком</th>
-              <th>Комментарий</th>
+              <th>Принято</th>
+              <th>Комм.</th>
               <th>Действия</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(work, $index) in sortByDateDesc(works)" :key="work.id" :class="{ 'odd-row': $index % 2 === 0 }">
-              <td>{{ formatDate(work.operationDate) }}</td>
-              <td>{{ formatAmount(work.workerAmount || work.amount) }} ₽</td>
-              <td :class="{'status-paid': work.paid, 'status-pending': !work.paid}">
-                {{ work.paid ? 'Принято' : 'В работе' }}
-              </td>
-              <td>{{ work.comment || '-' }}</td>
-              <td>
-                {{ contractors.find(c => c.id === work.contractorId && c.type === work.contractorType)?.name || '-' }}
-              </td>
-              <td>{{ work.workType || '-' }}</td>
-              <td>
-                {{ foremans.find(s => s.id === work.supervisorId)?.name || '-' }}
+            <tr v-for="(w, idx) in sortByDateDesc(works)" :key="w.id"
+              :class="['ops-work-row', { 'tr--alt': idx % 2 === 1, 'ops-work-row--paid': w.paid }]">
+              <td class="td--date">{{ formatDate(w.operationDate) }}</td>
+              <td class="td--amount">
+                <span :class="w.paid ? 'pos' : 'warn'">
+                  {{ formatAmount(w.workerAmount || w.amount) }} ₽
+                </span>
               </td>
               <td>
-                <span v-if="work.acceptedByClient">✅</span>
-                <span v-else>❌</span>
+                <span :class="['work-status', w.paid ? 'work-status--paid' : 'work-status--pending']">
+                  {{ w.paid ? 'Принято' : 'В работе' }}
+                </span>
               </td>
-              <td>
-                <span v-if="work.rejectionComment">{{ work.rejectionComment }}</span>
-                <span v-else>-</span>
+              <td class="td--name">
+                {{contractors.find(c => c.id === w.contractorId && c.type === w.contractorType)?.name || '—'}}
               </td>
-              <td>
-                <div class="action-buttons">
-                  <button v-if="!work.paid && !work.acceptedByClient" @click="acceptWork(work.id)">Принять</button>
-                  <button v-if="!work.paid && !work.acceptedByClient" @click="rejectWork(work.id)">Отклонить</button>
-                  <button v-if="!work.paid && work.acceptedByClient" @click="payWork(work.id)">Закрыть</button>
-                  <button @click="deleteWork(work.id, work.paid)" class="delete-button" title="Удалить работу">×</button>
-                </div>
+              <td>{{ w.workType || '—' }}</td>
+              <td class="td--name">{{foremans.find(f => f.id === w.supervisorId)?.name || '—'}}</td>
+              <td class="td--center">
+                <Icon :name="w.acceptedByClient ? 'mdi:check-circle' : 'mdi:close-circle'" size="16"
+                  :class="w.acceptedByClient ? 'pos' : 'neg'" />
+              </td>
+              <td class="td--comment">{{ w.rejectionComment || '—' }}</td>
+              <td class="td--actions">
+                <template v-if="!w.paid && !w.acceptedByClient">
+                  <button class="action-btn action-btn--accept" @click="acceptWork(w.id)" title="Принять">
+                    <Icon name="mdi:check" size="13" />
+                  </button>
+                  <button class="action-btn action-btn--reject" @click="rejectWork(w.id)" title="Отклонить">
+                    <Icon name="mdi:close" size="13" />
+                  </button>
+                </template>
+                <button v-if="!w.paid && w.acceptedByClient" class="action-btn action-btn--pay" @click="payWork(w.id)"
+                  title="Закрыть">
+                  <Icon name="mdi:currency-rub" size="13" />
+                </button>
+                <button class="action-btn action-btn--delete" @click="deleteWork(w.id, w.paid)" title="Удалить">
+                  <Icon name="mdi:trash-can-outline" size="13" />
+                </button>
               </td>
             </tr>
           </tbody>
@@ -116,461 +158,288 @@
       </div>
     </div>
 
-    <!-- Уведомления -->
-    <div v-if="successMessage" class="notification success">
-      <Icon name="mdi:check-circle-outline" width="24" height="24" />
-      {{ successMessage }}
-    </div>
-    <div v-if="errorMessage" class="notification error">
-      <Icon name="mdi:exclamation" width="24" height="24" />
-      {{ errorMessage }}
-    </div>
+    <!-- Модалка: Добавить приход -->
+    <PagesCabinetUiModal :visible="isComingModalOpen" title="Добавить приход" size="md" closable
+      @update:visible="closeModals" @close="closeModals">
+      <div class="modal-form">
+        <div class="field">
+          <label class="field__label">Сумма <span class="field__req">*</span></label>
+          <input type="text" class="field__input" :class="{ 'field__input--error': formErrors.coming }"
+            v-model="comingDisplayAmount" placeholder="0" @blur="formatComingOnBlur" @focus="unformatComingOnFocus"
+            @input="syncComingAmount" />
+          <span v-if="formErrors.coming" class="field__error">{{ formErrors.coming }}</span>
+        </div>
 
-    <!-- Модальное окно: Добавить приход -->
-    <PagesCabinetUiModal
-      :visible="isComingModalOpen"
-      @update:visible="closeModals"
-      @close="closeModals"
-      title="Добавить приход"
-      size="md"
-      closable
-    >
-      <!-- Контент -->
-      <div class="modal-content">
-        <form @submit.prevent="addComing">
-          <div class="form-group">
-            <label>Сумма <span class="required">*</span></label>
-            <input
-              type="text"
-              v-model="comingDisplayAmount"
-              placeholder="Введите сумму"
-              @blur="formatComingOnBlur"
-              @focus="unformatComingOnFocus"
-              @input="syncComingAmount"
-              required
-              :class="{ error: formErrors.coming }"
-            />
-            <span v-if="formErrors.coming" class="error-message">{{ formErrors.coming }}</span>
-          </div>
-
-          <div class="form-group">
-            <label>Комментарий</label>
-            <textarea v-model="newComing.comment" placeholder="Дополнительная информация"></textarea>
-          </div>
-        </form>
+        <div class="field">
+          <label class="field__label">Комментарий</label>
+          <textarea class="field__input field__input--textarea" v-model="newComing.comment"
+            placeholder="Дополнительная информация..." rows="2" />
+        </div>
       </div>
 
-      <!-- Футер -->
       <template #footer>
-        <button type="button" @click="closeModals" class="btn secondary">Отмена</button>
-        <button type="submit" @click="addComing" :disabled="!isComingValid" class="btn primary">
-          {{ loadingComing ? 'Сохранение...' : 'Добавить' }}
+        <button class="crm-btn crm-btn--ghost" @click="closeModals">Отмена</button>
+        <button class="crm-btn crm-btn--income" :disabled="!isComingValid || loadingComing" @click="addComing">
+          <Icon v-if="loadingComing" name="mdi:loading" class="spin" size="14" />
+          {{ loadingComing ? 'Сохранение...' : 'Добавить приход' }}
         </button>
       </template>
     </PagesCabinetUiModal>
 
-    <!-- Модальное окно: Добавить работу -->
-    <PagesCabinetUiModal
-      :visible="isWorkModalOpen"
-      @update:visible="closeModals"
-      @close="closeModals"
-      title="Добавить работу"
-      size="lg"
-      closable
-    >
-      <!-- Контент -->
-      <div class="modal-content">
-        <form @submit.prevent="addWork">
-          <div class="form-grid">
-            <div class="form-group">
-              <label>Сумма работ (мастеру) <span class="required">*</span></label>
-              <input
-                type="text"
-                v-model="workDisplayAmount"
-                placeholder="Сумма работ"
-                @blur="formatWorkOnBlur"
-                @focus="unformatWorkOnFocus"
-                @input="syncWorkAmount"
-                required
-                :class="{ error: formErrors.contractorAmount }"
-              />
-              <span v-if="formErrors.contractorAmount" class="error-message">{{ formErrors.contractorAmount }}</span>
-            </div>
+    <!-- Модалка: Добавить работу -->
+    <PagesCabinetUiModal :visible="isWorkModalOpen" title="Добавить работу" size="lg" closable
+      @update:visible="closeModals" @close="closeModals">
+      <div class="modal-form">
 
-            <div class="form-group">
-              <label>Выберите категорию</label>
-              <select v-model="selectedCategory">
-                <option value="">Выберите категорию</option>
-                <option value="master">Мастера</option>
-                <option value="worker">Рабочие</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label>Выберите контрагента</label>
-              <select v-model="newWork.contractorId" :disabled="!selectedCategory">
-                <option value="">Выберите контрагента</option>
-                <option
-                  v-for="contractor in filteredContractors"
-                  :key="contractor.id"
-                  :value="contractor.id"
-                >
-                  {{ contractor.name }} (Баланс: {{ formatAmount(contractor.balance) }} ₽)
-                </option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label>Выберите прораба</label>
-              <select v-model="newWork.supervisorId">
-                <option value="">Без прораба</option>
-                <option v-for="foreman in foremans" :key="foreman.id" :value="foreman.id">
-                  {{ foreman.name }}
-                </option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label>Дата операции</label>
-              <input type="date" v-model="newWork.operationDate" class="form-input" />
-            </div>
-
-            <div class="form-group">
-              <label>Выберите вид работы</label>
-              <select v-model="newWork.workType">
-                <option value="">Выберите вид работы</option>
-                <option v-for="type in workTypes" :key="type" :value="type">
-                  {{ type }}
-                </option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label>
-                <input type="checkbox" v-model="newWork.immediatePayment" />
-                <span>Сразу оплатить с баланса компании</span>
-              </label>
-            </div>
+        <div class="field-row">
+          <div class="field">
+            <label class="field__label">Сумма работ (мастеру) <span class="field__req">*</span></label>
+            <input type="text" class="field__input" :class="{ 'field__input--error': formErrors.contractorAmount }"
+              v-model="workDisplayAmount" placeholder="0" @blur="formatWorkOnBlur" @focus="unformatWorkOnFocus"
+              @input="syncWorkAmount" />
+            <span v-if="formErrors.contractorAmount" class="field__error">{{ formErrors.contractorAmount }}</span>
           </div>
 
-          <div class="form-group">
-            <label>Комментарий</label>
-            <textarea v-model="newWork.comment" placeholder="Комментарий к работе"></textarea>
+          <div class="field">
+            <label class="field__label">Дата операции</label>
+            <input type="date" class="field__input" v-model="newWork.operationDate" />
           </div>
-        </form>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label class="field__label">Категория</label>
+            <select class="field__input" v-model="selectedCategory">
+              <option value="">— Выберите —</option>
+              <option value="master">Мастера</option>
+              <option value="worker">Рабочие</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label class="field__label">Контрагент <span class="field__req">*</span></label>
+            <select class="field__input" v-model="newWork.contractorId" :disabled="!selectedCategory">
+              <option value="">— Выберите —</option>
+              <option v-for="c in filteredContractors" :key="c.id" :value="c.id">
+                {{ c.name }} ({{ formatAmount(c.balance) }} ₽)
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label class="field__label">Вид работы <span class="field__req">*</span></label>
+            <select class="field__input" v-model="newWork.workType">
+              <option value="">— Выберите —</option>
+              <option v-for="t in workTypes" :key="t" :value="t">{{ t }}</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label class="field__label">Прораб</label>
+            <select class="field__input" v-model="newWork.supervisorId">
+              <option :value="null">— Без прораба —</option>
+              <option v-for="f in foremans" :key="f.id" :value="f.id">{{ f.name }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="field__label">Комментарий</label>
+          <textarea class="field__input field__input--textarea" v-model="newWork.comment"
+            placeholder="Комментарий к работе..." rows="2" />
+        </div>
+
+        <div class="field field--checkbox">
+          <label class="checkbox-label">
+            <input type="checkbox" class="checkbox-input" v-model="newWork.immediatePayment" />
+            <span class="checkbox-text">Сразу оплатить с баланса компании</span>
+          </label>
+        </div>
+
       </div>
 
-      <!-- Футер -->
       <template #footer>
-        <button type="button" @click="closeModals" class="btn secondary">Отмена</button>
-        <button type="submit" @click="addWork" :disabled="!isWorkValid" class="btn primary">
+        <button class="crm-btn crm-btn--ghost" @click="closeModals">Отмена</button>
+        <button class="crm-btn crm-btn--work" :disabled="!isWorkValid || loadingWork" @click="addWork">
+          <Icon v-if="loadingWork" name="mdi:loading" class="spin" size="14" />
           {{ loadingWork ? 'Сохранение...' : 'Добавить работу' }}
         </button>
       </template>
     </PagesCabinetUiModal>
+
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 
-const route = useRoute()
-const objectId = route.params.id
+const props = defineProps < {
+  objectId: number
+  operations: any[]
+} > ()
 
-// Состояние модалей
+const emit = defineEmits < {
+  'add-coming': [op: any]
+  'add-expense': [op: any]
+  'add-work': [op: any]
+  'delete-work': [id: number]
+} > ()
+
+const route = useRoute()
+
+// ── Данные ───────────────────────────────────────────────────────────
+const comings = ref < any[] > ([])
+const works = ref < any[] > ([])
+const contractors = ref < any[] > ([])
+const foremans = ref < any[] > ([])
+
+// ── Модалки ──────────────────────────────────────────────────────────
 const isComingModalOpen = ref(false)
 const isWorkModalOpen = ref(false)
 const loadingComing = ref(false)
 const loadingWork = ref(false)
+const formErrors = ref < Record < string, string>> ({})
 
-// Операции и справочники
-const operations = ref([])
-const contractors = ref([])
-const foremans = ref([])
-
-// Приходы и работы
-const comings = ref([])
-const works = ref([])
-
-// Справочник видов работ
-const workTypes = [
-    'Отделка', 'Электрика', 'Плитка', 'Сантехника', 'Перегородки ГКЛ',
-    'Сварка', 'Бетонные работы', 'Кровля', 'Фасад', 'Перегородки Камень',
-    'Демонтаж', 'Мусор', 'Разнорабочий', 'Смежники', 'Прочее'
-]
-
-// Формы
-const newComing = ref({ amount: null, comment: '', objectId })
-const newWork = ref({
-  amount: null, // Сумма работ (мастеру)
-  contractorId: null,
-  comment: '',
-  paid: false,
-  objectId,
-  acceptedByClient: false, // Принято заказчиком
-  rejectionComment: null, // Комментарий при отклонении
+// ── Формы ────────────────────────────────────────────────────────────
+const newComing = ref < any > ({ amount: null, comment: '', objectId: props.objectId })
+const newWork = ref < any > ({
+  amount: null, contractorId: null, comment: '',
+  paid: false, objectId: props.objectId,
+  acceptedByClient: false, rejectionComment: null,
   operationDate: new Date().toISOString().split('T')[0],
-  workType: '', // Вид работы
-  supervisorId: null, // ID прораба
-  immediatePayment: false // Немедленная оплата
+  workType: '', supervisorId: null, immediatePayment: false
 })
 
-const emit = defineEmits(['add-coming', 'add-work'])
-
 const selectedCategory = ref('')
-const formErrors = ref({})
-const successMessage = ref('')
-const errorMessage = ref('')
-
-// --- Локальные значения для отображения ---
 const localComingValue = ref('')
 const localWorkValue = ref('')
 
-// --- Функции форматирования ---
-function formatAmount(value) {
-  if (value == null || isNaN(value)) return '0'
-  return new Intl.NumberFormat('ru-RU').format(Number(value))
-}
+const workTypes = [
+  'Отделка', 'Электрика', 'Плитка', 'Сантехника', 'Перегородки ГКЛ', 'Сварка',
+  'Бетонные работы', 'Кровля', 'Фасад', 'Перегородки Камень', 'Демонтаж',
+  'Мусор', 'Разнорабочий', 'Смежники', 'Прочее'
+]
 
-// --- Вычисляемые значения ---
+// ── Computed ─────────────────────────────────────────────────────────
+const totalComings = computed(() =>
+  comings.value.reduce((s, c) => s + Number(c.amount), 0)
+)
 
-// Общая сумма приходов
-const totalComings = computed(() => {
-  return comings.value.reduce((sum, op) => sum + Number(op.amount), 0)
-})
-
-// Баланс объекта: приходы - выплаченные работы (принятые заказчиком)
 const objectBalance = computed(() => {
-  const totalWorksPaid = works.value
+  const paid = works.value
     .filter(w => w.paid && w.acceptedByClient)
-    .reduce((sum, w) => sum + Number(w.workerAmount || w.amount || 0), 0)
-  return totalComings.value - totalWorksPaid
+    .reduce((s, w) => s + Number(w.workerAmount || w.amount || 0), 0)
+  return totalComings.value - paid
 })
 
-// Сумма непринятых работ (в работе)
-const pendingWorksTotal = computed(() => {
-  return works.value
+const pendingWorksTotal = computed(() =>
+  works.value
     .filter(w => !w.paid && !w.acceptedByClient)
-    .reduce((sum, w) => sum + Number(w.workerAmount || w.amount || 0), 0)
-})
+    .reduce((s, w) => s + Number(w.workerAmount || w.amount || 0), 0)
+)
 
-// --- Фильтрация контрагентов ---
-const filteredContractors = computed(() => {
-  if (!selectedCategory.value) return []
-  return contractors.value.filter(c => c.type === selectedCategory.value)
-})
+const filteredContractors = computed(() =>
+  contractors.value.filter(c => c.type === selectedCategory.value)
+)
 
-// --- Валидация форм ---
 const isComingValid = computed(() => Number(newComing.value.amount) > 0)
 
-const isWorkValid = computed(() => {
-  return (
-    Number(newWork.value.amount) > 0 &&
-    newWork.value.contractorId !== null &&
-    newWork.value.workType !== ''
-  )
-})
+const isWorkValid = computed(() =>
+  Number(newWork.value.amount) > 0 &&
+  newWork.value.contractorId !== null &&
+  newWork.value.workType !== ''
+)
 
-// --- Форматирование даты ---
-function formatDate(dateString) {
-  if (!dateString) return ''
-  const date = new Date(dateString)
-  return date.toLocaleDateString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: '2-digit',
+// ── Форматирование суммы ─────────────────────────────────────────────
+function formatAmount(v: any) {
+  if (v == null || isNaN(v)) return '0'
+  return new Intl.NumberFormat('ru-RU').format(Number(v))
+}
+
+function formatDate(s: string) {
+  if (!s) return '—'
+  return new Date(s).toLocaleDateString('ru-RU', {
+    day: '2-digit', month: '2-digit', year: '2-digit'
   })
 }
 
-// Сортирует массив объектов по дате operationDate в порядке убывания (новые сверху)
-function sortByDateDesc(array) {
-  return [...array].sort((a, b) => new Date(b.operationDate) - new Date(a.operationDate))
+function sortByDateDesc(arr: any[]) {
+  return [...arr].sort((a, b) => new Date(b.operationDate).getTime() - new Date(a.operationDate).getTime())
 }
 
-// --- ВЫЧИСЛЯЕМЫЕ ПОЛЯ ДЛЯ ОТОБРАЖЕНИЯ СУММ ---
-
-// Приход: displayAmount
-const comingDisplayAmount = computed({
-  get() {
-    if (newComing.value.amount === null || newComing.value.amount === '') return ''
-    return new Intl.NumberFormat('ru-RU').format(newComing.value.amount)
-  },
-  set(value) {
-    localComingValue.value = value
-  }
-})
-
-// Работа: displayAmount
-const workDisplayAmount = computed({
-  get() {
-    if (newWork.value.amount === null || newWork.value.amount === '') return ''
-    return new Intl.NumberFormat('ru-RU').format(newWork.value.amount)
-  },
-  set(value) {
-    localWorkValue.value = value
-  }
-})
-
-// --- Парсер строки в число ---
-function parseNumber(str) {
+function parseNumber(str: string) {
   if (!str) return NaN
-  const cleaned = str.replace(/[^\d,.-]/g, '').replace(',', '.')
-  return parseFloat(cleaned)
+  return parseFloat(str.replace(/[^\d,.-]/g, '').replace(',', '.'))
 }
 
-// --- Приход: события ввода ---
-function unformatComingOnFocus() {
-  if (newComing.value.amount !== null) {
-    localComingValue.value = String(newComing.value.amount)
-  } else {
-    localComingValue.value = ''
-  }
-}
-
-function formatComingOnBlur() {
-  const num = parseNumber(localComingValue.value)
-  if (!isNaN(num) && num >= 0) {
-    newComing.value.amount = num
-    localComingValue.value = new Intl.NumberFormat('ru-RU').format(num)
-  } else {
-    localComingValue.value = newComing.value.amount
-      ? new Intl.NumberFormat('ru-RU').format(newComing.value.amount)
-      : ''
-  }
-}
-
-function syncComingAmount() {
-  const raw = localComingValue.value
-  const num = parseNumber(raw)
-  if (!isNaN(num)) {
-    newComing.value.amount = num
-  } else if (raw === '' || raw === null) {
-    newComing.value.amount = null
-  }
-}
-
-// --- Работа: события ввода ---
-function unformatWorkOnFocus() {
-  if (newWork.value.amount !== null) {
-    localWorkValue.value = String(newWork.value.amount)
-  } else {
-    localWorkValue.value = ''
-  }
-}
-
-function formatWorkOnBlur() {
-  const num = parseNumber(localWorkValue.value)
-  if (!isNaN(num) && num >= 0) {
-    newWork.value.amount = num
-    localWorkValue.value = new Intl.NumberFormat('ru-RU').format(num)
-  } else {
-    localWorkValue.value = newWork.value.amount
-      ? new Intl.NumberFormat('ru-RU').format(newWork.value.amount)
-      : ''
-  }
-}
-
-function syncWorkAmount() {
-  const raw = localWorkValue.value
-  const num = parseNumber(raw)
-  if (!isNaN(num)) {
-    newWork.value.amount = num
-  } else if (raw === '' || raw === null) {
-    newWork.value.amount = null
-  }
-}
-
-// --- Загрузка данных ---
-onMounted(async () => {
-  await fetchOperations()
-  await fetchContractors()
-  await fetchForemans()
+// Приход
+const comingDisplayAmount = computed({
+  get() { return newComing.value.amount === null ? '' : new Intl.NumberFormat('ru-RU').format(newComing.value.amount) },
+  set(v: string) { localComingValue.value = v }
 })
+function unformatComingOnFocus() { localComingValue.value = newComing.value.amount !== null ? String(newComing.value.amount) : '' }
+function formatComingOnBlur() { const n = parseNumber(localComingValue.value); if (!isNaN(n) && n >= 0) newComing.value.amount = n }
+function syncComingAmount() { const n = parseNumber(localComingValue.value); if (!isNaN(n)) newComing.value.amount = n; else if (!localComingValue.value) newComing.value.amount = null }
 
+// Работа
+const workDisplayAmount = computed({
+  get() { return newWork.value.amount === null ? '' : new Intl.NumberFormat('ru-RU').format(newWork.value.amount) },
+  set(v: string) { localWorkValue.value = v }
+})
+function unformatWorkOnFocus() { localWorkValue.value = newWork.value.amount !== null ? String(newWork.value.amount) : '' }
+function formatWorkOnBlur() { const n = parseNumber(localWorkValue.value); if (!isNaN(n) && n >= 0) newWork.value.amount = n }
+function syncWorkAmount() { const n = parseNumber(localWorkValue.value); if (!isNaN(n)) newWork.value.amount = n; else if (!localWorkValue.value) newWork.value.amount = null }
+
+// ── Загрузка ─────────────────────────────────────────────────────────
 async function fetchOperations() {
   try {
-    const data = await $fetch(`/api/objects/${objectId}/operations`, {
-      method: 'GET',
-      credentials: 'include'
-    })
-
-    // Разделяем на приходы и работы
-    comings.value = data.comings?.map(op => ({
-      ...op,
-      amount: Number(op.amount)
-    })) || []
-
-    works.value = (data.works || []).map(op => ({
+    const data = await $fetch < any > (`/api/objects/${props.objectId}/operations`, { credentials: 'include' })
+    comings.value = (data.comings || []).map((op: any) => ({ ...op, amount: Number(op.amount) }))
+    works.value = (data.works || []).map((op: any) => ({
       ...op,
       workerAmount: Number(op.workerAmount || 0),
-      amount: Number(op.workerAmount || 0), // дубль для удобства
+      amount: Number(op.workerAmount || 0),
       paid: Boolean(op.paid),
       acceptedByClient: Boolean(op.accepted),
       rejectionComment: op.rejectedReason || null,
       workType: op.workTypes || '',
       supervisorId: op.foremanId || null,
-      contractorType: op.contractorType
+      contractorType: op.contractorType,
     }))
-
-    clearMessages()
-  } catch (error) {
-    console.error('Ошибка получения операций:', error)
-    errorMessage.value = 'Не удалось загрузить список операций'
-    setTimeout(() => errorMessage.value = '', 5000)
+  } catch (e) {
+    console.error('[Операции] Ошибка загрузки:', e)
   }
 }
 
-// Обновление данных
-const refreshData = () => {
-  fetchOperations()
-}
-
-
 async function fetchContractors() {
   try {
-    const [mastersData, workersData] = await Promise.all([
-      $fetch('/api/contractors/masters', { method: 'GET', credentials: 'include' }),
-      $fetch('/api/contractors/workers', { method: 'GET', credentials: 'include' })
+    const [masters, workers] = await Promise.all([
+      $fetch < any[] > ('/api/contractors/masters', { credentials: 'include' }),
+      $fetch < any[] > ('/api/contractors/workers', { credentials: 'include' }),
     ])
-
     contractors.value = [
-      ...mastersData.map(m => ({ ...m, type: 'master' })),
-      ...workersData.map(w => ({ ...w, type: 'worker' }))
+      ...(masters || []).map(m => ({ ...m, type: 'master' })),
+      ...(workers || []).map(w => ({ ...w, type: 'worker' })),
     ]
-
-    clearMessages()
-  } catch (error) {
-    console.error('Ошибка получения контрагентов:', error)
-    errorMessage.value = 'Не удалось загрузить список контрагентов'
-    setTimeout(() => errorMessage.value = '', 5000)
+  } catch (e) {
+    console.error('[Операции] Ошибка загрузки контрагентов:', e)
   }
 }
 
 async function fetchForemans() {
   try {
-    const data = await $fetch('/api/contractors/foremans', { 
-      method: 'GET', 
-      credentials: 'include' 
-    })
-    foremans.value = data || []
-  } catch (error) {
-    console.error('Ошибка получения прорабов:', error)
-    errorMessage.value = 'Не удалось загрузить список прорабов'
-    setTimeout(() => errorMessage.value = '', 5000)
+    foremans.value = await $fetch < any[] > ('/api/contractors/foremans', { credentials: 'include' }) || []
+  } catch (e) {
+    console.error('[Операции] Ошибка загрузки прорабов:', e)
   }
 }
 
-// --- Управление модальными окнами ---
-function openComingModal() {
-  resetFormErrors()
-  isComingModalOpen.value = true
-}
-
-function openWorkModal() {
-  resetFormErrors()
-  isWorkModalOpen.value = true
-}
+// ── Добавление ───────────────────────────────────────────────────────
+function openComingModal() { formErrors.value = {}; isComingModalOpen.value = true }
+function openWorkModal() { formErrors.value = {}; isWorkModalOpen.value = true }
 
 function closeModals() {
   isComingModalOpen.value = false
@@ -579,79 +448,55 @@ function closeModals() {
 }
 
 function resetForm() {
-  newComing.value = { amount: null, comment: '', objectId }
+  newComing.value = { amount: null, comment: '', objectId: props.objectId }
   newWork.value = {
-    amount: null,
-    contractorId: null,
-    comment: '',
-    paid: false,
-    objectId,
-    acceptedByClient: false,
-    rejectionComment: null,
-    workType: '',
-    supervisorId: null,
-    immediatePayment: false
+    amount: null, contractorId: null, comment: '',
+    paid: false, objectId: props.objectId,
+    acceptedByClient: false, rejectionComment: null,
+    operationDate: new Date().toISOString().split('T')[0],
+    workType: '', supervisorId: null, immediatePayment: false
   }
   selectedCategory.value = ''
   localComingValue.value = ''
   localWorkValue.value = ''
 }
 
-// --- Добавление операций ---
 async function addComing() {
   formErrors.value = {}
+  if (!isComingValid.value) { formErrors.value.coming = 'Сумма должна быть больше нуля'; return }
 
-  if (!isComingValid.value) {
-    formErrors.value.coming = 'Сумма должна быть больше нуля'
-    return
-  }
-
+  loadingComing.value = true
   try {
-    const created = await $fetch('/api/comings', {
-      method: 'POST',
-      body: {
-        ...newComing.value,
-        objectId
-      },
-      credentials: 'include'
+    const created = await $fetch < any > ('/api/comings', {
+      method: 'POST', body: { ...newComing.value, objectId: props.objectId }, credentials: 'include'
     })
-
     emit('add-coming', created)
-    comings.value.push(created)
+    comings.value.push({ ...created, amount: Number(created.amount) })
     closeModals()
-
-    successMessage.value = 'Приход успешно добавлен'
-    setTimeout(() => successMessage.value = '', 3000)
-  } catch (error) {
-    console.error('Ошибка при добавлении прихода:', error)
-    errorMessage.value = 'Не удалось добавить приход'
-    setTimeout(() => errorMessage.value = '', 5000)
+  } catch (e) {
+    console.error('[Операции] Ошибка добавления прихода:', e)
+  } finally {
+    loadingComing.value = false
   }
 }
 
 async function addWork() {
   formErrors.value = {}
   if (!isWorkValid.value) {
-    formErrors.value = {
-      workAmount: 'Сумма работ обязательна',
-      contractor: 'Контрагент обязателен',
-      workType: 'Выберите вид работы'
-    }
+    formErrors.value.contractorAmount = 'Заполните все обязательные поля'
     return
   }
 
   loadingWork.value = true
-
   try {
-    let result;
-    // Форматируем дату операции
-    const operationDate = newWork.value.operationDate 
-      ? new Date(newWork.value.operationDate).toISOString() 
-      : new Date().toISOString();
-    
+    const operationDate = newWork.value.operationDate
+      ? new Date(newWork.value.operationDate).toISOString()
+      : new Date().toISOString()
+
+    let result: any
+
     if (newWork.value.immediatePayment) {
-      // Используем новое API для создания и немедленной оплаты
-      result = await $fetch('/api/works/create-and-pay', {
+      result = await $fetch < any > ('/api/works/create-and-pay', {
         method: 'POST',
         body: {
           workerAmount: Number(newWork.value.amount),
@@ -660,34 +505,30 @@ async function addWork() {
           workTypes: newWork.value.workType,
           foremanId: newWork.value.supervisorId || null,
           comment: newWork.value.comment || '',
-          objectId,
-          operationDate
+          objectId: props.objectId,
+          operationDate,
         },
-        credentials: 'include'
-      });
+        credentials: 'include',
+      })
     } else {
-      // Используем существующее API
-      const payload = {
-        workerAmount: Number(newWork.value.amount),
-        contractorId: newWork.value.contractorId,
-        workTypes: newWork.value.workType,
-        foremanId: newWork.value.supervisorId || null,
-        comment: newWork.value.comment || '',
-        paid: false,
-        paymentDate: null,
-        operationDate,
-        objectId,
-        contractorType: selectedCategory.value
-      }
-
-      result = await $fetch('/api/works', {
+      result = await $fetch < any > ('/api/works', {
         method: 'POST',
-        body: payload,
-        credentials: 'include'
+        body: {
+          workerAmount: Number(newWork.value.amount),
+          contractorId: newWork.value.contractorId,
+          workTypes: newWork.value.workType,
+          foremanId: newWork.value.supervisorId || null,
+          comment: newWork.value.comment || '',
+          paid: false,
+          paymentDate: null,
+          operationDate,
+          objectId: props.objectId,
+          contractorType: selectedCategory.value,
+        },
+        credentials: 'include',
       })
     }
 
-    // Убедимся, что у нас есть все необходимые поля
     const workItem = {
       ...result,
       paid: result.paid,
@@ -696,552 +537,525 @@ async function addWork() {
       amount: Number(result.workerAmount || 0),
       workType: result.workTypes || '',
       supervisorId: result.foremanId || null,
-      operationDate: result.operationDate || new Date().toISOString()
+      operationDate: result.operationDate || new Date().toISOString(),
     }
 
     emit('add-work', workItem)
     works.value.push(workItem)
-
     closeModals()
-
-    successMessage.value = newWork.value.immediatePayment ? 
-      'Работа создана и оплачена' : 'Работа успешно добавлена'
-    setTimeout(() => successMessage.value = '', 3000)
-  } catch (error) {
-    console.error('Ошибка при добавлении работы:', error)
-    errorMessage.value = 'Не удалось добавить работу'
-    setTimeout(() => errorMessage.value = '', 5000)
+  } catch (e) {
+    console.error('[Операции] Ошибка добавления работы:', e)
+  } finally {
+    loadingWork.value = false
   }
 }
 
-// --- Работа с существующими работами ---
-async function payWork(workId) {
+// ── Управление работами ───────────────────────────────────────────────
+async function payWork(id: number) {
   try {
-    const result = await $fetch(`/api/works/pay-work/${workId}`, {
-      method: 'POST',
-      credentials: 'include'
-    })
-
-    const work = works.value.find(w => w.id === workId)
-    if (work) {
-      work.paid = true
-      work.paymentDate = result.paymentDate
-    }
-
-    successMessage.value = 'Работа оплачена'
-    setTimeout(() => successMessage.value = '', 3000)
-  } catch (error) {
-    console.error('Ошибка оплаты работы:', error)
-    errorMessage.value = 'Не удалось оплатить работу'
-    setTimeout(() => errorMessage.value = '', 5000)
-  }
+    const result = await $fetch < any > (`/api/works/pay-work/${id}`, { method: 'POST', credentials: 'include' })
+    const w = works.value.find(x => x.id === id)
+    if (w) { w.paid = true; w.paymentDate = result.paymentDate }
+  } catch (e) { console.error('[Операции] Ошибка оплаты:', e) }
 }
 
-async function acceptWork(workId) {
+async function acceptWork(id: number) {
   try {
-    await $fetch(`/api/works/accept/${workId}`, {
-      method: 'POST',
-      credentials: 'include'
-    })
-
-    const work = works.value.find(w => w.id === workId)
-    if (work) {
-      work.acceptedByClient = true
-      work.rejectionComment = null
-    }
-
-    successMessage.value = 'Работа принята заказчиком'
-    setTimeout(() => successMessage.value = '', 3000)
-  } catch (error) {
-    console.error('Ошибка принятия работы:', error)
-    errorMessage.value = 'Не удалось принять работу'
-    setTimeout(() => errorMessage.value = '', 5000)
-  }
+    await $fetch(`/api/works/accept/${id}`, { method: 'POST', credentials: 'include' })
+    const w = works.value.find(x => x.id === id)
+    if (w) { w.acceptedByClient = true; w.rejectionComment = null }
+  } catch (e) { console.error('[Операции] Ошибка принятия:', e) }
 }
 
-async function rejectWork(workId) {
+async function rejectWork(id: number) {
   const comment = prompt('Введите причину отклонения:')
   if (!comment) return
-
   try {
-    await $fetch(`/api/works/reject/${workId}`, {
-      method: 'POST',
-      body: { comment },
-      credentials: 'include'
+    await $fetch(`/api/works/reject/${id}`, {
+      method: 'POST', body: { comment }, credentials: 'include'
     })
-
-    const work = works.value.find(w => w.id === workId)
-    if (work) {
-      work.rejectionComment = comment
-      work.acceptedByClient = false
-    }
-
-    successMessage.value = 'Работа отклонена'
-    setTimeout(() => successMessage.value = '', 3000)
-  } catch (error) {
-    console.error('Ошибка отклонения работы:', error)
-    errorMessage.value = 'Не удалось отклонить работу'
-    setTimeout(() => errorMessage.value = '', 5000)
-  }
+    const w = works.value.find(x => x.id === id)
+    if (w) { w.rejectionComment = comment; w.acceptedByClient = false }
+  } catch (e) { console.error('[Операции] Ошибка отклонения:', e) }
 }
 
-// Обработчик удаления в компонент операций
-async function deleteWork(workId, isPaid) {
-  const message = isPaid 
-    ? 'Вы уверены, что хотите удалить эту оплаченную работу? Это действие вернёт средства контрагенту и обновит баланс объекта.' 
-    : 'Вы уверены, что хотите удалить эту работу? Это действие нельзя отменить.';
-    
-  if (!confirm(message)) {
-    return;
-  }
+async function deleteWork(id: number, isPaid: boolean) {
+  const msg = isPaid
+    ? 'Удалить оплаченную работу? Это вернёт средства контрагенту.'
+    : 'Удалить работу?'
+  if (!confirm(msg)) return
   try {
-    await $fetch(`/api/works/${workId}`, {
-      method: 'DELETE',
-      credentials: 'include'
-    });
-    // Удаляем работу из локального списка
-    works.value = works.value.filter(work => work.id !== workId);
-    // Эмитим событие об удалении работы
-    emit('delete-work', workId);
-    successMessage.value = 'Работа успешно удалена';
-    setTimeout(() => successMessage.value = '', 3000);
-  } catch (error) {
-    console.error('Ошибка удаления работы:', error);
-    errorMessage.value = 'Не удалось удалить работу';
-    setTimeout(() => errorMessage.value = '', 5000);
-  }
+    await $fetch(`/api/works/${id}`, { method: 'DELETE', credentials: 'include' })
+    works.value = works.value.filter(w => w.id !== id)
+    emit('delete-work', id)
+  } catch (e) { console.error('[Операции] Ошибка удаления:', e) }
 }
 
-// --- Вспомогательные функции ---
-function clearMessages() {
-  successMessage.value = ''
-  errorMessage.value = ''
-}
-
-function resetFormErrors() {
-  formErrors.value = {}
-}
+// ── Lifecycle ─────────────────────────────────────────────────────────
+onMounted(async () => {
+  await fetchOperations()
+  await Promise.all([fetchContractors(), fetchForemans()])
+})
 </script>
 
 <style lang="scss" scoped>
-// ========================================
-// Миксины
-// ========================================
-@mixin button-reset() {
-  border: none;
-  background: none;
-  padding: 0;
-  cursor: pointer;
-  outline: none;
-  font: inherit;
+.ops {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-@mixin transition($props...) {
-  transition: $props;
-}
+// ── Сводка ───────────────────────────────────────────────────────────
+.ops-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 
-@mixin card-shadow() {
-  box-shadow: $box-shadow;
-  @include transition(all 0.3s ease);
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: $box-shadow;
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
   }
 }
 
-// ========================================
-// Основной блок
-// ========================================
-.block {
-  margin-bottom: 1em;
-  position: relative;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+.summary-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--crm-bg-elevated);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-lg);
+
+  &__icon {
+    width: 38px;
+    height: 38px;
+    border-radius: var(--crm-radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  &__label {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+  }
+
+  &__value {
+    font-size: var(--crm-text-xl);
+    font-weight: 700;
+    color: var(--crm-text-primary);
+  }
+
+  &__sub {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-disabled);
+  }
+
+  &--balance .summary-card__icon {
+    background: var(--crm-accent-dim);
+    color: var(--crm-accent);
+  }
+
+  &--pending .summary-card__icon {
+    background: var(--crm-warning-dim);
+    color: var(--crm-warning);
+  }
 }
 
-// ========================================
-// Баланс — карточки
-// ========================================
-.balance-summary {
+// ── Кнопки добавления ────────────────────────────────────────────────
+.ops-actions {
   display: flex;
-  gap: 1em;
-  margin-bottom: 1em;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
-.balance-card {
-  flex: 1 1 calc(50% - 1rem);
-  min-width: 250px;
-  background: $background-light;
-  border-radius: $border-radius;
+// ── Секция таблицы ───────────────────────────────────────────────────
+.ops-section {
+  background: var(--crm-bg-surface);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-lg);
   overflow: hidden;
-  @include card-shadow();
-}
 
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1em;
-  background: $blue20;
-  color: $text-dark;
-  font-weight: 600;
-  font-size: 1em;
-  letter-spacing: 0.3px;
-}
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--crm-border);
+    background: var(--crm-bg-elevated);
+  }
 
-.card-body {
-  padding: 0 1em 1em;
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--crm-text-md);
+    font-weight: 600;
+    color: var(--crm-text-primary);
+    flex: 1;
+  }
 
-  p {
-    margin: 0;
-    font-size: 1.4em;
-    font-weight: bold;
-    color: $text-dark;
+  &__icon {
+    &--income {
+      color: var(--crm-success);
+    }
+
+    &--work {
+      color: var(--crm-warning);
+    }
+  }
+
+  &__count {
+    font-size: var(--crm-text-xs);
+    font-weight: 700;
+    padding: 2px 8px;
+    background: var(--crm-bg-overlay);
+    border: 1px solid var(--crm-border-hover);
+    border-radius: 10px;
+    color: var(--crm-text-muted);
   }
 }
 
-.balance-description {
-  display: block;
-  font-size: 0.9em;
-  color: $text-gray;
-  margin-top: 0.5em;
-}
-
-// ========================================
-// Кнопки добавления
-// ========================================
-.add-buttons {
+.ops-empty {
   display: flex;
-  gap: 1em;
-  margin-bottom: 1.5em;
+  align-items: center;
   justify-content: center;
-  flex-wrap: wrap;
-
-  .btn {
-    @include transition(transform 0.2s ease, box-shadow 0.2s ease);
-    box-shadow: 0 2px 4px $shadow-color;
-
-    &:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 8px $shadow-color;
-    }
-
-    &:active {
-      transform: translateY(0);
-    }
-  }
+  gap: 8px;
+  padding: 30px;
+  color: var(--crm-text-muted);
+  font-size: var(--crm-text-sm);
 }
 
-// ========================================
-// Таблицы
-// ========================================
-.table-section {
-  margin-bottom: 1.5em;
-  background: $background-light;
-  border-radius: $border-radius;
-  box-shadow: $box-shadow;
-  overflow: hidden;
-}
-
-.table-section h3 {
-  display: flex;
-  align-items: center;
-  gap: 0.8em;
-  margin: 0;
-  padding: 1em;
-  font-size: 1.1em;
-  color: $text-dark;
-  border-bottom: 1px solid $border-color;
-  background: $sub-item-bg;
-}
-
-.table-wrapper {
-  max-height: 600px;
+// ── Таблица ──────────────────────────────────────────────────────────
+.ops-table-wrap {
+  overflow-x: auto;
+  max-height: 500px;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--crm-bg-overlay) transparent;
 }
 
-table {
+.ops-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 100%;
+  font-size: var(--crm-text-sm);
+
+  th {
+    padding: 9px 12px;
+    background: var(--crm-bg-elevated);
+    font-size: var(--crm-text-xs);
+    font-weight: 600;
+    color: var(--crm-text-muted);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    text-align: left;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--crm-border);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--crm-border);
+    color: var(--crm-text-secondary);
+    vertical-align: middle;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+
+  tr.tr--alt td {
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  tr:hover td {
+    background: var(--crm-bg-elevated);
+  }
 }
 
-th {
-  padding: 0.8em 1em;
-  background-color: #f8f9fa;
-  font-weight: 600;
-  color: #34495e;
-  text-transform: uppercase;
-  font-size: 0.8em;
-  letter-spacing: 0.5px;
-  border-bottom: 1px solid $border-color;
+.td--date {
+  white-space: nowrap;
+  color: var(--crm-text-muted);
+  font-size: var(--crm-text-xs);
 }
 
-td {
-  padding: 0.7em 1em;
-  border-bottom: 1px solid #f0f0f0;
-  font-size: 0.85em;
+.td--amount {
+  font-weight: 700;
   white-space: nowrap;
 }
 
-tr {
-  @include transition(background-color 0.2s ease);
-
-  &:hover {
-    background-color: #f9f9f9;
-  }
-
-  &.odd-row {
-    background-color: #fafafa;
-  }
+.td--name {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-// Статусы работ
-.status-paid {
-  color: $color-success;
-  font-weight: 600;
+.td--comment {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--crm-text-muted);
 }
 
-.status-pending {
-  color: $color-warning;
-  font-weight: 600;
+.td--center {
+  text-align: center;
 }
 
-// Действия в таблице
-.action-buttons {
-  display: flex;
-  gap: 0.8em;
-  justify-content: center;
-
-  button {
-    padding: 0.3em 0.6em;
-    border-radius: $border-radius;
-    border: 1px solid $color-muted;
-    color: $color-muted;
-    cursor: pointer;
-    @include transition(all 0.2s ease);
-
-    &:hover {
-      background: $color-muted;
-      color: #fff;
-    }
-
-    &:first-child {
-      // Принять
-      background: $color-success;
-      color: #fff;
-      border: none;
-
-      &:hover {
-        background: rgba($color-success, 0.9);
-      }
-    }
-
-    &:nth-child(2) {
-      // Отклонить
-      background: $color-warning;
-      color: #fff;
-      border: none;
-
-      &:hover {
-        background: rgba($color-warning, 0.9);
-      }
-    }
-
-    &:last-child {
-      // Удалить
-      background: $blue;
-      color: #fff;
-      border: none;
-
-      &:hover {
-        background: rgba($blue, 0.9);
-      }
-    }
-  }
+.td--actions {
+  white-space: nowrap;
 }
 
-// ========================================
-// Уведомления
-// ========================================
-.notification {
-  display: flex;
+// ── Статус работы ─────────────────────────────────────────────────────
+.work-status {
+  display: inline-flex;
   align-items: center;
-  gap: 1em;
-  padding: 1em;
-  margin-bottom: 1em;
-  border-radius: $border-radius;
-  font-weight: 500;
-  font-size: 1em;
+  padding: 2px 8px;
+  border-radius: var(--crm-radius-sm);
+  font-size: var(--crm-text-xs);
+  font-weight: 600;
 
-  svg {
-    flex-shrink: 0;
+  &--paid {
+    background: var(--crm-success-dim);
+    color: var(--crm-success);
+  }
+
+  &--pending {
+    background: var(--crm-warning-dim);
+    color: var(--crm-warning);
   }
 }
 
-.success {
-  background: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
+.ops-work-row--paid td {
+  opacity: .75;
 }
 
-.error {
-  background: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
+// ── Кнопки действий ──────────────────────────────────────────────────
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--crm-radius-sm);
+  cursor: pointer;
+  transition: var(--crm-transition);
+  color: var(--crm-text-muted);
+
+  &--accept:hover {
+    background: var(--crm-success-dim);
+    border-color: rgba(61, 214, 140, .3);
+    color: var(--crm-success);
+  }
+
+  &--reject:hover {
+    background: var(--crm-warning-dim);
+    border-color: rgba(245, 166, 35, .3);
+    color: var(--crm-warning);
+  }
+
+  &--pay:hover {
+    background: var(--crm-accent-dim);
+    border-color: var(--crm-accent-border);
+    color: var(--crm-accent);
+  }
+
+  &--delete:hover {
+    background: var(--crm-danger-dim);
+    border-color: rgba(242, 95, 92, .3);
+    color: var(--crm-danger);
+  }
 }
 
-// ========================================
-// Формы и поля
-// ========================================
-.form-group {
-  margin-bottom: 1em;
+// ── Цвета ─────────────────────────────────────────────────────────────
+.pos {
+  color: var(--crm-success);
+}
 
-  label {
-    display: block;
-    margin-bottom: 0.5em;
+.neg {
+  color: var(--crm-danger);
+}
+
+.warn {
+  color: var(--crm-warning);
+}
+
+// ── Форма в модалке ───────────────────────────────────────────────────
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+
+  &__label {
+    font-size: var(--crm-text-sm);
     font-weight: 500;
-    color: $text-dark;
-    font-size: 0.95em;
+    color: var(--crm-text-secondary);
   }
 
-  input,
-  select,
-  textarea {
+  &__req {
+    color: var(--crm-danger);
+  }
+
+  &__input {
+    background: var(--crm-bg-elevated);
+    border: 1px solid var(--crm-border-hover);
+    border-radius: var(--crm-radius-md);
+    color: var(--crm-text-primary);
+    font-size: var(--crm-text-md);
+    font-family: var(--crm-font-sans);
+    padding: 8px 12px;
+    outline: none;
+    transition: var(--crm-transition);
     width: 100%;
-    padding: 0.8em 1em;
-    border: 1px solid $border-color;
-    border-radius: $border-radius;
-    background: $background-light;
-    color: $text-dark;
-    @include transition(border-color, box-shadow);
+    color-scheme: dark;
+
+    &::placeholder {
+      color: var(--crm-text-disabled);
+    }
 
     &:focus {
-      outline: none;
-      border-color: $blue;
-      box-shadow: 0 0 0 3px rgba($blue, 0.1);
+      border-color: var(--crm-accent);
+      box-shadow: 0 0 0 3px var(--crm-accent-dim);
     }
 
-    &.error {
-      border-color: $color-danger;
-      box-shadow: 0 0 0 3px rgba($color-danger, 0.1);
+    &--error {
+      border-color: var(--crm-danger);
+    }
+
+    &--textarea {
+      resize: vertical;
+      min-height: 60px;
+    }
+
+    option {
+      background: var(--crm-bg-elevated);
+      color: var(--crm-text-primary);
     }
   }
 
-  textarea {
-    resize: vertical;
-    min-height: 80px;
+  &__error {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-danger);
+  }
+
+  &--checkbox {
+    flex-direction: row;
+    align-items: center;
   }
 }
 
-.error-message {
-  display: block;
-  margin-top: 0.5em;
-  color: $color-danger;
-  font-size: 0.9em;
-  font-weight: 500;
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
 }
 
-.required {
-  color: $red;
-  font-weight: bold;
+.checkbox-input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--crm-accent);
+  cursor: pointer;
 }
 
-// ========================================
-// Кнопки
-// ========================================
-.btn {
-  padding: 0.5em 1em;
-  border: none;
-  border-radius: $border-radius;
+.checkbox-text {
+  font-size: var(--crm-text-sm);
+  color: var(--crm-text-secondary);
+}
+
+// ── CRM кнопки ────────────────────────────────────────────────────────
+.crm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: var(--crm-radius-md);
   font-weight: 500;
   cursor: pointer;
-  @include transition(all 0.2s ease);
-  font-size: 0.95em;
+  transition: var(--crm-transition);
+  white-space: nowrap;
 
-  &.primary {
-    background: $blue;
-    color: #fff;
+  padding: 8px 14px;
+  font-size: var(--crm-text-sm);
+
+  &--xs {
+    padding: 5px 8px;
+    font-size: var(--crm-text-xs);
+  }
+
+  &:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+  }
+
+  &--income {
+    background: var(--crm-success-dim);
+    border: 1px solid rgba(61, 214, 140, .35);
+    color: var(--crm-success);
 
     &:hover:not(:disabled) {
-      background: rgba($blue, 0.9);
-    }
-
-    &:disabled {
-      background: $color-muted;
-      color: #fff;
-      cursor: not-allowed;
-      opacity: 0.7;
+      background: rgba(61, 214, 140, .25);
     }
   }
 
-  &.secondary {
-    background: $color-muted;
-    color: #fff;
+  &--work {
+    background: var(--crm-warning-dim);
+    border: 1px solid rgba(245, 166, 35, .35);
+    color: var(--crm-warning);
+
+    &:hover:not(:disabled) {
+      background: rgba(245, 166, 35, .25);
+    }
+  }
+
+  &--ghost {
+    background: var(--crm-bg-elevated);
+    border: 1px solid var(--crm-border-hover);
+    color: var(--crm-text-secondary);
 
     &:hover {
-      background: rgba($color-muted, 0.9);
+      background: var(--crm-bg-overlay);
+      color: var(--crm-text-primary);
     }
   }
 }
 
-// ========================================
-// Адаптивность
-// ========================================
-@media (max-width: 768px) {
-  .balance-summary {
-    gap: 1em;
-  }
-
-  .balance-card {
-    flex: 1 1 100%;
-    min-width: auto;
-  }
-
-  .add-buttons {
-    flex-direction: column;
-    align-items: stretch;
-    max-width: 300px;
-    margin: 0 auto 1.5em;
-  }
-
-  .table-wrapper {
-    max-height: 400px;
-  }
-
-  th, td {
-    padding: 0.7em 0.8em;
-    font-size: 0.85em;
-  }
-
-  .action-buttons {
-    gap: 0.5em;
-  }
-
-  .action-buttons button {
-    font-size: 0.85em;
-    padding: 0.4em 0.5em;
-  }
+.spin {
+  animation: spin 1s linear infinite;
+  display: inline-block;
 }
 
-@media (max-width: 480px) {
-  .block {
-    padding: 0 0.5em;
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
   }
 
-  .table-section h3 {
-    font-size: 1.1em;
-    padding: 1em;
-  }
-
-  .btn {
-    font-size: 1em;
-    padding: 0.8em 1em;
-  }
-
-  .notification {
-    font-size: 0.95em;
+  to {
+    transform: rotate(360deg);
   }
 }
 </style>

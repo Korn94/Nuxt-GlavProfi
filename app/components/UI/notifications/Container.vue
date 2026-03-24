@@ -1,42 +1,31 @@
 <!-- components/ui/notifications/Container.vue -->
 <template>
   <Teleport to="body">
-    <TransitionGroup
-      name="notification"
-      tag="div"
-      class="notifications-container"
-    >
-      <div
-        v-for="notification in notificationStore.notifications"
-        :key="notification.id"
-        :class="['notification', `notification--${notification.type}`, { 'notification--visible': notification.visible }]"
-      >
-        <div class="notification-header">
-          <Icon
-            :name="getIcon(notification.type)"
-            class="notification-icon"
-          />
-          <h4 class="notification-title">{{ notification.title }}</h4>
-          <button
-            class="notification-close"
-            @click="notificationStore.close(notification.id)"
-          >
-            <Icon name="mdi:close" />
-          </button>
+    <TransitionGroup name="notif" tag="div" class="notif-container">
+      <div v-for="n in notificationStore.notifications" :key="n.id" :class="['notif', `notif--${n.type}`]">
+        <!-- Левая полоса + иконка -->
+        <div class="notif__aside">
+          <Icon :name="getIcon(n.type)" size="18" />
         </div>
-        
-        <p class="notification-message">{{ notification.message }}</p>
-        
-        <div v-if="notification.actions && notification.actions.length" class="notification-actions">
-          <button
-            v-for="(action, index) in notification.actions"
-            :key="index"
-            :class="['notification-action', action.class]"
-            @click="notificationStore.handleAction(notification.id, action)"
-          >
-            {{ action.text }}
-          </button>
+
+        <!-- Контент -->
+        <div class="notif__body">
+          <p class="notif__title">{{ n.title }}</p>
+          <p class="notif__message">{{ n.message }}</p>
+
+          <!-- Кнопки действий -->
+          <div v-if="n.actions?.length" class="notif__actions">
+            <button v-for="(action, i) in n.actions" :key="i" class="notif__action" :class="action.class"
+              @click="notificationStore.handleAction(n.id, action)">
+              {{ action.text }}
+            </button>
+          </div>
         </div>
+
+        <!-- Закрыть -->
+        <button class="notif__close" @click="notificationStore.close(n.id)">
+          <Icon name="mdi:close" size="16" />
+        </button>
       </div>
     </TransitionGroup>
   </Teleport>
@@ -47,159 +36,181 @@ import { useNotificationStore } from '../../../../stores/notifications'
 
 const notificationStore = useNotificationStore()
 
-const getIcon = (type: string) => {
-  const icons: Record<string, string> = {
-    success: 'mdi:check-circle',
-    error: 'mdi:alert-circle',
-    warning: 'mdi:alert',
-    info: 'mdi:information'
-  }
-  return icons[type] || 'mdi:information'
-}
+const getIcon = (type: string) => ({
+  success: 'mdi:check-circle',
+  error: 'mdi:alert-circle',
+  warning: 'mdi:alert',
+  info: 'mdi:information',
+}[type] ?? 'mdi:information')
 </script>
 
 <style lang="scss" scoped>
-.notifications-container {
+// ── Контейнер ───────────────────────────────────────────────────────
+.notif-container {
   position: fixed;
   top: 20px;
   right: 20px;
   z-index: 9999;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  max-width: 400px;
+  gap: 8px;
+  width: 340px;
   pointer-events: none;
 }
 
-.notification {
-  background: rgba(30, 30, 30, 0.95);
-  backdrop-filter: blur(10px);
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  border-left: 4px solid;
-  pointer-events: auto;
-  
-  &--success {
-    border-left-color: #28a745;
-    
-    .notification-icon {
-      color: #28a745;
-    }
-  }
-  
-  &--error {
-    border-left-color: #dc3545;
-    
-    .notification-icon {
-      color: #dc3545;
-    }
-  }
-  
-  &--warning {
-    border-left-color: #ffc107;
-    
-    .notification-icon {
-      color: #ffc107;
-    }
-  }
-  
-  &--info {
-    border-left-color: #17a2b8;
-    
-    .notification-icon {
-      color: #17a2b8;
-    }
-  }
-}
-
-.notification-header {
+// ── Уведомление ─────────────────────────────────────────────────────
+.notif {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
+  align-items: flex-start;
+  gap: 0;
+  background: var(--crm-bg-elevated);
+  border: 1px solid var(--crm-border-hover);
+  border-radius: var(--crm-radius-lg);
+  box-shadow: var(--crm-shadow-lg);
+  overflow: hidden;
+  pointer-events: auto;
+
+  // ── Цветовые варианты ──
+  &--success {
+    border-left: 3px solid var(--crm-success);
+
+    .notif__aside {
+      color: var(--crm-success);
+      background: var(--crm-success-dim);
+    }
+  }
+
+  &--error {
+    border-left: 3px solid var(--crm-danger);
+
+    .notif__aside {
+      color: var(--crm-danger);
+      background: var(--crm-danger-dim);
+    }
+  }
+
+  &--warning {
+    border-left: 3px solid var(--crm-warning);
+
+    .notif__aside {
+      color: var(--crm-warning);
+      background: var(--crm-warning-dim);
+    }
+  }
+
+  &--info {
+    border-left: 3px solid var(--crm-info);
+
+    .notif__aside {
+      color: var(--crm-info);
+      background: var(--crm-info-dim);
+    }
+  }
 }
 
-.notification-icon {
-  font-size: 20px;
-  flex-shrink: 0;
-}
-
-.notification-title {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: #fff;
-  flex: 1;
-}
-
-.notification-close {
-  background: none;
-  border: none;
-  color: #888;
-  cursor: pointer;
-  padding: 4px;
+// ── Иконка слева ────────────────────────────────────────────────────
+.notif__aside {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.2s;
-  
-  &:hover {
-    color: #fff;
-  }
+  width: 44px;
+  min-height: 100%;
+  flex-shrink: 0;
+  padding: 14px 0;
 }
 
-.notification-message {
+// ── Текст ───────────────────────────────────────────────────────────
+.notif__body {
+  flex: 1;
+  padding: 12px 8px 12px 0;
+  min-width: 0;
+}
+
+.notif__title {
+  font-size: var(--crm-text-md);
+  font-weight: 600;
+  color: var(--crm-text-primary);
+  margin: 0 0 3px;
+  line-height: 1.3;
+}
+
+.notif__message {
+  font-size: var(--crm-text-sm);
+  color: var(--crm-text-secondary);
   margin: 0;
-  font-size: 13px;
-  color: #ccc;
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
-.notification-actions {
+// ── Кнопки действий ─────────────────────────────────────────────────
+.notif__actions {
   display: flex;
-  gap: 8px;
-  margin-top: 12px;
+  gap: 6px;
+  margin-top: 10px;
 }
 
-.notification-action {
-  padding: 6px 12px;
-  border: none;
-  border-radius: 4px;
-  font-size: 12px;
+.notif__action {
+  padding: 4px 10px;
+  background: var(--crm-bg-overlay);
+  border: 1px solid var(--crm-border-hover);
+  border-radius: var(--crm-radius-sm);
+  color: var(--crm-text-primary);
+  font-size: var(--crm-text-xs);
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-  
+  transition: var(--crm-transition);
+
   &:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--crm-accent-dim);
+    border-color: var(--crm-accent-border);
+    color: var(--crm-accent);
   }
 }
 
-// Анимации
-.notification-enter-active,
-.notification-leave-active {
-  transition: all 0.3s ease;
+// ── Кнопка закрытия ─────────────────────────────────────────────────
+.notif__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin: 6px 6px 0 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--crm-radius-sm);
+  color: var(--crm-text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: var(--crm-transition);
+
+  &:hover {
+    background: var(--crm-bg-overlay);
+    color: var(--crm-text-primary);
+  }
 }
 
-.notification-enter-from {
+// ── Анимация ────────────────────────────────────────────────────────
+.notif-enter-active,
+.notif-leave-active {
+  transition: all 0.25s ease;
+}
+
+.notif-enter-from {
   opacity: 0;
-  transform: translateX(100%);
+  transform: translateX(100%) scale(0.95);
 }
 
-.notification-leave-to {
+.notif-leave-to {
   opacity: 0;
-  transform: translateX(100%) scale(0.9);
+  transform: translateX(100%) scale(0.95);
 }
 
+// ── Мобиле ──────────────────────────────────────────────────────────
 @media (max-width: 640px) {
-  .notifications-container {
-    top: 10px;
-    right: 10px;
-    left: 10px;
-    max-width: none;
+  .notif-container {
+    top: 62px; // под мобильной шапкой
+    right: 12px;
+    left: 12px;
+    width: auto;
   }
 }
 </style>

@@ -3,10 +3,10 @@
  * Nuxt Plugin для автоматического управления Socket.IO подключением
  * 
  * Архитектура:
+ * - Инициализация сервиса ТОЛЬКО на клиенте
  * - Автоматическое подключение при аутентификации
  * - Автоматическое отключение при выходе
- * - Интеграция с SocketService (не с Pinia store напрямую)
- * - Обработчики событий подключения/ошибок
+ * - Корректная очистка при закрытии страницы
  */
 
 import { defineNuxtPlugin } from 'nuxt/app'
@@ -28,25 +28,37 @@ export default defineNuxtPlugin(async (nuxtApp) => {
   const socketStore = useSocketStore()
   
   // ============================================
-  // ИНИЦИАЛИЗАЦИЯ SOCKET SERVICE
+  // ✅ ИНИЦИАЛИЗАЦИЯ SOCKET SERVICE
   // ============================================
   
-  // ✅ Инициализируем SocketService ТОЛЬКО если пользователь уже авторизован
-  // Для незалогиненных пользователей сокет не нужен — не создаём соединение
-  if (authStore.isAuthenticated) {
+  // ✅ Инициализируем сервис ВСЕГДА на клиенте
+  // Это гарантирует, что сокет будет готов к подключению в любой момент
+  try {
     socketService.init()
-    socketService.connect()
+    console.log('[SocketClientPlugin] ✅ SocketService инициализирован')
+  } catch (error) {
+    console.error('[SocketClientPlugin] ❌ Ошибка инициализации SocketService:', error)
   }
   
   // ============================================
-  // АВТО-ПОДКЛЮЧЕНИЕ ПРИ АУТЕНТИФИКАЦИИ
+  // ✅ ПОДКЛЮЧЕНИЕ ПРИ АВТОРИЗАЦИИ
   // ============================================
   
   watch(
     () => authStore.isAuthenticated,
     async (isAuthenticated, wasAuthenticated) => {
       // Пропускаем первый запуск (initial: true)
-      if (wasAuthenticated === undefined) return
+      if (wasAuthenticated === undefined) {
+        console.log('[SocketClientPlugin] 📦 Первый запуск watch, пропускаем')
+        
+        // ✅ Если пользователь уже авторизован при загрузке — подключаем сокет
+        if (isAuthenticated) {
+          await new Promise(resolve => setTimeout(resolve, 100))
+          socketService.connect()
+          console.log('[SocketClientPlugin] ✅ Пользователь уже авторизован, сокет подключён')
+        }
+        return
+      }
       
       if (isAuthenticated) {
         console.log('[SocketClientPlugin] 🔐 Пользователь аутентифицирован, подключаем сокет...')
@@ -55,8 +67,6 @@ export default defineNuxtPlugin(async (nuxtApp) => {
         await new Promise(resolve => setTimeout(resolve, 100))
         
         try {
-          // ✅ Только connect() — init() уже был вызван выше при старте плагина
-          // Повторный вызов init() создал бы дублирующий сокет и forced server close
           socketService.connect()
           console.log('[SocketClientPlugin] ✅ Сокет подключён')
         } catch (error) {
@@ -78,7 +88,7 @@ export default defineNuxtPlugin(async (nuxtApp) => {
   )
   
   // ============================================
-  // ОБРАБОТЧИКИ СОБЫТИЙ ПОДКЛЮЧЕНИЯ
+  // ✅ ОБРАБОТЧИКИ СОБЫТИЙ ПОДКЛЮЧЕНИЯ
   // ============================================
   
   // Подписываемся на события сокета для обновления состояния store
@@ -100,13 +110,15 @@ export default defineNuxtPlugin(async (nuxtApp) => {
   })
   
   // ============================================
-  // ОЧИСТКА ПРИ ЗАКРЫТИИ СТРАНИЦЫ
+  // ✅ ОЧИСТКА ПРИ ЗАКРЫТИИ СТРАНИЦЫ
   // ============================================
   
-  window.addEventListener('beforeunload', () => {
-    console.log('[SocketClientPlugin] 🧹 Очистка: отключаем сокет...')
+  const handleBeforeUnload = () => {
+    console.log('[SocketClientPlugin] 🧹 beforeunload: отключаем сокет...')
     socketService.disconnect()
-  })
+  }
+  
+  window.addEventListener('beforeunload', handleBeforeUnload)
   
   console.log('[SocketClientPlugin] ✅ Плагин успешно инициализирован')
 })

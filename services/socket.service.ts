@@ -226,6 +226,15 @@ export class SocketService {
       this.setupConnectionHandlers()
       this.setupEventHandlers()
       this.isInitialized = true
+
+      // ✅ Навешиваем хендлеры из eventHandlers, накопленные до init()
+      for (const [event, handlers] of this.eventHandlers.entries()) {
+        if (handlers.size > 0) {
+          this.socket!.on(event, (data: any) => {
+            for (const h of handlers) h(data)
+          })
+        }
+      }
       
       console.log('[SocketService] ✅ Socket.IO инициализирован')
     } catch (error) {

@@ -7,24 +7,33 @@ import { eq } from 'drizzle-orm'
 
 /**
  * Кэширование онлайн-пользователей
- * Данные кэшируются на 5 секунд для снижения нагрузки на БД
+ * ✅ УМЕНЬШЕНО: с 5 до 2 секунд для более актуальных данных
  */
-const CACHE_DURATION = 5000 // 5 секунд
+const CACHE_DURATION = 2000 // 2 секунды
 let cache: {
   data: any
   timestamp: number
 } | null = null
+
+/**
+ * ✅ ФУНКЦИЯ ДЛЯ ПРИНУДИТЕЛЬНОЙ ИНВАЛИДАЦИИ КЭША
+ * Вызывается из сокет-обработчиков при вход/выход пользователей
+ */
+export const invalidateOnlineCache = () => {
+  cache = null
+  console.log('[API/Online] 🗑️ Кэш инвалидирован')
+}
 
 export default eventHandler(async (event) => {
   const now = Date.now()
   
   // ✅ Проверяем кэш
   if (cache && now - cache.timestamp < CACHE_DURATION) {
-    console.log('[API/Online] Cache hit - returning cached data')
+    console.log('[API/Online] 💾 Cache hit - returning cached data')
     return cache.data
   }
   
-  console.log('[API/Online] Cache miss - querying database...')
+  console.log('[API/Online] 📥 Cache miss - querying database...')
   
   try {
     // Получаем онлайн-пользователей
@@ -44,6 +53,7 @@ export default eventHandler(async (event) => {
           })
           .from(users)
           .where(eq(users.id, session.userId))
+        
         return {
           ...session,
           user: user || undefined
@@ -70,19 +80,15 @@ export default eventHandler(async (event) => {
       timestamp: now
     }
     
-    console.log(`[API/Online] ✅ Cached ${validSessions.length} users`)
+    console.log(`[API/Online] ✅ Cached ${validSessions.length} users (TTL: ${CACHE_DURATION}ms)`)
     
     return response
+    
   } catch (error) {
-    console.error('Error fetching online users:', error)
+    console.error('[API/Online] ❌ Error fetching online users:', error)
     throw createError({
       statusCode: 500,
       statusMessage: 'Failed to fetch online users'
     })
   }
 })
-
-export const invalidateOnlineCache = () => {
-  cache = null
-  console.log('[API/Online] Cache invalidated')
-}

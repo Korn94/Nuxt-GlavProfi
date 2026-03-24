@@ -1,253 +1,256 @@
+<!-- app/components/pages/cabinet/Operation/DateFilter.vue -->
 <template>
-  <section class="filter-section">
-    <!-- <header class="filter-header">
-      <h2>Фильтр по дате</h2>
-    </header> -->
-    <div class="filter-buttons">
-      <!-- Кнопки с названиями месяцев -->
-      <button
-        @click="setMonth(-2)"
-        class="btn btn-outline btn-small"
-        :title="getMonthName(-2)"
-      >
-        {{ getMonthName(-2) }}
-      </button>
-      <button
-        @click="setMonth(-1)"
-        class="btn btn-outline btn-small"
-        :title="getMonthName(-1)"
-      >
-        {{ getMonthName(-1) }}
-      </button>
-      <button
-        @click="setMonth(0)"
-        class="btn btn-outline btn-small"
-        :title="getMonthName(0)"
-      >
-        {{ getMonthName(0) }}
-      </button>
-    </div>
-    <div class="filter-controls">
-      <label for="start-date" class="visually-hidden">Начальная дата</label>
-      <input
-        id="start-date"
-        type="date"
-        v-model="localStartDate"
-        class="date-input"
-        :max="localEndDate"
-        @input="$emit('update:start-date', localStartDate)"
-      />
-      <label for="end-date" class="visually-hidden">Конечная дата</label>
-      <input
-        id="end-date"
-        type="date"
-        v-model="localEndDate"
-        class="date-input"
-        :min="localStartDate"
-        @input="$emit('update:end-date', localEndDate)"
-      />
+  <div class="date-filter">
 
-      <button
-        @click="$emit('apply')"
-        class="btn btn-primary"
-        :disabled="!canApply"
-      >
-        Применить
-      </button>
-      <button
-        @click="$emit('reset')"
-        class="btn btn-outline"
-      >
-        Сбросить
+    <!-- Быстрые кнопки месяцев -->
+    <div class="date-filter__months">
+      <button v-for="offset in [-2, -1, 0]" :key="offset" class="month-btn"
+        :class="{ 'month-btn--active': isActiveMonth(offset) }" @click="setMonth(offset)">
+        {{ getMonthName(offset) }}
       </button>
     </div>
-  </section>
+
+    <!-- Ручной ввод дат -->
+    <div class="date-filter__controls">
+      <div class="date-filter__range">
+        <span class="date-filter__label">С</span>
+        <input type="date" v-model="localStartDate" class="date-filter__input" :max="localEndDate"
+          @input="$emit('update:start-date', localStartDate)" />
+        <span class="date-filter__sep">—</span>
+        <span class="date-filter__label">По</span>
+        <input type="date" v-model="localEndDate" class="date-filter__input" :min="localStartDate"
+          @input="$emit('update:end-date', localEndDate)" />
+      </div>
+
+      <div class="date-filter__actions">
+        <button class="crm-btn crm-btn--accent crm-btn--sm" :disabled="!canApply" @click="$emit('apply')">
+          <Icon name="mdi:check" size="14" />
+          Применить
+        </button>
+        <button class="crm-btn crm-btn--ghost crm-btn--sm" @click="$emit('reset')">
+          <Icon name="mdi:refresh" size="14" />
+          Сбросить
+        </button>
+      </div>
+    </div>
+
+  </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 
-const props = defineProps({
-  startDate: {
-    type: String,
-    required: true
-  },
-  endDate: {
-    type: String,
-    required: true
-  }
-})
+const props = defineProps < {
+  startDate: string
+  endDate: string
+} > ()
+
+const emit = defineEmits < {
+  'update:start-date': [value: string]
+  'update:end-date': [value: string]
+  'apply': []
+  'reset': []
+} > ()
 
 const localStartDate = ref(props.startDate)
 const localEndDate = ref(props.endDate)
 
-const canApply = computed(() => {
-  return localStartDate.value && localEndDate.value
-})
+const canApply = computed(() => !!localStartDate.value && !!localEndDate.value)
 
-watch(
-  () => props.startDate,
-  (newVal) => {
-    localStartDate.value = newVal
-  }
-)
-watch(
-  () => props.endDate,
-  (newVal) => {
-    localEndDate.value = newVal
-  }
-)
+// ── Синхронизация с пропсами ─────────────────────────────────────────
+watch(() => props.startDate, val => { localStartDate.value = val })
+watch(() => props.endDate, val => { localEndDate.value = val })
 
-// Названия месяцев на русском
-const monthNames = [
-  'Январь', 'Февраль', 'Март', 'Апрель',
-  'Май', 'Июнь', 'Июль', 'Август',
-  'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
-]
+// ── Вспомогательные ─────────────────────────────────────────────────
+const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь']
 
-// Получить название месяца (смещение: 0 — текущий, -1 — прошлый и т.д.)
-const getMonthName = (offset) => {
+function getMonthName(offset: number) {
   const now = new Date()
-  const monthIndex = (now.getMonth() + offset + 12) % 12
-  return monthNames[monthIndex]
+  const idx = ((now.getMonth() + offset) % 12 + 12) % 12
+  return monthNames[idx]
 }
 
-// Форматирование даты в строку YYYY-MM-DD
-const formatDate = (date) => {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+function isActiveMonth(offset: number) {
+  if (!localStartDate.value || !localEndDate.value) return false
+  const now = new Date()
+  const year = Math.floor((now.getFullYear() * 12 + now.getMonth() + offset) / 12)
+  const month = ((now.getMonth() + offset) % 12 + 12) % 12
+  const start = formatDate(new Date(year, month, 1))
+  const end = formatDate(new Date(year, month + 1, 0))
+  return localStartDate.value === start && localEndDate.value === end
 }
 
-// Установить месяц по смещению (в днях не надо, мы работаем с месяцем целиком)
-const setMonth = (offset) => {
+function setMonth(offset: number) {
   const now = new Date()
-  const year = now.getFullYear()
-  const month = now.getMonth() + offset
-
-  // Вычисляем год с учётом переполнения (например, январь -1 = декабрь прошлого года)
-  const targetYear = Math.floor((year * 12 + month) / 12)
-  const targetMonth = (month + 12) % 12
-
-  const start = new Date(targetYear, targetMonth, 1)
-  const end = new Date(targetYear, targetMonth + 1, 0) // последний день
-
-  localStartDate.value = formatDate(start)
-  localEndDate.value = formatDate(end)
-
+  const year = Math.floor((now.getFullYear() * 12 + now.getMonth() + offset) / 12)
+  const month = ((now.getMonth() + offset) % 12 + 12) % 12
+  localStartDate.value = formatDate(new Date(year, month, 1))
+  localEndDate.value = formatDate(new Date(year, month + 1, 0))
   emit('update:start-date', localStartDate.value)
   emit('update:end-date', localEndDate.value)
-  emit('apply') // автоматически применяем фильтр
+  emit('apply')
 }
 
-const emit = defineEmits(['update:start-date', 'update:end-date', 'apply', 'reset'])
+function formatDate(date: Date) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
 </script>
 
 <style lang="scss" scoped>
-$primary-color: #007bff;
-$success-color: #28a745;
-$danger-color: #dc3545;
-$warning-color: #ffc107;
-$info-color: #17a2b8;
-$dark-color: #343a40;
-$light-color: #f8f9fa;
-$gray-light: #e9ecef;
-$gray: #6c757d;
-$border-radius: 8px;
-$box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-$transition: all 0.3s ease;
-
-.filter-header {
-  margin-bottom: 1rem;
-  text-align: center;
-  h2 {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: $dark-color;
-    margin: 0;
-  }
-}
-
-.filter-controls {
+.date-filter {
   display: flex;
-  gap: 1rem;
+  align-items: center;
   flex-wrap: wrap;
-  align-items: end;
-}
+  gap: 12px;
 
-.filter-buttons {
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
-  margin-bottom: 1em;
-}
+  // ── Кнопки месяцев ──────────────────────────────────────────────
+  &__months {
+    display: flex;
+    gap: 4px;
+  }
 
-.date-input {
-  padding: 0.6rem;
-  border: 1px solid $gray-light;
-  border-radius: $border-radius;
-  font-size: 1rem;
-  min-width: 140px;
-  transition: border-color $transition;
+  // ── Контролы ────────────────────────────────────────────────────
+  &__controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    flex: 1;
+  }
 
-  &:focus {
+  &__range {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+  }
+
+  &__label {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+    white-space: nowrap;
+  }
+
+  &__sep {
+    color: var(--crm-text-disabled);
+    font-size: var(--crm-text-sm);
+  }
+
+  &__input {
+    background: var(--crm-bg-elevated);
+    border: 1px solid var(--crm-border-hover);
+    border-radius: var(--crm-radius-md);
+    color: var(--crm-text-primary);
+    font-size: var(--crm-text-sm);
+    font-family: var(--crm-font-sans);
+    padding: 6px 10px;
     outline: none;
-    border-color: $primary-color;
-    box-shadow: 0 0 0 3px rgba($primary-color, 0.2);
+    transition: var(--crm-transition);
+    min-width: 130px;
+
+    &:focus {
+      border-color: var(--crm-accent);
+      box-shadow: 0 0 0 3px var(--crm-accent-dim);
+    }
+
+    // Цвет иконки календаря
+    color-scheme: dark;
+  }
+
+  &__actions {
+    display: flex;
+    gap: 6px;
   }
 }
 
-.btn {
-  height: fit-content;
-  &.btn-primary {
-    background-color: $primary-color;
-    border: 1px solid $primary-color;
-    color: white;
-    padding: 0.6rem 1rem;
-    border-radius: $border-radius;
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    &:hover:enabled {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    }
-    &:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      transform: none;
-    }
-  }
-  &.btn-outline {
-    background-color: transparent;
-    border: 1px solid $gray;
-    color: $gray;
-    padding: 0.6rem 1rem;
-    border-radius: $border-radius;
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    &:hover:enabled {
-      background-color: $light-color;
-      color: $dark-color;
-    }
-  }
-  &.btn-small {
-    font-size: 0.85rem;
-    padding: 0.5rem 0.8rem;
-  }
-}
-
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
+// ── Кнопки месяцев ──────────────────────────────────────────────────
+.month-btn {
+  padding: 5px 12px;
+  background: var(--crm-bg-elevated);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-md);
+  color: var(--crm-text-secondary);
+  font-size: var(--crm-text-sm);
+  cursor: pointer;
+  transition: var(--crm-transition);
   white-space: nowrap;
-  border: 0;
+
+  &:hover {
+    background: var(--crm-bg-overlay);
+    border-color: var(--crm-border-hover);
+    color: var(--crm-text-primary);
+  }
+
+  &--active {
+    background: var(--crm-accent-dim);
+    border-color: var(--crm-accent-border);
+    color: var(--crm-accent);
+
+    &:hover {
+      background: var(--crm-accent-dim);
+      color: var(--crm-accent);
+    }
+  }
+}
+
+// ── Кнопки ──────────────────────────────────────────────────────────
+.crm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: var(--crm-radius-md);
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--crm-transition);
+  white-space: nowrap;
+
+  &--sm {
+    padding: 6px 12px;
+    font-size: var(--crm-text-sm);
+  }
+
+  &--accent {
+    background: var(--crm-accent-dim);
+    border: 1px solid var(--crm-accent-border);
+    color: var(--crm-accent);
+
+    &:hover:not(:disabled) {
+      background: rgba(0, 195, 245, 0.25);
+    }
+
+    &:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+  }
+
+  &--ghost {
+    background: transparent;
+    border: 1px solid var(--crm-border-hover);
+    color: var(--crm-text-secondary);
+
+    &:hover {
+      background: var(--crm-bg-elevated);
+      color: var(--crm-text-primary);
+    }
+  }
+}
+
+@media (max-width: 700px) {
+  .date-filter {
+    flex-direction: column;
+    align-items: stretch;
+
+    &__controls {
+      flex-direction: column;
+    }
+
+    &__range {
+      flex-wrap: wrap;
+    }
+  }
 }
 </style>

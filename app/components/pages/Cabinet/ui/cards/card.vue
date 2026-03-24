@@ -1,187 +1,204 @@
-<!-- app/components/pages/cabinet/ui/cards/card.vue -->
+<!-- app/components/pages/cabinet/ui/cards/index.vue -->
 <template>
-  <div class="card" :class="{ 'card--elevated': elevated, 'card--bordered': bordered, 'card--loading': loading }">
+  <div class="card" :class="[`card--${variant}`, { 'card--loading': loading }]">
+
     <!-- Заголовок -->
-    <header v-if="!loading && ($slots.header || title)" class="card__header">
-      <div class="card__title-wrapper">
-        <!-- <slot name="icon">
-          <Icon name="material-symbols-light:account-circle" size="24" />
-        </slot> -->
+    <header v-if="!loading && (title || $slots.header || $slots.actions)" class="card__header">
+      <div class="card__header-left">
+        <!-- Иконка -->
+        <div v-if="$slots.icon" class="card__icon">
+          <slot name="icon" />
+        </div>
+
+        <!-- Заголовок -->
         <h3 v-if="title" class="card__title">{{ title }}</h3>
         <slot v-else name="header" />
       </div>
-      <div class="card__actions">
+
+      <!-- Действия -->
+      <div v-if="$slots.actions" class="card__actions">
         <slot name="actions" />
       </div>
     </header>
 
-    <!-- Лоадер -->
-    <div v-if="loading" class="card__loader">
-      <div class="skeleton skeleton-title"></div>
-      <div class="skeleton skeleton-text"></div>
-      <div class="skeleton skeleton-text short"></div>
+    <!-- Скелетон при загрузке -->
+    <div v-if="loading" class="card__skeleton">
+      <div class="skeleton skeleton--title" />
+      <div class="skeleton skeleton--line" />
+      <div class="skeleton skeleton--line skeleton--short" />
     </div>
 
-    <!-- Основное содержимое -->
-    <main v-else class="card__body" :class="{ 'card__body--no-padding': noPaddingBody }">
+    <!-- Контент -->
+    <main v-else class="card__body" :class="{ 'card__body--flush': flush }">
       <slot />
     </main>
 
     <!-- Футер -->
-    <footer v-if="$slots.footer && !loading" class="card__footer">
+    <footer v-if="!loading && $slots.footer" class="card__footer">
       <slot name="footer" />
     </footer>
+
   </div>
 </template>
 
-<script setup>
-const props = defineProps({
-  title: {
-    type: String,
-    default: ''
-  },
-  icon: {
-    type: String,
-    default: ''
-  },
-  elevated: {
-    type: Boolean,
-    default: false
-  },
-  bordered: {
-    type: Boolean,
-    default: true
-  },
-  loading: {
-    type: Boolean,
-    default: false
-  },
-  noPaddingBody: {
-    type: Boolean,
-    default: false
-  }
+<script setup lang="ts">
+withDefaults(defineProps < {
+  title?: string
+  // default  — стандартная карточка
+  // flat     — без рамки, только фон
+  // outlined — только рамка, без фона
+  variant?: 'default' | 'flat' | 'outlined'
+  loading?: boolean
+  // flush — убирает padding у body (для таблиц, списков вплотную к краям)
+  flush?: boolean
+} > (), {
+  variant: 'default',
+  loading: false,
+  flush: false,
 })
 </script>
 
 <style lang="scss" scoped>
+// ── Базовая карточка ────────────────────────────────────────────────
 .card {
-  background-color: $background-light;
-  border-radius: $border-radius;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--crm-radius-lg);
   overflow: hidden;
-  font-family: 'Inter', sans-serif;
+  transition: var(--crm-transition);
 
-  &--bordered {
-    border: 1px solid $border-color;
+  // Варианты
+  &--default {
+    background: var(--crm-bg-surface);
+    border: 1px solid var(--crm-border);
   }
 
-  &--elevated {
-    box-shadow: $box-shadow;
+  &--flat {
+    background: var(--crm-bg-elevated);
+    border: none;
   }
 
-  &:not(.card--elevated) {
-    box-shadow: $box-shadow;
-    transition: box-shadow 0.3s ease;
-
-    &:hover {
-      box-shadow: $box-shadow;
-    }
+  &--outlined {
+    background: transparent;
+    border: 1px solid var(--crm-border-hover);
   }
 
   &--loading {
     pointer-events: none;
-    opacity: 0.8;
   }
 }
 
+// ── Заголовок ───────────────────────────────────────────────────────
 .card__header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 1rem 1.5rem;
-  background-color: rgba($text-dark, 0.05);
-  border-bottom: 1px solid $border-color;
-  border-top-left-radius: $border-radius;
-  border-top-right-radius: $border-radius;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--crm-border);
+  flex-shrink: 0;
 
-  .card__title-wrapper {
+  &-left {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    font-weight: 600;
-    color: $text-dark;
+    gap: 10px;
+    min-width: 0;
   }
 }
 
 .card__icon {
-  width: 1.25rem;
-  height: 1.25rem;
-  object-fit: contain;
-  opacity: 0.8;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--crm-accent-dim);
+  border: 1px solid var(--crm-accent-border);
+  border-radius: var(--crm-radius-md);
+  color: var(--crm-accent);
+  flex-shrink: 0;
 }
 
 .card__title {
-  font-size: 1.125rem;
+  font-size: var(--crm-text-md);
+  font-weight: 600;
+  color: var(--crm-text-primary);
   margin: 0;
-  color: $text-dark;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .card__actions {
   display: flex;
-  gap: 0.5rem;
-  font-size: 0.875rem;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
+// ── Контент ─────────────────────────────────────────────────────────
 .card__body {
-  padding: 1.5rem;
-  color: $text-dark;
-  line-height: 1.5;
+  flex: 1;
+  padding: 16px;
+  color: var(--crm-text-secondary);
+  font-size: var(--crm-text-base);
+  line-height: 1.6;
 
-  &--no-padding {
-    padding: unset;
+  &--flush {
+    padding: 0;
   }
 }
 
+// ── Футер ───────────────────────────────────────────────────────────
 .card__footer {
-  padding: 1rem 1.5rem;
-  background-color: rgba($color-muted, 0.05);
-  border-top: 1px solid $border-color;
-  font-size: 0.875rem;
-  color: $color-muted;
+  padding: 10px 16px;
+  border-top: 1px solid var(--crm-border);
+  font-size: var(--crm-text-sm);
+  color: var(--crm-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
-// Стили лоадера (скелетон)
-.card__loader {
-  padding: 1.5rem;
+// ── Скелетон ────────────────────────────────────────────────────────
+.card__skeleton {
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 10px;
+}
 
-  .skeleton {
-    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-    background-size: 200% 100%;
-    animation: loading 1.5s infinite;
-    border-radius: 6px;
+.skeleton {
+  border-radius: var(--crm-radius-sm);
+  background: linear-gradient(90deg,
+      var(--crm-bg-elevated) 25%,
+      var(--crm-bg-overlay) 50%,
+      var(--crm-bg-elevated) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.6s infinite;
 
-    &-title {
-      height: 24px;
-      width: 60%;
-    }
+  &--title {
+    height: 20px;
+    width: 45%;
+  }
 
-    &-text {
-      height: 16px;
-      width: 100%;
+  &--line {
+    height: 14px;
+    width: 100%;
+  }
 
-      &.short {
-        width: 70%;
-      }
-    }
+  &--short {
+    width: 65%;
   }
 }
 
-@keyframes loading {
+@keyframes skeleton-shimmer {
   0% {
     background-position: 200% 0;
   }
+
   100% {
     background-position: -200% 0;
   }
