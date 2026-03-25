@@ -2,7 +2,7 @@
 import { Socket } from 'socket.io'
 import { db } from '../../db'
 import { users, userSessions } from '../../db/schema'
-import { eq, and, or, desc, ne } from 'drizzle-orm'
+import { eq, and, or, desc, ne, isNull } from 'drizzle-orm'
 import type { Server } from 'socket.io'
 import { createSession, updateSessionStatus, getOnlineUsers, closeZombieSessions } from '../../utils/sessions'
 import { broadcastStatus } from './status'
@@ -47,7 +47,9 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
             or(
               eq(userSessions.status, 'online'),
               eq(userSessions.status, 'afk')
-            )
+            ),
+            // ✅ ДОБАВЬ: Исключаем сессии с endedAt (явно закрытые)
+            isNull(userSessions.endedAt)
           )
         )
         .orderBy(desc(userSessions.lastActivity))

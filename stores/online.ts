@@ -151,8 +151,7 @@ export const useOnlineStore = defineStore('online', {
      * @param users - Новый список пользователей
      */
     updateUsers(users: OnlineUser[]) {
-      console.log(`[OnlineStore] 🔄 Обновление списка: ${users.length} пользователей`)
-      this.users = [...users]
+      this.$patch({ users: [...users] })
     },
 
     /**

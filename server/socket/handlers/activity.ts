@@ -33,9 +33,12 @@ export function setupActivityHandlers(socket: Socket, user: any, io: Server) {
         return
       }
       
-      await updateSessionStatus(sessionId, 'online', ipAddress)
+      console.log(`[Activity] 🟢 User ${sessionId} resumed from AFK`)
       
-      // ✅ ОТПРАВЛЯЕМ УВЕДОМЛЕНИЕ ТОЛЬКО О ВОЗВРАЩЕНИИ ИЗ АФК
+      // ✅ Явно ставим статус 'online' (не просто обновляем lastActivity)
+      await updateSessionStatus(sessionId, 'online', { ipAddress })
+      
+      // ✅ Отправляем уведомление о возврате из AFK
       broadcastStatus(io, socket, user.id, userName, 'online', {
         sessionId,
         fromAFK: true

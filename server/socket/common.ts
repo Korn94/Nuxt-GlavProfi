@@ -104,8 +104,8 @@ export function getSocketOptions(isDev: boolean) {
     transports: ['websocket', 'polling'] as ('websocket' | 'polling')[],
     allowUpgrades: true,
     allowEIO3: true,
-    pingTimeout: 60000,
-    pingInterval: 25000,
+    pingTimeout: 120000,
+    pingInterval: 45000,
     upgradeTimeout: 30000,
     maxHttpBufferSize: 1e6,
     // ✅ Отключаем сжатие — часто ломает WS через nginx proxy

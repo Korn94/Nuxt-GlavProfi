@@ -247,8 +247,16 @@ export async function closeZombieSessions(userId: number, excludeSessionId?: str
 
 /**
  * Получение онлайн-пользователей с агрегацией по пользователю
+ * ✅ УЛУЧШЕНИЯ:
+ * - Авто-определение AFK по lastActivity (>5 мин бездействия)
+ * - Включение недавно вышедших (30 мин) для плавного исчезновения
+ * - Умный выбор лучшей сессии (активная > неактивная, при равенстве — свежее)
  */
 export async function getOnlineUsers() {
+  const RECENT_OFFLINE_MINUTES = 30
+  const AFK_THRESHOLD_MS = 5 * 60 * 1000 // 5 минут
+
+  // Получаем сессии: online, afk + недавно вышедшие (для плавного исчезновения)
   const activeSessions = await db
     .select({
       sessionId: userSessions.sessionId,
@@ -259,6 +267,7 @@ export async function getOnlineUsers() {
       currentPath: userSessions.currentPath,
       lastActivity: userSessions.lastActivity,
       startedAt: userSessions.startedAt,
+      endedAt: userSessions.endedAt,
       ipAddress: userSessions.ipAddress,
       userName: users.name,
       userRole: users.role,
@@ -269,13 +278,22 @@ export async function getOnlineUsers() {
     .where(
       or(
         eq(userSessions.status, 'online'),
-        eq(userSessions.status, 'afk')
+        eq(userSessions.status, 'afk'),
+        and(
+          eq(userSessions.status, 'offline'),
+          sql`${userSessions.endedAt} > DATE_SUB(NOW(), INTERVAL ${RECENT_OFFLINE_MINUTES} MINUTE)`
+        )
       )
     )
     .orderBy(desc(userSessions.lastActivity))
-  
-  const usersMap = new Map<number, any>()
-  
+
+  // Агрегация: один пользователь = одна запись (по лучшей сессии)
+  const usersMap = new Map<number, {
+    userId: number
+    user: { id: number; name: string; role: string; login: string }
+    bestSession: any
+  }>()
+
   for (const session of activeSessions) {
     if (!usersMap.has(session.userId)) {
       usersMap.set(session.userId, {
@@ -286,43 +304,67 @@ export async function getOnlineUsers() {
           role: session.userRole,
           login: session.userLogin
         },
-        sessions: [],
-        tabsCount: 0
+        bestSession: null
       })
     }
-    
+
     const userData = usersMap.get(session.userId)!
-    userData.sessions.push(session)
-    userData.tabsCount += 1
-    
-    // Выбираем сессию с самым свежим lastActivity
-    if (!userData.activeSession ||
-      (session.lastActivity && userData.activeSession.lastActivity &&
-        new Date(session.lastActivity) > new Date(userData.activeSession.lastActivity))) {
-      userData.activeSession = session
+
+    // ✅ Выбираем лучшую сессию: активная > неактивная, при равенстве — по свежести
+    if (!userData.bestSession) {
+      userData.bestSession = session
+    } else {
+      const sessionIsActive = session.status !== 'offline'
+      const bestIsActive = userData.bestSession.status !== 'offline'
+
+      if (sessionIsActive && !bestIsActive) {
+        userData.bestSession = session
+      } else if (sessionIsActive === bestIsActive) {
+        const sessionTime = session.lastActivity ? new Date(session.lastActivity).getTime() : 0
+        const bestTime = userData.bestSession.lastActivity 
+          ? new Date(userData.bestSession.lastActivity).getTime() 
+          : 0
+        if (sessionTime > bestTime) {
+          userData.bestSession = session
+        }
+      }
     }
   }
-  
+
+  // Формируем результат с авто-определением AFK
+  const now = new Date()
   const result = Array.from(usersMap.values()).map(userData => {
-    const activeSession = userData.activeSession
+    const best = userData.bestSession
+    if (!best) return null
+
+    // ✅ Авто-определение AFK: если статус online, но нет активности >5 мин
+    let status = best.status
+    if (status === 'online' && best.lastActivity) {
+      const lastActivityTime = new Date(best.lastActivity).getTime()
+      const diff = now.getTime() - lastActivityTime
+      if (diff > AFK_THRESHOLD_MS) {
+        status = 'afk'
+      }
+    }
+
     return {
       userId: userData.userId,
       user: userData.user,
-      tabsCount: userData.tabsCount,
-      activePath: activeSession?.currentPath || null,
-      status: activeSession?.status || 'offline',
-      lastActivity: activeSession?.lastActivity || new Date().toISOString(),
-      startedAt: activeSession?.startedAt || new Date().toISOString(),
-      ipAddress: activeSession?.ipAddress || 'unknown'
+      activePath: best.currentPath || null,
+      status: status as 'online' | 'afk' | 'offline',
+      lastActivity: best.lastActivity || now.toISOString(),
+      startedAt: best.startedAt || now.toISOString(),
+      endedAt: best.endedAt || null,
+      ipAddress: best.ipAddress || 'unknown'
+      // ✅ tabsCount убран — не нужен
     }
-  })
-  
+  }).filter((u): u is NonNullable<typeof u> => u !== null)
+
+  // Сортировка: online → afk → offline, затем по активности
+  const order: Record<string, number> = { online: 0, afk: 1, offline: 2 }
   return result.sort((a, b) => {
-    if (b.tabsCount !== a.tabsCount) {
-      return b.tabsCount - a.tabsCount
-    }
-    const dateA = a.lastActivity ? new Date(a.lastActivity).getTime() : Date.now()
-    const dateB = b.lastActivity ? new Date(b.lastActivity).getTime() : Date.now()
-    return dateB - dateA
+    const diff = (order[a.status] ?? 2) - (order[b.status] ?? 2)
+    if (diff !== 0) return diff
+    return new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime()
   })
 }

@@ -44,8 +44,9 @@ export interface OnlineUser {
   }
   tabsCount: number          // Общее количество открытых вкладок
   activePath: string         // Путь активной/последней активной вкладки
-  status: 'online' | 'afk'   // Статус пользователя
+  status: 'online' | 'afk' | 'offline'   // Статус пользователя
   lastActivity: string       // Время последней активности
+  endedAt: string | null
   startedAt: string          // Время начала сессии
   ipAddress: string          // IP-адрес
 }

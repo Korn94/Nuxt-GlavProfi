@@ -213,7 +213,11 @@ export function useActivityTracker() {
 
     // ✅ НОВОЕ: Слушаем visibilitychange
     visibilityHandler = handleVisibilityChange
-    document.addEventListener('visibilitychange', visibilityHandler)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        updateActivity() // ✅ Принудительное обновление при возврате
+      }
+    })
 
     isTracking.value = true
 
