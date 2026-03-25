@@ -1,3 +1,4 @@
+<!-- app\pages\cabinet\admin\contractors\foreman\[id].vue -->
 <template>
   <PagesCabinetContractorsForeman
     :id="id"

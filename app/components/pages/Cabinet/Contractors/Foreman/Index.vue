@@ -1,3 +1,4 @@
+<!-- app\components\pages\cabinet\Contractors\Foreman\Index.vue -->
 <template>
   <CommonIndex
     :contractor="contractor"

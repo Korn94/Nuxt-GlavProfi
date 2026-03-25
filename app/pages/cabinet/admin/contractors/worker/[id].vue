@@ -1,3 +1,4 @@
+<!-- app\pages\cabinet\admin\contractors\worker\[id].vue -->
 <template>
   <PagesCabinetContractorsMasterWorkerIndex
     :id="id"

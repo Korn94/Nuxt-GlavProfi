@@ -1,3 +1,4 @@
+<!-- app\components\pages\cabinet\Contractors\Common\PaymentsHistory.vue -->
 <template>
   <div class="block">
     <h3>Финансовые выплаты</h3>

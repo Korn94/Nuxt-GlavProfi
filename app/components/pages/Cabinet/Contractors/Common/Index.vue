@@ -1,3 +1,4 @@
+<!-- app\components\pages\cabinet\Contractors\Common\Index.vue -->
 <template>
   <div class="contractor-layout">
     <!-- Шапка с данными контрагента -->

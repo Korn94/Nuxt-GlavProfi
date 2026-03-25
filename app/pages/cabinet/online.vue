@@ -350,8 +350,8 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  min-height: 400px;
-  max-height: 600px;
+  // min-height: 400px;
+  // max-height: 600px;
   &__header {
     display: flex;
     align-items: center;

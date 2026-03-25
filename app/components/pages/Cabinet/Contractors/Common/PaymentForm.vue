@@ -1,3 +1,4 @@
+<!-- app\components\pages\cabinet\Contractors\Common\PaymentForm.vue -->
 <template>
   <div class="add-payment-form">
     <h3>Добавить оплату</h3>

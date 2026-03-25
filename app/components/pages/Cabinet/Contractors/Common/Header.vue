@@ -1,3 +1,4 @@
+<!-- app\components\pages\cabinet\Contractors\Common\Header.vue -->
 <template>
   <div class="contractor-header block">
     <h3>Данные контрагента</h3>

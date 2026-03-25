@@ -1,3 +1,4 @@
+<!-- app\pages\cabinet\admin\contractors\office\[id].vue -->
 <template>
   <PagesCabinetContractorsOfficeIndex
     :id="id"

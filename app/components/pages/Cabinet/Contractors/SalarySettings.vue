@@ -1,3 +1,4 @@
+<!-- app\components\pages\cabinet\Contractors\SalarySettings.vue -->
 <template>
   <div class="salary-settings">
     <!-- Статус "На зарплате" -->

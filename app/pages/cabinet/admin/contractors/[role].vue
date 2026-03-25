@@ -1,3 +1,4 @@
+<!-- app\pages\cabinet\admin\contractors\[role].vue -->
 <template>
   <div class="contractors-page">
     <div class="page-header">

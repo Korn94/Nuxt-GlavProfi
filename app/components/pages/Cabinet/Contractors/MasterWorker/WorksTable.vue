@@ -1,3 +1,4 @@
+<!-- app\components\pages\cabinet\Contractors\MasterWorker\WorksTable.vue -->
 <template>
   <div class="block">
     <h3>Работы</h3>

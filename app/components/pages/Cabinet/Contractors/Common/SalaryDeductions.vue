@@ -1,3 +1,4 @@
+<!-- app\components\pages\cabinet\Contractors\Common\SalaryDeductions.vue -->
 <template>
   <div class="block">
     <h3>Оплаты</h3>

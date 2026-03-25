@@ -1,3 +1,4 @@
+<!-- app\components\pages\cabinet\Contractors\MasterWorker\WorkForm.vue -->
 <template>
   <div class="add-work-form">
     <h3>Добавить работу</h3>

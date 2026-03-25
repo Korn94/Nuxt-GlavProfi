@@ -1,3 +1,4 @@
+<!-- app\pages\cabinet\admin\contractors\add.vue -->
 <template>
   <div class="container">
     <h1>Добавить контрагента</h1>
