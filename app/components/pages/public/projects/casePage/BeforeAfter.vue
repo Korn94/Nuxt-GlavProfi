@@ -200,9 +200,11 @@ onMounted(() => {
 .before-after-container {
   border-top: 4px solid white;
   position: relative;
+  margin: auto;
   width: 100%;
+  max-width: 800px;
   overflow: hidden;
-  aspect-ratio: 22/9;
+  aspect-ratio: 1/1;
 
   @media (max-width: 768px) {
     aspect-ratio: 1/1;
@@ -409,6 +411,7 @@ onMounted(() => {
   gap: 5px;
   overflow-x: auto;
   scroll-padding: 1rem;
+  padding-bottom: 5px;
 }
 
 .thumbnail-wrapper {

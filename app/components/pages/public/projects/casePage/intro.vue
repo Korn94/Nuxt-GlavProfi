@@ -44,7 +44,7 @@
           <p class="work">{{ work.workType }}</p>
         </div>
       </div>
-      <p class="info">Основные работы которые был выполнен нами на объекте</p>
+      <p class="info">Основные работы которые был выполнен нами на объекте. <span>Указаны не все виды работ.</span></p>
     </div>
   </div>
 </template>
@@ -274,7 +274,7 @@ const displayedWorks = computed(() => {
       filter: drop-shadow(0 0 20px $blue20);
       display: flex;
       flex-direction: column;
-      justify-content: center;
+      // justify-content: center;
 
       .title {
         font-size: 1.2em;
