@@ -1,3 +1,4 @@
+<!-- app\components\pages\public\remontPomescheniy\index\ui\ServiceCard.vue -->
 <template>
   <div class="service-card">
     <div class="service-card__header">

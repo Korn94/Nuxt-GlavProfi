@@ -276,15 +276,23 @@ async function fetchData() {
   isLoading.value = true
   error.value = null
   try {
+    // ✅ Исправлено: используем singular ключи для API
     const [masters, workers, foremans, offices] = await Promise.all([
-      $fetch < any[] > ('/api/contractors/masters'),
-      $fetch < any[] > ('/api/contractors/workers'),
-      $fetch < any[] > ('/api/contractors/foremans'),
-      $fetch < any[] > ('/api/contractors/offices'),
+      $fetch<any>('/api/contractors/master'),
+      $fetch<any>('/api/contractors/worker'),
+      $fetch<any>('/api/contractors/foreman'),
+      $fetch<any>('/api/contractors/office'),
     ])
 
-    const process = (list: any[], type: string) =>
-      (list || []).map(c => ({ ...c, type, balance: parseFloat(c.balance) || 0 }))
+    // Обработка ответа (API возвращает { contractors: [], count: N })
+    const process = (response: any, type: string) => {
+      const list = response?.contractors || response || []
+      return (list || []).map((c: any) => ({ 
+        ...c, 
+        type, 
+        balance: parseFloat(c.balance) || 0 
+      }))
+    }
 
     const m = process(masters, 'master')
     const w = process(workers, 'worker')
@@ -300,10 +308,13 @@ async function fetchData() {
       offices: { totalBalance: sum(o), count: o.length, list: o },
     }
 
-    updatedAt.value = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
-  } catch (e) {
+    updatedAt.value = new Date().toLocaleTimeString('ru-RU', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    })
+  } catch (e: any) {
     console.error('[КонтрФинансы] Ошибка загрузки:', e)
-    error.value = 'Ошибка загрузки'
+    error.value = e?.message || 'Ошибка загрузки'
   } finally {
     isLoading.value = false
   }
@@ -313,15 +324,36 @@ async function loadTransactions(contractor: any) {
   if (transactions.value[contractor.id]) return
   loadingTransactions.value = contractor.id
   try {
+    // ✅ Исправлено: передаём правильные параметры
     const [expenses, comings] = await Promise.all([
-      $fetch < any[] > ('/api/expenses', { params: { contractorType: contractor.type, contractorId: contractor.id } }),
-      $fetch < any[] > ('/api/comings', { params: { contractorType: contractor.type, contractorId: contractor.id } }),
+      $fetch<any[]>('/api/expenses', { 
+        params: { 
+          contractorType: contractor.type,    // 'master', 'worker', etc.
+          contractorId: contractor.id 
+        } 
+      }),
+      // ⚠️ Внимание: /api/comings не фильтрует по contractorType!
+      // Если нужно — создайте отдельный эндпоинт или фильтруйте на фронтенде
+      $fetch<any[]>('/api/comings', { 
+        params: { 
+          objectId: contractor.objectId || undefined  // Если есть связь с объектом
+        } 
+      }),
     ])
+    
     transactions.value[contractor.id] = {
-      expenses: (expenses || []).map(e => ({ ...e, amount: parseFloat(e.amount) })),
-      comings: (comings || []).map(c => ({ ...c, amount: parseFloat(c.amount) })),
+      expenses: (expenses || []).map(e => ({ 
+        ...e, 
+        amount: parseFloat(e.amount),
+        objectName: e.objectName 
+      })),
+      comings: (comings || []).map(c => ({ 
+        ...c, 
+        amount: parseFloat(c.amount),
+        objectName: c.objectName 
+      })),
     }
-  } catch (e) {
+  } catch (e: any) {
     console.error(`[КонтрФинансы] Ошибка загрузки транзакций для ${contractor.id}:`, e)
   } finally {
     loadingTransactions.value = null

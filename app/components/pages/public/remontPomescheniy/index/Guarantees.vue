@@ -1,4 +1,4 @@
-<!-- components/CommercialRepairGuarantees.vue -->
+<!-- app\components\pages\public\remontPomescheniy\index\Guarantees.vue -->
 <template>
   <section class="guarantees">
     <div class="container">

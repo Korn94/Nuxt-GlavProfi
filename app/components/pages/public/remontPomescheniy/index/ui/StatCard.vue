@@ -1,3 +1,4 @@
+<!-- app\components\pages\public\remontPomescheniy\index\ui\StatCard.vue -->
 <template>
   <div class="stat-card">
     <div class="stat-card__icon-wrapper">

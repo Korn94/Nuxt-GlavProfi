@@ -218,4 +218,3 @@ export default defineNuxtConfig({
 function defaultErrorHandler(error: { status: number; }, event: { path: string; }) {
   throw new Error('Function not implemented.');
 }
-

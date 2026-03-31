@@ -414,15 +414,22 @@ async function fetchOperations() {
   }
 }
 
+// ── Загрузка контрагентов ────────────────────────────────────────────
 async function fetchContractors() {
   try {
-    const [masters, workers] = await Promise.all([
-      $fetch < any[] > ('/api/contractors/masters', { credentials: 'include' }),
-      $fetch < any[] > ('/api/contractors/workers', { credentials: 'include' }),
+    // ✅ Исправлено: singular ключи для API
+    const [mastersResponse, workersResponse] = await Promise.all([
+      $fetch<any>('/api/contractors/master', { credentials: 'include' }),
+      $fetch<any>('/api/contractors/worker', { credentials: 'include' }),
     ])
+    
+    // ✅ API возвращает { contractors: [], count: N }, обрабатываем это
+    const masters = mastersResponse?.contractors || mastersResponse || []
+    const workers = workersResponse?.contractors || workersResponse || []
+    
     contractors.value = [
-      ...(masters || []).map(m => ({ ...m, type: 'master' })),
-      ...(workers || []).map(w => ({ ...w, type: 'worker' })),
+      ...masters.map((m: any) => ({ ...m, type: 'master' })),
+      ...workers.map((w: any) => ({ ...w, type: 'worker' })),
     ]
   } catch (e) {
     console.error('[Операции] Ошибка загрузки контрагентов:', e)
@@ -431,7 +438,10 @@ async function fetchContractors() {
 
 async function fetchForemans() {
   try {
-    foremans.value = await $fetch < any[] > ('/api/contractors/foremans', { credentials: 'include' }) || []
+    // ✅ Исправлено: singular ключ
+    const response = await $fetch<any>('/api/contractors/foreman', { credentials: 'include' })
+    // ✅ Обрабатываем ответ { contractors: [] } или прямой массив
+    foremans.value = response?.contractors || response || []
   } catch (e) {
     console.error('[Операции] Ошибка загрузки прорабов:', e)
   }

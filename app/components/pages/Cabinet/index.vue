@@ -43,8 +43,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useAuth } from '~/composables/useAuth'
 import { navigateTo } from '#app'
 
-const data = ref < any > (null)
-const contractorData = ref < any > (null)
+const data = ref<any>(null)
+const contractorData = ref<any>(null)
 const isLoading = ref(true)
 
 const roleLabels: Record<string, string> = {
@@ -55,11 +55,12 @@ const roleLabels: Record<string, string> = {
   worker: 'Рабочий',
 }
 
+// ✅ Исправлено: singular ключи для API
 const contractorTypeMap: Record<string, string> = {
-  office: 'offices',
-  foreman: 'foremans',
-  worker: 'workers',
-  master: 'masters',
+  office: 'office',
+  foreman: 'foreman',
+  worker: 'worker',
+  master: 'master',
 }
 
 const userInitials = computed(() => {
@@ -77,7 +78,7 @@ const formatBalance = (amount: number) =>
 async function fetchData() {
   isLoading.value = true
   try {
-    const response = await $fetch < { user: any } > ('/api/me', {
+    const response = await $fetch<{ user: any }>('/api/me', {
       method: 'GET',
       credentials: 'include'
     })
@@ -87,6 +88,7 @@ async function fetchData() {
 
     const user = response.user
     if (user.contractorId && user.contractorType) {
+      // ✅ Теперь type будет 'master', 'worker', etc.
       const type = contractorTypeMap[user.contractorType]
       if (type) {
         contractorData.value = await $fetch(

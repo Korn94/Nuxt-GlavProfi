@@ -1,3 +1,4 @@
+<!-- app\components\pages\public\remontPomescheniy\index\ui\FeaturedCard.vue -->
 <template>
   <NuxtLink :to="`/projects/${slug}`" class="featured-card-link">
     <div class="featured-card">

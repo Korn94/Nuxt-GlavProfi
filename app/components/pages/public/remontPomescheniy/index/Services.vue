@@ -1,3 +1,4 @@
+<!-- app\components\pages\public\remontPomescheniy\index\Services.vue -->
 <template>
   <section class="services">
     <div class="container">

@@ -180,18 +180,26 @@ function selectType(type: string) {
 
 async function loadData() {
   try {
-    const [workers, masters, foremans, offices, objs] = await Promise.all([
-      $fetch < any[] > ('/api/contractors/workers'),
-      $fetch < any[] > ('/api/contractors/masters'),
-      $fetch < any[] > ('/api/contractors/foremans'),
-      $fetch < any[] > ('/api/contractors/offices'),
-      $fetch < any[] > ('/api/objects'),
+    // ✅ Исправлено: singular ключи для API
+    const [workerRes, masterRes, foremanRes, officeRes, objs] = await Promise.all([
+      $fetch<any>('/api/contractors/worker', { credentials: 'include' }),
+      $fetch<any>('/api/contractors/master', { credentials: 'include' }),
+      $fetch<any>('/api/contractors/foreman', { credentials: 'include' }),
+      $fetch<any>('/api/contractors/office', { credentials: 'include' }),
+      $fetch<any[]>('/api/objects', { credentials: 'include' }),
     ])
+    
+    // ✅ API возвращает { contractors: [], count: N }, обрабатываем это
+    const workers = workerRes?.contractors || workerRes || []
+    const masters = masterRes?.contractors || masterRes || []
+    const foremans = foremanRes?.contractors || foremanRes || []
+    const offices = officeRes?.contractors || officeRes || []
+    
     contractors.value = [
-      ...(workers || []).map(w => ({ ...w, type: 'worker' })),
-      ...(masters || []).map(m => ({ ...m, type: 'master' })),
-      ...(foremans || []).map(f => ({ ...f, type: 'foreman' })),
-      ...(offices || []).map(o => ({ ...o, type: 'office' })),
+      ...workers.map((w: any) => ({ ...w, type: 'worker' })),
+      ...masters.map((m: any) => ({ ...m, type: 'master' })),
+      ...foremans.map((f: any) => ({ ...f, type: 'foreman' })),
+      ...offices.map((o: any) => ({ ...o, type: 'office' })),
     ]
     objects.value = objs || []
   } catch (e) {

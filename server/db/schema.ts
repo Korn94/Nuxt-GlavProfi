@@ -372,12 +372,10 @@ export const masters = mysqlTable('masters', {
   phone: varchar('phone', { length: 255 }),
   comment: text('comment'),
   balance: decimal('balance', { precision: 10, scale: 2 }).default('0.00').notNull(),
-  userId: bigint('userId', { mode: 'number', unsigned: true }).references(() => users.id),
-  isOnSalary: boolean('is_on_salary').default(false), // Участвует ли в автоматической зарплате
-  salaryAmount: decimal('salary_amount', { precision: 10, scale: 2 }).default('0.00'), // Сумма зарплаты
-  salaryDay: int('salary_day').default(10), // День месяца для списания
-  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: datetime('updated_at') .default(sql`CURRENT_TIMESTAMP`) .notNull() .$type<Date>()
+  userId: bigint('user_id', { mode: 'number', unsigned: true })
+    .references(() => users.id, { onDelete: 'set null' }), // Опциональная связь
+  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: datetime('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull().$type<Date>()
 })
 
 // Таблица рабочих
@@ -387,14 +385,10 @@ export const workers = mysqlTable('workers', {
   phone: varchar('phone', { length: 255 }),
   comment: text('comment'),
   balance: decimal('balance', { precision: 10, scale: 2 }).default('0.00').notNull(),
-  isNoName: boolean('is_no_name').default(false),
-  works: text('works'),
-  userId: bigint('userId', { mode: 'number', unsigned: true }).references(() => users.id),
-  isOnSalary: boolean('is_on_salary').default(false), // Участвует ли в автоматической зарплате
-  salaryAmount: decimal('salary_amount', { precision: 10, scale: 2 }).default('0.00'), // Сумма зарплаты
-  salaryDay: int('salary_day').default(10), // День месяца для списания
-  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: datetime('updated_at') .default(sql`CURRENT_TIMESTAMP`) .notNull() .$type<Date>()
+  userId: bigint('user_id', { mode: 'number', unsigned: true })
+    .references(() => users.id, { onDelete: 'set null' }), // Опциональная связь
+  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: datetime('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull().$type<Date>()
 })
 
 // Таблица прорабов
@@ -404,12 +398,10 @@ export const foremans = mysqlTable('foremans', {
   phone: varchar('phone', { length: 255 }),
   comment: text('comment'),
   balance: decimal('balance', { precision: 10, scale: 2 }).default('0.00').notNull(),
-  userId: bigint('userId', { mode: 'number', unsigned: true }).references(() => users.id),
-  isOnSalary: boolean('is_on_salary').default(false), // Участвует ли в автоматической зарплате
-  salaryAmount: decimal('salary_amount', { precision: 10, scale: 2 }).default('0.00'), // Сумма зарплаты
-  salaryDay: int('salary_day').default(10), // День месяца для списания
-  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: datetime('updated_at') .default(sql`CURRENT_TIMESTAMP`) .notNull() .$type<Date>()
+  userId: bigint('user_id', { mode: 'number', unsigned: true })
+    .references(() => users.id, { onDelete: 'set null' }), // Опциональная связь
+  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: datetime('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull().$type<Date>()
 })
 
 export const offices = mysqlTable('offices', {
@@ -418,12 +410,10 @@ export const offices = mysqlTable('offices', {
   phone: varchar('phone', { length: 255 }),
   comment: text('comment'),
   balance: decimal('balance', { precision: 10, scale: 2 }).default('0.00').notNull(),
-  userId: bigint('userId', { mode: 'number', unsigned: true }).references(() => users.id),
-  isOnSalary: boolean('is_on_salary').default(false), // Участвует ли в автоматической зарплате
-  salaryAmount: decimal('salary_amount', { precision: 10, scale: 2 }).default('0.00'), // Сумма зарплаты
-  salaryDay: int('salary_day').default(10), // День месяца для списания
-  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: datetime('updated_at') .default(sql`CURRENT_TIMESTAMP`) .notNull() .$type<Date>()
+  userId: bigint('user_id', { mode: 'number', unsigned: true })
+    .references(() => users.id, { onDelete: 'set null' }), // Опциональная связь
+  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: datetime('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull().$type<Date>()
 })
 
 // Истории списаний по зарплате

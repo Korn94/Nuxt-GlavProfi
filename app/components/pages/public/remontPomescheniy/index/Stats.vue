@@ -1,3 +1,4 @@
+<!-- app\components\pages\public\remontPomescheniy\index\Stats.vue -->
 <template>
   <section class="stats" ref="statsSection">
     <div class="container">

@@ -84,8 +84,9 @@ export default defineEventHandler(async (event) => {
         throw createError({ statusCode: 404, message: 'Контрагент не найден' })
       }
 
-      // Обновление баланса контрагента (только для "Работа", "Зарплата")
-      if (['Работа', 'Зарплата'].includes(typedExpenseType)) {
+      // Обновление баланса контрагента (ТОЛЬКО для типа "Работа")
+      // Зарплата и Топливо НЕ влияют на баланс взаиморасчётов
+      if (typedExpenseType === 'Работа') {
         const updatedBalance = Number(contractor.balance) + Number(amount)
         await db.update(ContractorModel)
           .set({ balance: updatedBalance.toFixed(2) })

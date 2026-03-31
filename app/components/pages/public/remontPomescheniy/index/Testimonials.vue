@@ -1,3 +1,4 @@
+<!-- app\components\pages\public\remontPomescheniy\index\Testimonials.vue -->
 <template>
   <section class="testimonials">
     <div class="container">

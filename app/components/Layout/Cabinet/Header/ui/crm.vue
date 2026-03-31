@@ -36,7 +36,7 @@ const menuItems = [
   },
   {
     title: 'Сотрудники',
-    path: '/cabinet/admin/contractors',
+    path: '/cabinet/contractors',
     icon: 'mdi:account-group-outline',
     roles: ['admin']
   },

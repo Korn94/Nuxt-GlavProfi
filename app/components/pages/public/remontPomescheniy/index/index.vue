@@ -1,3 +1,4 @@
+<!-- app\components\pages\public\remontPomescheniy\index\index.vue -->
 <template>
   <div class="commercial-repair">
     <div class="wrap">

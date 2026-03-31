@@ -1,3 +1,4 @@
+<!-- app\components\pages\public\remontPomescheniy\index\ui\GuaranteeCard.vue -->
 <template>
   <div class="guarantee-card">
     <div class="guarantee-card__icon">

@@ -1,3 +1,4 @@
+<!-- app\components\pages\public\remontPomescheniy\index\Hero.vue -->
 <template>
   <section class="hero">
     <div class="container">

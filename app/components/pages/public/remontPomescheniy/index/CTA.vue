@@ -1,3 +1,4 @@
+<!-- app\components\pages\public\remontPomescheniy\index\CTA.vue -->
 <template>
   <section class="cta">
     <div class="container">

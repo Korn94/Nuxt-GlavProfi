@@ -1,3 +1,4 @@
+<!-- app\components\pages\public\remontPomescheniy\index\PS.vue -->
 <template>
   <section class="ps">
     <div class="container">

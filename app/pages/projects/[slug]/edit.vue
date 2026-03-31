@@ -87,6 +87,11 @@ import Descriptions from '~/components/pages/public/projects/create/Descriptions
 import WorksAndStats from '~/components/pages/public/projects/create/WorksAndStats.vue'
 import Seo from '~/components/pages/public/projects/create/Seo.vue'
 
+definePageMeta({
+  middleware: 'role',
+  allowedRoles: ['admin']
+})
+
 const route = useRoute()
 const router = useRouter()
 const form = ref(null)
