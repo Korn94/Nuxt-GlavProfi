@@ -193,7 +193,10 @@ export default defineNuxtConfig({
           ? 'https://glavprofi.ru' 
           : `http://${process.env.NUXT_HOST || '0.0.0.0'}:${process.env.PORT || 3000}`),
       telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
-      telegramChatId: process.env.TELEGRAM_CHAT_ID
+      telegramChatId: process.env.TELEGRAM_CHAT_ID,
+
+      // Базовый URL для загруженных файлов
+      uploadsBaseUrl: process.env.NUXT_PUBLIC_UPLOADS_BASE_URL || '',
     },
     private: {
       dbHost: process.env.NUXT_DB_HOST,

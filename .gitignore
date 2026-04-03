@@ -26,3 +26,6 @@ ecosystem.config.cjs
 
 # Папка с приватными данными
 config
+
+public/uploads
+ngix-setting-dump

@@ -7,6 +7,9 @@ declare module 'nuxt/schema' {
   interface NuxtConfig {
     sitemap?: SitemapConfig
   }
+  interface PublicRuntimeConfig {
+    uploadsBaseUrl: string
+  }
 }
 
 // Чтобы файл не оставался "неиспользованным"
