@@ -24,6 +24,8 @@ export default eventHandler(async (event) => {
   const pageStr = query.page as string | undefined
   const limitStr = query.limit as string | undefined
   const category = query.category as string | undefined
+  // 🔥 Новый параметр: admin=true → возвращать все кейсы
+  const isAdminMode = query.admin === 'true' || query.admin === '1'
 
   const page = Math.max(1, pageStr ? parseInt(pageStr) : 1)
   const limit = limitStr ? parseInt(limitStr) : 12
@@ -39,7 +41,10 @@ export default eventHandler(async (event) => {
     categoryFilter = category as Category
   }
 
-  // 1. Подсчёт общего количества опубликованных кейсов
+  // 🔥 Фильтр по публикации: только для публичного режима
+  const publishedFilter = isAdminMode ? undefined : eq(portfolioCases.isPublished, true)
+
+  // 1. Подсчёт общего количества кейсов
   const [countResult] = await db
     .select({
       count: sql<number>`COUNT(*)`.as('count')
@@ -47,7 +52,7 @@ export default eventHandler(async (event) => {
     .from(portfolioCases)
     .where(
       and(
-        eq(portfolioCases.isPublished, true),
+        publishedFilter,
         categoryFilter ? eq(portfolioCases.category, categoryFilter) : undefined
       )
     )
@@ -68,7 +73,7 @@ export default eventHandler(async (event) => {
     .from(portfolioCases)
     .where(
       and(
-        eq(portfolioCases.isPublished, true),
+        publishedFilter,
         categoryFilter ? eq(portfolioCases.category, categoryFilter) : undefined
       )
     )
@@ -81,12 +86,12 @@ export default eventHandler(async (event) => {
 
   if (caseIds.length === 0) {
     return {
-      data: [],
+      data: [],  // ✅ Исправлено: был синтаксический баг
       meta: { page, limit, total, totalPages }
     }
   }
 
-  // 3. Загружаем только нужные поля кейсов
+  // 3. Загружаем поля кейсов + 🔥 isPublished
   const cases = await db
     .select({
       id: portfolioCases.id,
@@ -94,7 +99,9 @@ export default eventHandler(async (event) => {
       space: portfolioCases.space,
       category: portfolioCases.category,
       order: portfolioCases.order,
-      slug: portfolioCases.slug
+      slug: portfolioCases.slug,
+      isPublished: portfolioCases.isPublished,  // 🔥 Добавлено
+      createdAt: portfolioCases.createdAt       // 🔥 Добавлено для сортировки
     })
     .from(portfolioCases)
     .where(inArray(portfolioCases.id, caseIds))
@@ -127,7 +134,13 @@ export default eventHandler(async (event) => {
   // 6. Группируем данные по кейсам
   const casesMap = new Map()
   cases.forEach(c => {
-    casesMap.set(c.id, { ...c, images: [], works: [] })
+    casesMap.set(c.id, { 
+      ...c, 
+      images: [], 
+      works: [],
+      // 🔥 Исправлено: простое приведение к boolean
+      isPublished: !!c.isPublished
+    })
   })
 
   images.forEach(img => {

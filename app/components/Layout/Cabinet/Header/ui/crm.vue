@@ -79,8 +79,8 @@ const menuItems = [
     roles: ['admin', 'manager', 'foreman', 'master', 'worker']
   },
   {
-    title: 'Новый кейс',
-    path: '/projects/create',
+    title: 'Кейсы',
+    path: '/cabinet/portfolio',
     icon: 'mdi:plus-circle-outline',
     roles: ['admin', 'manager']
   },

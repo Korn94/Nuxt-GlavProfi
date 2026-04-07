@@ -12,7 +12,7 @@
         <div class="featured-card">
           <div class="image-container">
             <img
-              :src="getMainImage(card.images)"
+              :src="useImageUrl(getMainImage(card.images))"
               :alt="card.title"
               class="featured-image"
               loading="lazy"

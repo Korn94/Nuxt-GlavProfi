@@ -1,4 +1,4 @@
-<!-- app/components/layout/PageTitle.vue -->
+<!-- app/components/pages/cabinet/ui/layout/PageTitle.vue -->
 <template>
   <div class="page-title">
     <div class="page-title__left">

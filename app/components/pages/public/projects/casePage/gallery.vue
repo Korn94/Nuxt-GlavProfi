@@ -23,7 +23,7 @@
             <img
               v-for="(image, index) in filteredImages"
               :key="index"
-              :src="image.url"
+              :src="useImageUrl(image.url)"
               :alt="image.alt || `Изображение ${image.type} для проекта`"
               class="thumbnail"
               @click="openLightbox(index)"
@@ -45,7 +45,7 @@
       </button>
 
       <img
-        :src="currentImage.url"
+        :src="useImageUrl(currentImage.url)"
         :alt="currentImage.alt || `Фото ${currentImage.type} проекта`"
         class="lightbox-img"
       />

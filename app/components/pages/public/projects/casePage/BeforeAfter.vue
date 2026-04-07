@@ -4,10 +4,10 @@
     <!-- Основной блок сравнения -->
     <div class="before-after-container" ref="container">
       <div class="image-wrapper before">
-        <img v-if="currentBefore" :src="currentBefore" :alt="currentBeforeAlt" class="image" />
+        <img v-if="currentBefore" :src="useImageUrl(currentBefore)" :alt="currentBeforeAlt" class="image" />
       </div>
       <div class="image-wrapper after" :style="{ '--clip-left': position + '%' }">
-        <img v-if="currentAfter" :src="currentAfter" :alt="currentAfterAlt" class="image" />
+        <img v-if="currentAfter" :src="useImageUrl(currentAfter)" :alt="currentAfterAlt" class="image" />
       </div>
 
       <!-- Ползунок -->
@@ -31,7 +31,7 @@
     <div v-if="imagePairs.length > 1" class="thumbnails">
       <div v-for="(pair, index) in imagePairs" :key="index" class="thumbnail-wrapper"
         :class="{ active: index === currentIndex }" @click="selectPair(index)">
-        <img :src="pair.after" alt="Миниатюра после" class="thumbnail" />
+        <img :src="useImageUrl(pair.after)" alt="Миниатюра после" class="thumbnail" />
         <div class="click-icon">
           <Icon name="tabler:click" size="24px" class="ico" />
         </div>

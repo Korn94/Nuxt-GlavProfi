@@ -53,7 +53,10 @@ const props = defineProps({
 // Вычисляемые свойства
 const mainImageUrl = computed(() => {
   const mainImage = props.images.find(img => img.type === 'main')
-  return mainImage?.url || '/main/projects.webp'
+  const url = mainImage?.url || '/main/projects.webp'
+  
+  // 🔥 Если это путь из БД — обрабатываем через useImageUrl
+  return url.startsWith('/uploads/') ? useImageUrl(url) : url
 })
 
 // Группировка изображений "до/после"
@@ -78,10 +81,10 @@ const groupedImages = computed(() => {
 // Правильная структура для передачи в компонент сравнения
 const imagePairs = computed(() => {
   return groupedImages.value.map(g => ({
-    before: g.before.url,
+    before: g.before.url,  // ✅ Сырой путь из БД: "/uploads/..."
     after: g.after.url,
     beforeAlt: g.before.alt,
-    afterAlt: g.after.alt  // Здесь была ошибка - я писал g.afterAlt вместо g.after.alt
+    afterAlt: g.after.alt
   }))
 })
 

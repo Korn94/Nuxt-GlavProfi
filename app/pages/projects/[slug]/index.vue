@@ -42,14 +42,23 @@ watchEffect(() => {
     : cleanDesc || 'Ремонт коммерческих помещений под ключ в Рязани'
 
   const mainImage = images.value.find(img => img.type === 'main')
-  const mainImageUrl = mainImage?.url || '/main/projects.webp'
+  
+  // 🔥 Формируем URL для картинки
+  const mainImageUrl = mainImage?.url 
+    ? useImageUrl(mainImage.url) 
+    : '/main/projects.webp'
+  
+  // 🔥 Для og:image нужен абсолютный URL
+  const ogImageUrl = mainImageUrl.startsWith('http') 
+    ? mainImageUrl 
+    : `${useRuntimeConfig().public.siteUrl}${mainImageUrl}`
 
   useHead({
     title: `${caseData.value.title} | ГлавПрофи — ремонт коммерческих помещений`,
     meta: [
       { name: 'description', content: seoDescription },
       { property: 'og:description', content: seoDescription },
-      { property: 'og:image', content: mainImageUrl },
+      { property: 'og:image', content: ogImageUrl }, // ← Исправлено
       { property: 'og:url', content: `${useRuntimeConfig().public.siteUrl}/projects/${slug}` }
     ]
   })

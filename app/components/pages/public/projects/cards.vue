@@ -42,7 +42,7 @@
       >
         <div class="image-container">
           <img
-            :src="getMainImage(card.images)"
+            :src="useImageUrl(getMainImage(card.images))"
             :alt="card.title"
             class="case-image"
             loading="lazy"

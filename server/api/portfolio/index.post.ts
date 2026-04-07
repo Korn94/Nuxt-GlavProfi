@@ -10,7 +10,7 @@ import { sql } from 'drizzle-orm'
 import { transliterate } from '../../utils/transliteration'
 import { validateImage } from '../../utils/imageValidation'
 
-const UPLOAD_DIR_BASE = join(process.cwd(), 'public', 'uploads')
+const UPLOAD_DIR_BASE = '/var/www/glavprofi_ru_usr40/data/www/uploads'
 mkdirSync(UPLOAD_DIR_BASE, { recursive: true })
 
 export default eventHandler(async (event) => {

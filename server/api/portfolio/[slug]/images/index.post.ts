@@ -28,7 +28,7 @@ export default eventHandler(async (event) => {
   }
 
   // Базовая папка загрузки
-  const UPLOAD_DIR_BASE = join(process.cwd(), 'public', 'uploads')
+  const UPLOAD_DIR_BASE = '/var/www/glavprofi_ru_usr40/data/www/uploads'
   const caseDir = join(UPLOAD_DIR_BASE, `case-${caseId}`)
   try {
     await fs.promises.mkdir(caseDir, { recursive: true }) // <-- Создаём подпапку
@@ -41,7 +41,7 @@ export default eventHandler(async (event) => {
   const ext = file.filename?.split('.').pop() || 'jpg'
   const filename = `${Date.now()}-${randomUUID()}.${ext}`
   const filePath = `/uploads/case-${caseId}/${filename}`
-  const physicalPath = join(process.cwd(), filePath)
+  const physicalPath = join(UPLOAD_DIR_BASE, `case-${caseId}/${filename}`)
 
   // Сохраняем файл
   await writeFile(physicalPath, file.data)

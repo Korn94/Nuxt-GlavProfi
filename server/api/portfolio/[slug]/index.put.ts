@@ -1,5 +1,5 @@
 // server/api/portfolio/[slug]/index.put.ts
-import { eventHandler, createError, readMultipartFormData } from 'h3'
+import { eventHandler, createError, readMultipartFormData, readBody } from 'h3'
 import { db } from '../../../db'
 import { portfolioCases, portfolioImages, portfoCaseWorks } from '../../../db/schema'
 import { eq, and, inArray } from 'drizzle-orm'
@@ -10,7 +10,7 @@ import { mkdirSync, writeFileSync, existsSync, unlinkSync } from 'fs'
 import { join } from 'path'
 import { validateImage } from '../../../utils/imageValidation'
 
-const UPLOAD_DIR_BASE = join(process.cwd(), 'public', 'uploads')
+const UPLOAD_DIR_BASE = '/var/www/glavprofi_ru_usr40/data/www/uploads'
 mkdirSync(UPLOAD_DIR_BASE, { recursive: true })
 
 export default eventHandler(async (event) => {
@@ -25,7 +25,49 @@ export default eventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Missing slug' })
   }
 
-  // ───────── FORM DATA ─────────
+  // ───────── ПРОВЕРКА ТИПА КОНТЕНТА ─────────
+  const contentType = event.node.req.headers['content-type'] || ''
+  
+  // 🔥 БЫСТРОЕ ОБНОВЛЕНИЕ: только isPublished через JSON
+  if (contentType.includes('application/json')) {
+    const body = await readBody(event)
+    
+    // Если в теле только isPublished — обновляем только статус
+    if (body.isPublished !== undefined && Object.keys(body).length === 1) {
+      const [existingCase] = await db
+        .select()
+        .from(portfolioCases)
+        .where(eq(portfolioCases.slug, slug))
+      
+      if (!existingCase) {
+        throw createError({ statusCode: 404, statusMessage: 'Case not found' })
+      }
+      
+      // Преобразуем в boolean: 'true', '1', true → true; остальное → false
+      const newStatus = body.isPublished === true || body.isPublished === 'true' || body.isPublished === '1'
+      
+      await db.update(portfolioCases)
+        .set({ 
+          isPublished: newStatus,
+          updatedAt: new Date()
+        })
+        .where(eq(portfolioCases.slug, slug))
+      
+      return { 
+        success: true, 
+        isPublished: newStatus,
+        message: 'Status updated'
+      }
+    }
+    
+    // Если в JSON есть другие поля — для полного обновления нужен multipart
+    throw createError({ 
+      statusCode: 400, 
+      statusMessage: 'Full update requires multipart/form-data. Use JSON only for isPublished toggle.' 
+    })
+  }
+  
+  // ───────── ПОЛНОЕ ОБНОВЛЕНИЕ: multipart/form-data (старая логика) ─────────
   const formData = await readMultipartFormData(event)
   if (!formData) {
     throw createError({ statusCode: 400, statusMessage: 'No form data' })
@@ -96,14 +138,16 @@ export default eventHandler(async (event) => {
     }
 
     const ext = file.filename.split('.').pop()?.toLowerCase() || 'jpg'
-    const dir = join(UPLOAD_DIR_BASE, `case-${existingCase.id}`)
-    mkdirSync(dir, { recursive: true })
+    const caseDir = join(UPLOAD_DIR_BASE, `case-${existingCase.id}`)
+    mkdirSync(caseDir, { recursive: true })
 
     const name = `${randomUUID()}.${ext}`
+    // ✅ Исправлено: путь для записи на диск строится от UPLOAD_DIR_BASE
+    const physicalPath = join(caseDir, name)
+    // Путь для БД остаётся относительным
     const url = `/uploads/case-${existingCase.id}/${name}`
-    const path = join(process.cwd(), 'public', url)
 
-    writeFileSync(path, file.data)
+    writeFileSync(physicalPath, Buffer.from(file.data))
 
     return {
       caseId: existingCase.id,
@@ -162,8 +206,9 @@ export default eventHandler(async (event) => {
 
   if (idsToDelete.length) {
     for (const img of existingImages.filter(i => idsToDelete.includes(i.id))) {
-      const p = join(process.cwd(), 'public', img.url)
-      if (existsSync(p)) unlinkSync(p)
+      // ✅ Исправлено: удаляем файл от UPLOAD_DIR_BASE
+      const physicalPath = join(UPLOAD_DIR_BASE, img.url.replace('/uploads/', ''))
+      if (existsSync(physicalPath)) unlinkSync(physicalPath)
     }
 
     await db.delete(portfolioImages).where(
@@ -186,6 +231,9 @@ export default eventHandler(async (event) => {
       .replace(/^-+|-+$/g, '')
   }
 
+  // ✅ Корректное преобразование строки в boolean
+  const isPublishedValue = fields.isPublished === 'true' || fields.isPublished === '1'
+
   await db.update(portfolioCases)
     .set({
       title: fields.title,
@@ -203,7 +251,7 @@ export default eventHandler(async (event) => {
       metaTitle: fields.metaTitle || '',
       metaDescription: fields.metaDescription || '',
       metaKeywords: fields.metaKeywords || '',
-      isPublished: fields.isPublished === 'true',
+      isPublished: isPublishedValue,
       updatedAt: new Date()
     })
     .where(eq(portfolioCases.slug, slug))

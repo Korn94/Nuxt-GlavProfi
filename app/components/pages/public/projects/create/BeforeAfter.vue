@@ -1,78 +1,205 @@
+<!-- app/components/pages/public/projects/create/BeforeAfter.vue -->
 <template>
   <div class="before-after-section">
-    <h2>Сравнение: До и После</h2>
+    <h2 class="section-title">Сравнение: До и После</h2>
     <p class="section-description">Добавьте пары фото для визуального сравнения изменений.</p>
 
     <!-- Секция для существующих пар -->
-    <div v-if="existingBeforeAfterPairs.length > 0" class="existing-pairs-section">
-      <h3>Существующие пары</h3>
-      <div v-for="(pair, index) in existingBeforeAfterPairs" :key="`existing-${pair.id || index}`" class="existing-pair-item">
-        <div class="pair-info">
-          <span>Pair Group: {{ pair.pairGroup || 'NULL' }}</span>
-          <button @click="removeExistingPair(index)" class="btn-remove-pair">Удалить пару</button>
-        </div>
-        <div class="existing-image-row">
-          <div v-if="pair.beforeUrl" class="existing-image-container">
-            <label>Фото До:</label>
-            <img :src="pair.beforeUrl" alt="Before" style="max-width: 200px; max-height: 200px;" />
-            <button @click="removeExistingBeforeImage(pair)">Удалить фото До</button>
-            <!-- Скрытое поле для отправки ID существующего изображения -->
-            <input type="hidden" :name="`existingBeforeImageId[${index}]`" :value="pair.beforeId" v-if="pair.beforeId" />
+    <div v-if="existingBeforeAfterPairs.length > 0" class="pairs-section">
+      <h3 class="pairs-section__title">
+        <span class="badge badge--existing">Существующие</span>
+        <span class="pairs-count">{{ existingBeforeAfterPairs.length }}</span>
+      </h3>
+      
+      <div class="pairs-grid">
+        <div 
+          v-for="(pair, index) in existingBeforeAfterPairs" 
+          :key="`existing-${pair.id || index}`" 
+          class="pair-card"
+        >
+          <!-- Заголовок пары -->
+          <div class="pair-card__header">
+            <span class="pair-group">{{ pair.pairGroup || `Пара #${index + 1}` }}</span>
+            <button 
+              type="button" 
+              class="crm-btn crm-btn--mini crm-btn--danger"
+              @click="removeExistingPair(index)"
+              title="Удалить пару"
+            >
+              <Icon name="mdi:trash-can-outline" size="12" />
+            </button>
           </div>
-          <div v-if="pair.afterUrl" class="existing-image-container">
-            <label>Фото После:</label>
-            <img :src="pair.afterUrl" alt="After" style="max-width: 200px; max-height: 200px;" />
-            <button @click="removeExistingAfterImage(pair)">Удалить фото После</button>
-            <input type="hidden" :name="`existingAfterImageId[${index}]`" :value="pair.afterId" v-if="pair.afterId" />
+          
+          <!-- Изображения пары -->
+          <div class="pair-images">
+            <!-- Фото "До" -->
+            <div v-if="pair.beforeUrl" class="pair-image">
+              <span class="pair-image__label badge badge--before">До</span>
+              <div class="pair-image__container">
+                <img 
+                  :src="useImageUrl(pair.beforeUrl)" 
+                  :alt="pair.beforeAlt || 'Фото До'" 
+                  class="pair-image__img"
+                  @error="handleImageError($event, 'existing-before', pair.beforeId)"
+                />
+              </div>
+              <button 
+                type="button" 
+                class="pair-image__remove"
+                @click="removeExistingBeforeImage(pair)"
+                title="Удалить фото"
+              >
+                <Icon name="mdi:trash-can-outline" size="12" />
+              </button>
+              <input 
+                v-if="pair.beforeId" 
+                type="hidden" 
+                :name="`existingBeforeImageId[${index}]`" 
+                :value="pair.beforeId" 
+              />
+            </div>
+            
+            <!-- Фото "После" -->
+            <div v-if="pair.afterUrl" class="pair-image">
+              <span class="pair-image__label badge badge--after">После</span>
+              <div class="pair-image__container">
+                <img 
+                  :src="useImageUrl(pair.afterUrl)" 
+                  :alt="pair.afterAlt || 'Фото После'" 
+                  class="pair-image__img"
+                  @error="handleImageError($event, 'existing-after', pair.afterId)"
+                />
+              </div>
+              <button 
+                type="button" 
+                class="pair-image__remove"
+                @click="removeExistingAfterImage(pair)"
+                title="Удалить фото"
+              >
+                <Icon name="mdi:trash-can-outline" size="12" />
+              </button>
+              <input 
+                v-if="pair.afterId" 
+                type="hidden" 
+                :name="`existingAfterImageId[${index}]`" 
+                :value="pair.afterId" 
+              />
+            </div>
+          </div>
+          
+          <!-- Pair Group (readonly) -->
+          <div class="pair-meta">
+            <small class="pair-meta__label">Группа:</small>
+            <code class="pair-meta__value">{{ pair.pairGroup || '—' }}</code>
           </div>
         </div>
-         <div class="form-group">
-            <label>Pair Group (редактируемый):</label>
-            <input type="text" :value="pair.pairGroup || ''" readonly /> <!-- Пока readOnly, если не планируете редактировать -->
-         </div>
       </div>
     </div>
 
     <!-- Секция для новых пар -->
-    <div class="new-pairs-section">
-      <h3>Новые пары</h3>
-      <div v-for="(pair, index) in beforeAfterPairs" :key="`new-${index}`" class="pair-item">
-        <div class="image-upload-row">
-          <div class="upload-column">
-            <label>Фото До</label>
-            <input
-              :name="`beforeImage[${index}]`"
-              type="file"
-              accept="image/*"
-              @change="(e) => pair.before = e.target.files[0]"
-            />
-            <button v-if="pair.before" @click="removeBeforeImage(index)">Удалить фото До</button>
-            <div v-if="pair.before">{{ pair.before.name }}</div>
+    <div class="pairs-section">
+      <h3 class="pairs-section__title">
+        <span class="badge badge--new">Новые пары</span>
+        <span class="pairs-count">{{ beforeAfterPairs.length }}</span>
+      </h3>
+      
+      <div class="pairs-grid">
+        <div 
+          v-for="(pair, index) in beforeAfterPairs" 
+          :key="`new-${index}`" 
+          class="pair-card pair-card--new"
+        >
+          <!-- Заголовок пары -->
+          <div class="pair-card__header">
+            <span class="pair-group">Новая пара #{{ index + 1 }}</span>
+            <button 
+              type="button" 
+              class="crm-btn crm-btn--mini crm-btn--danger"
+              @click="removePair(index)"
+              title="Удалить пару"
+            >
+              <Icon name="mdi:trash-can-outline" size="12" />
+            </button>
           </div>
-          <div class="upload-column">
-            <label>Фото После</label>
+          
+          <!-- Загрузка изображений -->
+          <div class="pair-uploads">
+            <!-- Загрузка "До" -->
+            <div class="pair-upload">
+              <span class="pair-upload__label badge badge--before">До</span>
+              <label class="upload-zone">
+                <input
+                  type="file"
+                  accept="image/*"
+                  class="upload-input"
+                  @change="(e) => handleNewImage(e, index, 'before')"
+                />
+                <div v-if="pair.before" class="upload-preview">
+                  <img :src="pair.beforePreview" class="upload-preview__img" />
+                  <button 
+                    type="button" 
+                    class="upload-preview__remove"
+                    @click.stop="removeBeforeImage(index)"
+                  >
+                    <Icon name="mdi:trash-can-outline" size="12" />
+                  </button>
+                </div>
+                <div v-else class="upload-zone__content">
+                  <Icon name="mdi:image-plus-outline" size="16" class="upload-icon" />
+                  <span class="upload-text">Загрузить</span>
+                </div>
+              </label>
+              <input type="hidden" :name="`beforeImage[${index}]`" :value="pair.before?.name" />
+            </div>
+            
+            <!-- Загрузка "После" -->
+            <div class="pair-upload">
+              <span class="pair-upload__label badge badge--after">После</span>
+              <label class="upload-zone">
+                <input
+                  type="file"
+                  accept="image/*"
+                  class="upload-input"
+                  @change="(e) => handleNewImage(e, index, 'after')"
+                />
+                <div v-if="pair.after" class="upload-preview">
+                  <img :src="pair.afterPreview" class="upload-preview__img" />
+                  <button 
+                    type="button" 
+                    class="upload-preview__remove"
+                    @click.stop="removeAfterImage(index)"
+                  >
+                    <Icon name="mdi:trash-can-outline" size="12" />
+                  </button>
+                </div>
+                <div v-else class="upload-zone__content">
+                  <Icon name="mdi:image-plus-outline" size="16" class="upload-icon" />
+                  <span class="upload-text">Загрузить</span>
+                </div>
+              </label>
+              <input type="hidden" :name="`afterImage[${index}]`" :value="pair.after?.name" />
+            </div>
+          </div>
+          
+          <!-- Pair Group -->
+          <div class="pair-meta">
+            <label class="pair-meta__label">Группа:</label>
             <input
-              :name="`afterImage[${index}]`"
-              type="file"
-              accept="image/*"
-              @change="(e) => pair.after = e.target.files[0]"
+              type="text"
+              :value="pair.pairGroup || ''"
+              @input="(e) => updatePairGroup(index, e.target.value)"
+              placeholder="auto"
+              class="pair-meta__input"
             />
-            <button v-if="pair.after" @click="removeAfterImage(index)">Удалить фото После</button>
-            <div v-if="pair.after">{{ pair.after.name }}</div>
           </div>
         </div>
-        <div class="form-group">
-          <label>Pair Group (для новой пары)</label>
-          <input
-            type="text"
-            :value="pair.pairGroup || ''"
-            @input="(e) => updatePairGroup(index, e.target.value)"
-            placeholder="Введите ID группы для пары"
-          />
-        </div>
-        <button @click="removePair(index)" class="btn-remove-pair">Удалить пару</button>
       </div>
-      <button @click="addPair" type="button" class="btn-add-pair">Добавить новую пару</button>
+      
+      <!-- Кнопка добавления новой пары -->
+      <button @click="addPair" type="button" class="crm-btn crm-btn--outline">
+        <Icon name="mdi:plus" size="14" />
+        Добавить новую пару
+      </button>
     </div>
   </div>
 </template>
@@ -80,361 +207,474 @@
 <script setup>
 import { computed } from 'vue'
 
-// --- Определение пропсов ---
+// --- Пропсы и события ---
 const props = defineProps({
   existingBeforeAfterPairs: { type: Array, default: () => [] },
   beforeAfterPairs: { type: Array, default: () => [] }
 })
 
-// --- Определение событий ---
 const emit = defineEmits([
   'update:existingBeforeAfterPairs',
   'update:beforeAfterPairs'
 ])
 
+// --- Обработчик ошибок изображений ---
+const handleImageError = (event, type, id) => {
+  console.warn(`Ошибка загрузки изображения (${type}):`, id)
+  event.target.src = '/images/placeholder.jpg'
+}
+
 // --- Методы для новых пар ---
 const addPair = () => {
-  const newPairs = [...props.beforeAfterPairs]; // Только новые
+  const newPairs = [...props.beforeAfterPairs]
   newPairs.push({
     before: null,
     after: null,
-    pairGroup: `group-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` // Генерируем уникальный ID для новой пары
-  });
-  emit('update:beforeAfterPairs', newPairs);
-};
+    beforePreview: null,
+    afterPreview: null,
+    pairGroup: `group-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  })
+  emit('update:beforeAfterPairs', newPairs)
+}
 
 const removePair = (index) => {
-  const newPairs = [...props.beforeAfterPairs]; // Только новые
-  newPairs.splice(index, 1);
-  emit('update:beforeAfterPairs', newPairs);
-};
+  const newPairs = [...props.beforeAfterPairs]
+  newPairs.splice(index, 1)
+  emit('update:beforeAfterPairs', newPairs)
+}
 
 const updatePairGroup = (index, value) => {
-  const newPairs = [...props.beforeAfterPairs]; // Только новые
+  const newPairs = [...props.beforeAfterPairs]
   if (newPairs[index]) {
-    newPairs[index].pairGroup = value;
+    newPairs[index].pairGroup = value
   }
-  emit('update:beforeAfterPairs', newPairs);
-};
+  emit('update:beforeAfterPairs', newPairs)
+}
+
+const handleNewImage = (event, index, type) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+  
+  const newPairs = [...props.beforeAfterPairs]
+  const preview = URL.createObjectURL(file)
+  
+  if (type === 'before') {
+    newPairs[index] = { ...newPairs[index], before: file, beforePreview: preview }
+  } else {
+    newPairs[index] = { ...newPairs[index], after: file, afterPreview: preview }
+  }
+  
+  emit('update:beforeAfterPairs', newPairs)
+  event.target.value = '' // сброс input
+}
 
 const removeBeforeImage = (index) => {
-  const newPairs = [...props.beforeAfterPairs];
-  if (newPairs[index]) {
-      newPairs[index].before = null; // Устанавливаем в null, чтобы сервер знал, что нужно удалить
+  const newPairs = [...props.beforeAfterPairs]
+  if (newPairs[index]?.beforePreview) {
+    URL.revokeObjectURL(newPairs[index].beforePreview)
   }
-  emit('update:beforeAfterPairs', newPairs);
-};
+  newPairs[index] = { ...newPairs[index], before: null, beforePreview: null }
+  emit('update:beforeAfterPairs', newPairs)
+}
 
 const removeAfterImage = (index) => {
-  const newPairs = [...props.beforeAfterPairs];
-  if (newPairs[index]) {
-       newPairs[index].after = null; // Устанавливаем в null, чтобы сервер знал, что нужно удалить
+  const newPairs = [...props.beforeAfterPairs]
+  if (newPairs[index]?.afterPreview) {
+    URL.revokeObjectURL(newPairs[index].afterPreview)
   }
-  emit('update:beforeAfterPairs', newPairs);
-};
+  newPairs[index] = { ...newPairs[index], after: null, afterPreview: null }
+  emit('update:beforeAfterPairs', newPairs)
+}
 
 // --- Методы для существующих пар ---
 const removeExistingPair = (index) => {
-  const newExistingPairs = [...props.existingBeforeAfterPairs];
-  newExistingPairs.splice(index, 1);
-  emit('update:existingBeforeAfterPairs', newExistingPairs);
-};
+  const newExistingPairs = [...props.existingBeforeAfterPairs]
+  newExistingPairs.splice(index, 1)
+  emit('update:existingBeforeAfterPairs', newExistingPairs)
+}
 
 const removeExistingBeforeImage = (pair) => {
-  if (pair.beforeId) { // Предполагаем, что у существующей пары есть beforeId
-     pair.beforeId = null; // Устанавливаем ID в null, чтобы сервер знал, что нужно удалить
+  if (pair.beforeId) {
+    emit('remove-existing-image', pair.beforeId) // родитель должен обработать
   }
-};
+}
 
 const removeExistingAfterImage = (pair) => {
-  if (pair.afterId) { // Предполагаем, что у существующей пары есть afterId
-     pair.afterId = null; // Устанавливаем ID в null, чтобы сервер знал, что нужно удалить
+  if (pair.afterId) {
+    emit('remove-existing-image', pair.afterId)
   }
-};
+}
 
+// --- Очистка blob: URL при размонтировании ---
+onUnmounted(() => {
+  props.beforeAfterPairs.forEach(pair => {
+    if (pair.beforePreview) URL.revokeObjectURL(pair.beforePreview)
+    if (pair.afterPreview) URL.revokeObjectURL(pair.afterPreview)
+  })
+})
 </script>
 
 <style lang="scss" scoped>
 .before-after-section {
-  background: #ffffff;
-  padding: 1.5rem;
-  border-radius: 0.75rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  margin-bottom: 1.5rem;
+  background: var(--crm-bg-surface);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-lg);
+  padding: 16px 20px;
+}
 
-  h2 {
-    font-size: 1.5rem;
-    margin-bottom: 1rem;
-    color: #1f2937;
-    font-weight: 600;
+.section-title {
+  font-size: var(--crm-text-base);
+  font-weight: 600;
+  color: var(--crm-text-primary);
+  margin: 0 0 6px 0;
+}
+
+.section-description {
+  font-size: var(--crm-text-xs);
+  color: var(--crm-text-muted);
+  margin: 0 0 16px 0;
+  line-height: 1.3;
+}
+
+// ── Секция пар ──────────────────────────────────────────────────
+.pairs-section {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--crm-border);
+  
+  &:last-child { border-bottom: none; }
+}
+
+.pairs-section__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--crm-text-sm);
+  font-weight: 600;
+  color: var(--crm-text-secondary);
+  margin: 0 0 12px 0;
+}
+
+.pairs-count {
+  font-size: 10px;
+  color: var(--crm-text-muted);
+  background: var(--crm-bg-overlay);
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+// ── Бейджи ──────────────────────────────────────────────────────
+.badge {
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+
+  &--before { background: var(--crm-warning-dim); color: var(--crm-warning); }
+  &--after { background: var(--crm-success-dim); color: var(--crm-success); }
+  &--existing { background: var(--crm-info-dim); color: var(--crm-info); }
+  &--new { background: var(--crm-accent-dim); color: var(--crm-accent); }
+}
+
+// ── Сетка пар ───────────────────────────────────────────────────
+.pairs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+// ── Карточка пары ───────────────────────────────────────────────
+.pair-card {
+  background: var(--crm-bg-elevated);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-md);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  &--new {
+    border-color: var(--crm-accent-border);
+  }
+}
+
+.pair-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pair-group {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--crm-text-secondary);
+  font-family: var(--crm-font-mono);
+}
+
+// ── Изображения пары ────────────────────────────────────────────
+.pair-images {
+  display: flex;
+  gap: 8px;
+}
+
+.pair-image {
+  position: relative;
+  flex: 1;
+}
+
+.pair-image__label {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 2;
+}
+
+.pair-image__container {
+  aspect-ratio: 1;
+  background: var(--crm-bg-base);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-sm);
+  overflow: hidden;
+}
+
+.pair-image__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.pair-image__remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--crm-danger);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+  z-index: 2;
+  transition: var(--crm-transition);
+
+  &:hover {
+    background: var(--crm-danger-hover);
+    transform: scale(1.05);
+  }
+}
+
+// ── Загрузка новых изображений ──────────────────────────────────
+.pair-uploads {
+  display: flex;
+  gap: 8px;
+}
+
+.pair-upload {
+  position: relative;
+  flex: 1;
+}
+
+.pair-upload__label {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 2;
+}
+
+.upload-zone {
+  display: block;
+  position: relative;
+  aspect-ratio: 1;
+  border: 1px dashed var(--crm-border);
+  border-radius: var(--crm-radius-sm);
+  cursor: pointer;
+  transition: var(--crm-transition);
+  background: var(--crm-bg-base);
+  overflow: hidden;
+
+  &:hover {
+    border-color: var(--crm-accent);
+    background: var(--crm-accent-dim);
+  }
+}
+
+.upload-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.upload-zone__content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  pointer-events: none;
+}
+
+.upload-icon {
+  color: var(--crm-text-muted);
+}
+
+.upload-text {
+  font-size: 9px;
+  color: var(--crm-text-secondary);
+  font-weight: 500;
+}
+
+.upload-preview {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.upload-preview__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.upload-preview__remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--crm-danger);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+  transition: var(--crm-transition);
+
+  &:hover {
+    background: var(--crm-danger-hover);
+    transform: scale(1.05);
+  }
+}
+
+// ── Мета-информация ─────────────────────────────────────────────
+.pair-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+}
+
+.pair-meta__label {
+  color: var(--crm-text-muted);
+  font-weight: 500;
+}
+
+.pair-meta__value {
+  font-family: var(--crm-font-mono);
+  color: var(--crm-text-secondary);
+  background: var(--crm-bg-overlay);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.pair-meta__input {
+  flex: 1;
+  padding: 2px 6px;
+  border: 1px solid var(--crm-border);
+  border-radius: 4px;
+  background: var(--crm-bg-base);
+  color: var(--crm-text-primary);
+  font-size: 10px;
+  font-family: var(--crm-font-mono);
+
+  &:focus {
+    outline: none;
+    border-color: var(--crm-accent);
   }
 
-  .section-description {
-    color: #6b7280;
-    margin-bottom: 1.5rem;
-    font-size: 0.95rem;
+  &::placeholder {
+    color: var(--crm-text-disabled);
+  }
+}
+
+// ── Кнопки ──────────────────────────────────────────────────────
+.crm-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  padding: 5px 10px;
+  border-radius: var(--crm-radius-sm);
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--crm-transition);
+  border: 1px solid var(--crm-border);
+  background: var(--crm-bg-elevated);
+  color: var(--crm-text-secondary);
+
+  &:hover {
+    background: var(--crm-bg-overlay);
+    color: var(--crm-text-primary);
   }
 
-  // --- Секция существующих пар ---
-  .existing-pairs-section {
-    margin-bottom: 2rem;
+  &--outline {
+    background: transparent;
+    border-color: var(--crm-accent-border);
+    color: var(--crm-accent);
+    // width: 100%;
+    margin-top: 4px;
 
-    h3 {
-      font-size: 1.2rem;
-      margin-bottom: 1rem;
-      color: #374151;
-      font-weight: 600;
-    }
-
-    .existing-pair-item {
-      background: #f3f4f6;
-      padding: 1.25rem;
-      border-radius: 0.5rem;
-      margin-bottom: 1rem;
-
-      &:last-child {
-        margin-bottom: 0;
-      }
-
-      .pair-info {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1rem;
-
-        span {
-          font-weight: 600;
-          color: #4b5563;
-        }
-
-        .btn-remove-pair {
-          background: #ef4444;
-          color: white;
-          border: none;
-          padding: 0.375rem 0.75rem;
-          border-radius: 0.375rem;
-          cursor: pointer;
-          font-size: 0.875rem;
-          transition: background 0.2s;
-
-          &:hover {
-            background: #dc2626;
-          }
-        }
-      }
-
-      .existing-image-row {
-        display: flex;
-        gap: 1.5rem;
-        margin-bottom: 1rem;
-
-        @media (max-width: 768px) {
-          flex-direction: column;
-        }
-
-        .existing-image-container {
-          display: flex;
-          flex-direction: column;
-          align-items: flex-start;
-          gap: 0.5rem;
-
-          label {
-            font-weight: 600;
-            color: #4b5563;
-            font-size: 0.95rem;
-          }
-
-          img {
-            max-width: 200px;
-            max-height: 200px;
-            object-fit: cover;
-            border-radius: 0.5rem;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-          }
-
-          button {
-            background: #ef4444;
-            color: white;
-            border: none;
-            padding: 0.375rem 0.75rem;
-            border-radius: 0.375rem;
-            cursor: pointer;
-            font-size: 0.875rem;
-            transition: background 0.2s;
-
-            &:hover {
-              background: #dc2626;
-            }
-          }
-        }
-      }
-
-      .form-group {
-        margin-bottom: 0;
-
-        label {
-          display: block;
-          font-weight: 600;
-          margin-bottom: 0.5rem;
-          color: #4b5563;
-        }
-
-        input[type="text"] {
-          width: 100%;
-          padding: 0.75rem;
-          border: 1px solid #d1d5db;
-          border-radius: 0.5rem;
-          font-size: 1rem;
-          background-color: #f9fafb;
-          cursor: not-allowed; // readOnly
-
-          &:focus {
-            outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
-          }
-        }
-      }
+    &:hover {
+      background: var(--crm-accent-dim);
     }
   }
 
-  // --- Секция новых пар ---
-  .new-pairs-section {
-    h3 {
-      font-size: 1.2rem;
-      margin-bottom: 1rem;
-      color: #374151;
-      font-weight: 600;
-    }
+  &--mini {
+    padding: 4px;
+    width: 24px;
+    height: 24px;
+  }
 
-    .pair-item {
-      background: #f3f4f6;
-      padding: 1.25rem;
-      border-radius: 0.5rem;
-      margin-bottom: 1rem;
+  &--danger {
+    background: var(--crm-danger-dim);
+    border-color: var(--crm-danger-border);
+    color: var(--crm-danger);
 
-      &:last-child {
-        margin-bottom: 0;
-      }
-
-      .image-upload-row {
-        display: flex;
-        gap: 1.5rem;
-        margin-bottom: 1rem;
-
-        @media (max-width: 768px) {
-          flex-direction: column;
-        }
-
-        .upload-column {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          gap: 0.5rem;
-
-          label {
-            font-weight: 600;
-            color: #4b5563;
-            font-size: 0.95rem;
-          }
-
-          input[type="file"] {
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px dashed #d1d5db;
-            border-radius: 0.5rem;
-            background-color: #f9fafb;
-            cursor: pointer;
-            font-size: 0.95rem;
-
-            &:hover {
-              border-color: #9ca3af;
-            }
-          }
-
-          button {
-            background: #ef4444;
-            color: white;
-            border: none;
-            padding: 0.375rem 0.75rem;
-            border-radius: 0.375rem;
-            cursor: pointer;
-            font-size: 0.875rem;
-            transition: background 0.2s;
-
-            &:hover {
-              background: #dc2626;
-            }
-          }
-
-          div { // Отображение имени файла
-            font-size: 0.875rem;
-            color: #374151;
-            background: #e5e7eb;
-            padding: 0.5rem;
-            border-radius: 0.375rem;
-            word-break: break-all;
-          }
-        }
-      }
-
-      .form-group {
-        margin-bottom: 1rem;
-
-        label {
-          display: block;
-          font-weight: 600;
-          margin-bottom: 0.5rem;
-          color: #4b5563;
-        }
-
-        input[type="text"] {
-          width: 100%;
-          padding: 0.75rem;
-          border: 1px solid #d1d5db;
-          border-radius: 0.5rem;
-          font-size: 1rem;
-          background-color: #f9fafb;
-
-          &:focus {
-            outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
-          }
-        }
-      }
-
-      .btn-remove-pair {
-        background: #ef4444;
-        color: white;
-        border: none;
-        padding: 0.5rem 1rem;
-        border-radius: 0.5rem;
-        cursor: pointer;
-        font-size: 0.875rem;
-        transition: background 0.2s;
-
-        &:hover {
-          background: #dc2626;
-        }
-      }
-    }
-
-    .btn-add-pair {
-      background: #3b82f6;
+    &:hover {
+      background: var(--crm-danger);
       color: white;
-      border: none;
-      padding: 0.75rem 1rem;
-      border-radius: 0.5rem;
-      cursor: pointer;
-      font-weight: 600;
-      font-size: 0.95rem;
-      transition: background 0.2s;
-
-      &:hover {
-        background: #2563eb;
-      }
     }
+  }
+}
+
+// ── Адаптив ─────────────────────────────────────────────────────
+@media (max-width: 767.98px) {
+  .pairs-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .pair-images,
+  .pair-uploads {
+    flex-direction: column;
+  }
+  
+  .before-after-section {
+    padding: 12px 14px;
   }
 }
 </style>
