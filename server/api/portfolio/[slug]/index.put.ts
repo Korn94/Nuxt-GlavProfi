@@ -6,12 +6,21 @@ import { eq, and, inArray } from 'drizzle-orm'
 import { verifyAuth } from '../../../utils/auth'
 import { transliterate } from '../../../utils/transliteration'
 import { randomUUID } from 'crypto'
-import { mkdirSync, writeFileSync, existsSync, unlinkSync } from 'fs'
-import { join } from 'path'
+import { mkdirSync, writeFileSync, existsSync, unlinkSync, readFileSync } from 'fs'
+import { join, basename } from 'path'
 import { validateImage } from '../../../utils/imageValidation'
+import sharp from 'sharp'
 
 const UPLOAD_DIR_BASE = '/var/www/glavprofi_ru_usr40/data/www/uploads'
 mkdirSync(UPLOAD_DIR_BASE, { recursive: true })
+
+// 🔥 Настройки оптимизации (должны совпадать с index.post.ts)
+const IMAGE_CONFIG = {
+  maxWidth: 1920,
+  thumbWidth: 400,
+  webpQuality: 85,
+  maxFileSize: 20 * 1024 * 1024
+}
 
 export default eventHandler(async (event) => {
   // ───────── AUTH ─────────
@@ -32,7 +41,6 @@ export default eventHandler(async (event) => {
   if (contentType.includes('application/json')) {
     const body = await readBody(event)
     
-    // Если в теле только isPublished — обновляем только статус
     if (body.isPublished !== undefined && Object.keys(body).length === 1) {
       const [existingCase] = await db
         .select()
@@ -43,7 +51,6 @@ export default eventHandler(async (event) => {
         throw createError({ statusCode: 404, statusMessage: 'Case not found' })
       }
       
-      // Преобразуем в boolean: 'true', '1', true → true; остальное → false
       const newStatus = body.isPublished === true || body.isPublished === 'true' || body.isPublished === '1'
       
       await db.update(portfolioCases)
@@ -53,21 +60,16 @@ export default eventHandler(async (event) => {
         })
         .where(eq(portfolioCases.slug, slug))
       
-      return { 
-        success: true, 
-        isPublished: newStatus,
-        message: 'Status updated'
-      }
+      return { success: true, isPublished: newStatus, message: 'Status updated' }
     }
     
-    // Если в JSON есть другие поля — для полного обновления нужен multipart
     throw createError({ 
       statusCode: 400, 
       statusMessage: 'Full update requires multipart/form-data. Use JSON only for isPublished toggle.' 
     })
   }
   
-  // ───────── ПОЛНОЕ ОБНОВЛЕНИЕ: multipart/form-data (старая логика) ─────────
+  // ───────── ПОЛНОЕ ОБНОВЛЕНИЕ: multipart/form-data ─────────
   const formData = await readMultipartFormData(event)
   if (!formData) {
     throw createError({ statusCode: 400, statusMessage: 'No form data' })
@@ -100,6 +102,12 @@ export default eventHandler(async (event) => {
     if (!validation.valid) {
       throw createError({ statusCode: 400, statusMessage: validation.error! })
     }
+    if (file.data.length > IMAGE_CONFIG.maxFileSize) {
+      throw createError({ 
+        statusCode: 400, 
+        statusMessage: `Файл слишком большой. Максимум ${IMAGE_CONFIG.maxFileSize / 1024 / 1024} МБ` 
+      })
+    }
   }
 
   // ───────── CASE ─────────
@@ -119,96 +127,234 @@ export default eventHandler(async (event) => {
 
   // ───────── IDS TO KEEP ─────────
   const idsToKeep: number[] = [...keepImageIds]
-
   if (fields.mainImageId) {
     const id = parseInt(fields.mainImageId, 10)
     if (!isNaN(id)) idsToKeep.push(id)
   }
-
   if (fields.thumbnailId) {
     const id = parseInt(fields.thumbnailId, 10)
     if (!isNaN(id)) idsToKeep.push(id)
   }
 
-  // ───────── SAVE IMAGE ─────────
-  const saveImage = (file: any, type: string, order = 0, pairGroup: string | null = null) => {
-    const validation = validateImage(file)
-    if (!validation.valid) {
-      throw createError({ statusCode: 400, statusMessage: validation.error! })
+  // ───────── ФУНКЦИЯ ОПТИМИЗАЦИИ (для новых и старых файлов) ─────────
+  const optimizeImage = async (fileOrPath: any, type: string, isMain: boolean = false, caseId: number) => {
+    try {
+      let buffer: Buffer
+      let originalExt: string
+
+      // 🔥 Если передали файл из формы
+      if (fileOrPath.data) {
+        buffer = Buffer.from(fileOrPath.data)
+        originalExt = fileOrPath.filename?.split('.').pop()?.toLowerCase() || 'jpg'
+      } 
+      // 🔥 Если передали путь к существующему файлу (для миграции)
+      else if (typeof fileOrPath === 'string') {
+        const physicalPath = join(UPLOAD_DIR_BASE, fileOrPath.replace('/uploads/', ''))
+        if (!existsSync(physicalPath)) {
+          throw new Error(`Файл не найден: ${physicalPath}`)
+        }
+        buffer = readFileSync(physicalPath)
+        originalExt = basename(fileOrPath).split('.').pop()?.toLowerCase() || 'jpg'
+      } else {
+        throw new Error('Неверный формат данных для оптимизации')
+      }
+
+      const validation = validateImage({ data: buffer, filename: `temp.${originalExt}` })
+      if (!validation.valid) {
+        throw createError({ statusCode: 400, statusMessage: validation.error! })
+      }
+
+      const uuid = randomUUID()
+      let sharpInstance = sharp(buffer)
+      
+      const metadata = await sharpInstance.metadata()
+      const width = metadata.width || 0
+      const height = metadata.height || 0
+      
+      if (width > IMAGE_CONFIG.maxWidth || height > IMAGE_CONFIG.maxWidth) {
+        sharpInstance = sharpInstance.resize({
+          width: IMAGE_CONFIG.maxWidth,
+          height: IMAGE_CONFIG.maxWidth,
+          fit: 'inside',
+          withoutEnlargement: true
+        })
+      }
+
+      const optimizedBuffer = await sharpInstance
+        .rotate()
+        .webp({ quality: IMAGE_CONFIG.webpQuality })
+        .toBuffer()
+
+      const filename = `${uuid}.webp`
+      const caseDir = join(UPLOAD_DIR_BASE, `case-${caseId}`)
+      mkdirSync(caseDir, { recursive: true })
+      
+      const filePath = join(caseDir, filename)
+      writeFileSync(filePath, optimizedBuffer)
+      const url = `/uploads/case-${caseId}/${filename}`
+
+      // 🔥 Миниатюра для главного фото
+      let thumbUrl: string | null = null
+      if (isMain) {
+        const thumbBuffer = await sharp(buffer)
+          .resize({
+            width: IMAGE_CONFIG.thumbWidth,
+            height: IMAGE_CONFIG.thumbWidth,
+            fit: 'inside',
+            withoutEnlargement: true
+          })
+          .rotate()
+          .webp({ quality: IMAGE_CONFIG.webpQuality })
+          .toBuffer()
+
+        const thumbFilename = `${uuid}-thumb.webp`
+        const thumbPath = join(caseDir, thumbFilename)
+        writeFileSync(thumbPath, thumbBuffer)
+        thumbUrl = `/uploads/case-${caseId}/${thumbFilename}`
+      }
+
+      return { url, thumbUrl, filename }
+    } catch (error) {
+      console.error(`Ошибка при оптимизации изображения (${type}):`, error)
+      throw error
     }
+  }
 
-    const ext = file.filename.split('.').pop()?.toLowerCase() || 'jpg'
-    const caseDir = join(UPLOAD_DIR_BASE, `case-${existingCase.id}`)
-    mkdirSync(caseDir, { recursive: true })
+  // ───────── ФУНКЦИЯ МИГРАЦИИ СТАРОГО ИЗОБРАЖЕНИЯ ─────────
+  const migrateOldImage = async (image: any, isMain: boolean = false) => {
+    try {
+      // 🔥 Если уже WebP — пропускаем
+      if (image.url.endsWith('.webp')) {
+        return { url: image.url, thumbUrl: image.url.replace('.webp', '-thumb.webp') }
+      }
 
-    const name = `${randomUUID()}.${ext}`
-    // ✅ Исправлено: путь для записи на диск строится от UPLOAD_DIR_BASE
-    const physicalPath = join(caseDir, name)
-    // Путь для БД остаётся относительным
-    const url = `/uploads/case-${existingCase.id}/${name}`
+      console.log(`🔄 Миграция изображения: ${image.url}`)
+      
+      // Оптимизируем старый файл
+      const result = await optimizeImage(image.url, image.type, isMain, existingCase.id)
+      
+      // 🔥 Удаляем старый файл
+      const oldPhysicalPath = join(UPLOAD_DIR_BASE, image.url.replace('/uploads/', ''))
+      if (existsSync(oldPhysicalPath)) {
+        unlinkSync(oldPhysicalPath)
+        console.log(`🗑️ Удалён старый файл: ${image.url}`)
+      }
+      
+      // 🔥 Если была миниатюра у старого файла — удаляем и её
+      if (image.url.includes('-thumb.')) {
+        const oldThumbPath = oldPhysicalPath
+        if (existsSync(oldThumbPath)) {
+          unlinkSync(oldThumbPath)
+        }
+      }
 
-    writeFileSync(physicalPath, Buffer.from(file.data))
+      // Обновляем запись в БД
+      await db.update(portfolioImages)
+        .set({ 
+          url: result.url,
+          // Если это главное фото и есть миниатюра — можно сохранить путь, но пока генерируем на лету
+        })
+        .where(eq(portfolioImages.id, image.id))
 
+      console.log(`✅ Миграция завершена: ${image.url} → ${result.url}`)
+      
+      return { url: result.url, thumbUrl: result.thumbUrl }
+    } catch (error) {
+      console.error(`❌ Ошибка миграции изображения ${image.id}:`, error)
+      // Не прерываем весь процесс, если одна картинка не сконвертировалась
+      return { url: image.url, thumbUrl: null }
+    }
+  }
+
+  // ───────── ОБРАБОТКА ИЗОБРАЖЕНИЙ ─────────
+  const imagesToInsert: any[] = []
+  const imagesToUpdate: Array<{ id: number; url: string }> = []
+
+  // 🔥 1. Миграция существующих изображений, которые пользователь оставил (по ID)
+  for (const img of existingImages) {
+    if (idsToKeep.includes(img.id)) {
+      const isMain = img.type === 'main'
+      const result = await migrateOldImage(img, isMain)
+      
+      // Если изображение было сконвертировано (изменился URL)
+      if (result.url !== img.url) {
+        imagesToUpdate.push({ id: img.id, url: result.url })
+      }
+    }
+  }
+
+  // 🔥 2. Новые/заменённые изображения из формы
+  const saveNewImage = async (file: any, type: string, isMain: boolean = false, order: number) => {
+    const result = await optimizeImage(file, type, isMain, existingCase.id)
     return {
       caseId: existingCase.id,
-      url,
+      url: result.url,
       type,
-      pairGroup,
       alt: `${type} image`,
       order
     }
   }
 
-  const imagesToInsert: any[] = []
-
-  // ───────── MAIN IMAGE ─────────
+  // Главное изображение (новое или замена)
   if (files.mainImage) {
-    imagesToInsert.push(saveImage(files.mainImage, 'main', 0))
+    const data = await saveNewImage(files.mainImage, 'main', true, 0)
+    imagesToInsert.push(data)
   }
 
-  // ───────── THUMBNAIL ─────────
-  if (files.thumbnail) {
-    imagesToInsert.push(saveImage(files.thumbnail, 'thumbnail', 1))
+  // Миниатюра
+  if (files.thumbnail && files.thumbnail !== files.mainImage) {
+    const data = await saveNewImage(files.thumbnail, 'thumbnail', false, 1)
+    imagesToInsert.push(data)
   }
 
-  // ───────── GALLERY ─────────
+  // Галерея
   let gi = 0
   while (files[`gallery[${gi}]`]) {
-    imagesToInsert.push(
-      saveImage(
-        files[`gallery[${gi}]`],
-        fields[`galleryType[${gi}]`] || 'after',
-        100 + gi
-      )
+    const data = await saveNewImage(
+      files[`gallery[${gi}]`],
+      fields[`galleryType[${gi}]`] || 'after',
+      false,
+      100 + gi
     )
+    imagesToInsert.push(data)
     gi++
   }
 
-  // ───────── BEFORE / AFTER ─────────
+  // Пары before/after
   let pi = 0
   while (files[`beforeImage[${pi}]`] || files[`afterImage[${pi}]`]) {
     const group = fields[`pairGroup[${pi}]`] || `pair-${pi}`
 
     if (files[`beforeImage[${pi}]`]) {
-      imagesToInsert.push(saveImage(files[`beforeImage[${pi}]`], 'before', 200 + pi * 2, group))
+      const data = await saveNewImage(files[`beforeImage[${pi}]`], 'before', false, 200 + pi * 2)
+      imagesToInsert.push({ ...data, pairGroup: group })
     }
     if (files[`afterImage[${pi}]`]) {
-      imagesToInsert.push(saveImage(files[`afterImage[${pi}]`], 'after', 201 + pi * 2, group))
+      const data = await saveNewImage(files[`afterImage[${pi}]`], 'after', false, 201 + pi * 2)
+      imagesToInsert.push({ ...data, pairGroup: group })
     }
-
     pi++
   }
 
-  // ───────── DELETE UNUSED IMAGES ─────────
+  // ───────── УДАЛЕНИЕ НЕИСПОЛЬЗУЕМЫХ ИЗОБРАЖЕНИЙ ─────────
   const idsToDelete = existingImages
     .filter(img => !idsToKeep.includes(img.id))
     .map(img => img.id)
 
   if (idsToDelete.length) {
     for (const img of existingImages.filter(i => idsToDelete.includes(i.id))) {
-      // ✅ Исправлено: удаляем файл от UPLOAD_DIR_BASE
       const physicalPath = join(UPLOAD_DIR_BASE, img.url.replace('/uploads/', ''))
-      if (existsSync(physicalPath)) unlinkSync(physicalPath)
+      if (existsSync(physicalPath)) {
+        unlinkSync(physicalPath)
+        console.log(`🗑️ Удалён файл: ${img.url}`)
+      }
+      // Удаляем миниатюру если есть
+      if (img.type === 'main' && img.url.endsWith('.webp')) {
+        const thumbPath = physicalPath.replace('.webp', '-thumb.webp')
+        if (existsSync(thumbPath)) {
+          unlinkSync(thumbPath)
+        }
+      }
     }
 
     await db.delete(portfolioImages).where(
@@ -219,8 +365,14 @@ export default eventHandler(async (event) => {
     )
   }
 
+  // ───────── ВСТАВКА НОВЫХ И ОБНОВЛЕНИЕ МИГРИРОВАННЫХ ─────────
   if (imagesToInsert.length) {
     await db.insert(portfolioImages).values(imagesToInsert)
+  }
+  for (const { id, url } of imagesToUpdate) {
+    await db.update(portfolioImages)
+      .set({ url })
+      .where(eq(portfolioImages.id, id))
   }
 
   // ───────── UPDATE CASE ─────────
@@ -231,7 +383,6 @@ export default eventHandler(async (event) => {
       .replace(/^-+|-+$/g, '')
   }
 
-  // ✅ Корректное преобразование строки в boolean
   const isPublishedValue = fields.isPublished === 'true' || fields.isPublished === '1'
 
   await db.update(portfolioCases)
@@ -291,6 +442,7 @@ export default eventHandler(async (event) => {
 
   return {
     success: true,
-    slug: fields.slug || slug
+    slug: fields.slug || slug,
+    message: 'Case updated'
   }
 })

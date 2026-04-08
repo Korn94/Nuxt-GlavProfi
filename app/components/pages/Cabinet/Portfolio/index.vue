@@ -88,9 +88,10 @@
                     <Icon name="mdi:clock-outline" size="12" />
                     {{ caseItem.duration }}
                   </span>
-                  <span>
-                    <Icon name="mdi:account-group-outline" size="12" />
-                    {{ caseItem.people }}
+                  <!-- 🔥 Размер кейса -->
+                  <span v-if="caseItem.totalSize !== undefined" :class="['case-item__size', getSizeClass(caseItem.totalSize)]">
+                    <Icon name="mdi:database-outline" size="12" />
+                    {{ formatSize(caseItem.totalSize) }}
                   </span>
                 </div>
 
@@ -239,16 +240,58 @@ const filteredCases = computed(() => {
   )
 })
 
+// ── Форматирование размера ──────────────────────────────────────
+const formatSize = (bytes: number) => {
+  if (bytes === 0) return '0 Б'
+  const k = 1024
+  const sizes = ['Б', 'КБ', 'МБ', 'ГБ']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+}
+
+// ── Цветовая индикация ──────────────────────────────────────────
+const getSizeClass = (bytes: number) => {
+  const mb = bytes / 1024 / 1024
+  if (mb < 1) return 'size--small'      // < 1 МБ — зелёный
+  if (mb < 5) return 'size--medium'     // 1-5 МБ — жёлтый
+  return 'size--large'                  // > 5 МБ — красный
+}
+
+// ── Загрузка размера для кейса ─────────────────────────────────
+const loadCaseSize = async (caseItem: any) => {
+  try {
+    const data = await $fetch(`/api/portfolio/${caseItem.slug}/size`) as { 
+      totalSize: number, 
+      fileCount: number, 
+      caseId: number 
+    }
+    caseItem.totalSize = data.totalSize
+    caseItem.fileCount = data.fileCount
+  } catch (err) {
+    console.warn(`Не удалось загрузить размер для ${caseItem.slug}:`, err)
+    caseItem.totalSize = 0
+    caseItem.fileCount = 0
+  }
+}
+
+// ── Загрузка всех размеров после получения списка ───────────────
+const loadAllSizes = async () => {
+  // Загружаем размеры параллельно для всех кейсов
+  await Promise.all(cases.value.map(loadCaseSize))
+}
+
 // ── API ───────────────────────────────────────────────────────────
 // Загрузка списка кейсов
 const fetchCases = async () => {
   loading.value = true
   try {
-    // ✅ Исправлена типизация ответа
-    const response = await $fetch<{ data: any[] }>('/api/portfolio', {
-      params: { limit: 100, page: 1 }
+    const response = await $fetch<{ data: any[], meta: any }>('/api/portfolio', {
+      params: { limit: 100, page: 1, admin: 'true' }
     })
     cases.value = response?.data || []
+    
+    // 🔥 Загружаем размеры для всех кейсов
+    await loadAllSizes()
   } catch (err) {
     console.error('[Кейсы]: ошибка загрузки', err)
   } finally {
@@ -688,6 +731,33 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+// ── Размер кейса ────────────────────────────────────────────────────────
+.case-item__size {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--crm-text-xs);
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: var(--crm-radius-sm);
+  white-space: nowrap;
+  
+  &.size--small {
+    color: var(--crm-success);
+    background: var(--crm-success-dim);
+  }
+  
+  &.size--medium {
+    color: var(--crm-warning);
+    background: var(--crm-warning-dim);
+  }
+  
+  &.size--large {
+    color: var(--crm-danger);
+    background: var(--crm-danger-dim);
+  }
 }
 
 // ── Кнопки ────────────────────────────────────────────────────────

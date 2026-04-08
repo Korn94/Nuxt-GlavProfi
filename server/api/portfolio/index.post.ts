@@ -4,14 +4,23 @@ import { db } from '../../db'
 import { portfolioCases, portfolioImages, portfoCaseWorks } from '../../db/schema'
 import { verifyAuth } from '../../utils/auth'
 import { randomUUID } from 'crypto'
-import { mkdirSync, writeFileSync } from 'fs'
+import { mkdirSync, writeFileSync, unlinkSync } from 'fs'
 import { join } from 'path'
 import { sql } from 'drizzle-orm'
 import { transliterate } from '../../utils/transliteration'
 import { validateImage } from '../../utils/imageValidation'
+import sharp from 'sharp'
 
 const UPLOAD_DIR_BASE = '/var/www/glavprofi_ru_usr40/data/www/uploads'
 mkdirSync(UPLOAD_DIR_BASE, { recursive: true })
+
+// 🔥 Настройки оптимизации
+const IMAGE_CONFIG = {
+  maxWidth: 1920,        // Макс. ширина для основного фото
+  thumbWidth: 400,       // Ширина для миниатюры
+  webpQuality: 85,       // Качество WebP (0-100)
+  maxFileSize: 20 * 1024 * 1024 // 20 МБ макс. размер файла
+}
 
 export default eventHandler(async (event) => {
   // ───────── AUTH ─────────
@@ -51,9 +60,17 @@ export default eventHandler(async (event) => {
     if (!validation.valid) {
       throw createError({ statusCode: 400, statusMessage: validation.error! })
     }
+    
+    // 🔥 Проверка размера файла
+    if (files[name].data.length > IMAGE_CONFIG.maxFileSize) {
+      throw createError({ 
+        statusCode: 400, 
+        statusMessage: `Файл ${name} слишком большой. Максимум ${IMAGE_CONFIG.maxFileSize / 1024 / 1024} МБ` 
+      })
+    }
   }
 
-  // Валидируем пары before/after
+  // Валидируем пары before/after и галерею
   const allFileParts = formData.filter(f => f.filename && f.name)
   for (const part of allFileParts) {
     if (
@@ -64,6 +81,14 @@ export default eventHandler(async (event) => {
       const validation = validateImage(part as any)
       if (!validation.valid) {
         throw createError({ statusCode: 400, statusMessage: validation.error! })
+      }
+      
+      // 🔥 Проверка размера файла
+      if (part.data.length > IMAGE_CONFIG.maxFileSize) {
+        throw createError({ 
+          statusCode: 400, 
+          statusMessage: `Файл слишком большой. Максимум ${IMAGE_CONFIG.maxFileSize / 1024 / 1024} МБ` 
+        })
       }
     }
   }
@@ -118,9 +143,11 @@ export default eventHandler(async (event) => {
     }
 
     const caseId = newCase[0].id
+    const caseDir = join(UPLOAD_DIR_BASE, `case-${caseId}`)
+    mkdirSync(caseDir, { recursive: true })
 
-    // ───────── СОХРАНЕНИЕ ИЗОБРАЖЕНИЙ ─────────
-    const saveImage = async (file: any, type: string, pairGroup?: string, order: number = 0) => {
+    // ───────── ФУНКЦИЯ ОПТИМИЗАЦИИ ─────────
+    const optimizeImage = async (file: any, type: string, isMain: boolean = false) => {
       try {
         if (!file?.data) throw new Error(`Файл не передан для типа ${type}`)
 
@@ -129,30 +156,99 @@ export default eventHandler(async (event) => {
           throw createError({ statusCode: 400, statusMessage: validation.error! })
         }
 
+        const buffer = Buffer.from(file.data)
         const ext = file.filename?.split('.').pop()?.toLowerCase() || 'jpg'
-        const caseDir = join(UPLOAD_DIR_BASE, `case-${caseId}`)
-        mkdirSync(caseDir, { recursive: true })
+        const uuid = randomUUID()
 
-        const filename = `${randomUUID()}.${ext}`
+        // 🔥 Оптимизация через sharp
+        let sharpInstance = sharp(buffer)
+        
+        // Получаем метаданные для определения ориентации
+        const metadata = await sharpInstance.metadata()
+        const width = metadata.width || 0
+        const height = metadata.height || 0
+        
+        // Resize только если изображение больше максимума
+        if (width > IMAGE_CONFIG.maxWidth || height > IMAGE_CONFIG.maxWidth) {
+          sharpInstance = sharpInstance.resize({
+            width: IMAGE_CONFIG.maxWidth,
+            height: IMAGE_CONFIG.maxWidth,
+            fit: 'inside',
+            withoutEnlargement: true
+          })
+        }
+
+        // Конвертация в WebP
+        const optimizedBuffer = await sharpInstance
+          .rotate()
+          .webp({ quality: IMAGE_CONFIG.webpQuality })
+          .toBuffer()
+
+        // Сохранение основного файла
+        const filename = `${uuid}.webp`
         const filePath = join(caseDir, filename)
-        writeFileSync(filePath, Buffer.from(file.data))
+        writeFileSync(filePath, optimizedBuffer)
 
-        await db.insert(portfolioImages).values({
+        const url = `/uploads/case-${caseId}/${filename}`
+
+        // 🔥 Если это главное фото — создаём миниатюру
+        let thumbUrl: string | null = null
+        if (isMain) {
+          const thumbBuffer = await sharp(buffer)
+            .resize({
+              width: IMAGE_CONFIG.thumbWidth,
+              height: IMAGE_CONFIG.thumbWidth,
+              fit: 'inside',
+              withoutEnlargement: true
+            })
+            .rotate()
+            .webp({ quality: IMAGE_CONFIG.webpQuality })
+            .toBuffer()
+
+          const thumbFilename = `${uuid}-thumb.webp`
+          const thumbPath = join(caseDir, thumbFilename)
+          writeFileSync(thumbPath, thumbBuffer)
+          thumbUrl = `/uploads/case-${caseId}/${thumbFilename}`
+        }
+
+        return {
           caseId,
-          url: `/uploads/case-${caseId}/${filename}`,
-          type: type as 'main' | 'thumbnail' | 'gallery' | 'before' | 'after',
-          pairGroup: pairGroup || undefined,
+          url,
+          thumbUrl,
+          type,
           alt: `${type} фото с объекта ремонта для кейса ${caseId}`,
-          order
-        })
+          order: type === 'main' ? 0 : type === 'thumbnail' ? 1 : 2
+        }
       } catch (error) {
-        console.error(`Ошибка при сохранении изображения (${type}):`, error)
+        console.error(`Ошибка при оптимизации изображения (${type}):`, error)
+        throw error
       }
     }
 
-    // Основные изображения
-    await saveImage(files.mainImage, 'main', undefined, 0)
-    await saveImage(files.thumbnail, 'thumbnail', undefined, 1)
+    // ───────── СОХРАНЕНИЕ ИЗОБРАЖЕНИЙ ─────────
+    const imagesToInsert: any[] = []
+
+    // Главное изображение (с миниатюрой)
+    const mainResult = await optimizeImage(files.mainImage, 'main', true)
+    imagesToInsert.push({
+      caseId: mainResult.caseId,
+      url: mainResult.url,
+      type: 'main',
+      alt: mainResult.alt,
+      order: 0
+    })
+
+    // Миниатюра (отдельный файл, если загружен другой)
+    if (files.thumbnail !== files.mainImage) {
+      const thumbResult = await optimizeImage(files.thumbnail, 'thumbnail', false)
+      imagesToInsert.push({
+        caseId: thumbResult.caseId,
+        url: thumbResult.url,
+        type: 'thumbnail',
+        alt: thumbResult.alt,
+        order: 1
+      })
+    }
 
     // Пары before/after
     const beforeFiles = formData
@@ -173,8 +269,14 @@ export default eventHandler(async (event) => {
       const afterFile = afterFiles.find(f => f.index === i)
       const pairGroup = `pair-${i}`
 
-      if (beforeFile) await saveImage(beforeFile.file, 'before', pairGroup, i)
-      if (afterFile) await saveImage(afterFile.file, 'after', pairGroup, i)
+      if (beforeFile) {
+        const result = await optimizeImage(beforeFile.file, 'before', false)
+        imagesToInsert.push({ ...result, type: 'before', pairGroup, order: 2 + i * 2 })
+      }
+      if (afterFile) {
+        const result = await optimizeImage(afterFile.file, 'after', false)
+        imagesToInsert.push({ ...result, type: 'after', pairGroup, order: 3 + i * 2 })
+      }
     }
 
     // Галерея
@@ -192,7 +294,13 @@ export default eventHandler(async (event) => {
 
     for (let i = 0; i < galleryFiles.length; i++) {
       const type = galleryTypes[i] ?? 'after'
-      await saveImage(galleryFiles[i], type, undefined, i)
+      const result = await optimizeImage(galleryFiles[i], 'gallery', false)
+      imagesToInsert.push({ ...result, type, order: 100 + i })
+    }
+
+    // Вставка в БД
+    if (imagesToInsert.length > 0) {
+      await db.insert(portfolioImages).values(imagesToInsert)
     }
 
     // ───────── WORKS ─────────
