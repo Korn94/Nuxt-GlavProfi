@@ -371,8 +371,8 @@ socket.on('notification', (data) => {
 
 ### Настройка
 ```env
-TELEGRAM_BOT_TOKEN=1234567890:AABBccDDeeFFggHHiiJJkkLLmmNNooP
-TELEGRAM_WEBHOOK_URL=https://glavprofi.ru/api/telegram
+TELEGRAM_BOT_TOKEN=your_bot_token_here
+TELEGRAM_WEBHOOK_URL=https://yourdomain.com/api/telegram
 ```
 
 ---
@@ -456,7 +456,7 @@ TELEGRAM_WEBHOOK_URL=https://glavprofi.ru/api/telegram
 
 - **Сайт**: [glavprofi.ru](https://glavprofi.ru)
 - **Email**: info@glavprofi.ru
-- **Телефон**: +7 (XXX) XXX-XX-XX
+- **Телефон**: +7 (910) 909-69-47
 
 ---
 
