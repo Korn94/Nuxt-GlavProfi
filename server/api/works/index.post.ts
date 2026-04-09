@@ -29,7 +29,7 @@ export default defineEventHandler(async (event) => {
       rejectedReason: null,
       paid: body.paid || false,
       paymentDate: body.paymentDate || null,
-      operationDate: now,
+      operationDate: body.operationDate ? new Date(body.operationDate) : now,
       objectId: body.objectId
     }).$returningId()
 

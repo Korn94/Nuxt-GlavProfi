@@ -3,7 +3,11 @@
   <div class="crm">
     <LayoutCabinetHeader />
     <main>
-      <NuxtPage />
+      <NuxtPage v-slot="{ Component }">
+        <Transition name="page" mode="out-in" appear>
+          <Component :is="Component" :key="$route.fullPath" />
+        </Transition>
+      </NuxtPage>
       <UiNotificationsContainer />
     </main>
   </div>
@@ -56,6 +60,7 @@ watch(
   background: var(--crm-bg-base);
   color: var(--crm-text-primary);
   font-family: var(--crm-font-sans);
+  overflow-x: hidden; // Предотвращает горизонтальную прокрутку во время анимации
 }
 
 main {
@@ -64,5 +69,21 @@ main {
   @media (min-width: 767.98px) {
     margin-left: 250px;
   }
+}
+
+// ── Анимация перехода между страницами ─────────────────────
+.page-enter-active,
+.page-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.page-enter-from {
+  opacity: 0;
+  transform: translateX(12px);
+}
+
+.page-leave-to {
+  opacity: 0;
+  transform: translateX(-12px);
 }
 </style>
