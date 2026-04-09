@@ -28,6 +28,22 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  // Проверка наличия тела запроса
+  if (!body || typeof body !== 'object') {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Request body is required'
+    })
+  }
+
+  // Проверка наличия тела запроса
+  if (!body || typeof body !== 'object') {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Request body is required'
+    })
+  }
+
   // Валидация обязательных полей
   if (!body.name || body.name.trim().length === 0) {
     throw createError({

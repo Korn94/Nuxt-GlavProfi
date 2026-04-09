@@ -55,7 +55,7 @@
               <h1 class="contractor-header__title">{{ contractor.name }}</h1>
               <div class="contractor-header__meta">
                 <span class="contractor-type-badge" :class="`contractor-type-badge--${type}`">
-                  {{ getTypeLabel(type) }}
+                  {{ typeLabel }}
                 </span>
                 <span class="contractor-status">
                   <Icon name="mdi:calendar-outline" size="12" />
@@ -206,15 +206,15 @@ function getInitials(name: string): string {
     .slice(0, 2)
 }
 
-function getTypeLabel(type: ContractorType): string {
+const typeLabel = computed(() => {
   const labels: Record<ContractorType, string> = {
     master: 'Мастер',
     worker: 'Рабочий',
     foreman: 'Прораб',
     office: 'Офис'
   }
-  return labels[type] || type
-}
+  return labels[type.value] || type.value
+})
 
 function getBalanceClass(balance: string | number): string {
   const num = parseFloat(String(balance))

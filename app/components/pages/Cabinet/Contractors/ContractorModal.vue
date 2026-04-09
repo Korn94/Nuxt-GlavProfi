@@ -3,7 +3,7 @@
 <template>
   <PagesCabinetUiModal 
     :visible="isOpen" 
-    :title="isEdit ? `Редактировать ${getTypeLabel(type)}` : `Новый ${getTypeLabel(type).toLowerCase()}`"
+      :title="isEdit ? `Редактировать ${typeLabel}` : `Новый ${typeLabel.toLowerCase()}`"
     size="md"
     closable
     @close="handleClose"
@@ -16,7 +16,7 @@
       :available-users="availableUsers"
       :show-user-select="showUserSelect"
       @update:form="formData = $event"
-      @submit="handleSubmit"
+      @submit="handleFormSubmit"
     />
 
     <!-- Footer с кнопками -->
@@ -66,6 +66,7 @@ const formRef = ref<{
   validate: () => boolean
   resetForm: () => void
   handleSubmit: () => void
+  form: ContractorCreateInput | ContractorUpdateInput
 } | null>(null)
 
 const loading = ref(false)
@@ -74,34 +75,47 @@ const formData = ref<ContractorCreateInput | ContractorUpdateInput | null>(null)
 // ── Computed ────────────────────────────────────────────────────────
 const isEdit = computed(() => !!props.contractor?.id)
 
-function getTypeLabel(type: ContractorType): string {
+const typeLabel = computed(() => {
   const labels: Record<ContractorType, string> = {
     master: 'Мастер',
     worker: 'Рабочий',
     foreman: 'Прораб',
     office: 'Офис'
   }
-  return labels[type] || type
-}
+  return labels[props.type] || props.type
+})
 
 // ── Обработчики ────────────────────────────────────────────────────
-async function submitForm() {
-  if (!formRef.value) return
+// Вызывается при событии submit от формы
+function handleFormSubmit() {
+  // Проверяем валидацию ещё раз
+  if (!formRef.value?.validate()) return
 
-  // Валидация через ref
-  if (!formRef.value.validate()) return
+  // Проверяем, что formData заполнен
+  if (!formData.value) {
+    console.error('[ContractorModal] FormData is empty after form submit')
+    return
+  }
+
+  // Запускаем сохранение
+  saveContractor()
+}
+
+async function saveContractor() {
+  if (!formRef.value) return
 
   loading.value = true
   try {
     let result: ContractorDTO
+    const data = formRef.value.form
 
     if (isEdit.value && props.contractor) {
       // Редактирование
-      result = await update(props.type, props.contractor.id, formData.value as ContractorUpdateInput)
+      result = await update(props.type, props.contractor.id, data as ContractorUpdateInput)
       emit('contractor-updated', result)
     } else {
       // Создание
-      result = await create(props.type, formData.value as ContractorCreateInput)
+      result = await create(props.type, data as ContractorCreateInput)
       emit('contractor-created', result)
     }
 
@@ -111,6 +125,13 @@ async function submitForm() {
   } finally {
     loading.value = false
   }
+}
+
+async function submitForm() {
+  if (!formRef.value) return
+
+  // Сначала вызываем handleSubmit формы, чтобы она сформировала данные и провалидировала
+  formRef.value.handleSubmit()
 }
 
 function handleClose() {

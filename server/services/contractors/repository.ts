@@ -137,13 +137,19 @@ static async create(type: ContractorType, input: ContractorCreateInput): Promise
     const existing = await this.findById(type, id)
     if (!existing) return null
 
+   // Защита от пустого input
+    if (!input || typeof input !== 'object') {
+      throw new Error('Invalid update data')
+    }
+
     const updates: Record<string, any> = {}
-    
-    if (input.name !== undefined) {
-      if (input.name.trim().length === 0) {
+
+    if (input.name !== undefined && input.name !== null) {
+      const nameStr = String(input.name)
+      if (nameStr.trim().length === 0) {
         throw new Error('Contractor name cannot be empty')
       }
-      updates.name = input.name.trim()
+      updates.name = nameStr.trim()
     }
     
     if (input.phone !== undefined) updates.phone = input.phone

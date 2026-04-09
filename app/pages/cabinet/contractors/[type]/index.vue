@@ -5,8 +5,8 @@
 
     <!-- Заголовок -->
     <PagesCabinetUiLayoutPageTitle 
-      :title="getTypeLabel(type)" 
-      :icon="getTypeIcon(type)"
+      :title="typeLabel"
+      :icon="typeIcon"
     >
       <template #actions>
         <button class="crm-btn crm-btn--accent" @click="openAddModal">
@@ -75,26 +75,26 @@ const showModal = ref(false)
 const editingContractor = ref<ContractorDTO | null>(null)
 const availableUsers = ref<Array<{ id: number; name: string; login: string }>>([])
 
-// ── Вспомогательные функции ─────────────────────────────────────────
-function getTypeLabel(type: ContractorType): string {
+// ── Computed ────────────────────────────────────────────────────────
+const typeLabel = computed(() => {
   const labels: Record<ContractorType, string> = {
     master: 'Мастера',
     worker: 'Рабочие',
     foreman: 'Прорабы',
     office: 'Офисы'
   }
-  return labels[type] || type
-}
+  return labels[type.value] || type.value
+})
 
-function getTypeIcon(type: ContractorType): string {
+const typeIcon = computed(() => {
   const icons: Record<ContractorType, string> = {
     master: 'mdi:hammer',
     worker: 'mdi:wrench',
     foreman: 'mdi:clipboard-check',
     office: 'mdi:office-building'
   }
-  return icons[type] || 'mdi:account'
-}
+  return icons[type.value] || 'mdi:account'
+})
 
 // ── Загрузка данных ────────────────────────────────────────────────
 async function loadContractors() {

@@ -14,7 +14,7 @@
         <!-- Имя и роль -->
         <div class="contractor-info">
           <div class="contractor-info__name">{{ contractor.name }}</div>
-          <div class="contractor-info__type">{{ getTypeLabel(type) }}</div>
+          <div class="contractor-info__type">{{ typeLabel }}</div>
         </div>
       </div>
 
@@ -81,7 +81,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useContractors } from '~/composables/useContractors';
 import type { ContractorType, ContractorDTO } from '~/types/contractors'
 
@@ -107,15 +107,15 @@ function getInitials(name: string): string {
     .slice(0, 2)
 }
 
-function getTypeLabel(type: ContractorType): string {
+const typeLabel = computed(() => {
   const labels: Record<ContractorType, string> = {
     master: 'Мастер',
     worker: 'Рабочий',
     foreman: 'Прораб',
     office: 'Офис'
   }
-  return labels[type] || type
-}
+  return labels[props.type] || props.type
+})
 
 function getBalanceClass(balance: string | number): string {
   const num = parseFloat(String(balance))

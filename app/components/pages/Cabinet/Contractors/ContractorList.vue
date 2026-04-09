@@ -7,8 +7,8 @@
     <div class="contractor-list__header">
       <div class="contractor-list__title-group">
         <h2 class="contractor-list__title">
-          <Icon :name="getTypeIcon(type)" size="18" />
-          {{ getTypeLabel(type) }}
+          <Icon :name="typeIcon" size="18" />
+          {{ typeLabel }}
         </h2>
         <span class="contractor-list__count">{{ contractorsList.length }}</span>
       </div>
@@ -152,26 +152,26 @@ const totalBalance = computed(() => {
   }, 0)
 })
 
-// ── Вспомогательные функции ─────────────────────────────────────────
-function getTypeLabel(type: ContractorType): string {
+// ── Computed ────────────────────────────────────────────────────────
+const typeLabel = computed(() => {
   const labels: Record<ContractorType, string> = {
     master: 'Мастера',
     worker: 'Рабочие',
     foreman: 'Прорабы',
     office: 'Офисы'
   }
-  return labels[type] || type
-}
+  return labels[props.type] || props.type
+})
 
-function getTypeIcon(type: ContractorType): string {
+const typeIcon = computed(() => {
   const icons: Record<ContractorType, string> = {
     master: 'mdi:hammer',
     worker: 'mdi:wrench',
     foreman: 'mdi:clipboard-check',
     office: 'mdi:office-building'
   }
-  return icons[type] || 'mdi:account'
-}
+  return icons[props.type] || 'mdi:account'
+})
 
 function formatCurrency(amount: number): string {
   return amount.toLocaleString('ru-RU', {

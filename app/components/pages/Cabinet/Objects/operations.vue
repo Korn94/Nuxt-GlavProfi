@@ -746,7 +746,7 @@ onMounted(async () => {
 // ── Таблица ──────────────────────────────────────────────────────────
 .ops-table-wrap {
   overflow-x: auto;
-  max-height: 500px;
+  max-height: 750px;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--crm-bg-overlay) transparent;
