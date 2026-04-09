@@ -11,6 +11,7 @@
   "compilerOptions": {
     "types": ["nuxt", "vite/client"],
     "baseUrl": ".",
+    "ignoreDeprecations": "6.0", // игнорируем предеупреждении о том что baseUrl устаревает в TS 7.0
     "paths": {
       "~/*": ["./app/*"],
       "@/*": ["./app/*"],

@@ -63,7 +63,7 @@ export default defineEventHandler(async (event) => {
         objectId: body.objectId,
         expenseType: 'Работа',
         paymentDate: now,
-        operationDate: now
+        operationDate: operationDate
       })
 
       // 4. Обновляем totalWorks и totalBalance объекта

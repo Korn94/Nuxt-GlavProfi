@@ -100,7 +100,17 @@
               <div class="operation-info__title">{{ operation.title }}</div>
               <div class="operation-info__meta">
                 <span class="operation-info__date">{{ formatDate(operation.date) }}</span>
-                <span v-if="operation.object" class="operation-info__object">
+                <NuxtLink 
+                  v-if="operation.object && operation.objectId" 
+                  :to="`/cabinet/objects/${operation.objectId}`"
+                  class="operation-info__object operation-info__link"
+                  target="_blank"
+                >
+                  <Icon name="mdi:map-marker-outline" size="12" />
+                  {{ operation.object }}
+                  <Icon name="mdi:open-in-new" size="10" class="link-icon" />
+                </NuxtLink>
+                <span v-else-if="operation.object" class="operation-info__object">
                   <Icon name="mdi:map-marker-outline" size="12" />
                   {{ operation.object }}
                 </span>
@@ -246,9 +256,10 @@ interface Operation {
   title: string
   amount: number
   date: string
-  object?: string
+  object?: string        // Название объекта (для отображения)
+  objectId?: number      // ID объекта (для навигации)
   comment?: string
-  expenseType?: string // Для дополнительных операций
+  expenseType?: string
 }
 
 const props = defineProps<{
@@ -388,12 +399,14 @@ function getOperationIcon(type: 'expense' | 'income'): string {
   return type === 'expense' ? 'mdi:minus' : 'mdi:plus'
 }
 
-function getAdditionalIcon(expenseType: string): string {
-  return expenseType === 'Зарплата' ? 'mdi:cash-multiple' : 'mdi:gas-station'
+function getAdditionalIcon(expenseType?: string): string {
+  if (expenseType === 'Зарплата') return 'mdi:cash-multiple'
+  return 'mdi:gas-station' // Дефолт для "Топливо" и undefined
 }
 
-function getAdditionalTitle(expenseType: string): string {
-  return expenseType === 'Зарплата' ? 'Зарплата' : 'Топливо'
+function getAdditionalTitle(expenseType?: string): string {
+  if (expenseType === 'Зарплата') return 'Зарплата'
+  return 'Топливо' // Дефолт
 }
 
 function getAmountDisplay(operation: Operation): string {
@@ -410,24 +423,13 @@ function formatCurrency(amount: number): string {
 }
 
 function formatDate(dateStr: string | undefined): string {
-  // ✅ Добавляем проверку на undefined
   if (!dateStr) return '—'
   
   try {
     const date = new Date(dateStr)
-    const now = new Date()
-    const diff = now.getTime() - date.getTime()
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-
-    if (days === 0) {
-      return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
-    }
-    if (days === 1) {
-      return 'Вчера'
-    }
-    if (days < 7) {
-      return `${days}д назад`
-    }
+    if (isNaN(date.getTime())) return '—'
+    
+    // ✅ Всегда возвращаем дату в формате ДД.ММ.ГГ
     return date.toLocaleDateString('ru-RU', {
       day: '2-digit',
       month: '2-digit',
@@ -470,35 +472,38 @@ async function loadOperations() {
         amount: parseFloat(e.amount),
         date: e.operationDate,
         object: e.objectName,
+        objectId: e.objectId,      // ✅ Добавляем ID
         comment: e.comment,
         expenseType: e.expenseType
       }))
 
-    const additionalOps = (expensesResponse || [])
-      .filter(e => ['Зарплата', 'Топливо'].includes(e.expenseType))
-      .map(e => ({
-        id: e.id,
-        type: 'expense' as const,
-        title: getAdditionalTitle(e.expenseType),
-        amount: parseFloat(e.amount),
-        date: e.operationDate,
-        object: e.objectName,
-        comment: e.comment,
-        expenseType: e.expenseType
-      }))
+      const additionalOps = (expensesResponse || [])
+        .filter(e => ['Зарплата', 'Топливо'].includes(e.expenseType))
+        .map(e => ({
+          id: e.id,
+          type: 'expense' as const,
+          title: getAdditionalTitle(e.expenseType),
+          amount: parseFloat(e.amount),
+          date: e.operationDate,
+          object: e.objectName,
+          objectId: e.objectId,      // ✅ Добавляем ID
+          comment: e.comment,
+          expenseType: e.expenseType
+        }))
 
-    const incomes = (worksResponse || [])
-      .filter(w => w.paid === true)
-      .map(w => ({
-        id: w.id,
-        type: 'income' as const,
-        title: `Работа: ${w.workTypes}`,
-        amount: parseFloat(w.workerAmount),
-        date: w.operationDate,
-        object: w.objectId?.toString(),
-        comment: w.comment,
-        expenseType: 'Работа'
-      }))
+      const incomes = (worksResponse || [])
+        .filter(w => w.paid === true)
+        .map(w => ({
+          id: w.id,
+          type: 'income' as const,
+          title: `Работа: ${w.workTypes}`,
+          amount: parseFloat(w.workerAmount),
+          date: w.operationDate,
+          object: w.objectName,      // ✅ Используем имя, а не ID
+          objectId: w.objectId,      // ✅ Сохраняем ID для навигации
+          comment: w.comment,
+          expenseType: 'Работа'
+        }))
 
     operations.value = [...balanceOperations, ...incomes]
     additionalOperations.value = additionalOps
@@ -666,7 +671,7 @@ onMounted(() => {
 .operations-list {
   display: flex;
   flex-direction: column;
-  max-height: 400px;
+  max-height: 800px;
   overflow-y: auto;
 }
 
@@ -764,6 +769,42 @@ onMounted(() => {
     gap: 4px;
     font-size: var(--crm-text-xs);
     color: var(--crm-text-muted);
+  }
+}
+
+.operation-info__link {
+  color: var(--crm-accent);
+  text-decoration: none;
+  transition: var(--crm-transition);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  
+  &:hover {
+    color: var(--crm-accent-hover);
+    text-decoration: underline;
+    
+    .link-icon {
+      transform: translateX(2px);
+    }
+  }
+  
+  .link-icon {
+    opacity: 0.7;
+    transition: transform 0.2s ease;
+  }
+}
+
+.operation-info__object {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--crm-text-xs);
+  color: var(--crm-text-muted);
+  
+  // Если объект без ссылки — чуть приглушённый цвет
+  &:not(.operation-info__link) {
+    opacity: 0.9;
   }
 }
 

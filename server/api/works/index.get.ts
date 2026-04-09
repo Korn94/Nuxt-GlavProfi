@@ -1,10 +1,9 @@
 // server/api/works/index.get.ts
 import { defineEventHandler } from 'h3'
 import { db } from '../../db'
-import { works } from '../../db/schema'
+import { works, objects } from '../../db/schema' // ✅ Импортируем таблицу objects
 import { and, eq } from 'drizzle-orm'
 
-// server/api/works/index.get.ts
 export default defineEventHandler(async (event) => {
   const query = event.node.req?.url ? new URL(event.node.req.url, 'http://localhost') : null
   const contractorTypeParam = query?.searchParams.get('contractorType')
@@ -16,24 +15,52 @@ export default defineEventHandler(async (event) => {
     contractorTypeParam && 
     !allowedTypes.includes(contractorTypeParam as typeof allowedTypes[number])
   ) {
-    return [] // Возвращаем пустой массив для неподдерживаемых типов
+    return []
+  }
+
+  // ✅ Формируем запрос с выборкой нужных полей + JOIN с objects
+  const selectFields = {
+    id: works.id,
+    workerAmount: works.workerAmount,
+    comment: works.comment,
+    contractorId: works.contractorId,
+    contractorType: works.contractorType,
+    workTypes: works.workTypes,
+    foremanId: works.foremanId,
+    accepted: works.accepted,
+    acceptedDate: works.acceptedDate,
+    rejectedReason: works.rejectedReason,
+    paid: works.paid,
+    paymentDate: works.paymentDate,
+    operationDate: works.operationDate,
+    objectId: works.objectId,
+    objectName: objects.name, // ✅ Добавляем название объекта
+    createdAt: works.createdAt,
+    updatedAt: works.updatedAt,
   }
 
   let result = []
-  if (
-    contractorTypeParam &&
-    contractorIdParam
-  ) {
+  if (contractorTypeParam && contractorIdParam) {
     const contractorType = contractorTypeParam as 'master' | 'worker'
     const contractorId = parseInt(contractorIdParam)
-    result = await db.select().from(works).where(
-      and(
-        eq(works.contractorType, contractorType),
-        eq(works.contractorId, contractorId)
+    
+    result = await db
+      .select(selectFields)
+      .from(works)
+      .leftJoin(objects, eq(works.objectId, objects.id)) // ✅ JOIN с objects
+      .where(
+        and(
+          eq(works.contractorType, contractorType),
+          eq(works.contractorId, contractorId)
+        )
       )
-    )
   } else {
-    result = await db.select().from(works)
+    // Для случая без фильтров тоже добавляем JOIN
+    result = await db
+      .select(selectFields)
+      .from(works)
+      .leftJoin(objects, eq(works.objectId, objects.id))
   }
+  
   return result
 })

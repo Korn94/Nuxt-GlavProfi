@@ -30,13 +30,15 @@ export default defineEventHandler(async (event) => {
     return [] // foreman/office не имеют записей в works
   }
 
+    const contractorType = type as 'master' | 'worker'
+
   try {
     const list = await db
       .select()
       .from(works)
       .where(
         and(
-          eq(works.contractorType, type),
+          eq(works.contractorType, contractorType),
           eq(works.contractorId, id),
           eq(works.paid, true) // Только оплаченные работы
         )
