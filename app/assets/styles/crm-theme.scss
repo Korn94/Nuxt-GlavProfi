@@ -6,48 +6,100 @@
 // ============================================================
 
 .crm {
-  
+
   span {
     color: unset;
   }
 
-  // ── Фоны ────────────────────────────────────────────────
-  --crm-bg-base: #0d0f14; // самый тёмный — body/страница
-  --crm-bg-surface: #13161e; // карточки, сайдбар
-  --crm-bg-elevated: #1a1e28; // приподнятые элементы, дропдауны
-  --crm-bg-overlay: #222736; // ховеры, выделения
+  // ── ТЕМНАЯ ТЕМА (по умолчанию) ───────────────────────────
+  &--dark, &:not(.crm--light) {
+    // Фоны
+    --crm-bg-base: #0d0f14; // самый тёмный — body/страница
+    --crm-bg-surface: #13161e; // карточки, сайдбар
+    --crm-bg-elevated: #1a1e28; // приподнятые элементы, дропдауны
+    --crm-bg-overlay: #222736; // ховеры, выделения
 
-  // ── Границы ─────────────────────────────────────────────
-  --crm-border: rgba(255, 255, 255, 0.07); // стандартная граница
-  --crm-border-hover: rgba(255, 255, 255, 0.12); // при наведении
-  --crm-border-focus: rgba(0, 195, 245, 0.5); // фокус на инпутах
+    // Границы
+    --crm-border: rgba(255, 255, 255, 0.07); // стандартная граница
+    --crm-border-hover: rgba(255, 255, 255, 0.12); // при наведении
+    --crm-border-focus: rgba(0, 195, 245, 0.5); // фокус на инпутах
 
-  // ── Текст ───────────────────────────────────────────────
-  --crm-text-primary: #e2e4ec; // основной текст
-  --crm-text-secondary: #9aa0b8; // вторичный текст
-  --crm-text-muted: #7a7f96; // подсказки, метки
-  --crm-text-disabled: #4a4f63; // неактивные элементы
+    // Текст
+    --crm-text-primary: #e2e4ec; // основной текст
+    --crm-text-secondary: #9aa0b8; // вторичный текст
+    --crm-text-muted: #7a7f96; // подсказки, метки
+    --crm-text-disabled: #4a4f63; // неактивные элементы
 
-  // ── Акцент (основной — голубой) ─────────────────────────
-  --crm-accent: #00c3f5;
-  --crm-accent-hover: #00a8d3;
-  --crm-accent-dim: rgba(0, 195, 245, 0.15);
-  --crm-accent-border: rgba(0, 195, 245, 0.35);
+    // Акцент (основной — голубой)
+    --crm-accent: #00c3f5;
+    --crm-accent-hover: #00a8d3;
+    --crm-accent-dim: rgba(0, 195, 245, 0.15);
+    --crm-accent-border: rgba(0, 195, 245, 0.35);
 
-  // ── Статусные цвета ─────────────────────────────────────
-  --crm-success: #3dd68c;
-  --crm-success-dim: rgba(61, 214, 140, 0.15);
+    // Статусные цвета
+    --crm-success: #3dd68c;
+    --crm-success-dim: rgba(61, 214, 140, 0.15);
 
-  --crm-warning: #f5a623;
-  --crm-warning-dim: rgba(245, 166, 35, 0.15);
+    --crm-warning: #f5a623;
+    --crm-warning-dim: rgba(245, 166, 35, 0.15);
 
-  --crm-danger: #f25f5c;
-  --crm-danger-dim: rgba(242, 95, 92, 0.15);
+    --crm-danger: #f25f5c;
+    --crm-danger-dim: rgba(242, 95, 92, 0.15);
 
-  --crm-info: #5b8def;
-  --crm-info-dim: rgba(91, 141, 239, 0.15);
+    --crm-info: #5b8def;
+    --crm-info-dim: rgba(91, 141, 239, 0.15);
 
-  // ── Типографика ─────────────────────────────────────────
+    // Тени
+    --crm-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+    --crm-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+    --crm-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+  }
+
+  // ── СВЕТЛАЯ ТЕМА (вариант 2) ──────────────────────────────
+  &--light {
+    // Фоны
+    --crm-bg-base: #f5f7fa; // светлый фон страницы
+    --crm-bg-surface: #ffffff; // карточки, сайдбар
+    --crm-bg-elevated: #f8f9fc; // приподнятые элементы, дропдауны
+    --crm-bg-overlay: #eef1f6; // ховеры, выделения
+
+    // Границы
+    --crm-border: rgba(0, 0, 0, 0.08); // стандартная граница
+    --crm-border-hover: rgba(0, 0, 0, 0.15); // при наведении
+    --crm-border-focus: rgba(0, 123, 255, 0.5); // фокус на инпутах
+
+    // Текст
+    --crm-text-primary: #1a1a2e; // основной текст
+    --crm-text-secondary: #5a5f7a; // вторичный текст
+    --crm-text-muted: #8a8fa8; // подсказки, метки
+    --crm-text-disabled: #b0b5c8; // неактивные элементы
+
+    // Акцент (синий для светлой темы)
+    --crm-accent: #0066ff;
+    --crm-accent-hover: #0052cc;
+    --crm-accent-dim: rgba(0, 102, 255, 0.1);
+    --crm-accent-border: rgba(0, 102, 255, 0.3);
+
+    // Статусные цвета (адаптированы для светлой темы)
+    --crm-success: #28a745;
+    --crm-success-dim: rgba(40, 167, 69, 0.12);
+
+    --crm-warning: #ffc107;
+    --crm-warning-dim: rgba(255, 193, 7, 0.12);
+
+    --crm-danger: #dc3545;
+    --crm-danger-dim: rgba(220, 53, 69, 0.12);
+
+    --crm-info: #17a2b8;
+    --crm-info-dim: rgba(23, 162, 184, 0.12);
+
+    // Тени (более мягкие для светлой темы)
+    --crm-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+    --crm-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+    --crm-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+  }
+
+  // ── Типографика ─────────────────────────────────────────────────────
   --crm-font-sans: 'Rubik', sans-serif;
   --crm-font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
 
@@ -58,17 +110,12 @@
   --crm-text-lg: 16px;
   --crm-text-xl: 20px;
 
-  // ── Скругления ──────────────────────────────────────────
+  // ── Скругления ──────────────────────────────────────────────────────
   --crm-radius-sm: 4px;
   --crm-radius-md: 6px;
   --crm-radius-lg: 8px;
   --crm-radius-xl: 12px;
 
-  // ── Тени ────────────────────────────────────────────────
-  --crm-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-  --crm-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
-  --crm-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
-
-  // ── Переходы ────────────────────────────────────────────
+  // ── Переходы ────────────────────────────────────────────────────────
   --crm-transition: 0.2s ease;
 }

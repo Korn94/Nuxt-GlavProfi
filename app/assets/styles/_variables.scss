@@ -32,3 +32,31 @@ $color-light: #f8f9fa;
 $border-radius: 6px;
 $box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
 $transition: all 0.3s ease;
+
+:root {
+  // Colors
+  --color-primary: #{$blue};
+  --color-primary-light: #{$blue-light};
+  --color-accent: #{$yellow};
+  --color-success: #{$green};
+  --color-danger: #{$red};
+  
+  // Backgrounds
+  --bg-dark: #{$background-dark};
+  --bg-gray: #{$background-gray};
+  --bg-light: #{$background-light};
+  
+  // Text
+  --text-primary: #{$text-dark};
+  --text-secondary: #{$text-gray};
+  --text-light: #{$text-light};
+  
+  // UI
+  --border-radius: #{$border-radius};
+  --box-shadow: #{$box-shadow};
+  --transition: #{$transition};
+  
+  // Gradients
+  --gradient-blue: #{$blue-gradient};
+  --gradient-gray: #{$gray-gradient};
+}

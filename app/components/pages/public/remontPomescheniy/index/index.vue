@@ -2,25 +2,26 @@
 <template>
   <div class="commercial-repair">
     <div class="wrap">
-      <PagesPublicRemontPomescheniyIndexHero />
-      <PagesPublicRemontPomescheniyIndexStats />
+      <PagesPublicRemontPomescheniyIndexBlocksHero />
+      <PagesPublicRemontPomescheniyIndexBlocksPremisesGrid />
     </div>
-    <PagesPublicRemontPomescheniyIndexServices />
-    <PagesPublicRemontPomescheniyIndexGuarantees />
-    <PagesPublicRemontPomescheniyIndexTestimonials />
-    <PagesPublicRemontPomescheniyIndexCTA />
-    <PagesPublicRemontPomescheniyIndexPS />
+    <PagesPublicRemontPomescheniyIndexBlocksServicesList />
+    <PagesPublicRemontPomescheniyIndexBlocksProcessTimeline />
+    <PagesPublicRemontPomescheniyIndexBlocksCases />
+    <PagesPublicRemontPomescheniyIndexBlocksFaqAccordion />
+    <PagesPublicRemontPomescheniyIndexBlocksCTASection />
   </div>
 </template>
 
 <style lang="scss" scoped>
 .commercial-repair {
-  color: $text-light;
+  // color: $text-light;
   position: relative;
-  overflow: hidden;
+  // overflow: hidden;
 
   .wrap {
     background: $background-dark;
+    padding-top: 8em;
     
     &::before {
       content: '';

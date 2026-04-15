@@ -1,0 +1,66 @@
+// app/assets/styles/_mixins.scss (новый файл)
+
+@use 'variables' as *;
+
+// Адаптивные брейкпоинты
+@mixin respond-to($breakpoint) {
+  @if $breakpoint == sm {
+    @media (min-width: 640px) { @content; }
+  } @else if $breakpoint == md {
+    @media (min-width: 768px) { @content; }
+  } @else if $breakpoint == lg {
+    @media (min-width: 1024px) { @content; }
+  } @else if $breakpoint == xl {
+    @media (min-width: 1280px) { @content; }
+  }
+}
+
+// Контейнер с отступами
+@mixin container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-md);
+  
+  @include respond-to(md) {
+    padding: 0 var(--spacing-lg);
+  }
+}
+
+// Кнопка в стиле бренда
+@mixin btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 12px 24px;
+  background: var(--gradient-blue);
+  color: $text-dark;
+  font-weight: 600;
+  border-radius: var(--border-radius);
+  border: none;
+  cursor: pointer;
+  transition: var(--transition);
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 195, 245, 0.4);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+// Карточка с тенью и скруглением
+@mixin card {
+  background: var(--bg-light);
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+  padding: var(--spacing-lg);
+  transition: var(--transition);
+  
+  &:hover {
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+  }
+}

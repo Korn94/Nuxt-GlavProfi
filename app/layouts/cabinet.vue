@@ -1,6 +1,6 @@
 <!-- app/layouts/cabinet.vue -->
 <template>
-  <div class="crm">
+  <div class="crm" :class="`crm--${themeStore.mode}`">
     <LayoutCabinetHeader />
     <main>
       <NuxtPage v-slot="{ Component }">
@@ -19,16 +19,19 @@ import { useAuthStore } from '../../stores/auth'
 import { useSocketStore } from '../../stores/socket'
 import { useActivityTracker } from '~/composables/useActivityTracker'
 import { useUserStatusNotifications } from '~/composables/notifications/useUserStatus'
+import { useThemeStore } from 'stores/settings/theme'
 
 const authStore = useAuthStore()
 const socketStore = useSocketStore()
 const activityTracker = useActivityTracker()
+const themeStore = useThemeStore()
 
 // Инициализируем отслеживание статусов других пользователей
 const userStatusNotifications = useUserStatusNotifications()
 
 onMounted(() => {
   authStore.init()
+  themeStore.initTheme()
   // ✅ Добавляем класс на body — все Teleport-элементы получат CRM-токены
   document.body.classList.add('crm')
 })

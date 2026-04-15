@@ -17,15 +17,35 @@
       </li>
 
     </template>
+
+    <!-- Переключатель темы -->
+    <li class="nav-divider" />
+    <li class="nav-item">
+      <button class="nav-link nav-link--theme" @click="toggleTheme" title="Переключить тему">
+        <span class="nav-link__icon">
+          <Icon :name="isDark ? 'mdi:weather-sunny' : 'mdi:weather-night'" size="18" />
+        </span>
+        <span class="nav-link__label">{{ isDark ? 'Светлая тема' : 'Тёмная тема' }}</span>
+      </button>
+    </li>
+
   </ul>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useAuthStore } from 'stores/auth'
+import { useThemeStore } from 'stores/settings/theme'
 
 const emit = defineEmits<{ closeSidebar: [] }>()
 const authStore = useAuthStore()
+const themeStore = useThemeStore()
+
+const isDark = computed(() => themeStore.isDark)
+
+function toggleTheme() {
+  themeStore.toggleTheme()
+}
 
 const menuItems = [
   {
@@ -195,6 +215,19 @@ function handleClick() {
 
     &:hover {
       background: var(--crm-accent-dim);
+    }
+  }
+  // Кнопка переключения темы
+  &--theme {
+    width: 100%;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+
+    &:hover {
+      background: var(--crm-bg-elevated);
+      color: var(--crm-text-primary);
     }
   }
 }
