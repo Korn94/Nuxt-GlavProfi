@@ -227,7 +227,7 @@ header {
       a {
         text-decoration: none;
         font-family: "Comfortaa", sans-serif;
-        font-size: 16px;
+        font-size: 14px;
         font-weight: 900;
         color: $text-light;
         transition: color 0.3s;
@@ -349,11 +349,11 @@ header {
     justify-content: space-between;
     align-items: center;
     padding: 10px 20px;
-    height: 80px;
+    height: 60px;
   }
 
   .logo p {
-    font-size: 20px;
+    font-size: 16px;
     font-weight: 600;
     font-family: "Comfortaa", sans-serif;
     transition: 0.3s;
@@ -379,7 +379,7 @@ header {
     }
 
     .txt-phone {
-      font-size: 10px;
+      font-size: 9px;
     }
   }
 }

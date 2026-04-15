@@ -1,3 +1,4 @@
+<!-- app\pages\telegram\index.vue -->
 <template>
   <div v-if="loading" class="loading">
     <p>Авторизация через Telegram...</p>
@@ -18,46 +19,84 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { useAuthStore } from 'stores/auth';
 
 const loading = ref(true);
 const error = ref(null);
 const router = useRouter();
+const authStore = useAuthStore();
+
+// Функция для получения данных из URL хеша
+function parseInitDataFromHash() {
+  const hash = window.location.hash.substring(1);
+  if (!hash) return null;
+
+  const params = new URLSearchParams(hash);
+  const tgWebAppData = params.get('tgWebAppData');
+
+  if (!tgWebAppData) return null;
+
+  const dataParams = new URLSearchParams(tgWebAppData);
+  const userStr = dataParams.get('user');
+  const hashValue = dataParams.get('hash');
+
+  if (!userStr || !hashValue) return null;
+
+  try {
+    const decodedUser = decodeURIComponent(userStr);
+    const cleanUser = decodedUser.replace(/\\/g, '');
+    const user = JSON.parse(cleanUser);
+
+    // Собираем ТОЛЬКО поля, участвующие в хеше
+    const initData = {
+      id: String(user.id),
+      first_name: user.first_name || '',
+      username: user.username || '',
+      auth_date: String(dataParams.get('auth_date') || ''),
+      hash: hashValue
+    };
+
+    return initData;
+  } catch (e) {
+    console.error('Не удалось распарсить данные из хеша:', e);
+    return null;
+  }
+}
 
 onMounted(async () => {
   try {
-    // Проверяем наличие Telegram SDK
-    if (!window.Telegram) {
-      throw new Error('Telegram WebApp SDK недоступен');
-    }
+    // Ждем немного, чтобы плагин успел инициализироваться
+    await new Promise(resolve => setTimeout(resolve, 100));
 
-    // Получаем данные пользователя
-    const { initDataUnsafe } = window.Telegram;
-    
-    if (!initDataUnsafe || !initDataUnsafe.user) {
-      throw new Error('Данные пользователя не получены');
-    }
+    let initData = null;
 
-    // Отправляем запрос на авторизацию
-    const response = await fetch('/api/auth/telegram', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        telegramId: Number(initDataUnsafe.user.id),
+    // Сначала пробуем получить данные из window.Telegram
+    if (window.Telegram && window.Telegram.initDataUnsafe && window.Telegram.initDataUnsafe.user) {
+      const { initDataUnsafe } = window.Telegram;
+      // Отправляем ТОЛЬКО те поля, которые участвуют в формировании хеша
+      initData = {
+        id: String(initDataUnsafe.user.id),
+        first_name: initDataUnsafe.user.first_name || '',
+        username: initDataUnsafe.user.username || '',
+        auth_date: String(initDataUnsafe.auth_date),
         hash: initDataUnsafe.hash
-      })
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.statusMessage || 'Ошибка авторизации');
+      };
     }
 
-    // Сохраняем токен и перенаправляем
-    const { token } = await response.json();
-    useCookie('token').value = token;
-    
-    router.push('/cabinet');
+    // Если не получилось, пробуем распарсить из хеша
+    if (!initData || !initData.hash) {
+      initData = parseInitDataFromHash();
+    }
+
+    if (!initData || !initData.hash || !initData.id) {
+      throw new Error('Данные пользователя не получены. Убедитесь, что вы открыли приложение через Telegram бота.');
+    }
+
+    // Используем store для авторизации
+    await authStore.login({ telegramData: initData });
+
   } catch (err) {
+    console.error('Ошибка авторизации:', err);
     error.value = err.message;
   } finally {
     loading.value = false;

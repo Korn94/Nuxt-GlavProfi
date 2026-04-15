@@ -121,7 +121,7 @@ onMounted(() => {
 
   &.fixed {
     position: fixed;
-    top: 80px; // Высота хедера
+    top: 60px; // Высота хедера
     left: 0;
     right: 0;
     // border-top: 1px solid #555555;

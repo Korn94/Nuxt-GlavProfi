@@ -436,7 +436,7 @@ export const salaryDeductions = mysqlTable('salary_deductions', {
 });
 
 // Прайс лист
-// 1. Страницы (Пол, Стены, Потолок)
+// 1. Страницы (Отделка, Сантехника, Электромонтаж)
 export const pricePages = mysqlTable('price_pages', {
   id: serial('id').primaryKey(),
   title: varchar('title', { length: 255 }).notNull(), // "Пол", "Стены"
