@@ -1,3 +1,4 @@
+<!-- app\pages\cabinet\foreman.vue -->
 <template>
   <div>
     <h1>Панель прораба</h1>

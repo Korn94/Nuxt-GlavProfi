@@ -374,6 +374,7 @@ export const masters = mysqlTable('masters', {
   balance: decimal('balance', { precision: 10, scale: 2 }).default('0.00').notNull(),
   userId: bigint('user_id', { mode: 'number', unsigned: true })
     .references(() => users.id, { onDelete: 'set null' }), // Опциональная связь
+  dailyRate: decimal('daily_rate', { precision: 10, scale: 2 }).default('0.00').notNull(),
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: datetime('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull().$type<Date>()
 })
@@ -387,6 +388,7 @@ export const workers = mysqlTable('workers', {
   balance: decimal('balance', { precision: 10, scale: 2 }).default('0.00').notNull(),
   userId: bigint('user_id', { mode: 'number', unsigned: true })
     .references(() => users.id, { onDelete: 'set null' }), // Опциональная связь
+  dailyRate: decimal('daily_rate', { precision: 10, scale: 2 }).default('0.00').notNull(),
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: datetime('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull().$type<Date>()
 })
@@ -558,6 +560,10 @@ export const portfoCaseWorks = mysqlTable('portfolio_case_works', {
   id: serial('id').primaryKey(),
   caseId: bigint('case_id', { mode: 'number', unsigned: true }).notNull().references(() => portfolioCases.id),
   workType: varchar('work_type', { length: 100 }).notNull(),
+  workSource: varchar('work_source', { 
+    length: 20, 
+    enum: ['daily', 'volume'] 
+  }).default('volume').notNull(),
   value: varchar('value', { length: 100 }).notNull(),
   order: int('order').default(0)
 }, (table) => ({

@@ -37,30 +37,31 @@ function parseInitDataFromHash() {
   if (!tgWebAppData) return null;
 
   const dataParams = new URLSearchParams(tgWebAppData);
+
+  // Получаем ВСЕ поля, которые участвуют в формировании хеша
+  const queryId = dataParams.get('query_id');
   const userStr = dataParams.get('user');
   const hashValue = dataParams.get('hash');
+  const authDate = dataParams.get('auth_date');
 
-  if (!userStr || !hashValue) return null;
+  if (!hashValue || !authDate) return null;
 
-  try {
-    const decodedUser = decodeURIComponent(userStr);
-    const cleanUser = decodedUser.replace(/\\/g, '');
-    const user = JSON.parse(cleanUser);
+  // Собираем объект с оригинальными данными от Telegram
+  const initData = {};
 
-    // Собираем ТОЛЬКО поля, участвующие в хеше
-    const initData = {
-      id: String(user.id),
-      first_name: user.first_name || '',
-      username: user.username || '',
-      auth_date: String(dataParams.get('auth_date') || ''),
-      hash: hashValue
-    };
+  if (queryId) initData.query_id = queryId;
+  if (userStr) initData.user = userStr;
+  if (authDate) initData.auth_date = authDate;
+  initData.hash = hashValue;
 
-    return initData;
-  } catch (e) {
-    console.error('Не удалось распарсить данные из хеша:', e);
-    return null;
-  }
+  // Добавляем остальные поля если они есть
+  const extraFields = ['start_param', 'chat_type', 'chat_instance'];
+  extraFields.forEach(field => {
+    const value = dataParams.get(field);
+    if (value) initData[field] = value;
+  });
+
+  return initData;
 }
 
 onMounted(async () => {
@@ -73,14 +74,24 @@ onMounted(async () => {
     // Сначала пробуем получить данные из window.Telegram
     if (window.Telegram && window.Telegram.initDataUnsafe && window.Telegram.initDataUnsafe.user) {
       const { initDataUnsafe } = window.Telegram;
-      // Отправляем ТОЛЬКО те поля, которые участвуют в формировании хеша
-      initData = {
-        id: String(initDataUnsafe.user.id),
-        first_name: initDataUnsafe.user.first_name || '',
-        username: initDataUnsafe.user.username || '',
-        auth_date: String(initDataUnsafe.auth_date),
-        hash: initDataUnsafe.hash
-      };
+
+      // Собираем ВСЕ поля из initDataUnsafe, которые участвуют в хеше
+      initData = {};
+
+      if (initDataUnsafe.query_id) initData.query_id = initDataUnsafe.query_id;
+      if (initDataUnsafe.user) {
+        // Важно: отправляем user как JSON строку, а не объект
+        initData.user = typeof initDataUnsafe.user === 'string'
+          ? initDataUnsafe.user
+          : JSON.stringify(initDataUnsafe.user);
+      }
+      if (initDataUnsafe.auth_date) initData.auth_date = String(initDataUnsafe.auth_date);
+      if (initDataUnsafe.hash) initData.hash = initDataUnsafe.hash;
+      if (initDataUnsafe.start_param) initData.start_param = initDataUnsafe.start_param;
+      if (initDataUnsafe.chat_type) initData.chat_type = initDataUnsafe.chat_type;
+      if (initDataUnsafe.chat_instance) initData.chat_instance = initDataUnsafe.chat_instance;
+
+      console.log('📦 Данные из window.Telegram:', initData);
     }
 
     // Если не получилось, пробуем распарсить из хеша
@@ -88,9 +99,11 @@ onMounted(async () => {
       initData = parseInitDataFromHash();
     }
 
-    if (!initData || !initData.hash || !initData.id) {
+    if (!initData || !initData.hash) {
       throw new Error('Данные пользователя не получены. Убедитесь, что вы открыли приложение через Telegram бота.');
     }
+
+    console.log('📤 Отправляем на сервер:', initData);
 
     // Используем store для авторизации
     await authStore.login({ telegramData: initData });

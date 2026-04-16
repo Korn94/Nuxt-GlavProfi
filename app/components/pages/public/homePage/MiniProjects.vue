@@ -56,6 +56,7 @@ const fetchData = async () => {
 
 // Выборка нужных кейсов по slug
 const featuredCards = computed(() => {
+  // const slugs = ['ddx', 'fora-bank', 'klinika-alma', 'zerno']
   const slugs = ['ddx', 'fora-bank']
   return allCards.value.filter(card => slugs.includes(card.slug))
 })
