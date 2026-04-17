@@ -353,6 +353,10 @@ export const works = mysqlTable('works', {
       'Демонтаж', 'Мусор', 'Разнорабочий', 'Смежники', 'Прочее'
     ]
   }).default('Прочее'),
+  workSource: varchar('work_source', { 
+    length: 20, 
+    enum: ['daily', 'volume'] 
+  }).default('volume').notNull(),
   foremanId: int('foreman_id'),                                                                 // Ссылка на прораба
   accepted: boolean('accepted').default(false),                                                 // Принята ли работа заказчиком
   acceptedDate: datetime('accepted_date'),                                                     // Дата принятия
@@ -560,10 +564,6 @@ export const portfoCaseWorks = mysqlTable('portfolio_case_works', {
   id: serial('id').primaryKey(),
   caseId: bigint('case_id', { mode: 'number', unsigned: true }).notNull().references(() => portfolioCases.id),
   workType: varchar('work_type', { length: 100 }).notNull(),
-  workSource: varchar('work_source', { 
-    length: 20, 
-    enum: ['daily', 'volume'] 
-  }).default('volume').notNull(),
   value: varchar('value', { length: 100 }).notNull(),
   order: int('order').default(0)
 }, (table) => ({

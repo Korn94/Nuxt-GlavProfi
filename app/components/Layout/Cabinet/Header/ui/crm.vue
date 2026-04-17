@@ -61,6 +61,12 @@ const menuItems = [
     roles: ['admin']
   },
   {
+    title: 'График работ',
+    path: '/cabinet/daily-work',
+    icon: 'mdi:calendar-today-outline',
+    roles: ['admin']
+  },
+  {
     title: 'Объекты',
     path: '/cabinet/objects',
     icon: 'mdi:office-building-outline',
