@@ -1,80 +1,148 @@
 <!-- app\components\pages\cabinet\DailyWork\ui\PercentInput.vue -->
- <template>
-  <div class="percent-input">
-    <!-- Основной ввод -->
-    <div class="percent-input__controls">
-      <button type="button" class="percent-input__btn" @click="adjust(-1)" aria-label="Уменьшить">
+<template>
+  <div 
+    class="percent-input" 
+    :class="{ 
+      'percent-input--focused': isFocused,
+      'percent-input--single': isSingleObject,
+      'percent-input--hidden': isSingleObject && hideWhenSingle 
+    }"
+  >
+    
+    <!-- Заголовок поля -->
+    <label class="percent-input__label">
+      <span>Доля</span>
+      <span v-if="secondaryValue !== undefined && !isSingleObject" class="percent-input__label-sub">
+        ≈ {{ formatCurrency(secondaryValue) }}
+      </span>
+    </label>
+
+    <!-- Контролы: кнопки + инпут -->
+    <div class="percent-input__control-group" v-if="!isSingleObject || !hideWhenSingle">
+      
+      <!-- Кнопка "−" -->
+      <button
+        type="button"
+        class="percent-input__btn percent-input__btn--dec"
+        @click="handleDecrement"
+        :disabled="clampedValue <= min"
+        aria-label="Уменьшить"
+      >
         −
       </button>
-      
-      <input
-        type="number"
-        inputmode="decimal"
-        :value="displayValue"
-        @input="handleInput"
-        @blur="handleBlur"
-        @keydown.enter.prevent="handleBlur"
-        class="percent-input__field"
-        aria-label="Введите значение"
-      />
-      
-      <button type="button" class="percent-input__btn" @click="adjust(1)" aria-label="Увеличить">
+
+      <!-- Поле ввода -->
+      <div class="percent-input__field-wrapper">
+        <input
+          ref="inputRef"
+          type="number"
+          inputmode="decimal"
+          :value="displayValue"
+          @input="handleInput"
+          @blur="handleBlur"
+          @focus="onFocus"
+          @keydown.enter.prevent="handleBlur"
+          @keydown.arrow-up.prevent="handleIncrement"
+          @keydown.arrow-down.prevent="handleDecrement"
+          class="percent-input__field"
+          aria-label="Процент распределения"
+        />
+        <span class="percent-input__suffix">%</span>
+      </div>
+
+      <!-- Кнопка "+" -->
+      <button
+        type="button"
+        class="percent-input__btn percent-input__btn--inc"
+        @click="handleIncrement"
+        :disabled="clampedValue >= max"
+        aria-label="Увеличить"
+      >
         +
       </button>
+
     </div>
 
-    <!-- Вторичное значение и единица измерения -->
-    <div class="percent-input__meta">
-      <span class="percent-input__unit">
-        {{ mode === 'percent' ? '%' : '₽' }}
-      </span>
-      <span class="percent-input__secondary">
-        {{ mode === 'percent' ? formatCurrency(secondaryValue) : `${secondaryValue}%` }}
+    <!-- Режим одного объекта: показываем только значение -->
+    <div v-else class="percent-input__single-value">
+      <span class="percent-input__value">{{ displayValue }}%</span>
+      <span v-if="secondaryValue !== undefined" class="percent-input__value-sub">
+        {{ formatCurrency(secondaryValue) }}
       </span>
     </div>
+
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import { useDailyAssignment } from '~/composables/daily-work/useDailyAssignment'
 
 const props = withDefaults(defineProps<{
   value: number
-  mode: 'percent' | 'amount'
   min?: number
   max?: number
   step?: number
-  secondaryValue: number
+  secondaryValue?: number
+  isSingleObject?: boolean
+  hideWhenSingle?: boolean
 }>(), {
   min: 0,
   max: 100,
-  step: undefined
+  step: 10,
+  secondaryValue: undefined,
+  isSingleObject: false,
+  hideWhenSingle: true
 })
 
 const emit = defineEmits<{
   'update:value': [value: number]
 }>()
 
-const { formatCurrency, roundTo50 } = useDailyAssignment()
+const { formatCurrency } = useDailyAssignment()
+const inputRef = ref<HTMLInputElement | null>(null)
+const isFocused = ref(false)
 
-const effectiveStep = computed(() => 
-  props.step ?? (props.mode === 'percent' ? 10 : 50)
+// ✅ Защита от двойного срабатывания (throttle)
+let lastClickTime = 0
+const CLICK_THROTTLE_MS = 150 // мин. интервал между кликами
+
+const clampedValue = computed(() => 
+  Math.max(props.min, Math.min(props.max, props.value))
 )
 
-// Показываем целое число для % и без дробей для ₽
 const displayValue = computed(() => 
-  props.mode === 'percent' ? Math.round(props.value) : props.value
+  Math.round(clampedValue.value)
 )
 
-function adjust(direction: number): void {
-  let next = props.value + direction * effectiveStep.value
-  next = clamp(next)
-  if (props.mode === 'amount') next = roundTo50(next)
-  emit('update:value', next)
+function emitValue(val: number) {
+  const clamped = Math.max(props.min, Math.min(props.max, Math.round(val)))
+  emit('update:value', clamped)
 }
 
-function handleInput(e: Event): void {
+/** Проверка: не слишком ли быстро идёт клик */
+function canProcessClick(): boolean {
+  const now = Date.now()
+  if (now - lastClickTime < CLICK_THROTTLE_MS) {
+    return false
+  }
+  lastClickTime = now
+  return true
+}
+
+function handleIncrement() {
+  if (!canProcessClick()) return
+  emitValue(clampedValue.value + props.step)
+  focusInputWithoutSelect()
+}
+
+function handleDecrement() {
+  if (!canProcessClick()) return
+  emitValue(clampedValue.value - props.step)
+  focusInputWithoutSelect()
+}
+
+function handleInput(e: Event) {
   const val = (e.target as HTMLInputElement).value
   const num = parseFloat(val)
   if (!isNaN(num)) {
@@ -82,19 +150,27 @@ function handleInput(e: Event): void {
   }
 }
 
-function handleBlur(): void {
-  let val = clamp(props.value)
-  // При работе с рублями всегда округляем до 50
-  if (props.mode === 'amount') val = roundTo50(val)
-  // При процентах округляем до целого
-  else val = Math.round(val)
-  
-  emit('update:value', val)
+function handleBlur() {
+  isFocused.value = false
+  emitValue(clampedValue.value)
 }
 
-function clamp(v: number): number {
-  return Math.max(props.min, Math.min(props.max, v))
+function onFocus() {
+  isFocused.value = true
 }
+
+async function focusInputWithoutSelect() {
+  await nextTick()
+  if (inputRef.value) {
+    inputRef.value.focus()
+    const len = inputRef.value.value.length
+    inputRef.value.setSelectionRange(len, len)
+  }
+}
+
+const ariaValueText = computed(() => 
+  `${displayValue.value} процентов${props.secondaryValue ? `, ${formatCurrency(props.secondaryValue)}` : ''}`
+)
 </script>
 
 <style lang="scss" scoped>
@@ -103,86 +179,133 @@ function clamp(v: number): number {
   flex-direction: column;
   gap: 6px;
   width: 100%;
-  max-width: 200px; // Ограничиваем ширину для удобства чтения
+  max-width: 200px;
+  transition: opacity 0.15s ease;
 
-  &__controls {
-    display: flex;
-    align-items: center;
+  &--hidden {
+    opacity: 0; pointer-events: none; height: 0; margin: 0; padding: 0; overflow: hidden;
+  }
+
+  &__label {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: var(--crm-text-xs); font-weight: 600; color: var(--crm-text-muted);
+    text-transform: uppercase; letter-spacing: 0.04em; line-height: 1;
+  }
+
+  &__label-sub {
+    font-weight: 400; color: var(--crm-text-secondary);
+    font-family: var(--crm-font-mono); letter-spacing: 0; text-transform: none;
+  }
+
+  &__control-group {
+    display: flex; align-items: stretch;
     background: var(--crm-bg-elevated);
-    border: 1px solid var(--crm-border);
-    border-radius: var(--crm-radius-md);
+    border: 2px solid var(--crm-border);
+    border-radius: var(--crm-radius-lg);
     overflow: hidden;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+    .percent-input--focused & {
+      border-color: var(--crm-accent);
+      box-shadow: 0 0 0 3px var(--crm-accent-dim);
+    }
   }
 
   &__btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 40px;
+    display: flex; align-items: center; justify-content: center;
+    width: 40px;
     background: transparent;
     border: none;
     color: var(--crm-text-primary);
-    font-size: 18px;
-    font-weight: 600;
+    font-size: 20px;
+    font-weight: 700;
     cursor: pointer;
-    transition: var(--crm-transition);
+    user-select: none;
+    -webkit-user-select: none;
     -webkit-tap-highlight-color: transparent;
+    
+    // ✅ Быстрый отклик на тач без дублирования событий
+    touch-action: manipulation;
 
-    &:hover {
+    &:hover:not(:disabled) {
       background: var(--crm-bg-overlay);
     }
 
-    &:active {
+    &:active:not(:disabled) {
       background: var(--crm-accent-dim);
       color: var(--crm-accent);
+      // ✅ Визуальный фидбек вместо мгновенного изменения значения
+      transform: scale(0.95);
+      transition: transform 0.1s ease;
     }
+
+    &:disabled {
+      opacity: 0.3; cursor: not-allowed;
+    }
+
+    &--dec { border-right: 1px solid var(--crm-border); }
+    &--inc { border-left: 1px solid var(--crm-border); }
+  }
+
+  &__field-wrapper {
+    position: relative; flex: 1; display: flex; align-items: center;
   }
 
   &__field {
-    flex: 1;
+    width: 100%;
     background: transparent;
     border: none;
     color: var(--crm-text-primary);
-    font-size: var(--crm-text-md);
-    font-weight: 600;
+    font-size: var(--crm-text-lg);
+    font-weight: 700;
     text-align: center;
-    padding: 8px 4px;
+    padding: 10px 28px 10px 10px;
     outline: none;
     font-family: var(--crm-font-sans);
     
-    // Убираем стандартные стрелки инпута number
+    // ❗ Убираем нативные стрелки
     &::-webkit-outer-spin-button,
     &::-webkit-inner-spin-button {
       -webkit-appearance: none;
+      appearance: none;
       margin: 0;
     }
-    // -moz-appearance: textfield;
+    -moz-appearance: textfield;
+    appearance: textfield;
 
-    &:focus {
+    &::selection {
       background: var(--crm-accent-dim);
-      color: var(--crm-accent);
     }
   }
 
-  &__meta {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0 4px;
-  }
-
-  &__unit {
-    font-size: var(--crm-text-xs);
+  &__suffix {
+    position: absolute; right: 10px; top: 50%;
+    transform: translateY(-50%);
+    font-size: var(--crm-text-sm); font-weight: 600;
     color: var(--crm-text-muted);
-    font-weight: 500;
+    pointer-events: none; user-select: none;
   }
 
-  &__secondary {
-    font-size: var(--crm-text-sm);
-    color: var(--crm-text-secondary);
-    font-family: var(--crm-font-mono);
-    letter-spacing: 0.02em;
+  &__single-value {
+    display: flex; flex-direction: column; align-items: center; padding: 8px 0;
   }
+
+  &__value {
+    font-size: var(--crm-text-xl); font-weight: 700;
+    color: var(--crm-text-primary); line-height: 1;
+  }
+
+  &__value-sub {
+    font-size: var(--crm-text-xs); color: var(--crm-text-secondary);
+    font-family: var(--crm-font-mono); margin-top: 4px;
+  }
+
+  &--focused {
+    .percent-input__label { color: var(--crm-accent); }
+  }
+}
+
+:deep([data-theme="dark"]) {
+  .percent-input__control-group { background: var(--crm-bg-surface); }
 }
 </style>

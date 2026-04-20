@@ -24,6 +24,7 @@ export default defineEventHandler(async (event) => {
       contractorId: body.contractorId,
       contractorType: body.contractorType,
       workTypes: body.workTypes || 'Прочее',
+      workSource: body.workSource || 'volume',
       foremanId: body.foremanId || null,
       accepted: false,
       rejectedReason: null,

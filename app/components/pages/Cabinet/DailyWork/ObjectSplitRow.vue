@@ -12,8 +12,8 @@
       <!-- Передаем значение, режим и рассчитанное вторичное значение -->
       <PercentInput
         :value="currentValue"
-        :mode="mode"
         :secondary-value="secondaryValue"
+        :is-single-object="isSingleObject"
         @update:value="$emit('update:value', $event)"
       />
       
@@ -24,7 +24,7 @@
         aria-label="Удалить объект"
         @click="$emit('remove')"
       >
-        <i class="material-symbols-light">close</i>
+        <i class="material-symbols-light">x</i>
       </button>
     </div>
   </div>
@@ -38,11 +38,12 @@ const props = withDefaults(defineProps<{
   objectId: number
   objectName: string
   value: number         // Текущее значение (зависит от mode)
-  mode: 'percent' | 'amount'
   dailyRate: number
   isRemovable?: boolean
+  isSingleObject?: boolean
 }>(), {
-  isRemovable: true
+  isRemovable: true,
+  isSingleObject: false
 })
 
 const emit = defineEmits<{
@@ -52,12 +53,12 @@ const emit = defineEmits<{
 
 // ── Логика ────────────────────────────────────────────────────────
 
-const HUES = [195, 150, 45, 280, 110, 240, 25, 170] as const
+const HUES = [340, 25, 55, 140, 190, 275, 310, 225] as const
 
 // Цвет объекта на основе ID
 const dotStyle = computed(() => {
   const hue = HUES[props.objectId % HUES.length] ?? HUES[0]
-  return { backgroundColor: `hsl(${hue}, 65%, 55%)` }
+  return { backgroundColor: `hsl(${hue}, 92%, 58%)` }
 })
 
 // Текущее значение, которое редактируется
@@ -66,13 +67,7 @@ const currentValue = computed(() => props.value)
 // Вторичное значение для отображения в PercentInput
 // Если режим %, показываем сумму. Если режим ₽, показываем %.
 const secondaryValue = computed(() => {
-  if (props.mode === 'percent') {
-    // Процент -> Сумма
-    return (props.dailyRate * props.value) / 100
-  } else {
-    // Сумма -> Процент
-    return (props.value / props.dailyRate) * 100
-  }
+  return (props.dailyRate * props.value) / 100
 })
 </script>
 

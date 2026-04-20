@@ -1,6 +1,6 @@
 // app/composables/daily-work/useBulkSelection.ts
 
-import { computed } from "vue"
+import { computed, onUnmounted } from "vue" // 👈 Добавили onUnmounted
 
 export interface BulkSelectionState {
   isActive: boolean
@@ -25,7 +25,6 @@ export function generateDateRange(start: string, end: string): string[] {
   const endDate = new Date(end)
 
   while (currentDate <= endDate) {
-    // toISOString всегда содержит 'T', поэтому [0]! безопасен
     const dateStr = currentDate.toISOString().split('T')[0]!
     dates.push(dateStr)
     currentDate.setDate(currentDate.getDate() + 1)
@@ -70,7 +69,6 @@ export function useBulkSelection(options: UseBulkSelectionOptions = {}) {
     state.endDate = date
 
     const sorted = [state.startDate, date].sort()
-    // sort() гарантирует 2 элемента, поэтому [0]! и [1]! безопасны
     const start = sorted[0]!
     const end = sorted[1]!
 
@@ -106,14 +104,16 @@ export function useBulkSelection(options: UseBulkSelectionOptions = {}) {
   function bindCell(date: string) {
     return {
       touchstart: (e: TouchEvent) => {
-        e.preventDefault() // ✅ Блокируем скролл при касании
+        // 🔹 Важно: preventDefault() здесь блокирует скролл при начале касания
+        e.preventDefault()
         state.isDragging = false
         startSelection(date)
       },
       touchmove: (e: TouchEvent) => {
         if (!state.isActive) return
+        // 🔹 Блокируем скролл во время движения пальца
         e.preventDefault()
-        state.isDragging = true // ✅ Помечаем как перетаскивание
+        state.isDragging = true
         const touch = e.touches[0]
         if (!touch) return
         const target = document.elementFromPoint(touch.clientX, touch.clientY)
@@ -126,23 +126,55 @@ export function useBulkSelection(options: UseBulkSelectionOptions = {}) {
       },
       mouseenter: () => {
         if (state.isActive) {
-          state.isDragging = true // ✅ Для ПК тоже помечаем
+          state.isDragging = true
           extendSelection(date)
         }
       }
     }
   }
 
-  if (typeof window !== 'undefined') {
-    window.addEventListener('touchend', () => {
-      if (state.isActive) endSelection()
-    }, { passive: true })
-
-    window.addEventListener('mouseup', () => {
-      if (state.isActive) endSelection()
-    })
+  // ── ✅ Глобальные обработчики для надёжной блокировки скролла ───
+  const onWindowEnd = () => {
+    if (state.isActive) endSelection()
   }
 
+  // 🔹 Глобальный touchmove с { passive: false } — КРИТИЧНО для preventDefault()
+  const onGlobalTouchMove = (e: TouchEvent) => {
+    if (state.isDragging) {
+      e.preventDefault()
+    }
+  }
+
+  if (typeof window !== 'undefined') {
+    // 🔹 { passive: false } разрешает preventDefault() работать
+    window.addEventListener('touchend', onWindowEnd, { passive: true })
+    window.addEventListener('mouseup', onWindowEnd)
+    window.addEventListener('touchmove', onGlobalTouchMove, { passive: false })
+  }
+
+  // 🔹 Очистка слушателей при размонтировании (если вызвано из Vue-компонента)
+  if (typeof window !== 'undefined' && typeof onUnmounted === 'function') {
+    try {
+      onUnmounted(() => {
+        window.removeEventListener('touchend', onWindowEnd)
+        window.removeEventListener('mouseup', onWindowEnd)
+        window.removeEventListener('touchmove', onGlobalTouchMove)
+      })
+    } catch (e) {
+      // Игнорируем, если вызвано не из setup
+    }
+  }
+
+  // 🔹 Ручная cleanup-функция на всякий случай
+  const cleanup = () => {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('touchend', onWindowEnd)
+      window.removeEventListener('mouseup', onWindowEnd)
+      window.removeEventListener('touchmove', onGlobalTouchMove)
+    }
+  }
+
+  // ── ✅ Возврат интерфейса ────────────────────────────────────────
   return {
     state,
     isDragging: computed(() => state.isDragging),
@@ -152,6 +184,7 @@ export function useBulkSelection(options: UseBulkSelectionOptions = {}) {
     cancelSelection,
     bindCell,
     generateDateRange,
-    isDateInRange
+    isDateInRange,
+    cleanup
   }
 }

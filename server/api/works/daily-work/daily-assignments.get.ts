@@ -5,7 +5,7 @@ import { works, objects } from '../../../db/schema'
 import { and, eq, gte, lte } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
-  console.log('[API] Загрузка назначений подневки...')
+  // console.log('[API] Загрузка назначений подневки...')
   const query = getQuery(event)
 
   const workerId = Number(query.workerId)
@@ -45,7 +45,7 @@ export default defineEventHandler(async (event) => {
       )
       .orderBy(works.operationDate)
 
-    console.log(`[API] Найдено ${result.length} записей подневки`)
+    // console.log(`[API] Найдено ${result.length} записей подневки`)
 
     return result.map(r => ({
       id: r.id,

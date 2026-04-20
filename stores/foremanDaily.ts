@@ -49,6 +49,7 @@ export const useForemanDailyStore = defineStore('foremanDaily', () => {
 
   // ── Действия ───────────────────────────────────────────────────────────
   async function fetchWorkers() {
+    error.value = null // 🔹 Сбрасываем ошибку перед новой попыткой
     console.log('[Store:foremanDaily] Загрузка списка рабочих/мастеров с подневкой...')
     try {
       const data = await $fetch<DailyWorker[]>('/api/works/daily-work/workers-with-daily-rate')
@@ -64,6 +65,7 @@ export const useForemanDailyStore = defineStore('foremanDaily', () => {
   }
 
   async function fetchActiveObjects() {
+    error.value = null // 🔹 Сбрасываем ошибку перед новой попыткой
     console.log('[Store:foremanDaily] Загрузка активных объектов...')
     try {
       const data = await $fetch<ActiveObject[]>('/api/works/daily-work/active-objects')
@@ -75,28 +77,28 @@ export const useForemanDailyStore = defineStore('foremanDaily', () => {
     }
   }
 
-  async function fetchAssignments(workerId: number, from: string, to: string) {
-    console.log(`[Store:foremanDaily] Загрузка назначений для рабочего ${workerId} с ${from} по ${to}`)
-    loading.value = true
+  async function fetchAssignments(workerId: number, contractorType: 'worker' | 'master', from: string, to: string) {
+    console.log(`[Store:foremanDaily] Загрузка назначений для ${contractorType} #${workerId} с ${from} по ${to}`)
+    
+    // ❗ Убрали loading.value = true, чтобы не перекрывать UI спиннером при параллельных запросах
     try {
       const data = await $fetch<DailyAssignment[]>(
-        `/api/works/daily-work/daily-assignments?workerId=${workerId}&from=${from}&to=${to}`
+        `/api/works/daily-work/daily-assignments?workerId=${workerId}&contractorType=${contractorType}&from=${from}&to=${to}`
       )
-
+      
       const grouped = new Map<string, DailyAssignment[]>()
       data.forEach(assignment => {
-        const key = `${workerId}_${assignment.date}`
+        const key = `${assignment.workerId}_${assignment.date}`
         if (!grouped.has(key)) grouped.set(key, [])
         grouped.get(key)!.push(assignment)
       })
-
+      
+      // Мерджим новые данные в общий кэш
       grouped.forEach((vals, key) => assignments.value.set(key, vals))
       console.log(`[Store:foremanDaily] Кэшировано ${grouped.size} дней назначений`)
     } catch (e: any) {
       console.error('[Store:foremanDaily] Ошибка загрузки назначений:', e)
       error.value = e.message || 'Не удалось загрузить историю'
-    } finally {
-      loading.value = false
     }
   }
 
@@ -166,42 +168,49 @@ export const useForemanDailyStore = defineStore('foremanDaily', () => {
   async function applyBulk(payload: BulkAssignmentPayload) {
     console.log(`[Store:foremanDaily] Массовое применение на ${payload.dates.length} дней`)
     loading.value = true
+    
     try {
-      const results = await Promise.all(
-        payload.dates.map(async date => {
-          const promises = payload.assignments.map(obj => 
-            $fetch<{ id: number }>('/api/works', {
-              method: 'POST',
-              body: {
-                contractorId: payload.workerId,
-                contractorType: payload.contractorType,
-                objectId: obj.objectId,
-                workerAmount: obj.amount.toString(),
-                operationDate: date,
-                workSource: 'daily'
-              }
-            })
-          )
-          return Promise.all(promises)
-        })
+      // 🚀 Один запрос на весь пакет
+      const response = await $fetch<{ success: boolean; count: number; ids: number[] }>(
+        '/api/works/daily-work/bulk',
+        {
+          method: 'POST',
+          body: {
+            workerId: payload.workerId,
+            contractorType: payload.contractorType,
+            assignments: payload.assignments.map(a => ({
+              objectId: a.objectId,
+              amount: a.amount.toString()
+            })),
+            dates: payload.dates
+          }
+        }
       )
 
+      // 🔄 Обновляем кеш стора с новыми записями
       payload.dates.forEach((date, dateIdx) => {
         const key = `${payload.workerId}_${date}`
-        const dayResults = results[dateIdx]!
         
-        const newAssignments = payload.assignments.map((obj, objIdx) => ({
-          ...obj,
-          workerId: payload.workerId,
-          contractorType: payload.contractorType,
-          date,
-          id: dayResults[objIdx]!.id,
-          workSource: 'daily' as const
-        }))
+        const newAssignments = payload.assignments.map((obj, objIdx) => {
+          // Вычисляем индекс ID в плоском массиве: даты × объекты
+          const flatIndex = dateIdx * payload.assignments.length + objIdx
+          const newId = response.ids[flatIndex]
+          
+          return {
+            ...obj,
+            workerId: payload.workerId,
+            contractorType: payload.contractorType,
+            date,
+            id: newId,
+            workSource: 'daily' as const
+          }
+        })
+        
         assignments.value.set(key, newAssignments)
       })
 
-      console.log('[Store:foremanDaily] Массовое применение завершено')
+      console.log(`[Store:foremanDaily] Массовое применение завершено: ${response.count} записей`)
+      
     } catch (e: any) {
       console.error('[Store:foremanDaily] Ошибка массового применения:', e)
       throw e

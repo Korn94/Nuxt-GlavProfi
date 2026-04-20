@@ -1,10 +1,18 @@
+<!-- app\components\pages\cabinet\DailyWork\DailyAssignmentSheet.vue -->
 <template>
   <Transition name="sheet">
     <div v-if="modelValue" class="sheet-backdrop" @click.self="$emit('update:modelValue', false)">
       <div class="sheet" @click.stop>
+
         <!-- Шапка -->
         <div class="sheet__header">
           <div class="sheet__title">
+            <div v-if="contractorName" class="sheet__contractor">
+              <span class="contractor-badge" :class="`contractor-badge--${contractorType}`">
+                {{ contractorType === 'master' ? 'Мастер' : 'Рабочий' }}
+              </span>
+              <span class="contractor-name" :title="contractorName">{{ contractorName }}</span>
+            </div>
             <span class="sheet__date">{{ dateRangeLabel }}</span>
             <span class="sheet__rate">Ставка: {{ formatCurrency(dailyRate) }}</span>
           </div>
@@ -14,43 +22,60 @@
 
         <!-- Контент -->
         <div class="sheet__content">
-          <!-- Переключатель режима -->
-          <div class="sheet__mode">
-            <button :class="['sheet__mode-btn', { 'sheet__mode-btn--active': mode === 'percent' }]"
-              @click="mode = 'percent'">Процент</button>
-            <button :class="['sheet__mode-btn', { 'sheet__mode-btn--active': mode === 'amount' }]"
-              @click="mode = 'amount'">Сумма</button>
+
+          <!-- Выбор дней для применения -->
+          <div v-if="props.dates.length > 1" class="sheet__dates-selector">
+            <span class="selector-label">Применить к:</span>
+            <div class="dates-grid">
+              <label v-for="date in props.dates" :key="date" class="date-chip">
+                <input type="checkbox" :checked="localSelectedDates.includes(date)" @change="toggleDate(date)" />
+                <span class="chip-text">{{ formatDate(date) }}</span>
+              </label>
+            </div>
           </div>
 
           <!-- Список объектов -->
           <div class="sheet__list">
             <ObjectSplitRow v-for="(split, idx) in localSplits" :key="split.objectId" :object-id="split.objectId"
-              :object-name="getObjectName(split.objectId)" :value="split.value" :mode="mode" :daily-rate="dailyRate"
+              :object-name="getObjectName(split.objectId)" :value="split.value" :daily-rate="dailyRate"
               :is-removable="localSplits.length > 1" @update:value="updateSplit(idx, $event)"
+              :is-single-object="localSplits.length === 1"
               @remove="removeSplit(idx)" />
           </div>
 
           <!-- Добавление объекта -->
           <div v-if="showObjectSelect" class="sheet__select-area">
             <ObjectSelect :objects="availableObjects" :selected-ids="localSplits.map(s => s.objectId)"
-              @update:selected-ids="handleObjectSelect" />
+              :max-objects="maxSelectableObjects" @update:selected-ids="handleObjectSelect" />
+              <div v-if="!isSingleDayMode && localSplits.length >= 1" class="sheet__hint">
+                <i class="material-symbols-light">!</i>
+                <span>При выборе нескольких дней можно добавить только один объект</span>
+              </div>
           </div>
           <button v-else type="button" class="sheet__add-btn" @click="showObjectSelect = true">
             + Добавить объект
           </button>
 
-          <!-- Итог -->
-          <SplitSummary :total-allocated="totalAllocated" :daily-rate="dailyRate" />
+
+          <!-- Итог (подсказки через SplitSummary) -->
+          <SplitSummary 
+            v-if="localSplits.length > 1 || props.dates.length > 1"
+            :total-allocated="totalAllocated" 
+            :daily-rate="dailyRate" 
+            :days-count="localSelectedDates.length || props.dates.length || 1"
+            :status-message="validationMessage"
+            :status-type="totalPercent > 100 ? 'error' : totalPercent < 100 ? 'warning' : undefined"
+          />
         </div>
 
         <!-- Футер -->
         <div class="sheet__footer">
           <button type="button" class="sheet__btn sheet__btn--danger" @click="$emit('confirmDelete')"
             :disabled="localSplits.length === 0">
-            {{ dates.length > 1 ? 'Удалить записи' : 'Удалить день' }}
+            Удалить
           </button>
           <button type="button" class="sheet__btn sheet__btn--primary" @click="handleSave"
-            :disabled="!isValid || isSaving">
+            :disabled="!canSave || isSaving">
             {{ isSaving ? 'Сохранение...' : 'Сохранить' }}
           </button>
         </div>
@@ -66,179 +91,236 @@ import { useDailyAssignment } from '~/composables/daily-work/useDailyAssignment'
 import ObjectSplitRow from './ObjectSplitRow.vue'
 import ObjectSelect from './ui/ObjectSelect.vue'
 import SplitSummary from './ui/SplitSummary.vue'
+import { useNotifications } from '~/composables/useNotifications'
 
 const props = defineProps<{
   modelValue: boolean
-  dates: string[]           // ✅ Теперь массив дат
+  dates: string[]
   dailyRate: number
   assignments: DailyAssignment[]
   activeObjects: ActiveObject[]
   isSaving: boolean
+  contractorName?: string
+  contractorType?: 'worker' | 'master'
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
-  'save': [payload: { assignments: DailyAssignment[], dates: string[] }] // ✅ Обновленный эмит
+  'save': [payload: { assignments: DailyAssignment[], dates: string[] }]
   'confirmDelete': []
 }>()
 
-const { formatCurrency, calculateSplit, validateTotal } = useDailyAssignment()
+const { formatCurrency } = useDailyAssignment()
+const notify = useNotifications()
 
-// ── Локальное состояние ───────────────────────────────────────────
-const mode = ref<'percent' | 'amount'>('percent')
 const showObjectSelect = ref(false)
 const localSplits = ref<{ objectId: number; value: number }[]>([])
+const localSelectedDates = ref<string[]>([])
 
-// ── Вычисляемые свойства ─────────────────────────────────────────
+// ── Вычисляемые ──────────────────────────────────────────────────
+
 const dateRangeLabel = computed(() => {
   if (props.dates.length === 0) return '...'
-  
-  const firstDate = props.dates[0]!
+  const first = props.dates[0]!
   if (props.dates.length === 1) {
-    return new Date(firstDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+    return new Date(first).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
   }
-  
-  const lastDate = props.dates[props.dates.length - 1]!
-  return `${new Date(firstDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} — ${new Date(lastDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} (${props.dates.length} дн.)`
+  const last = props.dates[props.dates.length - 1]!
+  return `${new Date(first).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} — ${new Date(last).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} (${props.dates.length} дн.)`
 })
+
+const totalPercent = computed(() =>
+  localSplits.value.reduce((sum, s) => sum + s.value, 0)
+)
+
+const totalAllocated = computed(() =>
+  localSplits.value.reduce((sum, s) => sum + (props.dailyRate * s.value) / 100, 0)
+)
+
+const hasZeroSplits = computed(() => localSplits.value.some(s => s.value <= 0))
+
+const isSingleDayMode = computed(() => props.dates.length === 1)
+const maxSelectableObjects = computed(() => isSingleDayMode.value ? 4 : 1)
 
 const availableObjects = computed(() =>
   props.activeObjects.filter(obj => !localSplits.value.some(s => s.objectId === obj.id))
 )
 
-const totalAllocated = computed(() => {
-  return localSplits.value.reduce((sum, s) => {
-    return sum + (mode.value === 'amount' ? s.value : (props.dailyRate * s.value) / 100)
-  }, 0)
+// ✅ Валидация: можно редактировать при ≤100%, сохранять только при ===100%
+const canEdit = computed(() => totalPercent.value <= 100.01)
+const canSave = computed(() =>
+  localSplits.value.length > 0
+  && !hasZeroSplits.value
+  && Math.abs(totalPercent.value - 100) < 0.01
+)
+
+const validationMessage = computed(() => {
+  if (localSplits.value.length === 0) {
+    return 'Добавьте хотя бы один объект для распределения'
+  }
+  if (hasZeroSplits.value) {
+    const zeroNames = localSplits.value
+      .filter(s => s.value <= 0)
+      .map(s => getObjectName(s.objectId))
+      .slice(0, 2)
+      .join(', ')
+    const more = localSplits.value.filter(s => s.value <= 0).length > 2
+      ? ` и ещё ${localSplits.value.filter(s => s.value <= 0).length - 2}`
+      : ''
+    return `⚠ ${zeroNames}${more}: укажите сумму или удалите`
+  }
+  if (totalPercent.value > 100.01) {
+    return `❌ Превышено на ${Math.round(totalPercent.value - 100)}% — уменьшите долю`
+  }
+  if (totalPercent.value < 99.99) {
+    return `⚡ Осталось распределить: ${Math.round(100 - totalPercent.value)}%`
+  }
+  return '' // Всё ок
 })
 
-const isValid = computed(() => {
-  const values = localSplits.value.map(s =>
-    mode.value === 'amount' ? s.value : (props.dailyRate * s.value) / 100
-  )
-  return validateTotal(values, props.dailyRate)
-})
+// ── Инициализация ──────────────────────────────────────────────────
 
-// ── Логика ───────────────────────────────────────────────────────
-function getObjectName(id: number): string {
-  return props.activeObjects.find(o => o.id === id)?.name || 'Неизвестный объект'
-}
-
-// Инициализация при открытии
 watch(() => props.modelValue, (open) => {
   if (!open) {
     showObjectSelect.value = false
     return
   }
+  localSelectedDates.value = [...props.dates]
 
   if (props.assignments.length > 0) {
     localSplits.value = props.assignments.map(a => ({
       objectId: a.objectId,
-      value: mode.value === 'percent' ? a.percentage : a.amount
+      value: a.percentage
     }))
   } else {
-    // При открытии пустого дня список объектов остаётся пустым
     localSplits.value = []
   }
-
   showObjectSelect.value = false
 }, { immediate: true })
 
-function handleObjectSelect(selectedIds: number[]): void {
-  const newIds = selectedIds.filter(id => !localSplits.value.some(s => s.objectId === id))
-  if (newIds.length === 0) {
-    showObjectSelect.value = false
+// ── Хелперы ──────────────────────────────────────────────────
+
+function formatDate(date: string) {
+  return new Date(date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', weekday: 'short' })
+}
+
+function getObjectName(id: number) {
+  return props.activeObjects.find(o => o.id === id)?.name || 'Неизвестный объект'
+}
+
+function toggleDate(date: string) {
+  const idx = localSelectedDates.value.indexOf(date)
+  if (idx === -1) localSelectedDates.value.push(date)
+  else localSelectedDates.value.splice(idx, 1)
+}
+
+// ── Обновление доли (ручное, без авто-перераспределения) ─────────
+
+function updateSplit(index: number, newValue: number): void {
+  const split = localSplits.value[index]
+  if (!split) return
+
+  // Клэмпинг
+  if (newValue < 0) newValue = 0
+  if (newValue > 100) newValue = 100
+
+  const oldValue = split.value
+  split.value = newValue
+
+  // Проверка суммы
+  const total = localSplits.value.reduce((sum, s) => sum + s.value, 0)
+
+  if (total > 100.01) {
+    // Откат + уведомление
+    split.value = oldValue
+    notify.warning('Сумма долей не может превышать 100%')
     return
   }
 
-  if (mode.value === 'percent') {
-    const currentTotal = localSplits.value.reduce((sum, s) => sum + s.value, 0)
-    const remaining = 100 - currentTotal
-    const share = remaining / (localSplits.value.length + newIds.length)
+  // ✅ Значение принято — пользователь сам решит, как распределить остаток
+}
 
-    newIds.forEach(id => localSplits.value.push({ objectId: id, value: share }))
-    localSplits.value.forEach(s => {
-      if (!newIds.includes(s.objectId)) s.value = share
-    })
-  } else {
-    newIds.forEach(id => localSplits.value.push({ objectId: id, value: 0 }))
+// ── Добавление объекта ─────────────────────────────────────────
+
+function handleObjectSelect(selectedIds: number[]): void {
+  const newIds = selectedIds.filter(id => !localSplits.value.some(s => s.objectId === id))
+  if (newIds.length === 0) { 
+    showObjectSelect.value = false
+    return 
   }
+
+  // 1. Добавляем новые объекты с временным значением 0
+  newIds.forEach(id => {
+    localSplits.value.push({ objectId: id, value: 0 })
+  })
+
+  // 2. Перераспределяем 100% ПОРОВНУ между всеми объектами (старыми + новыми)
+  redistributeEqually()
+  
   showObjectSelect.value = false
 }
 
-function updateSplit(index: number, newValue: number): void {
-  const currentSplit = localSplits.value[index]
-  if (!currentSplit) return
-
-  if (mode.value === 'percent') {
-    const diff = newValue - currentSplit.value
-    const others = localSplits.value.filter((_, i) => i !== index)
-    const othersSum = others.reduce((s, o) => s + o.value, 0)
-
-    if (othersSum > 0) {
-      others.forEach(o => {
-        o.value = Math.max(0, o.value - (o.value / othersSum) * diff)
-      })
-    }
-    currentSplit.value = newValue
-
-    // Нормализация до ровно 100%
-    const total = localSplits.value.reduce((s, o) => s + o.value, 0)
-    if (Math.abs(total - 100) > 0.01 && localSplits.value.length > 0) {
-      localSplits.value[0]!.value += (100 - total)
-    }
-  } else {
-    currentSplit.value = newValue
-  }
-}
+// ── Удаление объекта ───────────────────────────────────────────
 
 function removeSplit(index: number): void {
   if (localSplits.value.length <= 1) return
-
-  const removedItems = localSplits.value.splice(index, 1)
-  const removed = removedItems[0]
-  if (!removed || localSplits.value.length === 0) return
-
-  if (mode.value === 'percent') {
-    const share = removed.value / localSplits.value.length
-    localSplits.value.forEach(s => s.value += share)
-
-    const total = localSplits.value.reduce((s, o) => s + o.value, 0)
-    if (Math.abs(total - 100) > 0.01) {
-      localSplits.value[0]!.value += (100 - total)
-    }
-  }
+  
+  // Удаляем объект
+  localSplits.value.splice(index, 1)
+  
+  // Перераспределяем 100% между оставшимися
+  redistributeEqually()
 }
 
-function handleSave(): void {
-  const percentages = localSplits.value.map(s => ({ 
-    percentage: mode.value === 'percent' ? s.value : (s.value / props.dailyRate) * 100 
-  }))
-  
-  const amounts = calculateSplit(props.dailyRate, percentages)
+// ── Вспомогательная: равномерное распределение 100% ─────────────
 
-  const payload: DailyAssignment[] = localSplits.value.map((split, i) => {
-    const amount = amounts[i] ?? 0
-    const percentage = mode.value === 'percent' ? split.value : (amount / props.dailyRate) * 100
-    
-    return {
-      workerId: 0,
-      contractorType: 'worker',
-      date: props.dates[0]!, // ✅ TS теперь видит, что значение гарантировано
-      objectId: split.objectId,
-      objectName: getObjectName(split.objectId),
-      percentage,
-      amount,
-      workSource: 'daily'
+function redistributeEqually(): void {
+  const totalCount = localSplits.value.length
+  if (totalCount === 0) return
+  
+  const equalShare = 100 / totalCount
+  
+  localSplits.value.forEach((split, idx) => {
+    // Последнему объекту отдаём «хвост» от округления, чтобы сумма была ровно 100
+    if (idx === totalCount - 1) {
+      const allocated = localSplits.value.slice(0, idx).reduce((sum, s) => sum + Math.round(equalShare), 0)
+      split.value = 100 - allocated
+    } else {
+      split.value = Math.round(equalShare)
     }
   })
+}
 
-  emit('save', { assignments: payload, dates: props.dates })
+// ── Сохранение ─────────────────────────────────────────────────
+
+function handleSave(): void {
+  if (localSelectedDates.value.length === 0) {
+    console.warn('[DailyWork] Не выбрано ни одной даты')
+    return
+  }
+
+  if (!canSave.value) {
+    notify.error('Распределите ровно 100% перед сохранением')
+    return
+  }
+
+  const payload: DailyAssignment[] = localSplits.value.map((split) => ({
+    workerId: 0,
+    contractorType: props.contractorType || 'worker',
+    date: props.dates[0]!,
+    objectId: split.objectId,
+    objectName: getObjectName(split.objectId),
+    percentage: split.value,
+    amount: (props.dailyRate * split.value) / 100,
+    workSource: 'daily'
+  }))
+
+  emit('save', { assignments: payload, dates: localSelectedDates.value })
 }
 </script>
 
 <style lang="scss" scoped>
-/* Стили остаются без изменений, кроме, возможно, ширины текста в шапке */
+/* Стили без изменений — оставляем твои */
 .sheet-backdrop {
   position: fixed;
   inset: 0;
@@ -269,6 +351,43 @@ function handleSave(): void {
   align-items: flex-start;
   padding: 16px 16px 12px;
   border-bottom: 1px solid var(--crm-border);
+}
+
+.sheet__contractor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  min-width: 0;
+}
+
+.contractor-badge {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: var(--crm-radius-sm);
+  font-size: var(--crm-text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+
+  &--master {
+    background: var(--crm-accent-dim);
+    color: var(--crm-accent);
+  }
+
+  &--worker {
+    background: var(--crm-success-dim);
+    color: var(--crm-success);
+  }
+}
+
+.contractor-name {
+  font-size: var(--crm-text-sm);
+  font-weight: 600;
+  color: var(--crm-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sheet__title {
@@ -319,30 +438,80 @@ function handleSave(): void {
   gap: 12px;
 }
 
-.sheet__mode {
+.sheet__hint {
   display: flex;
-  gap: 4px;
-  background: var(--crm-bg-elevated);
-  padding: 3px;
-  border-radius: var(--crm-radius-md);
-  width: fit-content;
+  align-items: center;
+  margin-top: 1em;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--crm-info-dim);
+  border: 1px solid var(--crm-info-border);
+  border-radius: var(--crm-radius-sm);
+  color: var(--crm-info);
+  font-size: var(--crm-text-xs);
+  line-height: 1.3;
+
+  i {
+    font-size: 16px;
+    flex-shrink: 0;
+  }
 }
 
-.sheet__mode-btn {
-  padding: 6px 12px;
+.sheet__dates-selector {
+  background: var(--crm-bg-elevated);
+  padding: 12px;
+  border-radius: var(--crm-radius-md);
+  border: 1px solid var(--crm-border);
+}
+
+.selector-label {
+  display: block;
   font-size: var(--crm-text-xs);
-  font-weight: 500;
-  border: none;
-  background: transparent;
   color: var(--crm-text-secondary);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dates-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.date-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--crm-bg-surface);
+  padding: 4px 8px 4px 4px;
   border-radius: var(--crm-radius-sm);
+  border: 1px solid var(--crm-border);
   cursor: pointer;
   transition: var(--crm-transition);
+  user-select: none;
 
-  &--active {
-    background: var(--crm-bg-surface);
+  input[type="checkbox"] {
+    accent-color: var(--crm-accent);
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    cursor: pointer;
+  }
+
+  &:has(input:checked) {
+    border-color: var(--crm-accent-border);
+    background: var(--crm-accent-dim);
+
+    .chip-text {
+      color: var(--crm-accent);
+    }
+  }
+
+  .chip-text {
+    font-size: var(--crm-text-sm);
     color: var(--crm-text-primary);
-    box-shadow: var(--crm-shadow-sm);
+    white-space: nowrap;
   }
 }
 
