@@ -251,7 +251,6 @@ onMounted(fetchData)
 @media (max-width: 767.98px) {
   .home-page__content {
     padding: 16px;
-    margin-top: 3em;
   }
 }
 </style>

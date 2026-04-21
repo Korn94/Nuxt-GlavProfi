@@ -1,503 +1,380 @@
-<!-- app\components\pages\cabinet\UserManagement.vue -->
+<!-- app/pages/cabinet/admin/users.vue -->
 <template>
-  <PagesCabinetUiLayoutPageTitle title="Управление пользователями">
-    <template #actions>
-      <button class="btn btn-primary" @click="openAddModal">
-        <Icon name="mdi:plus" size="16" />
-        Новый
-      </button>
-    </template>
-  </PagesCabinetUiLayoutPageTitle>
-
-  <div class="container">
-    <!-- Таблица пользователей -->
-    <table>
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Имя</th>
-          <th>Роль</th>
-          <th>Контрагент</th>
-          <th>Баланс</th>
-          <th>Действия</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="user in users" :key="user.id">
-          <td>{{ user.id }}</td>
-          <td>{{ user.name }}</td>
-          <td>{{ user.role }}</td>
-          <td>
-            <div v-if="user.contractorType && user.contractorId">
-              <NuxtLink :to="`/cabinet/admin/contractors/${user.contractorType}/${user.contractorId}`">
-                {{ formatContractorName(user) }}
-              </NuxtLink>
-            </div>
-            <div v-else>—</div>
-          </td>
-          <td>{{ getContractorBalanceText(user) }}</td>
-          <td>
-            <button @click="editUser(user)">Редактировать</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-
-    <!-- Универсальное модальное окно -->
-    <PagesCabinetUiModal
-      :visible="isModalOpen"
-      @close="closeModal"
-      :title="isEditing ? 'Редактировать пользователя' : 'Добавить нового пользователя'"
-      size="md"
-      :closable="true"
-    >
-      <!-- Контент формы -->
-      <div class="modal-content">
-        <!-- Имя -->
-        <div class="form-group">
-          <label>Имя <span class="required">*</span></label>
-          <input
-            v-model="currentForm.name"
-            placeholder="Введите имя"
-            :class="{ error: formErrors.name }"
-          />
-          <span v-if="formErrors.name" class="error-message">{{ formErrors.name }}</span>
-        </div>
-
-        <!-- Логин -->
-        <div class="form-group">
-          <label>Логин <span class="required">*</span></label>
-          <input
-            v-model="currentForm.login"
-            placeholder="Введите логин"
-            :class="{ error: formErrors.login }"
-          />
-          <span v-if="formErrors.login" class="error-message">{{ formErrors.login }}</span>
-        </div>
-
-        <!-- Пароль (только при добавлении или если editPassword) -->
-        <div v-if="!isEditing || editPassword" class="form-group">
-          <label>Пароль</label>
-          <input
-            v-model="currentForm.password"
-            type="password"
-            :placeholder="isEditing ? 'Оставьте пустым, чтобы не менять' : 'Введите пароль'"
-          />
-          <span v-if="formErrors.password" class="error-message">{{ formErrors.password }}</span>
-        </div>
-
-        <!-- Роль -->
-        <div class="form-group">
-          <label>Роль</label>
-          <select v-model="currentForm.role">
-            <option value="admin">Админ</option>
-            <option value="manager">Менеджер</option>
-            <option value="foreman">Прораб</option>
-            <option value="worker">Рабочий</option>
-            <option value="master">Мастер</option>
-          </select>
-        </div>
-
-        <!-- Привязка к контрагенту (только при редактировании) -->
-        <div v-if="isEditing">
-          <div class="form-group">
-            <label>Тип контрагента</label>
-            <select v-model="currentForm.contractorType">
-              <option value="">Без привязки</option>
-              <option value="master">Мастер</option>
-              <option value="worker">Рабочий</option>
-              <option value="foreman">Прораб</option>
-              <option value="office">Офис</option>
-            </select>
-          </div>
-
-          <div v-if="currentForm.contractorType" class="form-group">
-            <label>Контрагент</label>
-            <select v-model="currentForm.contractorId">
-              <option value="">— Выберите —</option>
-              <option v-for="c in contractorsByType" :key="c.id" :value="c.id">
-                {{ c.name }}
-              </option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Ошибка формы -->
-        <div v-if="formErrors.general" class="error-message form-error">
-          {{ formErrors.general }}
-        </div>
-      </div>
-
-      <!-- Футер -->
-      <template #footer>
-        <button type="button" @click="closeModal" class="btn btn-secondary">Отмена</button>
-        <button type="button" @click="submitForm" class="btn btn-primary">
-          {{ isEditing ? 'Сохранить' : 'Добавить' }}
+  <div class="users-page">
+    <!-- ═══════════════════════════ HEADER ═══════════════════════════ -->
+    <PageTitle title="Пользователи" icon="mdi:account-group" :badge="filteredUsers.length">
+      <template #actions>
+        <button class="btn btn--primary btn--sm" @click="actions.openCreateModal">
+          <Icon name="mdi:plus" size="14" />
+          Добавить
         </button>
       </template>
-    </PagesCabinetUiModal>
+    </PageTitle>
 
-    <!-- Сообщения -->
-    <div v-if="successMessage" class="notification success">{{ successMessage }}</div>
-    <div v-if="errorMessage" class="notification error">{{ errorMessage }}</div>
+    <!-- ═══════════════════════════ FILTERS ══════════════════════════ -->
+    <div class="users-controls">
+      <div class="search-box">
+        <Icon name="mdi:magnify" size="16" class="search-icon" />
+        <input v-model="searchQuery" type="text" placeholder="Поиск по имени или логину..." class="input search-input"
+          autocomplete="off" />
+      </div>
+      <div class="filter-chips">
+        <button v-for="role in availableRoles" :key="role" :class="['chip', { 'chip--active': selectedRole === role }]"
+          @click="selectedRole = selectedRole === role ? null : role">
+          {{ roleLabels[role] }}
+        </button>
+        <button v-if="selectedRole" class="chip chip--clear" @click="selectedRole = null">✕</button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════ LIST ═════════════════════════════ -->
+    <div class="users-list">
+      <div v-if="usersStore.loading" class="state-block">
+        <span class="spinner" /> Загрузка списка...
+      </div>
+
+      <div v-else-if="filteredUsers.length === 0" class="state-block">
+        <Icon name="mdi:account-off" size="32" />
+        <span>Пользователи не найдены</span>
+      </div>
+
+      <div v-else class="list-container">
+        <UserItem v-for="user in filteredUsers" :key="user.id" :user="user" @edit="actions.openEditModal"
+          @change-password="actions.openPasswordModal" @delete="actions.openDeleteConfirm" />
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════ MODALS ═══════════════════════════ -->
+    <!-- Форма создания/редактирования -->
+    <Modal :visible="actions.isFormModalOpen.value" :title="formModalTitle" size="md"
+      @update:visible="actions.closeAllModals">
+      <UserFormModal :user="editingUserValue" @save="handleSaveForm" @close="actions.closeAllModals" />
+    </Modal>
+
+    <!-- Смена пароля -->
+    <Modal :visible="actions.isPasswordModalOpen.value" title="Смена пароля" size="sm"
+      @update:visible="actions.closeAllModals">
+      <UserPasswordModal :user="targetUserValue" @save="handleSavePassword" @close="actions.closeAllModals" />
+    </Modal>
+
+    <!-- Подтверждение удаления -->
+    <Modal :visible="actions.isDeleteConfirmOpen.value" title="Подтверждение удаления" size="sm"
+      @update:visible="actions.closeAllModals">
+      <div class="delete-confirm">
+        <p>Вы действительно хотите удалить пользователя <strong>{{ deleteConfirmName }}</strong>?</p>
+        <p class="delete-warning">⚠️ Это действие нельзя отменить. Все активные сессии будут сброшены.</p>
+        <div class="confirm-actions">
+          <button class="btn btn--sm" @click="actions.closeAllModals">Отмена</button>
+          <button class="btn btn--sm btn--danger" @click="handleDelete" :disabled="isDeleting">
+            {{ isDeleting ? 'Удаление...' : 'Удалить' }}
+          </button>
+        </div>
+      </div>
+    </Modal>
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed } from 'vue'
+import PageTitle from '~/components/pages/cabinet/ui/layout/PageTitle.vue'
+import Modal from '~/components/pages/cabinet/ui/Modal.vue'
+import UserItem from '~/components/pages/cabinet/Admin/Users/UserItem.vue'
+import UserFormModal from '~/components/pages/cabinet/Admin/Users/Modals/UserFormModal.vue'
+import UserPasswordModal from '~/components/pages/cabinet/Admin/Users/Modals/UserPasswordModal.vue'
 
-// Данные
-const users = ref([])
-const contractors = ref([])
+import { useUsersStore } from 'stores/users'
+import { useUserActions } from '~/composables/useUserActions'
+import type { User } from 'stores/users'
+import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
 
-// Форма
-const currentForm = ref({
-  id: null,
-  name: '',
-  login: '',
-  password: '',
-  role: 'worker',
-  contractorType: '',
-  contractorId: '',
-})
-
-const isModalOpen = ref(false)
-const isEditing = ref(false)
-const editPassword = ref(false)
-
-// Сообщения
-const formErrors = ref({})
-const successMessage = ref('')
-const errorMessage = ref('')
-
-// Вычисляем контрагентов по типу
-const contractorsByType = computed(() => {
-  if (!currentForm.value.contractorType) return []
-  return contractors.value.filter(c => c.type === currentForm.value.contractorType)
-})
-
+// 🛡️ Middleware: доступ только авторизованным админам
 definePageMeta({
   layout: 'cabinet',
-  middleware: 'role',
-  allowedRoles: ['admin'],
+  middleware: ['require-auth', 'role']
 })
 
-onMounted(async () => {
-  await fetchUsers()
-  await fetchContractors()
+const usersStore = useUsersStore()
+const actions = useUserActions()
+
+// Инициализация данных при загрузке страницы
+await usersStore.init()
+
+// ── Фильтры ────────────────────────────────────────────────────────
+const searchQuery = ref('')
+const selectedRole = ref<string | null>(null)
+const isDeleting = ref(false)
+
+const availableRoles = ['admin', 'manager', 'foreman', 'master', 'worker'] as const
+const roleLabels: Record<string, string> = {
+  admin: 'Админ',
+  manager: 'Менеджер',
+  foreman: 'Прораб',
+  master: 'Мастер',
+  worker: 'Рабочий'
+}
+
+// Клиентская фильтрация (оптимально для <50 записей)
+const filteredUsers = computed(() => {
+  let list = usersStore.allUsers
+  if (selectedRole.value) {
+    list = list.filter(u => u.role === selectedRole.value)
+  }
+  if (searchQuery.value.trim()) {
+    const q = searchQuery.value.toLowerCase()
+    list = list.filter(u =>
+      u.name.toLowerCase().includes(q) || u.login.toLowerCase().includes(q)
+    )
+  }
+  return list
 })
 
-// Загрузка данных
-async function fetchUsers() {
-  try {
-    const data = await $fetch('/api/users', { credentials: 'include' })
-    users.value = Array.isArray(data.users) ? data.users : []
-    clearMessages()
-  } catch (e) {
-    errorMessage.value = 'Ошибка загрузки пользователей'
-  }
-}
+// ── COMPUTED для безопасной передачи в пропсы (распаковка Ref) ─────
+// Заголовок модалки формы
+const formModalTitle = computed(() =>
+  actions.editingUser.value ? 'Редактирование пользователя' : 'Новый пользователь'
+)
 
-async function fetchContractors() {
-  try {
-    const data = await $fetch('/api/contractors', { credentials: 'include' })
-    contractors.value = Array.isArray(data) ? data : []
-  } catch (e) {
-    console.error('Ошибка загрузки контрагентов:', e)
-  }
-}
+// Значение editingUser для пропса (User | null)
+const editingUserValue = computed(() => actions.editingUser.value)
 
-// Открытие модального окна
-function openAddModal() {
-  currentForm.value = {
-    id: null,
-    name: '',
-    login: '',
-    password: '',
-    role: 'worker',
-    contractorType: '',
-    contractorId: '',
-  }
-  isEditing.value = false
-  editPassword.value = false
-  formErrors.value = {}
-  isModalOpen.value = true
-}
+// Значение targetUser для пропса (User | null)
+const targetUserValue = computed(() => actions.targetUser.value)
 
-// Редактирование
-function editUser(user) {
-  currentForm.value = { ...user }
-  isEditing.value = true
-  editPassword.value = false
-  formErrors.value = {}
-  isModalOpen.value = true
-}
-
-// Закрытие
-function closeModal() {
-  isModalOpen.value = false
-  formErrors.value = {}
-}
-
-// Валидация
-function validateForm() {
-  formErrors.value = {}
-  let valid = true
-
-  if (!currentForm.value.name?.trim()) {
-    formErrors.value.name = 'Имя обязательно'
-    valid = false
-  }
-  if (!currentForm.value.login?.trim()) {
-    formErrors.value.login = 'Логин обязателен'
-    valid = false
-  }
-  if (!isEditing.value && !currentForm.value.password?.trim()) {
-    formErrors.value.password = 'Пароль обязателен'
-    valid = false
-  }
-
-  return valid
-}
-
-// Отправка формы
-async function submitForm() {
-  if (!validateForm()) return
-
-  const payload = {
-    name: currentForm.value.name,
-    login: currentForm.value.login,
-    role: currentForm.value.role,
-    ...(currentForm.value.password && { password: currentForm.value.password }),
-    ...(currentForm.value.contractorType && { contractorType: currentForm.value.contractorType }),
-    ...(currentForm.value.contractorId && { contractorId: currentForm.value.contractorId }),
-  }
-
-  try {
-    if (isEditing.value) {
-      // Редактирование
-      await $fetch(`/api/users/${currentForm.value.id}`, {
-        method: 'PUT',
-        body: payload,
-        credentials: 'include',
-      })
-      successMessage.value = 'Пользователь обновлён'
-    } else {
-      // Создание
-      await $fetch('/api/users', {
-        method: 'POST',
-        body: payload,
-        credentials: 'include',
-      })
-      successMessage.value = 'Пользователь добавлен'
-    }
-
-    await fetchUsers()
-    closeModal()
-  } catch (e) {
-    if (e.data?.message?.includes('логин')) {
-      formErrors.value.login = 'Этот логин уже занят'
-    } else {
-      formErrors.value.general = 'Не удалось сохранить'
-    }
-  }
-}
-
-// Форматирование имени контрагента
-function formatContractorName(user) {
-  const map = { master: 'Мастер', worker: 'Рабочий', foreman: 'Прораб', office: 'Офис' }
-  return map[user.contractorType] || user.contractorType || ''
-}
-
-// Баланс контрагента
-function getContractorBalanceText(user) {
-  if (!user.contractorType || !user.contractorId) return '—'
-  const c = contractors.value.find(
-    item => item.type === user.contractorType && item.id === user.contractorId
-  )
-  return c ? `${Number(c.balance).toFixed(2)} ₽` : 'Не найден'
-}
-
-// Очистка сообщений
-function clearMessages() {
-  successMessage.value = ''
-  errorMessage.value = ''
-}
-
-useHead({
-  meta: [
-    { name: 'robots', content: 'noindex, nofollow' },
-  ],
-  title: 'CRM — Пользователи CRM-системой'
+// Имя для подтверждения удаления (безопасный доступ)
+const deleteConfirmName = computed(() => {
+  const user = actions.targetUser.value
+  return user ? (user.name || user.login) : '...'
 })
+
+// ── Обработчики событий форм ───────────────────────────────────────
+async function handleSaveForm(formData: Partial<User> & { password?: string }) {
+  try {
+    await actions.handleSave(formData)
+  } catch (error: any) {
+    console.error('Ошибка сохранения формы:', error.message)
+  }
+}
+
+async function handleSavePassword(newPassword: string) {
+  try {
+    await actions.handlePasswordChange(newPassword)
+  } catch (error: any) {
+    console.error('Ошибка смены пароля:', error.message)
+  }
+}
+
+async function handleDelete() {
+  isDeleting.value = true
+  try {
+    await actions.handleDelete()
+  } catch (error: any) {
+    console.error('Ошибка удаления:', error.message)
+  } finally {
+    isDeleting.value = false
+  }
+}
 </script>
 
 <style lang="scss" scoped>
-@use 'sass:map';
+.users-page {
+  min-height: 100vh;
+  background: var(--crm-bg-base);
+  color: var(--crm-text-primary);
+  padding-bottom: 40px;
+}
 
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 1.5rem;
+// ── Controls ───────────────────────────────────────────────────────
+.users-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 24px;
+  background: var(--crm-bg-surface);
+  border-bottom: 1px solid var(--crm-border);
+}
 
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    background: #fff;
-    border-radius: $border-radius;
-    overflow: hidden;
-    box-shadow: $box-shadow;
-    margin-bottom: 1.5rem;
+.search-box {
+  position: relative;
+}
 
-    thead {
-      background: $blue20;
-      color: $text-dark;
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--crm-text-muted);
+  pointer-events: none;
+}
 
-      th {
-        padding: 1rem;
-        text-align: left;
-        font-weight: 600;
-        font-size: 0.9rem;
-        text-transform: uppercase;
-        color: $text-dark;
-      }
-    }
+.search-input {
+  width: 100%;
+  padding: 10px 12px 10px 38px;
+  background: var(--crm-bg-elevated);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-md);
+  color: var(--crm-text-primary);
+  font-size: var(--crm-text-sm);
+  transition: var(--crm-transition);
 
-    tbody tr {
-      border-bottom: 1px solid $border-color;
+  &:focus {
+    border-color: var(--crm-accent);
+    box-shadow: 0 0 0 3px var(--crm-accent-dim);
+    outline: none;
+  }
+}
 
-      &:nth-child(even) {
-        background: $sub-item-bg;
-      }
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 
-      &:hover {
-        background: $blue20;
-      }
+.chip {
+  padding: 6px 12px;
+  background: var(--crm-bg-elevated);
+  border: 1px solid var(--crm-border);
+  border-radius: 20px;
+  color: var(--crm-text-secondary);
+  font-size: var(--crm-text-xs);
+  cursor: pointer;
+  transition: var(--crm-transition);
 
-      td {
-        padding: 1rem;
-        vertical-align: middle;
-
-        .nuxt-link {
-          color: $blue;
-          text-decoration: none;
-          font-weight: 500;
-
-          &:hover {
-            text-decoration: underline;
-          }
-        }
-      }
-    }
+  &:hover {
+    border-color: var(--crm-border-hover);
+    color: var(--crm-text-primary);
   }
 
-  button {
-    padding: 0.5rem 1rem;
-    border: none;
-    border-radius: $border-radius;
-    cursor: pointer;
-    font-weight: 500;
-    transition: $transition;
-
-    &:focus {
-      outline: 2px solid $blue;
-      outline-offset: 2px;
-    }
+  &--active {
+    background: var(--crm-accent-dim);
+    border-color: var(--crm-accent-border);
+    color: var(--crm-accent);
+    font-weight: 600;
   }
 
-  .btn-primary {
-    background: $blue;
-    color: $text-light;
+  &--clear {
+    background: var(--crm-danger-dim);
+    border-color: rgba(242, 95, 92, 0.3);
+    color: var(--crm-danger);
+  }
+}
+
+// ── List & States ──────────────────────────────────────────────────
+.users-list {
+  padding: 16px 24px;
+}
+
+.list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.state-block {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 48px 0;
+  color: var(--crm-text-muted);
+  font-size: var(--crm-text-md);
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--crm-border-hover);
+  border-top-color: var(--crm-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// ── Delete Modal ───────────────────────────────────────────────────
+.delete-confirm {
+  text-align: center;
+
+  p {
+    margin: 0 0 8px;
+  }
+
+  .delete-warning {
+    color: var(--crm-warning);
+    font-size: var(--crm-text-xs);
+    margin-bottom: 16px;
+  }
+
+  .confirm-actions {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+  }
+}
+
+// ── Buttons ────────────────────────────────────────────────────────
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--crm-bg-elevated);
+  border: 1px solid var(--crm-border-hover);
+  border-radius: var(--crm-radius-md);
+  color: var(--crm-text-primary);
+  cursor: pointer;
+  font-size: var(--crm-text-sm);
+  font-weight: 500;
+  transition: var(--crm-transition);
+
+  &:hover:not(:disabled) {
+    background: var(--crm-bg-overlay);
+    border-color: var(--crm-border-hover);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &--primary {
+    background: var(--crm-accent-dim);
+    border-color: var(--crm-accent-border);
+    color: var(--crm-accent);
 
     &:hover:not(:disabled) {
-      background: $blue;
+      background: rgba(0, 195, 245, 0.25);
     }
   }
 
-  .btn-secondary {
-    background: $color-muted;
-    color: $text-light;
+  &--danger {
+    background: var(--crm-danger-dim);
+    border-color: rgba(242, 95, 92, 0.3);
+    color: var(--crm-danger);
 
-    &:hover {
-      background: $blue;
+    &:hover:not(:disabled) {
+      background: rgba(242, 95, 92, 0.25);
     }
+  }
+
+  &--sm {
+    padding: 5px 10px;
+    font-size: var(--crm-text-xs);
   }
 }
 
-// Стили внутри модального окна
-.modal-content {
-  .form-group {
-    margin-bottom: 1rem;
+@media (max-width: 767.98px) {
+  .users-controls {
+    padding: 12px 16px;
   }
 
-  label {
-    display: block;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-    color: $text-dark;
-  }
-
-  input,
-  select {
-    width: 100%;
-    padding: 0.75rem;
-    border: 1px solid $border-color;
-    border-radius: $border-radius;
-    background: $background-light;
-    transition: $transition;
-
-    &:focus {
-      outline: none;
-      border-color: $blue;
-      box-shadow: 0 0 0 2px $blue20;
-    }
-
-    &.error {
-      border-color: $red;
-      background: rgba($red, 0.05);
-    }
-  }
-
-  select {
-    cursor: pointer;
-  }
-
-  .required {
-    color: $red;
-  }
-
-  .error-message {
-    color: $color-danger;
-    font-size: 0.875rem;
-    margin-top: 0.25rem;
-
-    &.form-error {
-      padding: 0.75rem;
-      background: rgba($color-danger, 0.1);
-      border: 1px solid rgba($color-danger, 0.2);
-      border-radius: $border-radius;
-      margin-top: 1rem;
-    }
-  }
-}
-
-.notification {
-  padding: 0.75rem 1rem;
-  border-radius: $border-radius;
-  font-size: 0.9rem;
-  font-weight: 500;
-  margin: 1rem 0;
-
-  &.success {
-    background: rgba($green, 0.15);
-    color: $green;
-    border: 1px solid rgba($green, 0.3);
-  }
-
-  &.error {
-    background: rgba($red, 0.15);
-    color: $red;
-    border: 1px solid rgba($red, 0.3);
+  .users-list {
+    padding: 12px 16px;
   }
 }
 </style>

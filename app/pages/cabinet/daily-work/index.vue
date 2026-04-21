@@ -20,9 +20,9 @@
     <!-- Навигация по датам (отдельный блок) -->
     <div class="date-nav-wrapper">
       <div class="date-nav">
-        <button class="btn-nav" @click="shiftDates(-7)"><Icon name="mdi:chevron-double-left" size="24" /></button>
+        <button class="btn-nav" @click="shiftDates(-7)"><Icon name="mdi:chevron-double-left" size="18" /></button>
         <span class="date-nav__current">{{ weekLabel }}</span>
-        <button class="btn-nav" @click="shiftDates(7)"><Icon name="mdi:chevron-double-right" size="24" /></button>
+        <button class="btn-nav" @click="shiftDates(7)"><Icon name="mdi:chevron-double-right" size="18" /></button>
         <button class="btn-nav btn-nav--today" @click="resetDates">Сегодня</button>
       </div>
     </div>
@@ -435,7 +435,7 @@ onUnmounted(() => {
   
   @media (max-width: 767.98px) {
     padding: 8px 16px;
-    margin-top: 3.3em;
+    margin-top: 10px;
   }
 }
 
@@ -465,7 +465,7 @@ onUnmounted(() => {
   color: var(--crm-accent);
   font-size: var(--crm-text-sm);
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 0;
   border-radius: var(--crm-radius-sm);
   transition: var(--crm-transition);
   
@@ -474,6 +474,7 @@ onUnmounted(() => {
   }
   
   &--today {
+    padding: 4px 8px;
     color: var(--crm-text-primary);
     border: 1px solid var(--crm-border);
     background: var(--crm-bg-elevated);
@@ -617,6 +618,7 @@ onUnmounted(() => {
   border: 1px solid var(--crm-border);
   border-radius: var(--crm-radius-md);
   min-width: max-content;
+  max-width: max-content;
 }
 
 .grid-header {

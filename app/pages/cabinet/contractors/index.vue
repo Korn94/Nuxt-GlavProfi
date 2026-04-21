@@ -538,7 +538,6 @@ onMounted(() => {
 @media (max-width: 700px) {
   .contractors-index__content {
     padding: 16px;
-    margin-top: 3em;
   }
 
   .contractor-stats {

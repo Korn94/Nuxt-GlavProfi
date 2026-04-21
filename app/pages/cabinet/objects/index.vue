@@ -322,6 +322,10 @@ onMounted(async () => {
     width: 220px;
     transition: var(--crm-transition);
 
+    @media (max-width: 767.98px) {
+      width: 150px;
+    }
+
     &::placeholder {
       color: var(--crm-text-disabled);
     }

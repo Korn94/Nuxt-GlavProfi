@@ -35,17 +35,36 @@
           <Icon name="mdi:database" size="16" />
           <span>CRM</span>
         </button>
-        <button class="mode-switcher__btn" :class="{ 'mode-switcher__btn--active': menuMode === 'boards' }"
-          @click="setMenuMode('boards')">
+        
+        <!-- Кнопка «Доски» с блокировкой для не-админов -->
+        <button 
+          class="mode-switcher__btn" 
+          :class="{ 
+            'mode-switcher__btn--active': menuMode === 'boards',
+            'mode-switcher__btn--disabled': !isBoardsAvailable
+          }"
+          @click="handleBoardsClick"
+          :disabled="!isBoardsAvailable"
+          :title="!isBoardsAvailable ? 'Доступно только администраторам' : ''"
+        >
           <Icon name="mdi:clipboard-text-multiple-outline" size="16" />
           <span>Доски</span>
+          <!-- Индикатор блокировки -->
+          <span v-if="!isBoardsAvailable" class="mode-switcher__lock">
+            <Icon name="mdi:lock-outline" size="12" />
+          </span>
         </button>
       </div>
 
       <!-- Меню -->
       <nav class="sidebar-nav">
         <CrmMenu v-if="menuMode === 'crm'" @close-sidebar="closeSidebarOnMobile" />
-        <BoardsMenu v-else-if="menuMode === 'boards'" @close-sidebar="closeSidebarOnMobile" />
+        <BoardsMenu v-else-if="menuMode === 'boards' && isBoardsAvailable" @close-sidebar="closeSidebarOnMobile" />
+        <!-- Заглушка для не-админов, если вдруг переключили -->
+        <div v-else-if="menuMode === 'boards'" class="boards-restricted">
+          <Icon name="mdi:lock-outline" size="24" />
+          <p>Раздел «Доски» доступен только администраторам</p>
+        </div>
       </nav>
 
       <!-- Футер сайдбара -->
@@ -96,6 +115,11 @@ const userInitials = computed(() => {
   return name.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase() || '?'
 })
 
+// 🔐 Проверка: доступен ли раздел «Доски» (только для админов)
+const isBoardsAvailable = computed(() => {
+  return user.value?.role === 'admin'
+})
+
 // Загрузка данных пользователя
 async function fetchUserData() {
   try {
@@ -111,7 +135,22 @@ async function fetchUserData() {
 
 // Режим меню
 function setMenuMode(mode: 'crm' | 'boards') {
+  // ✅ Дополнительная защита: не переключаем на доски, если нет доступа
+  if (mode === 'boards' && !isBoardsAvailable.value) {
+    console.log('[Header] 🔐 Доступ к разделу «Доски» запрещён для роли:', user.value?.role)
+    return
+  }
   menuMode.value = mode
+}
+
+// 🔐 Обработчик клика по кнопке «Доски»
+function handleBoardsClick() {
+  if (!isBoardsAvailable.value) {
+    // Опционально: показать уведомление (можно подключить вашу систему алертов)
+    console.warn('[Header] ⚠️ Попытка доступа к «Доскам» без прав администратора')
+    return
+  }
+  setMenuMode('boards')
 }
 
 // Определение мобильного устройства
@@ -315,12 +354,13 @@ $sidebar-width: 256px;
     font-weight: 500;
     cursor: pointer;
     transition: var(--crm-transition);
+    position: relative;
 
     span {
       color: inherit;
     }
 
-    &:hover {
+    &:hover:not(:disabled) {
       background: var(--crm-bg-elevated);
       color: var(--crm-text-secondary);
     }
@@ -330,11 +370,51 @@ $sidebar-width: 256px;
       border-color: var(--crm-accent-border);
       color: var(--crm-accent);
 
-      &:hover {
+      &:hover:not(:disabled) {
         background: var(--crm-accent-dim);
         color: var(--crm-accent);
       }
     }
+
+    // 🔐 Стили для заблокированной кнопки
+    &--disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      border-color: var(--crm-border);
+      background: var(--crm-bg-elevated);
+      color: var(--crm-text-disabled);
+      
+      &:hover {
+        background: var(--crm-bg-elevated);
+        color: var(--crm-text-disabled);
+      }
+    }
+  }
+
+  // 🔐 Индикатор замка
+  &__lock {
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    color: var(--crm-text-muted);
+    opacity: 0.8;
+  }
+}
+
+// ── Заглушка для заблокированного раздела ────────────────────────────
+.boards-restricted {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--crm-text-muted);
+
+  p {
+    font-size: var(--crm-text-sm);
+    margin: 0;
   }
 }
 

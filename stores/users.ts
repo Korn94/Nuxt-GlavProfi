@@ -69,7 +69,7 @@ export const useUsersStore = defineStore('users', () => {
     try {
       console.log('[UsersStore] Fetching users from API...')
       
-      const response = await $fetch<{ users: User[] }>('/api/users/get', {
+      const response = await $fetch<{ users: User[] }>('/api/users', {
         method: 'GET',
         credentials: 'include'
       })
@@ -101,7 +101,7 @@ export const useUsersStore = defineStore('users', () => {
     }
 
     try {
-      const user = await $fetch<User>(`/api/users/${id}/get`, {
+      const user = await $fetch<User>(`/api/users/${id}`, {
         method: 'GET',
         credentials: 'include'
       })

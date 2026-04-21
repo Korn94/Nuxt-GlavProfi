@@ -52,7 +52,7 @@ const menuItems = [
     title: 'Главная',
     path: '/cabinet',
     icon: 'mdi:home-outline',
-    roles: ['admin', 'manager', 'foreman', 'master', 'worker']
+    roles: ['admin']
   },
   {
     title: 'Сотрудники',
@@ -61,16 +61,22 @@ const menuItems = [
     roles: ['admin']
   },
   {
-    title: 'График работ',
+    title: 'Пользователи',
+    path: '/cabinet/admin/users',
+    icon: 'mdi:account-group-outline',
+    roles: ['admin']
+  },
+  {
+    title: 'Подневка',
     path: '/cabinet/daily-work',
     icon: 'mdi:calendar-today-outline',
-    roles: ['admin']
+    roles: ['admin', 'foreman']
   },
   {
     title: 'Объекты',
     path: '/cabinet/objects',
     icon: 'mdi:office-building-outline',
-    roles: ['admin', 'foreman', 'master', 'worker']
+    roles: ['admin']
   },
   {
     title: 'Чеки',
@@ -102,7 +108,7 @@ const menuItems = [
     title: 'На сайт',
     path: '/',
     icon: 'mdi:web',
-    roles: ['admin', 'manager', 'foreman', 'master', 'worker']
+    roles: ['admin']
   },
   {
     title: 'Кейсы',
