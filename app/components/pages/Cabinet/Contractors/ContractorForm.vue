@@ -52,6 +52,22 @@
         <span v-if="errors.balance" class="form-field__error">{{ errors.balance }}</span>
       </div>
 
+      <!-- ✅ Переключатель «Активен» -->
+      <div class="form-field">
+        <label class="form-field__label">Статус</label>
+        <label class="toggle">
+          <input 
+            type="checkbox" 
+            v-model="form.isActive" 
+            class="toggle__input"
+          />
+          <span class="toggle__track">
+            <span class="toggle__thumb" />
+          </span>
+          <span class="toggle__label">{{ form.isActive ? 'Активен' : 'В архиве' }}</span>
+        </label>
+      </div>
+
     </div>
 
     <!-- Комментарий -->
@@ -137,16 +153,17 @@ const form = ref<{
   comment: string | null
   balance: string
   userId: number | null
+  isActive: boolean  // ✅ Новое поле
 }>({
   name: '',
   phone: null,
   comment: null,
   balance: '0.00',
-  userId: null
+  userId: null,
+  isActive: true  // ✅ По умолчанию активен
 })
 
 const displayBalance = ref('0.00')
-
 const errors = ref<Record<string, string>>({})
 
 // ── Инициализация ───────────────────────────────────────────────────
@@ -159,7 +176,8 @@ watch(
         phone: contractor.phone || null,
         comment: contractor.comment || null,
         balance: String(contractor.balance),
-        userId: contractor.userId || null
+        userId: contractor.userId || null,
+        isActive: contractor.isActive ?? true  // ✅ Загружаем статус
       }
       displayBalance.value = formatCurrency(contractor.balance)
     } else {
@@ -169,7 +187,7 @@ watch(
   { immediate: true }
 )
 
-// ── Всп��могательные функции ─────────────────────────────────────────
+// ── Вспомогательные функции ─────────────────────────────────────────
 function formatCurrency(amount: string | number): string {
   const num = parseFloat(String(amount)) || 0
   return num.toLocaleString('ru-RU', {
@@ -230,7 +248,8 @@ function resetForm() {
     phone: null,
     comment: null,
     balance: '0.00',
-    userId: null
+    userId: null,
+    isActive: true  // ✅ Сброс к активному
   }
   displayBalance.value = '0.00'
   errors.value = {}
@@ -270,12 +289,13 @@ function validate(): boolean {
 function handleSubmit() {
   if (!validate()) return
 
-  const data: ContractorCreateInput = {
+  const data: ContractorCreateInput & { isActive?: boolean } = {
     name: form.value.name.trim(),
     phone: form.value.phone || null,
     comment: form.value.comment || null,
-    balance: form.value.balance, // ✅ Уже строка
-    userId: form.value.userId || null
+    balance: form.value.balance,
+    userId: form.value.userId || null,
+    isActive: form.value.isActive  // ✅ Добавляем в отправку
   }
 
   emit('update:form', data)
@@ -429,6 +449,67 @@ defineExpose({
 
   .form-field__input {
     padding-right: 36px;
+  }
+}
+
+// ✅ Переключатель «Активен»
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+
+  &__input {
+    display: none;
+  }
+
+  &__track {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    background: var(--crm-bg-overlay);
+    border: 1px solid var(--crm-border-hover);
+    border-radius: 12px;
+    transition: var(--crm-transition);
+    flex-shrink: 0;
+
+    &::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 18px;
+      height: 18px;
+      background: var(--crm-text-muted);
+      border-radius: 50%;
+      transition: var(--crm-transition);
+    }
+  }
+
+  &__thumb {
+    display: none;
+  }
+
+  &__label {
+    font-size: var(--crm-text-sm);
+    font-weight: 500;
+    color: var(--crm-text-secondary);
+  }
+
+  // Состояние: включено
+  &__input:checked + &__track {
+    background: var(--crm-success-dim);
+    border-color: rgba(61, 214, 140, 0.3);
+
+    &::after {
+      left: calc(100% - 20px);
+      background: var(--crm-success);
+    }
+  }
+
+  &__input:checked ~ &__label {
+    color: var(--crm-success);
   }
 }
 

@@ -1,7 +1,7 @@
 // server/services/contractors/repository.ts
 import { db } from '../../db'
 import { masters, workers, foremans, offices } from '../../db/schema'
-import { eq } from 'drizzle-orm'
+import { eq, and, desc } from 'drizzle-orm'
 import type { ContractorType, Contractor, ContractorCreateInput, ContractorUpdateInput } from '~/types/contractors'
 import { ContractorNotFoundError, InvalidContractorTypeError } from '~/types/contractors'
 
@@ -50,11 +50,24 @@ export class ContractorRepository {
 
   /**
    * Найти все контрагентов определённого типа
+   * ✅ ДОБАВЛЕНО: поддержка фильтра { isActive?: boolean }
    */
-  static async findByType(type: ContractorType): Promise<Contractor[]> {
+  static async findByType(type: ContractorType, filters?: { isActive?: boolean }): Promise<Contractor[]> {
     const table = this.getTable(type)
     
-    const records = await db.select().from(table)
+    // Формируем условия запроса
+    const conditions = []
+    
+    // Если передан фильтр isActive — добавляем в WHERE
+    if (filters?.isActive !== undefined) {
+      conditions.push(eq(table.isActive, filters.isActive))
+    }
+    
+    // Выполняем запрос с условиями или без
+    const query = db.select().from(table)
+    const records = conditions.length > 0 
+      ? await query.where(and(...conditions))
+      : await query
     
     return records.map(r => ({
       ...r,
@@ -85,47 +98,47 @@ export class ContractorRepository {
 
   /**
    * Создать контрагента
+   * ✅ ДОБАВЛЕНО: isActive по умолчанию true
    */
-static async create(type: ContractorType, input: ContractorCreateInput): Promise<Contractor> {
-  const table = this.getTable(type)
-  
-  if (!input.name || input.name.trim().length === 0) {
-    throw new Error('Contractor name is required')
-  }
+  static async create(type: ContractorType, input: ContractorCreateInput): Promise<Contractor> {
+    const table = this.getTable(type)
+    
+    if (!input.name || input.name.trim().length === 0) {
+      throw new Error('Contractor name is required')
+    }
 
-  const data = {
-    name: input.name.trim(),
-    phone: input.phone || null,
-    comment: input.comment || null,
-    balance: this.normalizeBalance(input.balance || '0'),
-    userId: input.userId || null
-  }
+    const data = {
+      name: input.name.trim(),
+      phone: input.phone || null,
+      comment: input.comment || null,
+      balance: this.normalizeBalance(input.balance || '0'),
+      userId: input.userId || null,
+      isActive: input.isActive ?? true // ✅ По умолчанию активен
+    }
 
-  // @ts-ignore
-  await db.insert(table).values(data)
+    // @ts-ignore
+    await db.insert(table).values(data)
 
-  // ✅ Исправить: получить последний созданный правильно
-  const [created] = await db
-    .select()
-    .from(table)
-    .orderBy(table.id)  // Нужен импорт desc если хотим в обратном порядке
-    // Правильнее так:
-    .where(eq(table.name, data.name))
-    .limit(1)
-  
-  if (!created) {
-    throw new Error('Failed to create contractor')
+    const [created] = await db
+      .select()
+      .from(table)
+      .orderBy(desc(table.id))  // ✅ Берём последний созданный по ID
+      .limit(1)
+    
+    if (!created) {
+      throw new Error('Failed to create contractor')
+    }
+    
+    return {
+      ...created,
+      type,
+      balance: this.normalizeBalance(created.balance)
+    }
   }
-  
-  return {
-    ...created,
-    type,
-    balance: this.normalizeBalance(created.balance)
-  }
-}
 
   /**
    * Обновить контрагента
+   * ✅ ДОБАВЛЕНО: поддержка поля isActive в input
    */
   static async update(
     type: ContractorType,
@@ -137,7 +150,7 @@ static async create(type: ContractorType, input: ContractorCreateInput): Promise
     const existing = await this.findById(type, id)
     if (!existing) return null
 
-   // Защита от пустого input
+    // Защита от пустого input
     if (!input || typeof input !== 'object') {
       throw new Error('Invalid update data')
     }
@@ -156,6 +169,7 @@ static async create(type: ContractorType, input: ContractorCreateInput): Promise
     if (input.comment !== undefined) updates.comment = input.comment
     if (input.balance !== undefined) updates.balance = this.normalizeBalance(input.balance)
     if (input.userId !== undefined) updates.userId = input.userId
+    if (input.isActive !== undefined) updates.isActive = input.isActive // ✅ Можно менять отдельно
 
     updates.updatedAt = new Date()
 

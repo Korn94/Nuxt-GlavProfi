@@ -15,6 +15,7 @@ export interface ContractorModel {
   comment: string | null
   balance: string | number
   userId: number | null
+  isActive: boolean
   createdAt: Date
   updatedAt: Date
 }
@@ -33,6 +34,7 @@ export interface ContractorDTO {
   comment: string | null
   balance: string
   userId: number | null
+  isActive: boolean
   createdAt: string
   updatedAt: string
   user?: {
@@ -50,6 +52,7 @@ export interface ContractorCreateInput {
   comment?: string | null
   balance?: string | number
   userId?: number | null
+  isActive?: boolean
 }
 
 // Input для обновления
@@ -59,6 +62,7 @@ export interface ContractorUpdateInput {
   comment?: string | null
   balance?: string | number
   userId?: number | null
+  isActive?: boolean
 }
 
 // Кастомные ошибки

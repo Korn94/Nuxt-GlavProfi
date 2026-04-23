@@ -379,6 +379,7 @@ export const masters = mysqlTable('masters', {
   userId: bigint('user_id', { mode: 'number', unsigned: true })
     .references(() => users.id, { onDelete: 'set null' }), // Опциональная связь
   dailyRate: decimal('daily_rate', { precision: 10, scale: 2 }).default('0.00').notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: datetime('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull().$type<Date>()
 })
@@ -393,6 +394,7 @@ export const workers = mysqlTable('workers', {
   userId: bigint('user_id', { mode: 'number', unsigned: true })
     .references(() => users.id, { onDelete: 'set null' }), // Опциональная связь
   dailyRate: decimal('daily_rate', { precision: 10, scale: 2 }).default('0.00').notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: datetime('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull().$type<Date>()
 })
@@ -406,6 +408,7 @@ export const foremans = mysqlTable('foremans', {
   balance: decimal('balance', { precision: 10, scale: 2 }).default('0.00').notNull(),
   userId: bigint('user_id', { mode: 'number', unsigned: true })
     .references(() => users.id, { onDelete: 'set null' }), // Опциональная связь
+  isActive: boolean('is_active').default(true).notNull(),
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: datetime('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull().$type<Date>()
 })
@@ -418,6 +421,7 @@ export const offices = mysqlTable('offices', {
   balance: decimal('balance', { precision: 10, scale: 2 }).default('0.00').notNull(),
   userId: bigint('user_id', { mode: 'number', unsigned: true })
     .references(() => users.id, { onDelete: 'set null' }), // Опциональная связь
+  isActive: boolean('is_active').default(true).notNull(),
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
   updatedAt: datetime('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull().$type<Date>()
 })

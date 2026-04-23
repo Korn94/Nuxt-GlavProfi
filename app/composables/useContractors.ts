@@ -22,8 +22,9 @@ export const useContractors = () => {
 
   /**
    * Получить всех контрагентов определённого типа
+   * ✅ ДОБАВЛЕНО: параметр activeOnly (по умолчанию true — только активные)
    */
-  async function fetchAll(type: ContractorType) {
+  async function fetchAll(type: ContractorType, activeOnly = true) {
     loading.value = true
     error.value = null
 
@@ -32,7 +33,7 @@ export const useContractors = () => {
         type: ContractorType
         count: number
         contractors: ContractorDTO[]
-      }>(`/api/contractors/${type}`)
+      }>(`/api/contractors/${type}?activeOnly=${activeOnly}`)
       
       contractorsData.value[type] = response.contractors
       return response.contractors
@@ -57,7 +58,7 @@ export const useContractors = () => {
       
       // Обновляем в локальном кэше
       const list = contractorsData.value[type] || []
-      const idx = list.findIndex((c: ContractorDTO) => c.id === id) // ✅ Типизировать c
+      const idx = list.findIndex((c: ContractorDTO) => c.id === id)
       
       if (idx >= 0) {
         list[idx] = contractor
@@ -124,7 +125,7 @@ export const useContractors = () => {
 
       // Обновляем кэш
       const list = contractorsData.value[type] || []
-      const idx = list.findIndex((c: ContractorDTO) => c.id === id) // ✅ Типизировать c
+      const idx = list.findIndex((c: ContractorDTO) => c.id === id)
       
       if (idx >= 0) {
         list[idx] = updated
@@ -155,7 +156,7 @@ export const useContractors = () => {
 
       // Удаляем из кэша
       const list = contractorsData.value[type] || []
-      contractorsData.value[type] = list.filter((c: ContractorDTO) => c.id !== id) // ✅ Типизировать c
+      contractorsData.value[type] = list.filter((c: ContractorDTO) => c.id !== id)
     } catch (err: any) {
       error.value = err.data?.statusMessage || 'Failed to delete contractor'
       console.error(`Error deleting contractor:`, err)
@@ -176,7 +177,7 @@ export const useContractors = () => {
    * Получить контрагента по типу и ID из кэша
    */
   const getById = (type: ContractorType, id: number): ContractorDTO | undefined => {
-    return contractorsData.value[type]?.find((c: ContractorDTO) => c.id === id) // ✅ Типизировать c
+    return contractorsData.value[type]?.find((c: ContractorDTO) => c.id === id)
   }
 
   /**

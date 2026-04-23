@@ -1,12 +1,42 @@
 // server/services/contractors/service.ts
 import { db } from '../../db'
 import { users } from '../../db/schema'
-import { eq, inArray } from 'drizzle-orm' // ✅ Добавить inArray
+import { eq, and, inArray } from 'drizzle-orm'
 import { ContractorRepository } from './repository'
 import type { ContractorType, ContractorDTO, ContractorCreateInput, ContractorUpdateInput } from '~/types/contractors'
 import { ContractorNotFoundError } from '~/types/contractors'
 
 export class ContractorService {
+  // ── GET BY TYPE (с поддержкой фильтрации по isActive) ─────────────────
+  static async getByTypeDTO(type: ContractorType, activeOnly = true): Promise<ContractorDTO[]> {
+    const contractors = await ContractorRepository.findByType(type, { isActive: activeOnly ? true : undefined })
+    
+    const userIds = contractors
+      .map(c => c.userId)
+      .filter((id): id is number => id !== null)
+    
+    let usersMap = new Map()
+    if (userIds.length > 0) {
+      const userRecords = await db
+        .select()
+        .from(users)
+        .where(inArray(users.id, userIds))
+      
+      usersMap = new Map(userRecords.map(u => [u.id, u]))
+    }
+
+    return contractors.map(contractor => {
+      const user = contractor.userId ? usersMap.get(contractor.userId) : null
+      return this.toDTO(contractor, user ? {
+        id: user.id,
+        name: user.name,
+        login: user.login,
+        role: user.role
+      } : null)
+    })
+  }
+
+  // ── GET ONE (полная информация) ───────────────────────────────────────
   static async getFullDTO(type: ContractorType, id: number): Promise<ContractorDTO | null> {
     const contractor = await ContractorRepository.findById(type, id)
     if (!contractor) return null
@@ -31,34 +61,7 @@ export class ContractorService {
     return this.toDTO(contractor, user)
   }
 
-  static async getByTypeDTO(type: ContractorType): Promise<ContractorDTO[]> {
-    const contractors = await ContractorRepository.findByType(type)
-    
-    const userIds = contractors
-      .map(c => c.userId)
-      .filter((id): id is number => id !== null)
-    
-    let usersMap = new Map()
-    if (userIds.length > 0) {
-      const userRecords = await db
-        .select()
-        .from(users)
-        .where(inArray(users.id, userIds)) // ✅ Использовать inArray вместо includes
-      
-      usersMap = new Map(userRecords.map(u => [u.id, u]))
-    }
-
-    return contractors.map(contractor => {
-      const user = contractor.userId ? usersMap.get(contractor.userId) : null
-      return this.toDTO(contractor, user ? {
-        id: user.id,
-        name: user.name,
-        login: user.login,
-        role: user.role
-      } : null)
-    })
-  }
-
+  // ── GET BY USER ID ────────────────────────────────────────────────────
   static async getByUserIdDTO(userId: number): Promise<{ type: ContractorType; contractor: ContractorDTO } | null> {
     const types: ContractorType[] = ['master', 'worker', 'foreman', 'office']
     
@@ -73,8 +76,13 @@ export class ContractorService {
     return null
   }
 
+  // ── CREATE (isActive по умолчанию true) ───────────────────────────────
   static async create(type: ContractorType, input: ContractorCreateInput): Promise<ContractorDTO> {
-    const contractor = await ContractorRepository.create(type, input)
+    const contractor = await ContractorRepository.create(type, {
+      ...input,
+      isActive: input.isActive ?? true // ✅ По умолчанию активен
+    })
+    
     const dto = await this.getFullDTO(type, contractor.id)
     
     if (!dto) throw new Error('Failed to create contractor')
@@ -82,6 +90,7 @@ export class ContractorService {
     return dto
   }
 
+  // ── UPDATE (поддержка isActive) ───────────────────────────────────────
   static async update(
     type: ContractorType,
     id: number,
@@ -100,6 +109,7 @@ export class ContractorService {
     return dto
   }
 
+  // ── DELETE (без изменений) ────────────────────────────────────────────
   static async delete(type: ContractorType, id: number): Promise<void> {
     const contractor = await ContractorRepository.findById(type, id)
     
@@ -107,7 +117,6 @@ export class ContractorService {
       throw new ContractorNotFoundError(type, id)
     }
 
-    // ✅ Конвертировать balance в число перед сравнением
     const balance = parseFloat(String(contractor.balance))
     if (balance > 0) {
       throw new Error(`Cannot delete contractor with positive balance: ${balance}`)
@@ -126,6 +135,7 @@ export class ContractorService {
     }
   }
 
+  // ── BALANCE OPERATIONS (без изменений) ────────────────────────────────
   static async addBalance(type: ContractorType, id: number, amount: string | number): Promise<ContractorDTO> {
     const contractor = await ContractorRepository.addBalance(type, id, amount)
     
@@ -165,6 +175,27 @@ export class ContractorService {
     return dto
   }
 
+  // ── Быстрый переключатель isActive (новый метод) ──────────────────────
+  static async toggleActive(type: ContractorType, id: number): Promise<{ isActive: boolean }> {
+    const contractor = await ContractorRepository.findById(type, id)
+    
+    if (!contractor) {
+      throw new ContractorNotFoundError(type, id)
+    }
+    
+    const updated = await ContractorRepository.update(type, id, {
+      isActive: !contractor.isActive
+    })
+    
+    // ✅ ПРОВЕРКА: если update вернул null — выбрасываем ошибку
+    if (!updated) {
+      throw new Error(`Failed to toggle isActive for ${type} contractor ${id}`)
+    }
+    
+    return { isActive: updated.isActive }
+  }
+
+  // ── DTO Mapper (добавлен isActive) ────────────────────────────────────
   private static toDTO(
     contractor: any,
     user: any = null
@@ -177,6 +208,7 @@ export class ContractorService {
       comment: contractor.comment || null,
       balance: String(contractor.balance || '0'),
       userId: contractor.userId || null,
+      isActive: contractor.isActive ?? true, // ✅ Добавляем в DTO
       createdAt: contractor.createdAt?.toISOString() || new Date().toISOString(),
       updatedAt: contractor.updatedAt?.toISOString() || new Date().toISOString(),
       user: user || undefined
