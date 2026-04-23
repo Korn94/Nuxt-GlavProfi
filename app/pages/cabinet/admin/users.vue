@@ -4,6 +4,16 @@
     <!-- ═══════════════════════════ HEADER ═══════════════════════════ -->
     <PageTitle title="Пользователи" icon="mdi:account-group" :badge="filteredUsers.length">
       <template #actions>
+        <!-- ✅ Кнопка возврата к контрагентам -->
+        <NuxtLink 
+          to="/cabinet/contractors" 
+          class="btn btn--ghost btn--sm"
+        >
+          <Icon name="mdi:chevron-left" size="14" />
+          Контрагенты
+        </NuxtLink>
+
+        <!-- Кнопка добавления пользователя -->
         <button class="btn btn--primary btn--sm" @click="actions.openCreateModal">
           <Icon name="mdi:plus" size="14" />
           Добавить
@@ -255,6 +265,18 @@ async function handleDelete() {
     background: var(--crm-danger-dim);
     border-color: rgba(242, 95, 92, 0.3);
     color: var(--crm-danger);
+  }
+}
+
+.btn--ghost {
+  background: transparent;
+  border-color: var(--crm-border-hover);
+  color: var(--crm-text-secondary);
+  
+  &:hover {
+    background: var(--crm-bg-overlay);
+    color: var(--crm-text-primary);
+    border-color: var(--crm-border-hover);
   }
 }
 

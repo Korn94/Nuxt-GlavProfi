@@ -61,12 +61,6 @@ const menuItems = [
     roles: ['admin']
   },
   {
-    title: 'Пользователи',
-    path: '/cabinet/admin/users',
-    icon: 'mdi:account-group-outline',
-    roles: ['admin']
-  },
-  {
     title: 'Подневка',
     path: '/cabinet/daily-work',
     icon: 'mdi:calendar-today-outline',

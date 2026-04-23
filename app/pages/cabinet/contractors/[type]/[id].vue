@@ -6,7 +6,7 @@
     <!-- Заголовок с кнопками -->
     <div class="contractor-detail__header">
       <div class="contractor-detail__back">
-        <NuxtLink :to="`/cabinet/contractors/${type}`" class="crm-btn crm-btn--ghost crm-btn--sm">
+        <NuxtLink :to="`/cabinet/contractors`" class="crm-btn crm-btn--ghost crm-btn--sm">
           <Icon name="mdi:chevron-left" size="16" />
           Назад
         </NuxtLink>

@@ -21,7 +21,7 @@ export const useForemanDailyStore = defineStore('foremanDaily', () => {
   const error = ref<string | null>(null)
 
   // ── Даты ───────────────────────────────────────────────────────────────
-  const editableDaysLimit = 14
+  const editableDaysLimit = 30
 
   const now = new Date()
   const todayStr = ref<string>(now.toISOString().slice(0, 10))
