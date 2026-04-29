@@ -5,7 +5,7 @@
     <!-- ═══════════════ UNIFIED PAGE TITLE ═══════════════ -->
     <PagesCabinetUiLayoutPageTitle 
       title="Учет подневки"
-      icon="material-symbols-light:calendar-month"
+      icon="mdi:calendar-month-outline"
     >
       <template #actions>
         <button class="btn-icon" @click="showHelp = !showHelp" title="Подсказка">?</button>
@@ -78,6 +78,8 @@
         </div>
       </div>
     </div>
+
+
 
     <!-- ═══════════════════════════ MODAL SHEET ═══════════════════════ -->
     <DailyAssignmentSheet 

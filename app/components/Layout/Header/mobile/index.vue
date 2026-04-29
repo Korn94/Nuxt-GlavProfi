@@ -1,3 +1,4 @@
+<!-- app\components\Layout\Header\mobile\index.vue -->
 <template>
   <div class="mobile-bottom-nav">
     <!-- Нижнее меню -->
@@ -11,7 +12,7 @@
           </nuxt-link>
         </li>
         <li :class="{ active: !isMenuActive && isPriceRoute }">
-          <nuxt-link to="/prices/floor" @click.native="closeMenus">
+          <nuxt-link to="/prices/otdelochnye-raboty" @click.native="closeMenus">
             <Icon name="solar:tag-price-broken" size="22px" />
             <span class="label">Прайс-лист</span>
           </nuxt-link>
@@ -44,7 +45,7 @@
             <nuxt-link to="/projects" @click.native="closeMenus">Портфолио</nuxt-link>
           </li>
           <li :class="{ active: currentRoute === 'prices' }">
-            <nuxt-link to="/prices/floor" @click.native="closeMenus">Цены</nuxt-link>
+            <nuxt-link to="/prices/otdelochnye-raboty" @click.native="closeMenus">Цены</nuxt-link>
           </li>
           <li :class="{ active: currentRoute === 'feedback' }">
             <nuxt-link to="/#feedback" @click.native="closeMenus">Отзывы</nuxt-link>

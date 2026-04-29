@@ -1,3 +1,4 @@
+<!-- app\components\pages\public\prices\ui\SelectOrInput.vue -->
 <template>
   <div class="select-or-input">
     <select v-model="selectedValue" @change="handleChange">

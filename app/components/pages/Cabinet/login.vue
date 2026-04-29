@@ -33,6 +33,12 @@
         <span v-if="authStore.isChecking">Вход...</span>
         <span v-else>Войти</span>
       </button>
+
+      <!-- Кнопка возврата на главную -->
+      <button @click="goToHome" class="secondary-btn">
+        <Icon name="mdi:arrow-left" class="btn-icon" size="16px" />
+        На главную
+      </button>
     </div>
   </div>
 </template>
@@ -53,13 +59,10 @@ authStore.init()
 
 async function handleLogin() {
   try {
-    // Полностью полагаемся на authStore для аутентификации
     await authStore.login({
       login: login.value,
       password: password.value
     })
-    
-    // Если аутентификация успешна, authStore автоматически перенаправит
   } catch (error) {
     console.error('Ошибка при входе:', error)
   }
@@ -67,6 +70,10 @@ async function handleLogin() {
 
 function togglePasswordVisibility() {
   showPassword.value = !showPassword.value
+}
+
+function goToHome() {
+  router.push('/')
 }
 </script>
 
@@ -137,9 +144,34 @@ function togglePasswordVisibility() {
       border-radius: 5px;
       cursor: pointer;
       transition: background-color 0.3s ease;
+      margin-top: 10px;
+      font-weight: 500;
 
       &:hover {
         background-color: #34495e;
+      }
+
+      &:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+      }
+    }
+
+    .secondary-btn {
+      background-color: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: white;
+      
+      &:hover {
+        background-color: #34495e;
+      }
+
+      .btn-icon {
+        font-size: 1.1rem;
       }
     }
 
@@ -148,5 +180,9 @@ function togglePasswordVisibility() {
       margin-top: 10px;
     }
   }
+}
+
+span {
+  color: unset;
 }
 </style>

@@ -12,6 +12,8 @@
 import { io, type Socket } from 'socket.io-client'
 import { useCookie } from '#app'
 import type { Subtask, Task, BoardColumn } from '~/types/boards'
+import { useAuthStore } from 'stores/auth'
+import { setSessionId } from 'services/helpers/sessionId'
 
 // ============================================
 // ТИПЫ СОБЫТИЙ
@@ -490,12 +492,8 @@ export class SocketService {
       if (isInvalidToken) {
         console.log('[SocketService] 🔐 Невалидный токен, выполняем выход...')
         if (process.client) {
-          import('stores/auth').then(({ useAuthStore }) => {
-            const authStore = useAuthStore()
-            authStore.logout()
-          }).catch(err => {
-            console.error('[SocketService] ❌ Не удалось импортировать auth store:', err)
-          })
+          const authStore = useAuthStore()
+          authStore.logout()
         }
       }
     })
@@ -815,13 +813,9 @@ export class SocketService {
   private handleSessionInitialized(data: { sessionId: string; userId: number }): void {
     if (!process.client) return
     try {
-      import('./helpers/sessionId').then(({ setSessionId }) => {
-        setSessionId(data.sessionId)
-      }).catch(error => {
-        console.error('[SocketService] ❌ Ошибка сохранения session_id:', error)
-      })
+      setSessionId(data.sessionId) // прямой вызов
     } catch (error) {
-      console.error('[SocketService] ❌ Ошибка импорта setSessionId:', error)
+      console.error('[SocketService] ❌ Ошибка сохранения session_id:', error)
     }
   }
 }

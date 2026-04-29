@@ -21,15 +21,15 @@
     </div>
     <div class="exp">
       <div class="box">
-        <div class="ico"><Icon name="fluent:city-24-regular" class="icon" /></div>
+        <div class="ico"><Icon name="solar:city-broken" class="icon" /></div>
         <p>11 лет на рынке<br />в Рязани и области</p>
       </div>
       <div class="box">
-        <div class="ico"><Icon name="fluent:people-team-16-regular" class="icon" /></div>
+        <div class="ico"><Icon name="solar:hand-shake-broken" class="icon" /></div>
         <p>5 специализированных бригад</p>
       </div>
       <div class="box">
-        <div class="ico"><Icon name="meteor-icons:key" class="icon" /></div>
+        <div class="ico"><Icon name="solar:key-square-2-broken" class="icon" /></div>
         <p>
           Полный комплекс<br />
           услуг под ключ

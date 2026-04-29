@@ -1,7 +1,7 @@
 // server/utils/sessions.ts
 import { db } from '../db'
 import { users, userSessions } from '../db/schema'
-import { eq, and, sql, desc, or, count, max, lt } from 'drizzle-orm'
+import { eq, and, sql, desc, or } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 
 /**
@@ -30,7 +30,7 @@ export async function createSession(
   isActiveTab: boolean = true
 ) {
   const sessionId = `sess_${nanoid(16)}`
-  
+
   // Вставляем сессию с новыми полями
   await db.insert(userSessions).values({
     userId,
@@ -44,7 +44,7 @@ export async function createSession(
     startedAt: formatMySQLDate(new Date()),
     lastActivity: formatMySQLDate(new Date())
   })
-  
+
   // Получаем созданную сессию
   const [session] = await db
     .select({
@@ -59,7 +59,7 @@ export async function createSession(
     })
     .from(userSessions)
     .where(eq(userSessions.sessionId, sessionId))
-  
+
   return session
 }
 
@@ -81,12 +81,12 @@ export async function updateSessionStatus(
     status,
     lastActivity: formatMySQLDate(new Date())
   }
-  
+
   // ✅ КРИТИЧНО: При статусе offline ставим endedAt
   if (status === 'offline') {
     updateData.endedAt = formatMySQLDate(new Date())
   }
-  
+
   // Обновляем только переданные поля
   if (updates) {
     if (updates.ipAddress !== undefined) updateData.ipAddress = updates.ipAddress
@@ -94,13 +94,13 @@ export async function updateSessionStatus(
     if (updates.isActiveTab !== undefined) updateData.isActiveTab = updates.isActiveTab
     if (updates.tabId !== undefined) updateData.tabId = updates.tabId
   }
-  
+
   // Обновляем сессию
   await db
     .update(userSessions)
     .set(updateData)
     .where(eq(userSessions.sessionId, sessionId))
-  
+
   // Получаем обновлённую сессию
   const [session] = await db
     .select({
@@ -115,7 +115,7 @@ export async function updateSessionStatus(
     })
     .from(userSessions)
     .where(eq(userSessions.sessionId, sessionId))
-  
+
   return session
 }
 
@@ -130,7 +130,7 @@ export async function endSession(sessionId: string) {
       endedAt: formatMySQLDate(new Date())
     })
     .where(eq(userSessions.sessionId, sessionId))
-  
+
   const [session] = await db
     .select({
       id: userSessions.id,
@@ -139,7 +139,7 @@ export async function endSession(sessionId: string) {
     })
     .from(userSessions)
     .where(eq(userSessions.sessionId, sessionId))
-  
+
   return session
 }
 
@@ -182,7 +182,7 @@ export async function cleanupOldSessions(days: number = 30) {
         )
       )
       .execute()
-    
+
     // ✅ Чистим "зомби"-сессии: статус online/afk, но lastActivity старше 2 часов
     // Это страховка на случай обрыва соединения без disconnect
     const result2 = await db
@@ -197,11 +197,11 @@ export async function cleanupOldSessions(days: number = 30) {
         )
       )
       .execute()
-    
+
     const affectedRows1 = (result1 as any)[0]?.affectedRows || 0
     const affectedRows2 = (result2 as any)[0]?.affectedRows || 0
     const total = affectedRows1 + affectedRows2
-    
+
     console.log(`[Cleanup] Removed ${total} old sessions (${affectedRows1} ended + ${affectedRows2} zombie)`)
     return total
   } catch (error) {
@@ -220,7 +220,7 @@ export async function closeZombieSessions(userId: number, excludeSessionId?: str
       status: 'offline',
       endedAt: formatMySQLDate(new Date())
     }
-    
+
     const conditions = [
       eq(userSessions.userId, userId),
       or(
@@ -228,17 +228,17 @@ export async function closeZombieSessions(userId: number, excludeSessionId?: str
         eq(userSessions.status, 'afk')
       )
     ]
-    
+
     // Исключаем текущую сессию если передан sessionId
     if (excludeSessionId) {
       conditions.push(sql`${userSessions.sessionId} != ${excludeSessionId}`)
     }
-    
+
     await db
       .update(userSessions)
       .set(updateData)
       .where(and(...conditions))
-    
+
     console.log(`[Sessions] Closed zombie sessions for user ${userId}`)
   } catch (error) {
     console.error('[Sessions] Error closing zombie sessions:', error)
@@ -249,15 +249,14 @@ export async function closeZombieSessions(userId: number, excludeSessionId?: str
  * Получение онлайн-пользователей с агрегацией по пользователю
  * ✅ УЛУЧШЕНИЯ:
  * - Авто-определение AFK по lastActivity (>5 мин бездействия)
- * - Включение недавно вышедших (30 мин) для плавного исчезновения
+ * - Offline-пользователи показываются всегда (с последним временем активности)
  * - Умный выбор лучшей сессии (активная > неактивная, при равенстве — свежее)
  */
 export async function getOnlineUsers() {
-  const RECENT_OFFLINE_MINUTES = 30
   const AFK_THRESHOLD_MS = 5 * 60 * 1000 // 5 минут
 
-  // Получаем сессии: online, afk + недавно вышедшие (для плавного исчезновения)
-  const activeSessions = await db
+  // Получаем все сессии: online, afk + offline (для отображения последнего времени активности)
+  const allSessions = await db
     .select({
       sessionId: userSessions.sessionId,
       userId: userSessions.userId,
@@ -279,10 +278,7 @@ export async function getOnlineUsers() {
       or(
         eq(userSessions.status, 'online'),
         eq(userSessions.status, 'afk'),
-        and(
-          eq(userSessions.status, 'offline'),
-          sql`${userSessions.endedAt} > DATE_SUB(NOW(), INTERVAL ${RECENT_OFFLINE_MINUTES} MINUTE)`
-        )
+        eq(userSessions.status, 'offline')
       )
     )
     .orderBy(desc(userSessions.lastActivity))
@@ -294,7 +290,7 @@ export async function getOnlineUsers() {
     bestSession: any
   }>()
 
-  for (const session of activeSessions) {
+  for (const session of allSessions) {
     if (!usersMap.has(session.userId)) {
       usersMap.set(session.userId, {
         userId: session.userId,
@@ -310,19 +306,19 @@ export async function getOnlineUsers() {
 
     const userData = usersMap.get(session.userId)!
 
-    // ✅ Выбираем лучшую сессию: активная > неактивная, при равенстве — по свежести
+    // ✅ Выбираем лучшую сессию: online > afk > offline, при равенстве — по свежести
     if (!userData.bestSession) {
       userData.bestSession = session
     } else {
-      const sessionIsActive = session.status !== 'offline'
-      const bestIsActive = userData.bestSession.status !== 'offline'
+      const sessionPriority = session.status === 'online' ? 0 : session.status === 'afk' ? 1 : 2
+      const bestPriority = userData.bestSession.status === 'online' ? 0 : userData.bestSession.status === 'afk' ? 1 : 2
 
-      if (sessionIsActive && !bestIsActive) {
+      if (sessionPriority < bestPriority) {
         userData.bestSession = session
-      } else if (sessionIsActive === bestIsActive) {
+      } else if (sessionPriority === bestPriority) {
         const sessionTime = session.lastActivity ? new Date(session.lastActivity).getTime() : 0
-        const bestTime = userData.bestSession.lastActivity 
-          ? new Date(userData.bestSession.lastActivity).getTime() 
+        const bestTime = userData.bestSession.lastActivity
+          ? new Date(userData.bestSession.lastActivity).getTime()
           : 0
         if (sessionTime > bestTime) {
           userData.bestSession = session
@@ -338,6 +334,7 @@ export async function getOnlineUsers() {
     if (!best) return null
 
     // ✅ Авто-определение AFK: если статус online, но нет активности >5 мин
+    // Для offline-пользователей оставляем статус как есть
     let status = best.status
     if (status === 'online' && best.lastActivity) {
       const lastActivityTime = new Date(best.lastActivity).getTime()
@@ -360,11 +357,20 @@ export async function getOnlineUsers() {
     }
   }).filter((u): u is NonNullable<typeof u> => u !== null)
 
-  // Сортировка: online → afk → offline, затем по активности
+  // Сортировка: online → afk → offline, затем по активности (для offline — по endedAt/lastActivity)
   const order: Record<string, number> = { online: 0, afk: 1, offline: 2 }
   return result.sort((a, b) => {
     const diff = (order[a.status] ?? 2) - (order[b.status] ?? 2)
     if (diff !== 0) return diff
-    return new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime()
+
+    // Для offline-пользователей используем endedAt если есть, иначе lastActivity
+    const aTime = a.status === 'offline' && a.endedAt
+      ? new Date(a.endedAt).getTime()
+      : new Date(a.lastActivity).getTime()
+    const bTime = b.status === 'offline' && b.endedAt
+      ? new Date(b.endedAt).getTime()
+      : new Date(b.lastActivity).getTime()
+
+    return bTime - aTime
   })
 }

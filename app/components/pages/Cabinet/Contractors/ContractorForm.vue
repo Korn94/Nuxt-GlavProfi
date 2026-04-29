@@ -1,5 +1,4 @@
-<!-- app\components\pages\cabinet\Contractors\ContractorForm.vue -->
-<!-- Форма создания/редактирования контрагента -->
+<!-- app/components/pages/cabinet/Contractors/ContractorForm.vue -->
 <template>
   <div class="contractor-form">
 
@@ -35,7 +34,7 @@
 
       <!-- Баланс -->
       <div class="form-field">
-        <label class="form-field__label">Баланс <span class="form-field__req">*</span></label>
+        <label class="form-field__label">Баланс</label>
         <div class="balance-input">
           <input 
             v-model="displayBalance" 
@@ -83,39 +82,13 @@
       <span v-if="errors.comment" class="form-field__error">{{ errors.comment }}</span>
     </div>
 
-    <!-- Пользователь (если нужно связывать) -->
-    <div v-if="showUserSelect" class="form-field form-field--full">
-      <label class="form-field__label">Пользователь системы</label>
-      <div class="user-select">
-        <button 
-          v-if="form.userId" 
-          class="user-select__clear"
-          @click="form.userId = null"
-          title="Удалить связь"
-        >
-          <Icon name="mdi:close" size="14" />
-        </button>
-        <select 
-          v-model.number="form.userId" 
-          class="form-field__input"
-          @change="clearError('userId')"
-        >
-          <option :value="null">— Не привязан —</option>
-          <option v-for="user in availableUsers" :key="user.id" :value="user.id">
-            {{ user.name }} ({{ user.login }})
-          </option>
-        </select>
-      </div>
-      <span v-if="errors.userId" class="form-field__error">{{ errors.userId }}</span>
-    </div>
-
     <!-- Сообщение об ошибке формы -->
     <div v-if="errors.form" class="form-error">
       <Icon name="mdi:alert-circle-outline" size="14" />
       {{ errors.form }}
     </div>
 
-    <!-- Информация о создании/обновлении -->
+    <!-- Информация о создании/обновлении (только при редактировании) -->
     <div v-if="contractor && contractor.createdAt" class="form-meta">
       <span class="form-meta__item">
         <Icon name="mdi:calendar-outline" size="12" />
@@ -137,8 +110,6 @@ import type { ContractorType, ContractorDTO, ContractorCreateInput, ContractorUp
 const props = defineProps<{
   contractor?: ContractorDTO | null
   type: ContractorType
-  availableUsers?: Array<{ id: number; name: string; login: string }>
-  showUserSelect?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -152,15 +123,13 @@ const form = ref<{
   phone: string | null
   comment: string | null
   balance: string
-  userId: number | null
-  isActive: boolean  // ✅ Новое поле
+  isActive: boolean
 }>({
   name: '',
   phone: null,
   comment: null,
   balance: '0.00',
-  userId: null,
-  isActive: true  // ✅ По умолчанию активен
+  isActive: true
 })
 
 const displayBalance = ref('0.00')
@@ -176,8 +145,7 @@ watch(
         phone: contractor.phone || null,
         comment: contractor.comment || null,
         balance: String(contractor.balance),
-        userId: contractor.userId || null,
-        isActive: contractor.isActive ?? true  // ✅ Загружаем статус
+        isActive: contractor.isActive ?? true
       }
       displayBalance.value = formatCurrency(contractor.balance)
     } else {
@@ -248,8 +216,7 @@ function resetForm() {
     phone: null,
     comment: null,
     balance: '0.00',
-    userId: null,
-    isActive: true  // ✅ Сброс к активному
+    isActive: true
   }
   displayBalance.value = '0.00'
   errors.value = {}
@@ -259,25 +226,21 @@ function resetForm() {
 function validate(): boolean {
   errors.value = {}
 
-  // Имя
   if (!form.value.name || form.value.name.trim().length === 0) {
     errors.value.name = 'Имя обязательно'
   } else if (form.value.name.length > 255) {
     errors.value.name = 'Имя не может быть длиннее 255 символов'
   }
 
-  // Телефон
   if (form.value.phone && form.value.phone.length > 255) {
     errors.value.phone = 'Телефон не может быть длиннее 255 символов'
   }
 
-  // Баланс
   const balance = parseNumber(String(form.value.balance))
   if (isNaN(balance)) {
     errors.value.balance = 'Баланс должен быть числом'
   }
 
-  // Комментарий
   if (form.value.comment && form.value.comment.length > 1000) {
     errors.value.comment = 'Комментарий не может быть длиннее 1000 символов'
   }
@@ -289,13 +252,13 @@ function validate(): boolean {
 function handleSubmit() {
   if (!validate()) return
 
+  // Формируем данные для отправки. userId здесь нет, так как привязка идет через Users.
   const data: ContractorCreateInput & { isActive?: boolean } = {
     name: form.value.name.trim(),
     phone: form.value.phone || null,
     comment: form.value.comment || null,
     balance: form.value.balance,
-    userId: form.value.userId || null,
-    isActive: form.value.isActive  // ✅ Добавляем в отправку
+    isActive: form.value.isActive
   }
 
   emit('update:form', data)
@@ -384,12 +347,6 @@ defineExpose({
       font-family: var(--crm-font-sans);
     }
 
-    // Для select
-    option {
-      background: var(--crm-bg-elevated);
-      color: var(--crm-text-primary);
-    }
-
     color-scheme: dark;
   }
 
@@ -417,38 +374,6 @@ defineExpose({
 
   .form-field__input {
     padding-right: 32px;
-  }
-}
-
-// ── Выбор пользователя ────────────────────────────────────────────
-.user-select {
-  position: relative;
-  display: flex;
-  align-items: center;
-
-  &__clear {
-    position: absolute;
-    right: 10px;
-    background: none;
-    border: none;
-    color: var(--crm-text-muted);
-    cursor: pointer;
-    padding: 4px;
-    border-radius: 4px;
-    transition: var(--crm-transition);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 10;
-
-    &:hover {
-      background: var(--crm-bg-overlay);
-      color: var(--crm-danger);
-    }
-  }
-
-  .form-field__input {
-    padding-right: 36px;
   }
 }
 

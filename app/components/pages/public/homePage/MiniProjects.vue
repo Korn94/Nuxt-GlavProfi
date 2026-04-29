@@ -1,10 +1,11 @@
+<!-- app\components\pages\public\homePage\MiniProjects.vue -->
 <template>
   <div class="featured-projects">
     <!-- <h2 class="featured-title">Лучшие проекты</h2> -->
 
     <div class="featured-grid">
       <router-link
-        v-for="card in featuredCards"
+        v-for="card in validFeaturedCards"
         :key="card.id"
         :to="`/projects/${card.slug}`"
         class="featured-card-link"
@@ -60,6 +61,11 @@ const featuredCards = computed(() => {
   const slugs = ['ddx', 'fora-bank']
   return allCards.value.filter(card => slugs.includes(card.slug))
 })
+
+// ✅ НОВОЕ: Фильтруем только карточки с валидным slug для рендеринга ссылок
+const validFeaturedCards = computed(() => 
+  featuredCards.value.filter(card => card?.slug)
+)
 
 // Получение основного изображения
 const getMainImage = (images) => {

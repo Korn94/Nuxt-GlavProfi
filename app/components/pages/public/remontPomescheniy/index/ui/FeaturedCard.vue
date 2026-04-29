@@ -1,6 +1,6 @@
 <!-- app\components\pages\public\remontPomescheniy\index\ui\FeaturedCard.vue -->
 <template>
-  <NuxtLink :to="`/projects/${slug}`" class="featured-card-link">
+  <NuxtLink v-if="slug" :to="`/projects/${slug}`" class="featured-card-link">
     <div class="featured-card">
       <div class="image-container">
         <img :src="image" :alt="title" class="featured-image" loading="lazy" />

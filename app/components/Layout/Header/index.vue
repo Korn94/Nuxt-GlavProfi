@@ -1,3 +1,4 @@
+<!-- app\components\Layout\Header\index.vue -->
 <template>
   <div class="header-container" :class="{ 'client-rendered': isClient }">
     <component :is="currentComponent" />

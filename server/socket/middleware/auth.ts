@@ -117,15 +117,15 @@ export async function socketAuthMiddleware(
 ): Promise<void> {
   try {
     // ✅ ДЕТАЛЬНОЕ ЛОГИРОВАНИЕ ВХОДЯЩИХ ДАННЫХ (без токена!)
-    console.log('[SocketAuth] 🔍 Проверка подключения сокета:', {
-      socketId: socket.id,
-      hasAuth: !!socket.handshake.auth,
-      authKeys: socket.handshake.auth ? Object.keys(socket.handshake.auth) : [],
-      hasQuery: !!socket.handshake.query,
-      queryKeys: socket.handshake.query ? Object.keys(socket.handshake.query) : [],
-      // Не логируем сам токен из соображений безопасности!
-      userAgent: socket.handshake.headers['user-agent']?.substring(0, 50)
-    })
+    // console.log('[SocketAuth] 🔍 Проверка подключения сокета:', {
+    //   socketId: socket.id,
+    //   hasAuth: !!socket.handshake.auth,
+    //   authKeys: socket.handshake.auth ? Object.keys(socket.handshake.auth) : [],
+    //   hasQuery: !!socket.handshake.query,
+    //   queryKeys: socket.handshake.query ? Object.keys(socket.handshake.query) : [],
+    //   // Не логируем сам токен из соображений безопасности!
+    //   userAgent: socket.handshake.headers['user-agent']?.substring(0, 50)
+    // })
     
     // ============================================
     // ИЗВЛЕЧЕНИЕ ТОКЕНА ИЗ РАЗНЫХ ИСТОЧНИКОВ

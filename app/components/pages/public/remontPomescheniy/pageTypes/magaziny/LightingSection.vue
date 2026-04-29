@@ -10,15 +10,15 @@
 
     <div class="article__grid">
       <div class="card">
-        <h4><Icon name="material-symbols-light:activity-zone" size="24" />Товарные зоны</h4>
+        <h4><Icon name="mdi:local-activity" size="24" />Товарные зоны</h4>
         <p>500 люкс (как дневной свет) — товары выглядят естественно, снижается количество возвратов.</p>
       </div>
       <div class="card">
-        <h4><Icon name="lsicon:badge-promotion-outline" size="24" />Акционные стойки</h4>
+        <h4><Icon name="mdi:alarm-light-outline" size="24" />Акционные стойки</h4>
         <p>На 30% ярче основного освещения — привлекает внимание без раздражения.</p>
       </div>
       <div class="card">
-        <h4><Icon name="material-symbols-light:arrow-shape-up-stack-outline" size="24" />Потолки выше 3 м</h4>
+        <h4><Icon name="mdi:select-arrow-up" size="24" />Потолки выше 3 м</h4>
         <p>Светодиодные линейки вместо точечных — равномерное освещение без "тёмных зон".</p>
       </div>
     </div>
@@ -29,7 +29,7 @@
     </div>
 
     <div class="article__conclusion">
-      <Icon name="material-symbols-light:search-insights-rounded" size="24" />
+      <Icon name="mdi:shape-square-rounded-plus" size="24" />
       <strong>Вывод:</strong> Ремонт — это не покраска стен. Это перепроектирование поведения покупателя.
     </div>
   </section>

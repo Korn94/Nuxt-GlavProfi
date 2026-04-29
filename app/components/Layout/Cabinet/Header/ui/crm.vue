@@ -69,7 +69,7 @@ const menuItems = [
   {
     title: 'Объекты',
     path: '/cabinet/objects',
-    icon: 'mdi:office-building-outline',
+    icon: 'mdi:house-export-outline',
     roles: ['admin']
   },
   {

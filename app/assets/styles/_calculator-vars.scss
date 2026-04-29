@@ -1,0 +1,47 @@
+// app/assets/styles/_calculator-vars.scss
+@use 'sass:color';
+@use 'variables' as *;
+
+// -----------------------------------------------------------------------------
+// Алиасы цветов
+// -----------------------------------------------------------------------------
+$bg-white: $background-light;
+$bg-light: #f8f9fa;
+$bg-dark: $background-dark;
+
+$primary: $blue;
+$danger: $red;
+$success: $green;
+$warning: $yellow;
+
+$text-primary: $text-dark;
+$text-secondary: $text-gray;
+$text-muted: $text-gray;
+$text-light: $text-light; // ✅ Добавили $text-light
+$text-link: $blue;
+
+$border-color: $border-color;
+$border-light: #eee;
+
+// ✅ Добавили $white как алиас, если он используется
+$white: #fff;
+
+// -----------------------------------------------------------------------------
+// Отступы
+// -----------------------------------------------------------------------------
+$spacing-xs: 0.25rem;
+$spacing-sm: 0.5rem;
+$spacing-md: 1rem;
+$spacing-lg: 1.5rem;
+$spacing-xl: 2rem;
+
+// -----------------------------------------------------------------------------
+// Брейкпоинты
+// -----------------------------------------------------------------------------
+$breakpoint-md: 768px;
+
+@mixin mobile {
+  @media (max-width: #{$breakpoint-md}) {
+    @content;
+  }
+}

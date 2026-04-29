@@ -59,6 +59,14 @@ export default defineNuxtConfig({
   ],
 
   vite: {
+    optimizeDeps: {
+      include: [
+        '@vue/devtools-core',
+        '@vue/devtools-kit',
+        '@telegram-apps/sdk',
+        'socket.io-client',
+      ]
+    },
     plugins: [tsconfigPaths()],
     css: {
       preprocessorOptions: {
@@ -67,6 +75,7 @@ export default defineNuxtConfig({
           additionalData: `
             @use 'sass:color';
             @use "@/assets/styles/variables.scss" as *;
+            @use "@/assets/styles/calculator-vars.scss" as *;
           `
         }
       }
@@ -88,6 +97,7 @@ export default defineNuxtConfig({
   sitemap: {
     hostname: process.env.NUXT_PUBLIC_SITE_URL,
     gzip: true,
+    strictNuxtPagePaths: false,
     exclude: [
       '/cabinet',
       '/cabinet/**',
@@ -96,19 +106,25 @@ export default defineNuxtConfig({
       '/api/**',
       '/access-denied',
       '/telegram',
-      '/projects/create',
     ],
     routes: [
       '/',
       '/about',
-      '/services',
-      '/projects',
+      // '/services',
       '/contacts',
+      // Кейсы
+      '/projects',
+      '/projects/ddx',
+      '/projects/zerno',
+      '/projects/klinika-alma',
+      '/projects/fora-bank',
+      // Политика
       '/privacy-policy',
       '/terms-of-service',
-      // Страницы с ценами
+      // Прайс лист
       '/prices/otdelochnye-raboty',
-      '/prices/plumbing'
+      '/prices/plumbing',
+      '/prices/electricity',
     ],
   },
   

@@ -1,3 +1,4 @@
+<!-- app\components\pages\public\projects\cards.vue -->
 <template>
   <div class="cases-section">
     <!-- Заголовок и фильтры -->
@@ -35,7 +36,7 @@
     <!-- Сетка проектов -->
     <div v-else class="cases-grid">
       <router-link
-        v-for="card in filteredCards"
+        v-for="card in validFilteredCards"
         :key="card.id"
         :to="`/projects/${card.slug}`"
         class="case-card"
@@ -119,6 +120,11 @@ const filteredCards = computed(() => {
   if (activeTab.value === 'Все') return cards.value
   return cards.value.filter(card => card.category === activeTab.value)
 })
+
+// ✅ НОВОЕ: Фильтруем только карточки с валидным slug для рендеринга ссылок
+const validFilteredCards = computed(() => 
+  filteredCards.value.filter(card => card?.slug)
+)
 
 // Получение основного изображения
 const getMainImage = (images) => {

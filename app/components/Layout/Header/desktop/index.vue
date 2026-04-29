@@ -1,3 +1,4 @@
+<!-- app\components\Layout\Header\desktop\index.vue -->
 <template>
   <header :class="{ scrolled: data.isScrolled, home: isHomePage }">
     <div class="container">
@@ -46,7 +47,7 @@
               </li>
               <li>
                 <nuxt-link to="/otdelochnye-i-stroitelnye-raboty" :class="{ active: route.path === '/otdelochnye-i-stroitelnye-raboty' }" @click.prevent="navigateTo('/otdelochnye-i-stroitelnye-raboty')">
-                  <Icon name="material-symbols-light:construction-rounded" size="24px" class="icon" />
+                  <Icon name="" size="24px" class="icon" />
                   Отделочные и строительные работы
                 </nuxt-link>
               </li>
@@ -54,9 +55,9 @@
           </li> -->
           <li>
             <nuxt-link
-              to="/prices/floor"
-              :class="{ active: route.path === '/prices/floor' || isPricesActive }"
-              @click.prevent="navigateTo('/prices/floor')"
+              to="/prices/otdelochnye-raboty"
+              :class="{ active: route.path === '/prices/otdelochnye-raboty' || isPricesActive }"
+              @click.prevent="navigateTo('/prices/otdelochnye-raboty')"
             >
               Цены
             </nuxt-link>

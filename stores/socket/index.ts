@@ -13,6 +13,7 @@ import { ref, computed } from 'vue'
 import { socketService } from 'services/socket.service'
 import { setSessionId } from 'services/helpers/sessionId'
 import { useCookie } from 'nuxt/app'
+import { useAuthStore } from 'stores/auth'
 
 /**
  * Генерация уникального идентификатора вкладки
@@ -110,12 +111,8 @@ export const useSocketStore = defineStore('socket', () => {
 
       if (isInvalidToken && process.client) {
         console.log('[SocketStore] 🔐 Невалидный токен, выполняем выход...')
-        import('../auth').then(({ useAuthStore }) => {
-          const authStore = useAuthStore()
-          authStore.logout()
-        }).catch((importErr) => {
-          console.error('[SocketStore] ❌ Не удалось импортировать auth store:', importErr)
-        })
+        const authStore = useAuthStore()
+        authStore.logout()
       }
     })
 

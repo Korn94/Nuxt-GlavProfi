@@ -1,3 +1,4 @@
+<!-- app\pages\prices\[category].vue -->
 <template>
   <div class="wrap">
     <!-- <h1>Цены на ремонт помещений - <span>2025</span></h1> -->
@@ -88,12 +89,11 @@ const setCategory = (categoryId) => {
 useHead({
   title: pageTitle.value,
   meta: [
-    // Используем описание из API, если есть, иначе fallback
     { name: 'description', content: currentCategory.value?.metaDescription || 'Актуальные цены 2026 на ремонт помещений.' },
     { property: 'og:title', content: pageTitle.value },
     { property: 'og:description', content: currentCategory.value?.metaDescription || 'Актуальные цены 2026 на ремонт помещений.' },
     { property: 'og:image', content: currentCategory.value?.image || 'https://glavprofi.ru/images/og-image.jpg' },
-        { name: 'keywords', content: 'ремонт, отделка, коммерческие помещения, Рязань, ' + 
+    { name: 'keywords', content: 'ремонт, отделка, коммерческие помещения, Рязань, ' + 
       (currentCategory.value?.title ? currentCategory.value.title.toLowerCase() : '') }
   ],
   script: [
@@ -109,30 +109,57 @@ useHead({
         for (const category of page.categories || []) {
           for (const subcategory of category.subcategories || []) {
             for (const item of subcategory.items || []) {
+              // ✅ Основная работа с priceSpecification
               services.push({
                 '@type': 'Offer',
-                'itemOffered': { '@type': 'Service', 'name': item.name },
-                'price': parseFloat(item.price) || 0,
-                'priceCurrency': 'RUB',
+                'itemOffered': { 
+                  '@type': 'Service', 
+                  'name': item.name,
+                  'description': `Единица измерения: ${item.unit}`
+                },
+                'priceSpecification': {
+                  '@type': 'UnitPriceSpecification',
+                  'price': parseFloat(item.price) || 0,
+                  'priceCurrency': 'RUB',
+                  'unitText': item.unit // ✅ Теперь unitText на своём месте!
+                },
                 'availability': 'https://schema.org/InStock'
               })
 
+              // ✅ Детали работ
               for (const detail of item.details || []) {
                 services.push({
                   '@type': 'Offer',
-                  'itemOffered': { '@type': 'Service', 'name': detail.name },
-                  'price': parseFloat(detail.price) || 0,
-                  'priceCurrency': 'RUB',
+                  'itemOffered': { 
+                    '@type': 'Service', 
+                    'name': detail.name,
+                    'description': `Единица измерения: ${detail.unit}`
+                  },
+                  'priceSpecification': {
+                    '@type': 'UnitPriceSpecification',
+                    'price': parseFloat(detail.price) || 0,
+                    'priceCurrency': 'RUB',
+                    'unitText': detail.unit
+                  },
                   'availability': 'https://schema.org/InStock'
                 })
               }
 
+              // ✅ Доп. работы
               for (const dopwork of item.dopworks || []) {
                 services.push({
                   '@type': 'Offer',
-                  'itemOffered': { '@type': 'Service', 'name': dopwork.dopwork },
-                  'price': parseFloat(dopwork.price) || 0,
-                  'priceCurrency': 'RUB',
+                  'itemOffered': { 
+                    '@type': 'Service', 
+                    'name': dopwork.dopwork,
+                    'description': `Единица измерения: ${dopwork.unit}`
+                  },
+                  'priceSpecification': {
+                    '@type': 'UnitPriceSpecification',
+                    'price': parseFloat(dopwork.price) || 0,
+                    'priceCurrency': 'RUB',
+                    'unitText': dopwork.unit
+                  },
                   'availability': 'https://schema.org/InStock'
                 })
               }
@@ -144,7 +171,7 @@ useHead({
           '@context': 'https://schema.org',
           '@type': 'Service',
           'serviceType': 'Ремонтные работы',
-          'name': pageTitle.value, // Используем статичный title
+          'name': pageTitle.value,
           'description': currentCategory.value?.metaDescription || 'Актуальные цены 2026 на ремонт помещений. Составим смету бесплатно.',
           'provider': { '@type': 'Organization', 'name': 'ГлавПрофи' },
           'areaServed': 'Россия, Рязань',

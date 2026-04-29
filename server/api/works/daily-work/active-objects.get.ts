@@ -50,7 +50,7 @@ export default defineEventHandler(async (event) => {
         })
         .from(objects)
         .where(
-          eq(objects.status, 'active') && eq(objects.foremanId, currentUser.contractorId)
+          eq(objects.status, 'active')
         )
         .orderBy(objects.name)
     }

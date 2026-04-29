@@ -9,27 +9,43 @@ import { verifyToken } from '../utils/jwt'
 export default eventHandler(async (event) => {
   const token = getCookie(event, 'auth_token') || getRequestHeader(event, 'Authorization')?.split(' ')[1]
 
+  // 1. Нет токена — это НЕ ошибка, а нормальная ситуация для публичных страниц
+  // Возвращаем пустой ответ, а не 401
   if (!token) {
-    throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
+    return { user: null }
   }
 
   try {
     const payload = await verifyToken(token)
 
-    // Явно проверяем, что id существует и является числом
     if (typeof payload.id !== 'number') {
-      throw createError({ statusCode: 401, statusMessage: 'Invalid token payload' })
+      // Неверный токен — тоже не крашим, просто возвращаем null
+      return { user: null }
     }
 
-    // Теперь TypeScript знает, что payload.id — это number
     const [user] = await db.select().from(users).where(eq(users.id, payload.id))
 
+    // Пользователь не найден в БД — возвращаем null
     if (!user) {
-      throw createError({ statusCode: 404, statusMessage: 'User not found' })
+      return { user: null }
     }
 
-    return { user }
+    // ✅ Успех: возвращаем безопасные данные пользователя
+    return { 
+      user: {
+        id: user.id,
+        name: user.name,
+        role: user.role,
+        // Не возвращайте чувствительные данные (пароль, токены и т.д.)
+      } 
+    }
+    
   } catch (e) {
-    throw createError({ statusCode: 401, statusMessage: 'Invalid token' })
+    // 2. Любая непредвиденная ошибка (БД, сеть, крипто) — логируем и возвращаем null
+    // Это предотвратит краш SSR при проблемах с инфраструктурой
+    console.error('[/api/me] Unexpected error:', e)
+    
+    // Важно: НЕ выбрасываем ошибку, чтобы не ломать рендеринг страницы
+    return { user: null }
   }
 })

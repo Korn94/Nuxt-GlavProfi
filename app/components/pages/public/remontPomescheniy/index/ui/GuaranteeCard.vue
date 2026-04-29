@@ -2,7 +2,7 @@
 <template>
   <div class="guarantee-card">
     <div class="guarantee-card__icon">
-      <Icon name="material-symbols-light:check-circle-outline" size="32" class="guarantee-card__icon" />
+      <Icon name="mdi:check-circle-outline" size="32" class="guarantee-card__icon" />
     </div>
     <h3>{{ title }}</h3>
     <p>{{ description }}</p>

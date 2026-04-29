@@ -1,29 +1,44 @@
 <!-- app/error.vue -->
 <template>
-  <div v-if="error.statusCode === 404" class="error-404">
-    <!-- Контент страницы 404 -->
+  <!-- Сценарии 404 и 410 -->
+  <div v-if="error.statusCode === 404 || error.statusCode === 410" class="error-404">
     <div class="content-wrapper">
-      <h1 class="glitch" data-text="404">
-        404
-      </h1>
+      <h1 class="glitch" :data-text="error.statusCode">{{ error.statusCode }}</h1>
 
       <div class="text-container">
-        <h2>Страница затерялась на стройплощадке</h2>
-        <p>Не переживайте! Наши мастера уже ищут её с рулеткой и уровнем</p>
+        <h2 v-if="error.statusCode === 404">Страница затерялась на стройплощадке</h2>
+        <h2 v-else-if="error.statusCode === 410">Эта страница была удалена</h2>
+        
+        <p v-if="error.statusCode === 404">
+          Не переживайте! Наши мастера уже ищут её с рулеткой и уровнем
+        </p>
+        <p v-else-if="error.statusCode === 410">
+          К сожалению, этот проект или раздел больше не доступен в нашем портфолио
+        </p>
 
         <div class="button-group">
-          <!-- Кнопка "Вернуться" отображается только если есть куда вернуться -->
-          <button 
-            v-if="canGoBack" 
-            @click="goBack" 
-            class="back-link"
-          >
+          <button v-if="canGoBack" @click="goBack" class="back-link">
             <span class="arrow">←</span> Вернуться
           </button>
-          
-          <NuxtLink to="/" class="home-link">
-            На главную
-          </NuxtLink>
+          <NuxtLink to="/" class="home-link">На главную</NuxtLink>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Остальные ошибки (500, 403 и т.д.) -->
+  <div v-else class="error-other">
+    <div class="content-wrapper">
+      <h1 class="glitch" :data-text="error.statusCode">{{ error.statusCode }}</h1>
+      <div class="text-container">
+        <h2 v-if="error.statusCode === 403">Доступ запрещён</h2>
+        <h2 v-else>Техническая ошибка</h2>
+        
+        <p v-if="error.statusCode === 403">У вас нет прав для просмотра этой страницы. Возможно, требуется авторизация.</p>
+        <p v-else>Что-то пошло не так. Мы уже работаем над устранением.</p>
+        
+        <div class="button-group">
+          <NuxtLink to="/" class="home-link">На главную</NuxtLink>
         </div>
       </div>
     </div>
@@ -31,18 +46,29 @@
 </template>
 
 <script setup>
-const error = useError();
+import { useRequestEvent } from '#app'
+import { setResponseStatus } from 'h3'
+
+const error = useError()
 const router = useRouter()
 
-// Проверяем, можно ли вернуться назад
+// ✅ КРИТИЧЕСКИ ВАЖНО: Устанавливаем реальный HTTP-статус на сервере
+// Без этого Nuxt всегда отдает 200 OK, и Яндекс видит "Ошибка на сайте" в индексе
+if (process.server) {
+  const event = useRequestEvent()
+  if (event && error.value?.statusCode) {
+    setResponseStatus(event, error.value.statusCode)
+  }
+}
+
+// Проверка возможности возврата назад
 const canGoBack = computed(() => {
   if (typeof window !== 'undefined') {
-    return window.history.length > 1;
+    return window.history.length > 1
   }
-  return false;
+  return false
 })
 
-// Функция для возврата назад
 const goBack = () => {
   if (canGoBack.value) {
     router.back()
@@ -51,41 +77,35 @@ const goBack = () => {
   }
 }
 
-// Формируем заголовок и описание в зависимости от кода ошибки
-const getTitle = () => {
-  if (error.value?.statusCode === 404) {
-    return 'Страница не найдена | ГлавПрофи'
-  }
-  if (error.value?.statusCode === 403) {
-    return 'Доступ запрещён | ГлавПрофи'
-  }
-  return 'Ошибка на сайте | ГлавПрофи'
-}
+// Динамические заголовки и описания для SEO
+const pageTitle = computed(() => {
+  const code = error.value?.statusCode
+  if (code === 404) return 'Страница не найдена | ГлавПрофи'
+  if (code === 410) return 'Страница удалена | ГлавПрофи'
+  if (code === 403) return 'Доступ запрещён | ГлавПрофи'
+  return `Ошибка ${code || 500} | ГлавПрофи`
+})
 
-const getDescription = () => {
-  if (error.value?.statusCode === 404) {
-    return 'Извините, запрашиваемая страница не найдена. Вернитесь на главную или свяжитесь с нами.'
-  }
-  if (error.value?.statusCode === 403) {
-    return 'У вас нет доступа к этой странице. Возможно, вы не авторизованы.'
-  }
+const pageDescription = computed(() => {
+  const code = error.value?.statusCode
+  if (code === 404) return 'Извините, запрашиваемая страница не найдена. Вернитесь на главную или свяжитесь с нами.'
+  if (code === 410) return 'Эта страница была удалена навсегда. Рекомендуем вернуться на главную.'
+  if (code === 403) return 'У вас нет доступа к этой странице. Возможно, вы не авторизованы.'
   return 'Произошла ошибка при загрузке страницы. Мы уже работаем над её устранением.'
-}
+})
 
-// Устанавливаем мета-теги
 useHead({
-  title: getTitle(),
+  title: pageTitle,
   meta: [
-    { name: 'description', content: getDescription() },
-    { property: 'og:title', content: getTitle() },
-    { property: 'og:description', content: getDescription() },
-    // { property: 'og:image', content: 'https://glavprofi.ru/images/error.jpg' },
+    { name: 'description', content: pageDescription },
+    { property: 'og:title', content: pageTitle },
+    { property: 'og:description', content: pageDescription },
   ]
 })
 </script>
 
 <style scoped lang="scss">
-// Переменные (замените на ваши из дизайн-системы)
+// Переменные
 $background-dark: #0a0e17;
 $blue-gradient: linear-gradient(90deg, #00c3f5, #0efffd, #6e45e2);
 $text-light: #ffffff;
@@ -94,7 +114,8 @@ $blue20: rgba(2, 254, 255, 0.2);
 $blue50: rgba(2, 254, 255, 0.5);
 $border-radius: 8px;
 
-.error-404 {
+// Общие стили для всех страниц ошибок
+.error-404, .error-other {
   position: fixed;
   top: 0;
   left: 0;
@@ -106,7 +127,6 @@ $border-radius: 8px;
   align-items: center;
   justify-content: center;
 
-  // Космический фон с движением звёзд
   &::before {
     content: '';
     position: absolute;
@@ -163,8 +183,7 @@ $border-radius: 8px;
     glitch 2.5s infinite,
     color-shift 8s infinite alternate;
 
-  &::before,
-  &::after {
+  &::before, &::after {
     content: attr(data-text);
     position: absolute;
     top: 0;
@@ -177,17 +196,13 @@ $border-radius: 8px;
   }
 
   &::before {
-    animation: 
-      glitch-top 2.5s infinite,
-      color-shift 8s infinite alternate-reverse;
+    animation: glitch-top 2.5s infinite, color-shift 8s infinite alternate-reverse;
     clip-path: polygon(0 0, 100% 0, 100% 33%, 0 33%);
     transform: translate(-3px, -3px);
   }
 
   &::after {
-    animation: 
-      glitch-bottom 2.5s infinite,
-      color-shift 8s infinite alternate;
+    animation: glitch-bottom 2.5s infinite, color-shift 8s infinite alternate;
     clip-path: polygon(0 67%, 100% 67%, 100% 100%, 0 100%);
     transform: translate(3px, 3px);
   }
@@ -219,8 +234,7 @@ $border-radius: 8px;
   gap: 1rem;
   justify-content: center;
 
-  .back-link,
-  .home-link {
+  .back-link, .home-link {
     display: inline-block;
     padding: 1rem 2.5rem;
     background: $blue20;
@@ -308,39 +322,19 @@ $border-radius: 8px;
 
 /* Адаптивность */
 @media (max-width: 768px) {
-  .glitch {
-    font-size: 8rem;
-  }
-
+  .glitch { font-size: 8rem; }
   .text-container {
-    h2 {
-      font-size: 1.8rem;
-    }
-
-    p {
-      font-size: 1.1rem;
-    }
+    h2 { font-size: 1.8rem; }
+    p { font-size: 1.1rem; }
   }
-
-  .home-link {
-    padding: 0.8rem 1.8rem;
-    font-size: 1rem;
-  }
+  .home-link { padding: 0.8rem 1.8rem; font-size: 1rem; }
 }
 
 @media (max-width: 480px) {
-  .glitch {
-    font-size: 6rem;
-  }
-
+  .glitch { font-size: 6rem; }
   .text-container {
-    h2 {
-      font-size: 1.4rem;
-    }
-
-    p {
-      font-size: 0.95rem;
-    }
+    h2 { font-size: 1.4rem; }
+    p { font-size: 0.95rem; }
   }
 }
 </style>

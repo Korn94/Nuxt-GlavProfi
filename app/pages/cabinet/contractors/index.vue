@@ -116,10 +116,28 @@
       </div>
     </Modal>
 
-    <Modal :visible="isFormModalOpen" :title="editingContractor ? 'Редактирование' : 'Новый контрагент'" size="md"
-      @update:visible="closeFormModal">
-      <PagesCabinetContractorsContractorForm v-if="isFormModalOpen" :type="formType" :contractor="editingContractor"
-        :show-user-select="true" @save="handleSave" @close="closeFormModal" />
+    <!-- ═══════════════════════════ Форма создания / редактирования ═══════════════════════════ -->
+    <Modal
+      :visible="isFormModalOpen"
+      :title="editingContractor ? 'Редактирование' : 'Новый контрагент'"
+      size="md"
+      @update:visible="closeFormModal"
+    >
+      <!-- Передаем форму через ref для вызова validate() -->
+      <PagesCabinetContractorsContractorForm
+        v-if="isFormModalOpen"
+        ref="contractorFormRef"
+        :type="formType!"
+        :contractor="editingContractor"
+      />
+      
+      <!-- ✅ Кнопки действий в футере модалки -->
+      <template #footer>
+        <button class="btn btn--sm" @click="closeFormModal">Отмена</button>
+        <button class="btn btn--sm btn--primary" @click="submitForm" :disabled="isSaving">
+          {{ isSaving ? 'Сохранение...' : 'Сохранить' }}
+        </button>
+      </template>
     </Modal>
 
     <Modal :visible="isDeleteConfirmOpen" title="Подтверждение удаления" size="sm"
@@ -168,6 +186,8 @@ const formType = ref<ContractorType | null>(null)
 const editingContractor = ref<ContractorDTO | null>(null)
 const targetContractor = ref<ContractorDTO | null>(null)
 const isDeleting = ref(false)
+const contractorFormRef = ref<any>(null) // ✅ Ref на компонент формы
+const isSaving = ref(false) // ✅ Состояние загрузки при сохранении
 
 // ── Types config ─────────────────────────────────────────────────────
 const contractorTypes = [
@@ -218,7 +238,14 @@ function goToContractor(type: ContractorType, id: number) { router.push(`/cabine
 function openTypeSelectModal() { isTypeSelectOpen.value = true }
 function startCreate(type: ContractorType) { isTypeSelectOpen.value = false; formType.value = type; editingContractor.value = null; isFormModalOpen.value = true }
 function openEditModal(c: ContractorDTO) { formType.value = c.type; editingContractor.value = { ...c }; isFormModalOpen.value = true }
-function closeFormModal() { isFormModalOpen.value = false; editingContractor.value = null; formType.value = null }
+
+// ── Modals: Form ─────────────────────────────────────────────────────
+function closeFormModal() {
+  isFormModalOpen.value = false
+  editingContractor.value = null
+  formType.value = null
+  isSaving.value = false
+}
 
 // ── Actions ──────────────────────────────────────────────────────────
 async function handleSave(formData: any) {
@@ -236,6 +263,37 @@ async function toggleContractorStatus(c: ContractorDTO) {
     await contractorsStore.update(c.type, c.id, { isActive: !c.isActive })
     console.log(`✅ Статус контрагента "${c.name}" успешно изменен`)
   } catch (err: any) { console.error('❌ Ошибка изменения статуса:', err.message) }
+}
+
+async function submitForm() {
+  if (!contractorFormRef.value) return
+  
+  // 1. Валидация через дочерний компонент
+  if (!contractorFormRef.value.validate()) {
+    console.warn('[Contractors] ⚠️ Валидация формы не пройдена')
+    return
+  }
+
+  isSaving.value = true
+  try {
+    const formData = contractorFormRef.value.form // Получаем данные из формы
+    
+    if (editingContractor.value) {
+      // Режим редактирования
+      await contractorsStore.update(editingContractor.value.type, editingContractor.value.id, formData)
+      console.log('✅ Контрагент успешно обновлен')
+    } else {
+      // Режим создания
+      if (!formType.value) throw new Error('Не указан тип контрагента')
+      await contractorsStore.create(formType.value, formData)
+      console.log('✅ Контрагент успешно создан')
+    }
+    closeFormModal()
+  } catch (err: any) {
+    console.error('❌ Ошибка сохранения:', err.message)
+  } finally {
+    isSaving.value = false
+  }
 }
 
 async function handleDelete() {
@@ -759,6 +817,14 @@ onMounted(async () => {
     padding: 5px 10px;
     font-size: var(--crm-text-xs);
   }
+
+  &--primary {
+    background: var(--crm-accent-dim);
+    border-color: var(--crm-accent-border);
+    color: var(--crm-accent);
+    &:hover:not(:disabled) { background: rgba(0, 195, 245, 0.25); }
+  }
+  &--sm { padding: 5px 10px; font-size: var(--crm-text-xs); }
 }
 
 @media (max-width: 767.98px) {

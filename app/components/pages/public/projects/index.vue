@@ -20,7 +20,7 @@
             <div class="content-item">
               <div class="text">
                 <div class="box">
-                  <Icon name="iconamoon:number-1-circle" size="24px" />
+                  <Icon name="mdi:number-1-circle-outline" size="24px" />
                   <h3>Полный цикл работ</h3>
                 </div>
                 <p class="description">
@@ -32,7 +32,7 @@
             <div class="content-item">
               <div class="text">
                 <div class="box">
-                  <Icon name="iconamoon:number-2-circle" size="24px" />
+                  <Icon name="mdi:number-2-circle-outline" size="24px" />
                   <h3>Специализированные бригады</h3>
                 </div>
                 <p class="description">

@@ -1,294 +1,318 @@
+<!-- app\components\pages\public\prices\index.vue -->
 <template>
-  <div class="container" :key="activeCategory" >
+  <div class="container" :key="activeCategory">
     <!-- Заголовок -->
-
-    <!-- Динамический подзаголовок -->
     <h1>Актуальные цены на <span>{{ activeCategoryTitle }}</span> - 2026 год</h1>
 
     <!-- Навигация -->
-    <PagesPublicPricesUiNavigation
-      :categories="categories"
-      :active-category="activeCategory"
-      @update:active-category="setCategory"
-    />
+    <PagesPublicPricesUiNavigation :categories="categories" :active-category="activeCategory"
+      @update:active-category="setCategory" />
 
     <!-- Таблица -->
     <div class="price-list">
 
       <!-- Поиск -->
       <div class="search-bar">
-        <!-- Обертка с относительным позиционированием -->
         <div style="position: relative; width: 100%;">
-          <!-- Иконка поиска -->
-          <Icon 
-            name="material-symbols:search" 
-            class="search-icon"
-            width="24" 
-            height="24"
-          />
-          <!-- Инпут с отступом слева, чтобы не перекрывать иконку -->
-          <input
-            type="text"
-            v-model="searchQuery"
-            placeholder="Поиск по работам..."
-            style="padding-left: 36px; padding-right: 30px; width: 100%;"
-          />
-          <!-- Иконка "очистить" -->
-          <Icon 
-            v-if="searchQuery"
-            name="material-symbols:close" 
-            class="ico"
-            width="24" 
-            height="24"
-            @click="clearSearch"
-          />
+          <Icon name="mdi:search" class="search-icon" width="24" height="24" />
+          <input type="text" v-model="searchQuery" placeholder="Поиск по работам..."
+            style="padding-left: 36px; padding-right: 30px; width: 100%;" />
+          <Icon v-if="searchQuery" name="mdi:close" class="ico" width="24" height="24"
+            @click="clearSearch" />
         </div>
       </div>
 
-      <!-- Условие загрузки -->
       <!-- Индикатор загрузки -->
       <div v-if="isLoading" class="loading-indicator">
         <Icon name="eos-icons:bubble-loading" size="34px" />
         <span>Загрузка данных...</span>
       </div>
-      <!-- Условие ошибки -->
+
+      <!-- Ошибка -->
       <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
 
-      <!-- Блок с результатами поиска или сообщением "Ничего не найдено" -->
+      <!-- Контент прайса -->
       <div v-if="!isLoading && !errorMessage">
-      <div v-if="filteredWorks.length">
-      <!-- Меню навигации для заголовков работ -->
-      <div class="work-navigation" v-if="isAdmin">
-        <div class="work-navigation-inner">
-          <button
-            :class="{ active: activeWork === 'all' }"
-            @click="setActiveWork('all')"
-          >
-            Все работы
-          </button>
-          <button
-            v-for="category in allWorks"
-            :key="category.id"
-            :class="{ active: activeWork === category.id }"
-            @click="setActiveWork(category.id)"
-          >
-            {{ category.title }}
-          </button>
-          <div v-if="isAdmin" class="add-category-button">
-            <button @click="showCategoryForm = true">+ Добавить категорию</button>
-            <div v-if="showCategoryForm" class="form">
-              <input v-model="newCategory.name" placeholder="Название категории" />
-              <button @click="addNewCategory">Сохранить</button>
-              <button @click="handleCancel('category')">Отмена</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    
-      <!-- Категории, условие если есть работы -->
-        <div v-for="category in filteredWorks" :key="category.id" class="category-block">
-          <div class="category-header">
-            <!-- Заголовок категории -->
-            <div>
-              <input v-if="editingCategoryId === category.id" v-model="editingCategoryData.name" style="width: 80%" />
-              <h2 v-else>{{ category.title }}</h2>
-            </div>
-            <!-- Кнопки только для админа -->
-            <div v-if="isAdmin" class="category-actions">
-              <Icon v-if="editingCategoryId !== category.id" name="bx:edit" size="16" @click.stop="startEditingCategory(category)" style="cursor: pointer; margin-right: 10px;" />
-              <Icon v-else name="material-symbols-light:save-outline" size="16" @click.stop="saveEditCategory(category.id)" style="cursor: pointer; margin-right: 10px;" />
-              <Icon name="material-symbols:delete-outline" size="16" @click.stop="deleteCategory(category.id)" style="cursor: pointer;" />
-            </div>
-          </div>
-          <!-- Отображение подкатегорий -->
-          <div v-for="subcategory in category.subcategories" :key="subcategory.id" class="subcategory-block">
-            <div class="subcategory-header">
-              <h3 @click="toggleSubcategory(subcategory.id)">
-                {{ subcategory.name }}
-                <Icon :name="isSubcategoryOpen(subcategory.id) ? 'iconamoon:arrow-up-2' : 'iconamoon:arrow-down-2'" />
-              </h3>
-              <div v-if="isAdmin" class="subcategory-actions">
-                <Icon name="bx:edit" size="16" @click.stop="startEditingSubCategory(subcategory)" style="cursor: pointer; margin-right: 10px;" />
-                <Icon name="material-symbols:delete-outline" size="16" @click.stop="deleteSubCategory(subcategory.id)" style="cursor: pointer;" />
+
+        <!-- Результаты поиска / пустой список -->
+        <div v-if="filteredWorks.length">
+
+          <!-- Меню навигации для заголовков работ (только админ) -->
+          <div class="work-navigation" v-if="isAdmin">
+            <div class="work-navigation-inner">
+              <button :class="{ active: activeWork === 'all' }" @click="setActiveWork('all')">
+                Все работы
+              </button>
+              <button v-for="category in allWorks" :key="category.id" :class="{ active: activeWork === category.id }"
+                @click="setActiveWork(category.id)">
+                {{ category.title }}
+              </button>
+              <div v-if="isAdmin" class="add-category-button">
+                <button @click="showCategoryForm = true">+ Добавить категорию</button>
+                <div v-if="showCategoryForm" class="form">
+                  <input v-model="newCategory.name" placeholder="Название категории" />
+                  <button @click="addNewCategory">Сохранить</button>
+                  <button @click="handleCancel('category')">Отмена</button>
+                </div>
               </div>
             </div>
-            <!-- Форма редактирования подкатегории -->
-            <div v-if="editingSubCategoryId === subcategory.id" class="form">
-              <input v-model="editingSubCategoryData.name" placeholder="Название подкатегории" />
-              <button @click="saveEditSubCategory(subcategory.id)">Сохранить</button>
-              <button @click="handleCancel('subcategory')">Отмена</button>
+          </div>
+
+          <!-- === КАТЕГОРИИ === -->
+          <div v-for="category in filteredWorks" :key="category.id" class="category-block">
+            <div class="category-header">
+              <div>
+                <input v-if="editingCategoryId === category.id" v-model="editingCategoryData.name" style="width: 80%" />
+                <h2 v-else>{{ category.title }}</h2>
+              </div>
+              <div v-if="isAdmin" class="category-actions">
+                <Icon v-if="editingCategoryId !== category.id" name="bx:edit" size="16"
+                  @click.stop="startEditingCategory(category)" style="cursor: pointer; margin-right: 10px;" />
+                <Icon v-else name="mdi:content-save-check-outline" size="16"
+                  @click.stop="saveEditCategory(category.id)" style="cursor: pointer; margin-right: 10px;" />
+                <Icon name="mdi:delete-forever" size="16" @click.stop="deleteCategory(category.id)"
+                  style="cursor: pointer;" />
+              </div>
             </div>
-            <!-- Список работ внутри подкатегории -->
-            <ul v-if="isSubcategoryOpen(subcategory.id)">
-              <li v-for="item in subcategory.items" :key="item.id" class="work-item">
-                <!-- Основная работа -->
-                <div class="work-main">
-                  <!-- Иконка копирования -->
-                  <Icon :name="item.isCopied ? 'fluent:copy-16-filled' : 'fluent:copy-16-regular'" 
-                        class="pointer ico" 
-                        @click="handleCopyClick(item)" />
-                  <!-- Поле для редактирования или отображения -->
-                  <div class="work-title pointer" @click="toggleSubItems(item.id)">
-                      <p v-if="editingItem !== item.id">
-                        <span v-for="(part, index) in splitText(item.name)" :key="index" 
-                              :class="{ highlight: part.isMatch }">
+
+            <!-- === ПОДКАТЕГОРИИ === -->
+            <div v-for="subcategory in category.subcategories" :key="subcategory.id" class="subcategory-block">
+              <div class="subcategory-header">
+                <h3 @click="toggleSubcategory(subcategory.id)">
+                  {{ subcategory.name }}
+                  <Icon :name="isSubcategoryOpen(subcategory.id) ? 'mdi:keyboard-arrow-up' : 'mdi:keyboard-arrow-down'" />
+                </h3>
+                <div v-if="isAdmin" class="subcategory-actions">
+                  <Icon name="bx:edit" size="16" @click.stop="startEditingSubCategory(subcategory)"
+                    style="cursor: pointer; margin-right: 10px;" />
+                  <Icon name="mdi:delete-forever" size="16" @click.stop="deleteSubCategory(subcategory.id)"
+                    style="cursor: pointer;" />
+                </div>
+              </div>
+
+              <!-- Форма редактирования подкатегории -->
+              <div v-if="editingSubCategoryId === subcategory.id" class="form">
+                <input v-model="editingSubCategoryData.name" placeholder="Название подкатегории" />
+                <button @click="saveEditSubCategory(subcategory.id)">Сохранить</button>
+                <button @click="handleCancel('subcategory')">Отмена</button>
+              </div>
+
+              <!-- === СПИСОК РАБОТ (v-show вместо v-if!) === -->
+              <!-- Добавлены классы для анимации и семантика -->
+              <dl v-show="isSubcategoryOpen(subcategory.id)" class="works-list"
+                :class="{ 'is-open': isSubcategoryOpen(subcategory.id) }">
+                <!-- === ОСНОВНАЯ РАБОТА === -->
+                <dl v-for="item in subcategory.items" :key="item.id" class="work-item" itemscope
+                  itemtype="https://schema.org/Service">
+                  <!-- Название услуги (dt) -->
+                  <dt class="work-title-wrapper" itemprop="name">
+                    <!-- Иконка копирования (вне dt для чистоты семантики, но внутри обертки) -->
+                    <Icon :name="item.isCopied ? 'solar:copy-bold-duotone' : 'solar:copy-linear'" class="pointer ico"
+                      @click="handleCopyClick(item)" />
+
+                    <!-- Название (кликабельное) -->
+                    <span class="work-title pointer" @click="toggleSubItems(item.id)">
+                      <span v-if="editingItem !== item.id">
+                        <span v-for="(part, index) in splitText(item.name)" :key="index"
+                          :class="{ highlight: part.isMatch }">
                           {{ part.text }}
                         </span>
-                      </p>
-                    <input v-else v-model="editingItemData.name" style="width: 80%" />
-                  </div>
-                  <p v-if="editingItem !== item.id" class="work-unit">{{ item.unit }}</p>
-                  <input v-else v-model="editingItemData.unit" style="width: 50px;" />
-                  <p v-if="editingItem !== item.id" class="work-price">{{ Math.round(item.price) }} ₽</p>
-                  <input v-else v-model.number="editingItemData.price" style="width: 70px;" />
-                  <!-- Кнопки сохранения и отмены -->
+                      </span>
+                      <input v-else v-model="editingItemData.name" class="edit-input" style="width: 80%" />
+                    </span>
+                  </dt>
+
+                  <!-- Цена и единица (dd) -->
+                  <dd class="work-meta" itemprop="offers" itemscope itemtype="https://schema.org/Offer">
+                    <span v-if="editingItem !== item.id">
+                      <span class="work-price" itemprop="price" :content="item.price">
+                        {{ Math.round(item.price) }} ₽ /
+                      </span>
+                      <meta itemprop="priceCurrency" content="RUB" />
+                      <span class="work-unit">{{ item.unit }}</span>
+                    </span>
+
+                    <!-- Поля редактирования -->
+                    <template v-else>
+                      <input v-model="editingItemData.unit" class="edit-input edit-unit" style="width: 50px;" />
+                      <input v-model.number="editingItemData.price" class="edit-input edit-price"
+                        style="width: 70px;" />
+                    </template>
+                  </dd>
+
+                  <!-- Кнопки сохранения (при редактировании) -->
                   <div v-if="editingItem === item.id" class="edit-buttons">
-                    <button @click="saveEditSubItem(editingItem.value)">Сохранить</button>
+                    <button @click="saveEditSubItem(item.id)">Сохранить</button>
                     <button @click="handleCancel('editWork')">Отмена</button>
                   </div>
-                  <!-- Кнопки редактирования и удаления -->
-                  <div class="actions" v-if="isAdmin">
+
+                  <!-- Кнопки админа -->
+                  <div class="work-actions" v-if="isAdmin">
                     <Icon name="bx:edit" size="16" @click.stop="startEditingSubItem(item)" />
-                    <Icon name="material-symbols:delete-outline" size="16" @click.stop="deleteSubItem(item)" />
+                    <Icon name="mdi:delete-forever" size="16" @click.stop="deleteSubItem(item)" />
                   </div>
-                </div>
 
-                <!-- Формы добавления деталей и допработ -->
-                <div v-if="isAdmin" class="add-detail-button">
-                  <button @click="showDetailFormFor = item.id">+ Добавить деталь</button>
-                  <div v-if="showDetailFormFor === item.id" class="form">
-                    <input v-model="newDetail.name" placeholder="Название" />
-                    <!-- <input v-model="newDetail.unit" placeholder="Ед. изм." /> -->
-                    <PagesPublicPricesUiSelectOrInput v-model="newDetail.unit" />
-                    <input v-model.number="newDetail.price" placeholder="Цена" />
-                    <button @click="addNewDetail(item.id)">Сохранить</button>
-                    <button @click="handleCancel('detail')">Отмена</button>
-                  </div>
-                </div>
-
-                <div v-if="isAdmin" class="add-dopwork-button">
-                  <button @click="showDopworkFormFor = item.id">+ Добавить доп. работу</button>
-                  <div v-if="showDopworkFormFor === item.id" class="form">
-                    <input v-model="newDopwork.label" placeholder="Метка" />
-                    <input v-model="newDopwork.dopwork" placeholder="Название работы" />
-                    <!-- <input v-model="newDopwork.unit" placeholder="Ед. изм." /> -->
-                    <PagesPublicPricesUiSelectOrInput v-model="newDopwork.unit" />
-                    <input v-model.number="newDopwork.price" placeholder="Цена" />
-                    <button @click="addNewDopwork(item.id)">Сохранить</button>
-                    <button @click="handleCancel('dopwork')">Отмена</button>
-                  </div>
-                </div>
-
-                <!-- Вложенные элементы (детали и допработы) -->
-                <!-- Для деталей -->
-                <ul v-if="item.details.length > 0 && isSubItemsOpen(item.id)" class="sub-items">
-                  <li v-for="detail in item.details" :key="detail.id" class="sub-work-item">
-                    <div class="work-main">
-                      <!-- Иконка копирования -->
-                      <Icon :name="detail.isCopied ? 'fluent:copy-16-filled' : 'fluent:copy-16-regular'" 
-                            class="pointer ico" 
-                            @click="handleCopyClick(detail)" />
-                      <!-- Поле для редактирования или отображения -->
-                      <div class="work-title pointer" @click="toggleSubItems(detail.id)">
-                        <p v-if="editingDetailId !== detail.id">{{ detail.name }}</p>
-                        <input v-else v-model="editingDetailData.name" style="width: 80%" />
-                      </div>
-                      <p v-if="editingDetailId !== detail.id" class="work-unit">{{ detail.unit }}</p>
-                      <input v-else v-model="editingDetailData.unit" style="width: 50px;" />
-                      <p v-if="editingDetailId !== detail.id" class="work-price">{{ Math.round(detail.price) }} ₽</p>
-                      <input v-else v-model.number="editingDetailData.price" style="width: 70px;" />
-                      <!-- Кнопки сохранения и отмены -->
-                      <div v-if="editingDetailId === detail.id" class="edit-buttons">
-                        <button @click="saveEditDetail(detail.id)">Сохранить</button>
-                        <button @click="handleCancel('editDetail')">Отмена</button>
-                      </div>
-                      <!-- Кнопки редактирования и удаления -->
-                      <div class="actions" v-if="isAdmin">
-                        <Icon name="bx:edit" size="16" @click.stop="startEditingDetail(detail)" />
-                        <Icon name="material-symbols:delete-outline" size="16" @click.stop="deleteDetail(detail.id)" />
-                      </div>
+                  <!-- === ФОРМЫ ДОБАВЛЕНИЯ (детали/доп. работы) === -->
+                  <div v-if="isAdmin" class="add-detail-button">
+                    <button @click="showDetailFormFor = item.id">+ Добавить деталь</button>
+                    <div v-if="showDetailFormFor === item.id" class="form">
+                      <input v-model="newDetail.name" placeholder="Название" />
+                      <PagesPublicPricesUiSelectOrInput v-model="newDetail.unit" />
+                      <input v-model.number="newDetail.price" placeholder="Цена" />
+                      <button @click="addNewDetail(item.id)">Сохранить</button>
+                      <button @click="handleCancel('detail')">Отмена</button>
                     </div>
-                  </li>
-                </ul>
+                  </div>
 
-                <!-- Для допработ -->
-                <ul v-if="item.dopworks.length > 0 && isSubItemsOpen(item.id)" class="sub-items">
-                  <p class="dop-work-title">Доп. работы</p>
-                  <li v-for="dopwork in item.dopworks" :key="dopwork.id" class="sub-work-item">
-                    <div class="work-main">
-                      <!-- Иконка копирования -->
-                      <Icon :name="dopwork.isCopied ? 'fluent:copy-16-filled' : 'fluent:copy-16-regular'" 
-                            class="pointer ico" 
-                            @click="handleCopyClick(dopwork)" />
-                      <!-- Поле для редактирования или отображения -->
-                      <div class="work-title pointer" @click="toggleSubItems(dopwork.id)">
-                        <p v-if="editingDopworkId !== dopwork.id">
-                          {{ dopwork.label }} {{ dopwork.dopwork }}
-                        </p>
-                        <div v-else>
-                          <input v-model="editingDopworkData.label" style="width: 40%" />
-                          <input v-model="editingDopworkData.dopwork" style="width: 40%" />
+                  <div v-if="isAdmin" class="add-dopwork-button">
+                    <button @click="showDopworkFormFor = item.id">+ Добавить доп. работу</button>
+                    <div v-if="showDopworkFormFor === item.id" class="form">
+                      <input v-model="newDopwork.label" placeholder="Метка" />
+                      <input v-model="newDopwork.dopwork" placeholder="Название работы" />
+                      <PagesPublicPricesUiSelectOrInput v-model="newDopwork.unit" />
+                      <input v-model.number="newDopwork.price" placeholder="Цена" />
+                      <button @click="addNewDopwork(item.id)">Сохранить</button>
+                      <button @click="handleCancel('dopwork')">Отмена</button>
+                    </div>
+                  </div>
+
+                  <!-- === ВЛОЖЕННЫЕ ЭЛЕМЕНТЫ (v-show вместо v-if!) === -->
+                  <!-- ДЕТАЛИ РАБОТ -->
+                  <dd class="work-nested" v-show="isSubItemsOpen(item.id)">
+                    <dl v-if="item.details.length > 0" class="sub-items">
+                      <dl v-for="detail in item.details" :key="detail.id" class="sub-work-item" itemscope
+                        itemtype="https://schema.org/Service">
+                        <dt class="work-title-wrapper" itemprop="name">
+                          <Icon :name="detail.isCopied ? 'solar:copy-line-duotone' : 'solar:copy-broken'"
+                            class="pointer ico" @click="handleCopyClick(detail)" />
+                          <span class="work-title">
+                            <span v-if="editingDetailId !== detail.id">{{ detail.name }}</span>
+                            <input v-else v-model="editingDetailData.name" class="edit-input" style="width: 80%" />
+                          </span>
+                        </dt>
+                        <dd class="work-meta" itemprop="offers" itemscope itemtype="https://schema.org/Offer">
+                          <span v-if="editingDetailId !== detail.id">
+                            <span class="work-price" itemprop="price" :content="detail.price">
+                              {{ Math.round(detail.price) }} ₽
+                            </span>
+                            <meta itemprop="priceCurrency" content="RUB" />
+                            <span class="work-unit">{{ item.unit }}</span>
+                          </span>
+                          <template v-else>
+                            <input v-model="editingDetailData.unit" class="edit-input" style="width: 50px;" />
+                            <input v-model.number="editingDetailData.price" class="edit-input" style="width: 70px;" />
+                          </template>
+                        </dd>
+                        <div v-if="editingDetailId === detail.id" class="edit-buttons">
+                          <button @click="saveEditDetail(detail.id)">Сохранить</button>
+                          <button @click="handleCancel('editDetail')">Отмена</button>
                         </div>
-                      </div>
-                      <p v-if="editingDopworkId !== dopwork.id" class="work-unit">{{ dopwork.unit }}</p>
-                      <input v-else v-model="editingDopworkData.unit" style="width: 50px;" />
-                      <p v-if="editingDopworkId !== dopwork.id" class="work-price">{{ Math.round(dopwork.price) }} ₽</p>
-                      <input v-else v-model.number="editingDopworkData.price" style="width: 70px;" />
-                      <!-- Кнопки сохранения и отмены -->
-                      <div v-if="editingDopworkId === dopwork.id" class="edit-buttons">
-                        <button @click="saveEditDopwork(dopwork.id)">Сохранить</button>
-                        <button @click="handleCancel('editDopwork')">Отмена</button>
-                      </div>
-                      <!-- Кнопки редактирования и удаления -->
-                      <div class="actions" v-if="isAdmin">
-                        <Icon name="bx:edit" size="16" @click.stop="startEditingDopwork(dopwork)" />
-                        <Icon name="material-symbols:delete-outline" size="16" @click.stop="deleteDopwork(dopwork.id)" />
-                      </div>
-                    </div>
-                  </li>
-                </ul>
-              </li>
-              <!-- Кнопка добавления новой работы (внутри подкатегории) -->
-              <div v-if="isAdmin" class="add-work-button">
-                <button @click="showWorkFormFor = subcategory.id; newWorkForSubcategory[subcategory.id] = { name: '', unit: 'м²', price: '', subCategoryId: subcategory.id }">
-                  + Добавить работу
-                </button>
-                <div v-if="showWorkFormFor === subcategory.id" class="form add-form">
-                  <input v-model="newWorkForSubcategory[subcategory.id].name" placeholder="Название" />
-                  <!-- <input v-model="newWorkForSubcategory[subcategory.id].unit" placeholder="Ед. изм." /> -->
+                        <div class="work-actions" v-if="isAdmin">
+                          <Icon name="bx:edit" size="16" @click.stop="startEditingDetail(detail)" />
+                          <Icon name="mdi:delete-forever" size="16"
+                            @click.stop="deleteDetail(detail.id)" />
+                        </div>
+                      </dl>
+                    </dl>
+
+                    <!-- ДОП. РАБОТЫ -->
+                    <dl v-if="item.dopworks.length > 0" class="sub-items">
+                      <p class="dop-work-title">Доп. работы</p>
+                      <dl v-for="dopwork in item.dopworks" :key="dopwork.id" class="sub-work-item" itemscope
+                        itemtype="https://schema.org/Service">
+                        <dt class="work-title-wrapper" itemprop="name">
+                          <Icon :name="dopwork.isCopied ? 'solar:copy-line-duotone' : 'solar:copy-broken'"
+                            class="pointer ico" @click="handleCopyClick(dopwork)" />
+                          <span class="work-title">
+                            <span v-if="editingDopworkId !== dopwork.id">
+                              {{ dopwork.label }} {{ dopwork.dopwork }}
+                            </span>
+                            <template v-else>
+                              <input v-model="editingDopworkData.label" class="edit-input" style="width: 40%" />
+                              <input v-model="editingDopworkData.dopwork" class="edit-input" style="width: 40%" />
+                            </template>
+                          </span>
+                        </dt>
+                        <dd class="work-meta" itemprop="offers" itemscope itemtype="https://schema.org/Offer">
+                          <span v-if="editingDopworkId !== dopwork.id">
+                            <span class="work-price" itemprop="price" :content="dopwork.price">
+                              {{ Math.round(dopwork.price) }} ₽
+                            </span>
+                            <meta itemprop="priceCurrency" content="RUB" />
+                            <span class="work-unit">{{ item.unit }}</span>
+                          </span>
+                          <template v-else>
+                            <input v-model="editingDopworkData.unit" class="edit-input" style="width: 50px;" />
+                            <input v-model.number="editingDopworkData.price" class="edit-input" style="width: 70px;" />
+                          </template>
+                        </dd>
+                        <div v-if="editingDopworkId === dopwork.id" class="edit-buttons">
+                          <button @click="saveEditDopwork(dopwork.id)">Сохранить</button>
+                          <button @click="handleCancel('editDopwork')">Отмена</button>
+                        </div>
+                        <div class="work-actions" v-if="isAdmin">
+                          <Icon name="bx:edit" size="16" @click.stop="startEditingDopwork(dopwork)" />
+                          <Icon name="mdi:delete-forever" size="16"
+                            @click.stop="deleteDopwork(dopwork.id)" />
+                        </div>
+                      </dl>
+                    </dl>
+                  </dd>
+                  <!-- /ВЛОЖЕННЫЕ ЭЛЕМЕНТЫ -->
+
+                </dl>
+                <!-- /ОСНОВНАЯ РАБОТА -->
+
+                <!-- Кнопка добавления новой работы (внутри подкатегории) -->
+                <div v-if="isAdmin" class="add-work-button">
+                  <button
+                    @click="showWorkFormFor = subcategory.id; newWorkForSubcategory[subcategory.id] = { name: '', unit: 'м²', price: '', subCategoryId: subcategory.id }">
+                    + Добавить работу
+                  </button>
+                  <div v-if="showWorkFormFor === subcategory.id" class="form add-form">
+                    <input v-model="newWorkForSubcategory[subcategory.id].name" placeholder="Название" />
                     <PagesPublicPricesUiSelectOrInput v-model="newWorkForSubcategory[subcategory.id].unit" />
-                  <input v-model.number="newWorkForSubcategory[subcategory.id].price" placeholder="Цена" />
-                  <button @click="addNewWork(subcategory.id)">Сохранить</button>
-                  <button @click="handleCancel('work')">Отмена</button>
+                    <input v-model.number="newWorkForSubcategory[subcategory.id].price" placeholder="Цена" />
+                    <button @click="addNewWork(subcategory.id)">Сохранить</button>
+                    <button @click="handleCancel('work')">Отмена</button>
+                  </div>
                 </div>
-              </div>
-            </ul>
+
+              </dl>
+              <!-- /СПИСОК РАБОТ -->
+
+            </div>
+            <!-- /ПОДКАТЕГОРИИ -->
+
+            <!-- Форма добавления новой подкатегории -->
+            <div v-if="isAdmin">
+              <button @click="openSubItemForms[category.id] = true">+ Добавить подкатегорию</button>
+            </div>
+            <div v-if="openSubItemForms[category.id]" class="form">
+              <input v-model="newSubItem.name" placeholder="Название" />
+              <button @click="addNewSubItem(category.id)">Сохранить</button>
+              <button @click="handleCancel('subitem')">Отмена</button>
+            </div>
           </div>
-          <!-- Форма добавления новой подкатегории -->
-          <div v-if="isAdmin">
-            <button @click="openSubItemForms[category.id] = true">+ Добавить подкатегорию</button>
-          </div>
-          <div v-if="openSubItemForms[category.id]" class="form">
-            <input v-model="newSubItem.name" placeholder="Название" />
-            <button @click="addNewSubItem(category.id)">Сохранить</button>
-            <button @click="handleCancel('subitem')">Отмена</button>
-          </div>
+          <!-- /КАТЕГОРИИ -->
+
         </div>
+        <!-- /filteredWorks.length -->
+
+        <!-- Ничего не найдено -->
+        <div v-else class="no-results">
+          Ничего не найдено по запросу "{{ searchQuery }}"
+        </div>
+
       </div>
+      <!-- /!isLoading && !errorMessage -->
 
-
-    <div v-else class="no-results">
-      Ничего не найдено по запросу "{{ searchQuery }}"
+      <!-- Всплывающее окно для уведомления -->
+      <UiAlerts :visible="notificationVisible" @update:visible="notificationVisible = $event" class="fade-animation" />
     </div>
+    <!-- /price-list -->
   </div>
-    <!-- Всплывающее окно для уведомления -->
-    <UiAlerts
-      :visible="notificationVisible"
-      @update:visible="notificationVisible = $event"
-      class="fade-animation"
-    />
-  </div>
-</div>
+  <!-- /container -->
 </template>
 
 <script setup>
@@ -301,7 +325,7 @@ const props = defineProps({
     type: String,
     required: true
   },
-    modelValue: {
+  modelValue: {
     type: String,
     default: 'м²'
   },
@@ -543,8 +567,37 @@ const isSubItemsOpen = (id) => {
   return !!(openSubItems.value && openSubItems.value[id])
 }
 
-// Открыть/закрыть вложенные элементы
+// ✅ Проверка: есть ли у работы вложенный контент
+const hasNestedContent = (item) => {
+  return (item.details && item.details.length > 0) ||
+    (item.dopworks && item.dopworks.length > 0)
+}
+
+// ✅ Открыть/закрыть вложенные элементы (только если есть контент)
 const toggleSubItems = (id) => {
+  // Находим работу по ID во всей структуре
+  const findItem = (items) => {
+    for (const category of items) {
+      for (const subcategory of category.subcategories || []) {
+        for (const item of subcategory.items || []) {
+          if (item.id === id) return item
+          // Проверяем детали и доп. работы на всякий случай
+          if (item.details?.some(d => d.id === id)) return item
+          if (item.dopworks?.some(d => d.id === id)) return item
+        }
+      }
+    }
+    return null
+  }
+
+  const item = findItem(works.value)
+
+  // Если работы нет или у неё нет вложенного контента — ничего не делаем
+  if (!item || !hasNestedContent(item)) {
+    return
+  }
+
+  // Переключаем состояние
   if (openSubItems.value[id]) {
     delete openSubItems.value[id]
   } else {
@@ -556,26 +609,26 @@ const toggleSubItems = (id) => {
 // Метод splitText для подсветки
 const splitText = (text) => {
   if (!text || !searchQuery.value.trim()) return [{ text, isMatch: false }]
-  
+
   const query = searchQuery.value.trim().toLowerCase()
   const parts = []
   let lastIndex = 0
-  
+
   while (lastIndex < text.length) {
     const index = text.toLowerCase().indexOf(query, lastIndex)
     if (index === -1) {
       parts.push({ text: text.slice(lastIndex), isMatch: false })
       break
     }
-    
+
     if (index > lastIndex) {
       parts.push({ text: text.slice(lastIndex, index), isMatch: false })
     }
-    
+
     parts.push({ text: text.slice(index, index + query.length), isMatch: true })
     lastIndex = index + query.length
   }
-  
+
   return parts
 }
 
@@ -701,7 +754,7 @@ const editors = {
 
 const startEditing = (type, item) => {
   const editor = editors[type]
-  
+
   if (!editor) {
     console.warn(`Неизвестный тип редактирования: ${type}`)
     return
@@ -993,10 +1046,10 @@ const saveEditDetail = async () => {
       method: 'PUT',
       body: editingDetailData.value
     })
-    
+
     editingDetailId.value = null
     editingDetailData.value = {}
-    
+
     // Перезагружаем данные после обновления
     await refresh()
   } catch (error) {
@@ -1008,12 +1061,12 @@ const saveEditDetail = async () => {
 // Удалить деталь
 const deleteDetail = async (detailId) => {
   if (!confirm('Вы уверены, что хотите удалить эту деталь?')) return
-  
+
   try {
     await $fetch(`/api/price/details/${detailId}`, {
       method: 'DELETE'
     })
-    
+
     // Перезагружаем данные после удаления
     await refresh()
   } catch (error) {
@@ -1029,7 +1082,7 @@ const addNewDetail = async (itemId) => {
     alert('Заполните все поля!')
     return
   }
-  
+
   newDetail.value.itemId = itemId
 
   try {
@@ -1037,10 +1090,10 @@ const addNewDetail = async (itemId) => {
       method: 'POST',
       body: newDetail.value
     })
-    
+
     showDetailFormFor.value = null
     newDetail.value = { name: '', unit: 'м²', price: '', itemId: null }
-    
+
     // Перезагружаем данные после добавления
     await refresh()
   } catch (error) {
@@ -1155,12 +1208,14 @@ $background-light: #f7f7f7;
 $sub-item-bg: #f0f0f0;
 $text-color: #18191b;
 $shadow-color: rgba(0, 0, 0, 0.05);
+$blue: #00a3d3;
+$text-light: #fff;
 
 .container {
   max-width: 1200px;
   margin: auto;
-  // padding: 40px 10px 0;
   border-radius: 5px;
+
   @media (max-width: 768px) {
     margin-top: 2em;
     padding: 0;
@@ -1171,7 +1226,8 @@ $shadow-color: rgba(0, 0, 0, 0.05);
   cursor: pointer;
 }
 
-h1, h2 {
+h1,
+h2 {
   text-align: center;
   color: $text-color;
   font-size: 1.7rem;
@@ -1191,17 +1247,20 @@ h1, h2 {
   margin-bottom: 20px;
   white-space: nowrap;
   position: relative;
-  
+
   &::-webkit-scrollbar {
     height: 6px;
   }
+
   &::-webkit-scrollbar-thumb {
     background: #ccc;
     border-radius: 3px;
   }
+
   &::-webkit-scrollbar-track {
     background: transparent;
   }
+
   scrollbar-width: thin;
   scrollbar-color: #ccc transparent;
 }
@@ -1223,12 +1282,12 @@ h1, h2 {
   font-weight: 600;
   transition: all 0.3s ease;
   box-shadow: 0 4px 10px rgba(0, 195, 245, 0.3);
-  
+
   &.active {
-    // color: $sub-item-bg;
     background: $blue;
+    color: $text-light;
   }
-  
+
   &:hover {
     background: $blue;
     box-shadow: 0 4px 10px rgba(0, 195, 245, 0.3);
@@ -1238,10 +1297,7 @@ h1, h2 {
 /* Поиск */
 .search-bar {
   margin-bottom: 15px;
-  // @media (max-width: 768px) {
-  //   padding: 0 10px;
-  // }
-  
+
   input {
     width: 100%;
     padding: 10px 15px;
@@ -1251,18 +1307,17 @@ h1, h2 {
     outline: none;
     transition: all 0.3s ease;
     box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.05);
-    // box-shadow: 0 0 5px rgba(0, 195, 245, 0.5);
-    
+
     &:focus {
       border-color: $primary-color;
       box-shadow: 0 0 5px rgba(0, 195, 245, 0.5);
     }
   }
 
-  
   .search-icon {
     position: absolute;
-    left: 10px; top: 50%;
+    left: 10px;
+    top: 50%;
     transform: translateY(-50%);
     pointer-events: none;
   }
@@ -1283,10 +1338,11 @@ h1, h2 {
   padding: 20px;
   background: $background-light;
   box-shadow: 0 4px 10px $shadow-color;
+
   @media (max-width: 768px) {
     padding: 10px;
   }
-  
+
   .loading-indicator {
     display: flex;
     justify-content: center;
@@ -1294,277 +1350,336 @@ h1, h2 {
     margin: 2em;
     gap: 2em;
   }
-  
-  .loader, .error-message {
+
+  .loader,
+  .error-message {
     text-align: center;
     padding: 20px;
     font-weight: bold;
   }
-  
+
   .no-results {
     text-align: center;
     padding: 40px;
     color: #888;
     font-style: italic;
   }
-  
-  .category-block {
-    margin-bottom: 20px;
-    border-bottom: 1px solid #ddd;
-    &:last-child {
-      border-bottom: none;
+}
+
+/* === SEO: Визуальное скрытие списка работ (контент остаётся в DOM) === */
+.works-list {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  margin: 0;
+  padding: 0;
+  transition: max-height 0.3s ease, opacity 0.3s ease, visibility 0.3s;
+
+  &.is-open {
+    max-height: 50000px; // Достаточно для любого объёма прайса
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+/* Категории */
+.category-block {
+  margin-bottom: 20px;
+  border-bottom: 1px solid #ddd;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  .category-header {
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: center;
+    gap: 1em;
+
+    h2 {
+      font-size: 1.5rem;
+      color: $text-color;
+
+      @media (max-width: 768px) {
+        font-size: 1.2rem;
+      }
     }
-    
-    .category-header {
-      margin-bottom: 10px;
+
+    .category-actions {
       display: flex;
-      justify-content: center;
-      gap: 1em;
-      
-      h2 {
-        font-size: 1.5rem;
-        color: $text-color;
-        @media (max-width: 768px) {
-          font-size: 1.2rem;
-        }
-      }
-      
-      .category-actions {
-        display: flex;
-        margin-top: .5em;
-        gap: 10px;
-        .ico {
-          cursor: pointer;
-          transition: transform 0.3s ease;
-          
-          &:hover {
-            transform: scale(1.2);
-          }
-        }
-      }
-    }
-    
-    .subcategory-block {
-      margin-bottom: 15px;
-      
-      .subcategory-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 5px;
-        background: linear-gradient(to bottom, #ffffff, #f7f7f7);
-        transition: border 1.3s ease, box-shadow 1.3s ease;
-        border-radius: 5px;
-        border: 1px solid $border-color;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+      margin-top: .5em;
+      gap: 10px;
 
-          &:hover {
-            // background: linear-gradient(to right, #00c3f5, #00a3d3);
-            // background: linear-gradient(to right, #56d8f8, #f7f7f7);
-            border: 1px solid #00c3f5;
-            box-shadow: 0 4px 10px rgba(0, 195, 245, 0.2);
-            transition: border 0.3s ease, box-shadow 0.3s ease;
-          }
-        
-        h3 {
-          cursor: pointer;
-          font-size: 1rem;
-          width: 100%;
-          padding: 10px 15px;
-          margin: 0;
-          
-          .ico {
-            margin-left: 1em;
-            width: 22px;
-            height: 22px;
-            transition: transform 0.3s ease;
-            
-            &:hover {
-              transform: scale(1.2);
-              color: #fff;
-            }
-          }
-        }
+      .ico {
+        cursor: pointer;
+        transition: transform 0.3s ease;
 
-        .subcategory-actions {
-          display: flex;
-          margin-right: 1em;
-        }
-      }
-    }
-
-    .add-work-button {
-      margin-top: 1em;
-      text-align: center;
-
-      .add-form {
-        display: flex;
-        gap: 1em;
-        margin-top: 1em;
-      }
-    }
-    
-    .work-item {
-      display: flex;
-      flex-direction: column;
-      padding: 10px;
-      border-bottom: 1px solid $border-color;
-      transition: all 0.3s ease;
-      
-      &:hover {
-        background: $sub-item-bg;
-      }
-      
-      .work-main {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        
-        .ico {
-          margin-right: 1em;
-          transition: transform 0.3s ease;
-          
-          &:hover {
-            transform: scale(1.2);
-          }
-        }
-        
-        .work-title {
-          flex: 1;
-          white-space: pre-wrap;
-          font-size: 1rem;
-          color: $text-color;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-
-          span {
-            color: unset;
-          }
-          
-          .highlight {
-            background-color: $highlight-color;
-            color: white;
-            font-weight: bold;
-            padding: 2px 5px;
-            border-radius: 3px;
-          }
-          
-          @media (max-width: 768px) {
-            font-size: 0.8rem;
-          }
-        }
-        
-        .work-unit, .work-price {
-          display: inline-flex;
-          align-items: center;
-          width: auto;
-          margin: 0 .5em;
-          font-size: 0.9rem;
-          color: #555;
-        }
-      }
-      
-      .actions {
-        display: flex;
-        gap: 10px;
-        margin-top: 5px;
-        
-        .ico {
-          cursor: pointer;
-          transition: transform 0.3s ease;
-          
-          &:hover {
-            transform: scale(1.2);
-          }
-        }
-      }
-      
-      .sub-items {
-        // width: 100%;
-        padding-left: 20px;
-        background: $sub-item-bg;
-        margin-top: 1em;
-        border-radius: 5px;
-
-        .dop-work-title {
-          text-align: center;
-          // padding-top: 10px;
-        }
-        
-        .sub-work-item {
-          display: flex;
-          flex-direction: column;
-          padding: 5px 0;
-          border-bottom: 1px solid $border-color;
-          
-          .work-main {
-            // flex-direction: row;
-            // align-items: flex-start;
-            
-            .work-title {
-              font-weight: normal;
-              color: #555;
-              font-size: 0.9rem;
-              @media (max-width: 768px) {
-                font-size: 0.8rem;
-              }
-            }
-          }
-        }
-      }
-      
-      /* Формы добавления */
-      .form {
-        margin-top: 10px;
-        display: flex;
-        gap: 10px;
-        
-        input {
-          padding: 8px;
-          margin-bottom: 5px;
-          border: 1px solid $border-color;
-          border-radius: 4px;
-        }
-        
-        button {
-          padding: 8px 12px;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-          
-          &:first-child {
-            background: $primary-color;
-            color: white;
-          }
-          
-          &:last-child {
-            background: #ddd;
-            color: #333;
-          }
-        }
-      }
-      
-      .edit-buttons {
-        display: flex;
-        gap: 10px;
-        margin-top: 5px;
-        
-        button {
-          padding: 6px 12px;
-          font-size: 0.8rem;
-          border-radius: 4px;
-          cursor: pointer;
+        &:hover {
+          transform: scale(1.2);
         }
       }
     }
   }
 }
 
-/* Модальные окна */
+/* Подкатегории */
+.subcategory-block {
+  margin-bottom: 15px;
+}
+
+.subcategory-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+  background: linear-gradient(to bottom, #ffffff, #f7f7f7);
+  transition: border 1.3s ease, box-shadow 1.3s ease;
+  border-radius: 5px;
+  border: 1px solid $border-color;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+
+  &:hover {
+    border: 1px solid #00c3f5;
+    box-shadow: 0 4px 10px rgba(0, 195, 245, 0.2);
+    transition: border 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  h3 {
+    cursor: pointer;
+    font-size: 1rem;
+    width: 100%;
+    padding: 10px 15px;
+    margin: 0;
+
+    .ico {
+      margin-left: 1em;
+      width: 22px;
+      height: 22px;
+      transition: transform 0.3s ease;
+
+      &:hover {
+        transform: scale(1.2);
+        color: #fff;
+      }
+    }
+  }
+
+  .subcategory-actions {
+    display: flex;
+    margin-right: 1em;
+  }
+}
+
+/* === Основная работа (адаптировано под <dl>) === */
+.work-item {
+  display: flex;
+  // flex-direction: column;
+  justify-content: space-between;
+  padding: 10px;
+  border-bottom: 1px solid $border-color;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background: $sub-item-bg;
+  }
+
+  /* Заголовок + иконка копирования */
+  .work-title-wrapper {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+
+    .ico {
+      margin-right: 1em;
+      transition: transform 0.3s ease;
+
+      &:hover {
+        transform: scale(1.2);
+      }
+    }
+
+    .work-title {
+      flex: 1;
+      white-space: pre-wrap;
+      font-size: 1rem;
+      color: $text-color;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+
+      .highlight {
+        background-color: $highlight-color;
+        color: white;
+        font-weight: bold;
+        padding: 2px 5px;
+        border-radius: 3px;
+      }
+
+      span {
+        color: unset;
+      }
+
+      @media (max-width: 768px) {
+        font-size: 0.8rem;
+      }
+    }
+  }
+
+  /* Цена и единицы */
+  .work-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    // margin-bottom: 8px;
+    min-width: 110px;
+    justify-content: right;
+    // border: 1px solid red;
+    text-align: right;
+
+    .work-unit,
+    .work-price {
+      display: inline-flex;
+      align-items: center;
+      width: auto;
+      margin: 0 2px;
+      font-size: 0.9rem;
+      color: #555;
+    }
+  }
+
+  /* Кнопки админа */
+  .work-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 5px;
+
+    .ico {
+      cursor: pointer;
+      transition: transform 0.3s ease;
+
+      &:hover {
+        transform: scale(1.2);
+      }
+    }
+  }
+
+  .edit-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 5px;
+
+    button {
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+  }
+
+  /* Вложенные элементы (детали/доп. работы) */
+  .work-nested {
+    width: 100%;
+    padding-left: 20px;
+    background: $sub-item-bg;
+    margin-top: 1em;
+    border-radius: 5px;
+
+    .dop-work-title {
+      text-align: center;
+    }
+  }
+}
+
+/* === Вложенные работы (адаптировано под <dl>) === */
+.sub-items {
+  padding: 5px 0;
+}
+
+.sub-work-item {
+  display: flex;
+  flex-direction: column;
+  padding: 5px 0;
+  border-bottom: 1px solid $border-color;
+  gap: 4px;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  .work-title-wrapper {
+    .work-title {
+      font-weight: normal;
+      color: #555;
+      font-size: 0.9rem;
+
+      @media (max-width: 768px) {
+        font-size: 0.8rem;
+      }
+    }
+  }
+
+  .work-meta {
+
+    .work-unit,
+    .work-price {
+      font-size: 0.85rem;
+    }
+  }
+
+  .work-actions {
+    gap: 10px;
+    margin-top: 4px;
+  }
+}
+
+/* Формы и кнопки */
+.add-work-button {
+  margin-top: 1em;
+  text-align: center;
+
+  .add-form {
+    display: flex;
+    gap: 1em;
+    margin-top: 1em;
+  }
+}
+
+.form {
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+
+  input {
+    padding: 8px;
+    margin-bottom: 5px;
+    border: 1px solid $border-color;
+    border-radius: 4px;
+  }
+
+  button {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+
+    &:first-child {
+      background: $primary-color;
+      color: white;
+    }
+
+    &:last-child {
+      background: #ddd;
+      color: #333;
+    }
+  }
+}
+
+/* Анимация уведомления */
 .fade-animation {
   transition: opacity 0.3s ease-in-out;
+
   &.hidden {
     opacity: 0;
   }
@@ -1572,24 +1687,15 @@ h1, h2 {
 
 /* Адаптивность */
 @media (max-width: 768px) {
-  // .container {
-  //   margin: 5em 5px;
-  // }
-  
   h1 {
     font-size: 1.5em;
     margin-bottom: .5em;
   }
-  
-  // .work-navigation-inner {
-  //   flex-direction: column;
-  //   gap: 5px;
-  // }
-  
+
   .search-bar input {
     width: 100%;
   }
-  
+
   .price-list {
     font-size: 0.9rem;
   }

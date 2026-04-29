@@ -53,7 +53,7 @@
             <ul v-if="isCategoryOpen(work.id)">
               <li v-for="item in work.subItems" :key="item.id" class="work-item">
                 <div class="work-main">
-                  <Icon name="fluent:copy-16-filled" width="16" height="16" class="pointer ico" @click="copyToClipboard(item.type)" />
+                  <Icon name="solar:copy-broken" width="16" height="16" class="pointer ico" @click="copyToClipboard(item.type)" />
                   <p class="work-title pointer" @click="toggleSubItems(item.id)">
                     <strong><span v-html="highlightText(item.type)"></span></strong>
                     <button @click.stop="editType(item)">✎</button>

@@ -1,3 +1,4 @@
+<!-- app\components\pages\public\prices\ui\Navigation.vue -->
 <template>
   <div class="navigation-wrapper">
     <!-- Placeholder -->

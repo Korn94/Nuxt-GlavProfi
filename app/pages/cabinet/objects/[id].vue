@@ -34,7 +34,7 @@
               </div>
             </div>
             <div class="info-row">
-              <Icon name="fluent:database-48-regular" size="16" class="info-row__icon" />
+              <Icon name="solar:database-broken" size="16" class="info-row__icon" />
               <div class="info-row__body">
                 <span class="info-row__label">Источник</span>
                 <span class="info-row__value">{{ object.source || '—' }}</span>
