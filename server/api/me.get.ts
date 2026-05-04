@@ -1,51 +1,43 @@
 // server/api/me.get.ts
-
-import { eventHandler, getCookie, getRequestHeader, createError } from 'h3'
+import { eventHandler } from 'h3'
 import { db } from '../db'
 import { users } from '../db/schema'
 import { eq } from 'drizzle-orm'
 import { verifyToken } from '../utils/jwt'
+import { extractJwt } from '../utils/cookies'
 
 export default eventHandler(async (event) => {
-  const token = getCookie(event, 'auth_token') || getRequestHeader(event, 'Authorization')?.split(' ')[1]
+  const token = extractJwt(event)
 
   // 1. Нет токена — это НЕ ошибка, а нормальная ситуация для публичных страниц
-  // Возвращаем пустой ответ, а не 401
   if (!token) {
     return { user: null }
   }
 
   try {
     const payload = await verifyToken(token)
-
     if (typeof payload.id !== 'number') {
-      // Неверный токен — тоже не крашим, просто возвращаем null
+      // Неверный токен — возвращаем null, а не крашим SSR
       return { user: null }
     }
 
     const [user] = await db.select().from(users).where(eq(users.id, payload.id))
-
-    // Пользователь не найден в БД — возвращаем null
     if (!user) {
       return { user: null }
     }
 
     // ✅ Успех: возвращаем безопасные данные пользователя
-    return { 
+    return {
       user: {
         id: user.id,
         name: user.name,
-        role: user.role,
-        // Не возвращайте чувствительные данные (пароль, токены и т.д.)
-      } 
+        role: user.role
+      }
     }
-    
   } catch (e) {
-    // 2. Любая непредвиденная ошибка (БД, сеть, крипто) — логируем и возвращаем null
+    // 2. Любая непредвиденная ошибка — логируем и возвращаем null
     // Это предотвратит краш SSR при проблемах с инфраструктурой
-    console.error('[/api/me] Unexpected error:', e)
-    
-    // Важно: НЕ выбрасываем ошибку, чтобы не ломать рендеринг страницы
+    console.error('[/api/me] Ошибка верификации токена:', e)
     return { user: null }
   }
 })

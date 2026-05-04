@@ -3,10 +3,11 @@ import { eventHandler } from 'h3'
 import { db } from '../../db'
 import { users } from '../../db/schema'
 import { verifyToken } from '../../utils/jwt'
-import { getCookie, getRequestHeader, createError } from 'h3'
+import { createError } from 'h3'
+import { extractJwt } from '../../utils/cookies'
 
 export default eventHandler(async (event) => {
-  const token = getCookie(event, 'auth_token') || getRequestHeader(event, 'Authorization')?.split(' ')[1]
+  const token = extractJwt(event)
 
   if (!token) {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })

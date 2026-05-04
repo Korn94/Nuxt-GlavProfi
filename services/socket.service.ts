@@ -128,6 +128,20 @@ interface SocketServiceConfig {
 // КЛАСС SOCKET SERVICE
 // ============================================
 export class SocketService {
+  // Приватный метод для извлечения JWT из куки
+  private getJwtToken(): string | null {
+    const rawCookie = useCookie('auth_token')?.value
+    if (!rawCookie) return null
+
+    try {
+      // Новый формат: JSON { token, userId, role }
+      const parsed = JSON.parse(rawCookie)
+      return parsed.token || null
+    } catch {
+      // Старый формат: просто строка JWT (обратная совместимость)
+      return rawCookie.length > 20 ? rawCookie : null
+    }
+  }
   /**
    * Экземпляр сокет-подключения
    */
@@ -205,23 +219,18 @@ export class SocketService {
       
       console.log(`[SocketService] 📍 Socket URL: ${socketUrl} (prod: ${isProd})`)
       
-      const authToken = useCookie('auth_token')?.value || ''
-      
+      const authToken = this.getJwtToken() || ''
       this.socket = io(socketUrl, {
         path: this.config.path,
-        // 🔥 ТРАНСПОРТЫ: polling первым (гарантированно работает)
         transports: ['polling', 'websocket'],
-        // Стандартные настройки
         autoConnect: this.config.autoConnect,
         reconnection: this.config.reconnection,
         reconnectionAttempts: this.config.reconnectionAttempts,
         reconnectionDelay: this.config.reconnectionDelay,
-        // Аутентификация
+        // ✅ Передаём только чистый JWT
         auth: { token: authToken },
-        // 🔐 Безопасность
         secure: window.location.protocol === 'https:',
         rejectUnauthorized: process.env.NODE_ENV === 'production',
-        // 🔥 Таймауты
         timeout: 20000
       })
       
@@ -252,6 +261,13 @@ export class SocketService {
     if (!this.socket) {
       this.init()
     } else if (!this.socket.connected) {
+      // ✅ Обновляем токен перед переподключением
+      const freshToken = this.getJwtToken()
+      if (freshToken && this.socket.io) {
+        // 👇 Каст к any нужен, т.к. TS не видит auth в Partial<ManagerOptions>
+        ;(this.socket.io.opts as any).auth = { token: freshToken }
+        console.log('[SocketService] 🔑 Токен обновлён перед подключением')
+      }
       this.socket.connect()
     }
   }

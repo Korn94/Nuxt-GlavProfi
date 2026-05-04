@@ -1,14 +1,15 @@
 // server/api/works/daily-work/active-objects.get.ts
-import { defineEventHandler, getCookie, createError } from 'h3'
+import { defineEventHandler, createError } from 'h3'
 import { db } from '../../../db'
 import { objects, users } from '../../../db/schema'
 import { eq } from 'drizzle-orm'
 import { verifyToken } from '../../../utils/jwt'
+import { extractJwt } from '../../../utils/cookies'
 
 export default defineEventHandler(async (event) => {
   try {
     // 1. Получаем токен из куки
-    const token = getCookie(event, 'auth_token')
+    const token = extractJwt(event)
     
     if (!token) {
       throw createError({

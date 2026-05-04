@@ -19,6 +19,13 @@ interface AuthResponse {
   sessionId: string
 }
 
+// Структура данных, которую будем хранить в одной куке
+interface AuthCookiePayload {
+  token: string
+  userId: number
+  role: string
+}
+
 export const useAuthStore = defineStore('auth', {
   state: (): AuthState => ({
     token: useCookie('auth_token').value || null,
@@ -46,27 +53,23 @@ export const useAuthStore = defineStore('auth', {
         this.isChecking = true
         this.error = null
         
-        const token = useCookie('auth_token').value
-        if (!token) {
+        // 👇 Используем уже гидратированное состояние
+        if (!this.token) {
           this.resetState()
           return
         }
         
-        // Проверяем токен на сервере
         const { user } = await $fetch<{ user: any }>('/api/auth/check', {
           method: 'GET',
           credentials: 'include'
         })
         
-        // Устанавливаем данные пользователя
-        this.token = token
+        // Обновляем полные данные пользователя с сервера
         this.user = user
         this.isAuthenticated = true
         
-        // ✅ Сокет подключается автоматически через watch в plugins/socket.client.ts
-        
       } catch (error) {
-        console.error('Authentication check failed:', error)
+        console.error('Ошибка проверки авторизации:', error)
         this.resetState()
       } finally {
         this.isChecking = false
@@ -97,12 +100,19 @@ export const useAuthStore = defineStore('auth', {
         }
         
         // Сохраняем токен в куки
+        const cookiePayload: AuthCookiePayload = {
+          token: response.token,
+          userId: response.user.id,
+          role: response.user.role
+        }
+
         const tokenCookie = useCookie('auth_token', {
           maxAge: 60 * 60 * 24 * 7,
           sameSite: 'lax',
           secure: process.env.NODE_ENV === 'production'
         })
-        tokenCookie.value = response.token
+        // Сохраняем всё в одну куку в виде JSON
+        tokenCookie.value = JSON.stringify(cookiePayload)
         
         // Сохраняем sessionId в куки
         const sessionIdCookie = useCookie('session_id', {
@@ -127,7 +137,7 @@ export const useAuthStore = defineStore('auth', {
         
         return response
       } catch (error: any) {
-        console.error('Login failed:', error)
+        console.error('Ошибка входа:', error)
         
         let errorMessage = 'Ошибка авторизации'
         if (error.data?.message) {
@@ -197,7 +207,9 @@ export const useAuthStore = defineStore('auth', {
     resetState() {
       this.token = null
       this.user = null
+      this.sessionId = null
       this.isAuthenticated = false
+      this.isChecking = false
       this.error = null
     }
   },
@@ -207,6 +219,28 @@ export const useAuthStore = defineStore('auth', {
    */
   hydrate(state: AuthState) {
     const tokenCookie = useCookie('auth_token')
-    state.token = tokenCookie.value || null
+    const rawCookie = tokenCookie.value
+    
+    if (!rawCookie) {
+      state.token = null
+      state.isAuthenticated = false
+      state.isChecking = false
+      return
+    }
+
+    try {
+      const payload: AuthCookiePayload = JSON.parse(rawCookie)
+      
+      // Восстанавливаем токен и минимальные данные пользователя
+      state.token = payload.token
+      state.user = { id: payload.userId, role: payload.role } as User
+      state.isAuthenticated = true // Оптимистично считаем авторизованным
+      state.isChecking = true      // Запускаем фоновую проверку
+    } catch (error) {
+      console.log('[AuthStore] Ошибка парсинга куки авторизации, сбрасываем состояние')
+      state.token = null
+      state.isAuthenticated = false
+      state.isChecking = false
+    }
   }
 })

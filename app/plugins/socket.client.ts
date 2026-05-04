@@ -9,116 +9,85 @@
  * - Корректная очистка при закрытии страницы
  */
 
-import { defineNuxtPlugin } from 'nuxt/app'
+import { defineNuxtPlugin, useCookie } from 'nuxt/app'
 import { watch } from 'vue'
-import { useAuthStore } from 'stores/auth'
 import { useSocketStore } from 'stores/socket'
 import { socketService } from 'services/socket.service'
 
-export default defineNuxtPlugin(async (nuxtApp) => {
+export default defineNuxtPlugin(() => {
   // ⛔ Работаем только на клиенте
   if (!process.client) {
-    console.log('[SocketClientPlugin] ⚠️ Запуск на сервере, пропускаем инициализацию')
+    console.log('[SocketPlugin] ⚠️ Запуск на сервере, пропускаем инициализацию')
     return
   }
-  
-  console.log('[SocketClientPlugin] 🚀 Инициализация...')
-  
-  const authStore = useAuthStore()
+
+  console.log('[SocketPlugin] 🚀 Инициализация плагина...')
   const socketStore = useSocketStore()
-  
-  // ============================================
-  // ✅ ИНИЦИАЛИЗАЦИЯ SOCKET SERVICE
-  // ============================================
-  
-  // ✅ Инициализируем сервис ВСЕГДА на клиенте
-  // Это гарантирует, что сокет будет готов к подключению в любой момент
+
+  // ✅ 1. Инициализируем сервис один раз
   try {
     socketService.init()
-    console.log('[SocketClientPlugin] ✅ SocketService инициализирован')
+    console.log('[SocketPlugin] ✅ SocketService инициализирован')
   } catch (error) {
-    console.error('[SocketClientPlugin] ❌ Ошибка инициализации SocketService:', error)
+    console.error('[SocketPlugin] ❌ Ошибка инициализации:', error)
   }
-  
-  // ============================================
-  // ✅ ПОДКЛЮЧЕНИЕ ПРИ АВТОРИЗАЦИИ
-  // ============================================
-  
+
+  // ✅ 2. Безопасное получение JWT из куки (поддержка старого и нового формата)
+  const getJwtToken = (): string | null => {
+    const rawCookie = useCookie('auth_token').value
+    if (!rawCookie) return null
+
+    try {
+      // Новый формат: JSON { token, userId, role }
+      const parsed = JSON.parse(rawCookie)
+      return parsed.token || null
+    } catch {
+      // Старый формат: просто строка JWT (обратная совместимость)
+      return rawCookie.length > 20 ? rawCookie : null
+    }
+  }
+
+  // ✅ 3. Реактивное управление подключением БЕЗ задержек
   watch(
-    () => authStore.isAuthenticated,
-    async (isAuthenticated, wasAuthenticated) => {
-      // Пропускаем первый запуск (initial: true)
-      if (wasAuthenticated === undefined) {
-        console.log('[SocketClientPlugin] 📦 Первый запуск watch, пропускаем')
-        
-        // ✅ Если пользователь уже авторизован при загрузке — подключаем сокет
-        if (isAuthenticated) {
-          await new Promise(resolve => setTimeout(resolve, 100))
-          socketService.connect()
-          console.log('[SocketClientPlugin] ✅ Пользователь уже авторизован, сокет подключён')
-        }
-        return
-      }
-      
-      if (isAuthenticated) {
-        console.log('[SocketClientPlugin] 🔐 Пользователь аутентифицирован, подключаем сокет...')
-        
-        // Небольшая задержка для гарантии, что токен сохранён в куки
-        await new Promise(resolve => setTimeout(resolve, 100))
-        
-        try {
-          socketService.connect()
-          console.log('[SocketClientPlugin] ✅ Сокет подключён')
-        } catch (error) {
-          console.error('[SocketClientPlugin] ❌ Ошибка подключения сокета:', error)
-          socketStore.error = 'Не удалось подключиться к серверу'
-        }
+    () => getJwtToken(),
+    (token) => {
+      if (token) {
+        console.log('[SocketPlugin] 🔑 Токен обнаружен, подключаем сокет...')
+        socketService.connect()
       } else {
-        console.log('[SocketClientPlugin] 🔓 Пользователь вышел, отключаем сокет...')
-        
-        try {
-          socketService.disconnect()
-          console.log('[SocketClientPlugin] ✅ Сокет отключён')
-        } catch (error) {
-          console.error('[SocketClientPlugin] ❌ Ошибка отключения сокета:', error)
-        }
+        console.log('[SocketPlugin] 🔓 Токен отсутствует, отключаем сокет...')
+        socketService.disconnect()
+        // Сбрасываем состояние стора, чтобы UI сразу отреагировал
+        socketStore.isConnected = false
+        socketStore.userId = null
       }
     },
-    { immediate: true }
+    { immediate: true } // Срабатывает сразу при загрузке плагина
   )
-  
-  // ============================================
-  // ✅ ОБРАБОТЧИКИ СОБЫТИЙ ПОДКЛЮЧЕНИЯ
-  // ============================================
-  
-  // Подписываемся на события сокета для обновления состояния store
+
+  // ✅ 4. Синхронизация состояния с событиями сокета
   socketService.on('connect', () => {
     socketStore.isConnected = true
     socketStore.error = null
-    console.log('[SocketClientPlugin] 🟢 Сокет подключён')
+    console.log('[SocketPlugin] 🟢 Сокет подключён')
   })
-  
+
   socketService.on('disconnect', (reason: string) => {
     socketStore.isConnected = false
-    console.log(`[SocketClientPlugin] 🔴 Сокет отключён: ${reason}`)
+    console.log(`[SocketPlugin] 🔴 Сокет отключён: ${reason}`)
   })
-  
+
   socketService.on('connect_error', (error: any) => {
     socketStore.isConnected = false
     socketStore.error = error.message || 'Ошибка подключения'
-    console.error(`[SocketClientPlugin] ❌ Ошибка подключения сокета: ${error.message}`)
+    console.error(`[SocketPlugin] ❌ Ошибка подключения: ${error.message}`)
   })
-  
-  // ============================================
-  // ✅ ОЧИСТКА ПРИ ЗАКРЫТИИ СТРАНИЦЫ
-  // ============================================
-  
-  const handleBeforeUnload = () => {
-    console.log('[SocketClientPlugin] 🧹 beforeunload: отключаем сокет...')
+
+  // ✅ 5. Корректная очистка при закрытии/перезагрузке вкладки
+  window.addEventListener('beforeunload', () => {
+    console.log('[SocketPlugin] 🧹 beforeunload: отключаем сокет...')
     socketService.disconnect()
-  }
-  
-  window.addEventListener('beforeunload', handleBeforeUnload)
-  
-  console.log('[SocketClientPlugin] ✅ Плагин успешно инициализирован')
+  })
+
+  console.log('[SocketPlugin] ✅ Плагин успешно запущен')
 })

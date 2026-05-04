@@ -1,26 +1,29 @@
 // server/api/auth/check.get.ts
-import { defineEventHandler, createError, getCookie, getRequestHeader } from 'h3'
+import { defineEventHandler, createError } from 'h3'
 import { verifyToken } from '../../utils/jwt'
 import { db } from '../../db'
 import { users } from '../../db/schema'
 import { eq } from 'drizzle-orm'
+import { extractJwt } from '../../utils/cookies'
 
 export default defineEventHandler(async (event) => {
-  // Используем auth_token вместо token
-  const token = getCookie(event, 'auth_token') || getRequestHeader(event, 'Authorization')?.split(' ')[1]
-  
+  const token = extractJwt(event)
+
   if (!token) {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
   }
-  
+
   try {
     const payload = await verifyToken(token)
+    if (typeof payload.id !== 'number') {
+      throw createError({ statusCode: 401, statusMessage: 'Invalid token payload' })
+    }
+
     const [user] = await db.select().from(users).where(eq(users.id, payload.id))
-    
     if (!user) {
       throw createError({ statusCode: 401, statusMessage: 'User not found' })
     }
-    
+
     return {
       user: {
         id: user.id,
@@ -30,6 +33,7 @@ export default defineEventHandler(async (event) => {
       }
     }
   } catch (error) {
+    console.error('[Auth/Check] Ошибка проверки токена:', error)
     throw createError({ statusCode: 401, statusMessage: 'Invalid token' })
   }
 })
