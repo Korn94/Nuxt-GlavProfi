@@ -40,12 +40,13 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useAuth } from '~/composables/useAuth'
+import { useAuthStore } from 'stores/auth'
 import { navigateTo } from '#app'
 
 const data = ref<any>(null)
 const contractorData = ref<any>(null)
 const isLoading = ref(true)
+const authStore = useAuthStore()
 
 const roleLabels: Record<string, string> = {
   admin: 'Администратор',

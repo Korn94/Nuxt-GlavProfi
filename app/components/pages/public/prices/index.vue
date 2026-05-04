@@ -318,7 +318,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { useCookie } from '#app'
+import { useAuthStore } from 'stores/auth'
 
 const props = defineProps({
   activeCategory: {
@@ -333,7 +333,7 @@ const props = defineProps({
 
 const router = useRouter()
 const route = useRoute()
-const token = useCookie('token')
+const authStore = useAuthStore()
 
 // Статические категории (временно)
 const categories = [
@@ -416,13 +416,13 @@ const { data: pageData, refresh, pending, error } = await useAsyncData(
     // --- ИСПРАВЛЕНИЕ 1: Передача токена на сервер ---
     // Создаём заголовки для запросов
     const headers = {}
-    if (token.value) {
-      headers.Authorization = `Bearer ${token.value}`
+    if (authStore.token) {
+      headers.Authorization = `Bearer ${authStore.token}`
     }
 
     // Проверка роли (теперь с передачей токена)
     let isAdminUser = false
-    if (token.value) {
+    if (authStore.token) {
       try {
         const me = await $fetch('/api/me', {
           headers: headers // Передаём токен

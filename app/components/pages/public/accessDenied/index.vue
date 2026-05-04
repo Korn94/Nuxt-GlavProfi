@@ -28,18 +28,18 @@
 </template>
 
 <script setup>
-import { useCookie } from '#app'
+import { useAuthStore } from 'stores/auth'
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
-// Получаем токен
-const token = useCookie('token')
+// Получаем store
+const authStore = useAuthStore()
 const user = ref(null)
 const router = useRouter()
 
 // Загружаем данные пользователя
 onMounted(async () => {
-  if (token.value) {
+  if (authStore.token) {
     try {
       const data = await $fetch('/api/me')
       user.value = data.user
