@@ -12,7 +12,7 @@
 import { eventHandler, createError, readBody } from 'h3'
 import { db, boardsTasks, boardsTasksTags } from '../../../../db'
 import { eq } from 'drizzle-orm'
-import { verifyAuth } from '../../../../utils/auth'
+import { requireAuth } from '../../../../utils/permissions'
 import { getIO } from '../../../../socket/common'
 import { broadcastTaskUpdated } from '../../../../socket/handlers/tasks'
 import type { Task } from '~/types/boards'
@@ -51,7 +51,7 @@ export default eventHandler(async (event): Promise<UpdateTaskResponse> => {
     // 1. ПРОВЕРКА АУТЕНТИФИКАЦИИ
     // ============================================
     
-    const user = await verifyAuth(event)
+    const user = await requireAuth(event)
     console.log(`[API] 📥 Запрос обновления задачи: пользователь ${user.id}`)
     
     // ============================================

@@ -14,7 +14,7 @@
 import { eventHandler, createError } from 'h3'
 import { db, boards, boardColumns, boardsTasks } from '../../../../db'
 import { eq, and } from 'drizzle-orm'
-import { verifyAuth } from '../../../../utils/auth'
+import { requireAuth } from '../../../../utils/permissions'
 import { getIO } from '../../../../socket/common'
 import { broadcastColumnDeleted } from '../../../../socket/handlers/columns'
 
@@ -39,7 +39,7 @@ export default eventHandler(async (event): Promise<DeleteColumnResponse> => {
     // ============================================
     // 1. ПРОВЕРКА АУТЕНТИФИКАЦИИ
     // ============================================
-    const user = await verifyAuth(event)
+    const user = await requireAuth(event)
     console.log(`[API] 📥 Запрос удаления колонки: пользователь ${user.id}`)
     
     // ============================================

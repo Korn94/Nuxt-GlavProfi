@@ -12,7 +12,7 @@
 import { eventHandler, createError, readBody } from 'h3'
 import { db, boards, boardColumns } from '../../../../db'
 import { eq, desc } from 'drizzle-orm'
-import { verifyAuth } from '../../../../utils/auth'
+import { requireAuth } from '../../../../utils/permissions'
 import { getIO } from '../../../../socket/common'
 import { broadcastColumnCreated } from '../../../../socket/handlers/columns'
 import type { BoardColumn } from '~/types/boards'
@@ -43,7 +43,7 @@ export default eventHandler(async (event): Promise<CreateColumnResponse> => {
     // ============================================
     // 1. ПРОВЕРКА АУТЕНТИФИКАЦИИ
     // ============================================
-    const user = await verifyAuth(event)
+    const user = await requireAuth(event)
     console.log(`[API] 📥 Запрос создания колонки: пользователь ${user.id}`)
     
     // ============================================

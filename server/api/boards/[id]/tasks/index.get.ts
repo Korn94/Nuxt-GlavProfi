@@ -2,7 +2,7 @@
 import { eventHandler, createError } from 'h3'
 import { db, boards, boardsTasks, boardsSubtasks, boardsTasksTags, boardsTags } from '../../../../db'
 import { eq, and, desc, asc, isNull } from 'drizzle-orm'
-import { verifyAuth } from '../../../../utils/auth'
+import { requireAuth } from '../../../../utils/permissions'
 
 // Тип для подзадачи с вложенными подзадачами
 interface SubtaskWithChildren {
@@ -22,7 +22,7 @@ interface SubtaskWithChildren {
 export default eventHandler(async (event) => {
   try {
     // Проверяем аутентификацию
-    const user = await verifyAuth(event)
+    const user = await requireAuth(event)
 
     // Получаем ID доски из параметров
     const boardIdParam = event.context.params?.id

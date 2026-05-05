@@ -3,14 +3,14 @@
 import { eventHandler, createError } from 'h3'
 import { db, boardsTasks } from '../../../../db'
 import { eq } from 'drizzle-orm'
-import { verifyAuth } from '../../../../utils/auth'
+import { requireAuth } from '../../../../utils/permissions'
 import { getIO } from '../../../../socket/common'
 // ✅ ИМПОРТИРУЕМ broadcast-функцию
 import { broadcastTaskDeleted } from '../../../../socket/handlers/tasks'
 
 export default eventHandler(async (event) => {
   try {
-    const user = await verifyAuth(event)
+    const user = await requireAuth(event)
     const id = event.context.params?.id
 
     if (!id || isNaN(Number(id))) {

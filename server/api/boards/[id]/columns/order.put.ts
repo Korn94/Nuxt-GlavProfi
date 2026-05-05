@@ -14,7 +14,7 @@
 import { eventHandler, createError, readBody } from 'h3'
 import { db, boards, boardColumns } from '../../../../db'
 import { eq, inArray } from 'drizzle-orm'
-import { verifyAuth } from '../../../../utils/auth'
+import { requireAuth } from '../../../../utils/permissions'
 import { getIO } from '../../../../socket/common'
 import { broadcastColumnsReordered } from '../../../../socket/handlers/columns'
 
@@ -53,7 +53,7 @@ export default eventHandler(async (event): Promise<ReorderColumnsResponse> => {
     // ============================================
     // 1. ПРОВЕРКА АУТЕНТИФИКАЦИИ
     // ============================================
-    const user = await verifyAuth(event)
+    const user = await requireAuth(event)
     console.log(`[API] 📥 Запрос изменения порядка колонок: пользователь ${user.id}`)
     
     // ============================================

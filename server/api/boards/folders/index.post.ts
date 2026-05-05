@@ -3,12 +3,12 @@ import { eventHandler, createError, readBody } from 'h3'
 import { db } from '../../../db'
 import { boardFolders, boards } from '../../../db/schema'
 import { eq } from 'drizzle-orm'
-import { verifyAuth } from '../../../utils/auth'
+import { requireAuth } from '../../../utils/permissions'
 
 export default eventHandler(async (event) => {
   try {
     // Проверяем аутентификацию
-    const user = await verifyAuth(event)
+    const user = await requireAuth(event)
 
     // Читаем тело запроса
     const body = await readBody(event)

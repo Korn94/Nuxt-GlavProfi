@@ -3,12 +3,12 @@ import { eventHandler, createError, getRouterParam } from 'h3'
 import { db } from '../../../../db'
 import { boards, objects } from '../../../../db/schema'
 import { eq, asc } from 'drizzle-orm'
-import { verifyAuth } from '../../../../utils/auth'
+import { requireAuth } from '../../../../utils/permissions'
 
 export default eventHandler(async (event) => {
   try {
     // Проверяем аутентификацию
-    await verifyAuth(event)
+    await requireAuth(event)
 
     // Получаем ID папки из параметров
     const folderIdParam = getRouterParam(event, 'id')

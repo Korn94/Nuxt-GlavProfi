@@ -3,12 +3,12 @@ import { eventHandler, createError } from 'h3'
 import { db } from '../../../db'
 import { boardsComments } from '../../../db/schema'
 import { eq } from 'drizzle-orm'
-import { verifyAuth } from '../../../utils/auth'
+import { requireAuth } from '../../../utils/permissions'
 
 export default eventHandler(async (event) => {
   try {
     // Проверяем аутентификацию
-    const user = await verifyAuth(event)
+    const user = await requireAuth(event)
 
     // Получаем ID комментария из параметров
     const id = event.context.params?.id

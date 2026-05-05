@@ -2,7 +2,7 @@
 import { eventHandler, createError, readMultipartFormData } from 'h3'
 import { db } from '../../db'
 import { portfolioCases, portfolioImages, portfoCaseWorks } from '../../db/schema'
-import { verifyAuth } from '../../utils/auth'
+import { requireAuth } from '../../utils/permissions'
 import { randomUUID } from 'crypto'
 import { mkdirSync, writeFileSync, unlinkSync } from 'fs'
 import { join } from 'path'
@@ -24,7 +24,7 @@ const IMAGE_CONFIG = {
 
 export default eventHandler(async (event) => {
   // ───────── AUTH ─────────
-  const user = await verifyAuth(event)
+  const user = await requireAuth(event)
   if (!['admin', 'manager'].includes(user.role)) {
     throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   }

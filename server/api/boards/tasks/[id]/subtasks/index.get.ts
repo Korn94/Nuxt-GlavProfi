@@ -13,7 +13,7 @@
 import { eventHandler, createError } from 'h3'
 import { db, boardsTasks, boardsSubtasks } from '../../../../../db'
 import { eq, and, asc } from 'drizzle-orm'
-import { verifyAuth } from '../../../../../utils/auth'
+import { requireAuth } from '../../../../../utils/permissions'
 import type { Subtask } from '~/types/boards'
 
 /**
@@ -37,7 +37,7 @@ export default eventHandler(async (event): Promise<GetSubtasksResponse> => {
     // 1. ПРОВЕРКА АУТЕНТИФИКАЦИИ
     // ============================================
     
-    const user = await verifyAuth(event)
+    const user = await requireAuth(event)
     console.log(`[API] 📥 Запрос подзадач: пользователь ${user.id}`)
     
     // ============================================

@@ -3,7 +3,7 @@ import { eventHandler, createError } from 'h3'
 import { db } from '../../../db'
 import { portfolioImages, portfolioCases } from '../../../db/schema'
 import { eq } from 'drizzle-orm'
-import { verifyAuth } from '../../../utils/auth'
+import { requireAuth } from '../../../utils/permissions'
 import { existsSync, statSync } from 'fs'
 import { posix } from 'path'  // 🔥 Импортируем posix вместо всего path
 
@@ -11,7 +11,7 @@ const UPLOAD_DIR_BASE = '/var/www/glavprofi_ru_usr40/data/www/uploads'
 
 export default eventHandler(async (event) => {
   // ───────── AUTH ─────────
-  const user = await verifyAuth(event)
+  const user = await requireAuth(event)
   if (!['admin', 'manager'].includes(user.role)) {
     throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   }

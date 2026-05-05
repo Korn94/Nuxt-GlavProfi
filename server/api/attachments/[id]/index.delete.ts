@@ -3,7 +3,7 @@ import { eventHandler, createError } from 'h3'
 import { db } from '../../../db'
 import { boardsAttachments } from '../../../db/schema'
 import { eq } from 'drizzle-orm'
-import { verifyAuth } from '../../../utils/auth'
+import { requireAuth, requirePermission } from '../../../utils/permissions'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -16,7 +16,7 @@ const projectRoot = path.resolve(__dirname, '../..')
 export default eventHandler(async (event) => {
   try {
     // Проверяем аутентификацию
-    const user = await verifyAuth(event)
+    const user = await requireAuth(event)
 
     // Получаем ID вложения из параметров
     const id = event.context.params?.id

@@ -3,12 +3,12 @@ import { eventHandler, createError } from 'h3'
 import { db } from '../../../db'
 import { boardFolders } from '../../../db/schema'
 import { asc } from 'drizzle-orm'
-import { verifyAuth } from '../../../utils/auth'
+import { requireAuth } from '../../../utils/permissions'
 
 export default eventHandler(async (event) => {
   try {
     // Проверяем аутентификацию
-    await verifyAuth(event)
+    const user = await requireAuth(event)
 
     // ✅ ПОЛУЧАЕМ СПИСОК ПАПОК (без параметров!)
     const folders = await db

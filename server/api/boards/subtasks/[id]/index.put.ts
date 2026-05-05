@@ -15,7 +15,7 @@
 import { eventHandler, createError, readBody } from 'h3'
 import { db, boardsSubtasks, boardsTasks } from '../../../../db'
 import { eq, and } from 'drizzle-orm'
-import { verifyAuth } from '../../../../utils/auth'
+import { requireAuth } from '../../../../utils/permissions'
 import { getIO } from '../../../../socket/common'
 import { emitSubtaskUpdated } from '../../../../socket/handlers/subtasks'
 import type { Subtask } from '~/types/boards'
@@ -96,7 +96,7 @@ export default eventHandler(async (event): Promise<UpdateSubtaskResponse> => {
     // ============================================
     // 1. ПРОВЕРКА АУТЕНТИФИКАЦИИ
     // ============================================
-    const user = await verifyAuth(event)
+    const user = await requireAuth(event)
     console.log(`[API] 📥 Запрос обновления подзадачи: пользователь ${user.id}`)
 
     // ============================================
