@@ -236,3 +236,5 @@ export function getUserPermissionsResponse(user: DbUser): UserPermissionsRespons
     level: ROLE_LEVELS[role]
   }
 }
+export { verifyAuth }
+
