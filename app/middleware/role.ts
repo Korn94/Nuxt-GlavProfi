@@ -1,35 +1,29 @@
+// middleware/role.ts
 import { defineNuxtRouteMiddleware, useCookie, navigateTo } from '#app'
 import type { RouteLocationNormalized } from 'vue-router'
 
 export default defineNuxtRouteMiddleware((to: RouteLocationNormalized) => {
   const allowedRoles = to.meta?.allowedRoles as string[] | undefined
 
-  // 📍 Если для маршрута не указаны разрешённые роли — пропускаем
-  if (!allowedRoles || allowedRoles.length === 0) {
-    return
-  }
+  // Если для маршрута не указаны разрешённые роли — пропускаем
+  if (!allowedRoles || allowedRoles.length === 0) return
 
-  const authCookie = useCookie('auth_token')
-  const rawValue = authCookie.value
-
-  if (!rawValue) {
-    return navigateTo('/login')
-  }
+  const rawCookie = useCookie('auth_token').value
+  if (!rawCookie) return navigateTo('/login')
 
   let userRole: string | null = null
 
   try {
-    // ✅ Новый формат: JSON-строка { token, userId, role }
-    const payload = JSON.parse(rawValue)
-    userRole = payload.role || null
+    // ✅ Парсим JSON-куку и достаём роль
+    const parsed = JSON.parse(rawCookie)
+    userRole = parsed.role || null
   } catch {
-    // 🔄 Старый формат или повреждённая кука — безопасный редирект на логин
-    // (при следующем входе кука автоматически перезапишется в новом формате)
-    console.warn('[Middleware/Role] Не удалось распарсить куку роли, требуется повторный вход')
+    // Повреждённая кука → безопасный редирект на логин
+    console.log('[Middleware/Role] Кука повреждена, требуется повторный вход')
     return navigateTo('/login')
   }
 
-  // ✅ Мгновенная проверка доступа по роли
+  // ✅ Мгновенная проверка: роль есть и входит в разрешённые?
   if (!userRole || !allowedRoles.includes(userRole)) {
     return navigateTo('/access-denied')
   }

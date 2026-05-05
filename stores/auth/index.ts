@@ -1,7 +1,9 @@
 // stores/auth/index.ts
+
 import { defineStore } from 'pinia'
 import { useCookie, useRouter } from 'nuxt/app'
 import { useNotifications } from '~/composables/useNotifications'
+import { useApi } from '~/composables/useApi'
 import type { User } from '~/types'
 
 interface AuthState {
@@ -19,7 +21,7 @@ interface AuthResponse {
   sessionId: string
 }
 
-// Структура данных, которую будем хранить в одной куке
+// ✅ Структура данных, которую будем хранить в одной куке
 interface AuthCookiePayload {
   token: string
   userId: number
@@ -35,7 +37,7 @@ export const useAuthStore = defineStore('auth', {
     isChecking: true,
     error: null
   }),
-  
+
   getters: {
     getToken: (state) => state.token,
     getUser: (state) => state.user,
@@ -43,7 +45,7 @@ export const useAuthStore = defineStore('auth', {
     getIsChecking: (state) => state.isChecking,
     getError: (state) => state.error
   },
-  
+
   actions: {
     /**
      * Инициализация хранилища - проверка текущего состояния аутентификации
@@ -52,30 +54,29 @@ export const useAuthStore = defineStore('auth', {
       try {
         this.isChecking = true
         this.error = null
-        
+
         // 👇 Используем уже гидратированное состояние
         if (!this.token) {
           this.resetState()
           return
         }
-        
-        const { user } = await $fetch<{ user: any }>('/api/auth/check', {
-          method: 'GET',
-          credentials: 'include'
-        })
-        
+
+        // Проверяем токен на сервере
+        const api = useApi()
+        const { user } = await api.get<{ user: User }>('/api/auth/check')
+
         // Обновляем полные данные пользователя с сервера
         this.user = user
         this.isAuthenticated = true
-        
+
       } catch (error) {
-        console.error('Ошибка проверки авторизации:', error)
+        console.error('[AuthStore] Ошибка проверки авторизации:', error)
         this.resetState()
       } finally {
         this.isChecking = false
       }
     },
-    
+
     /**
      * Аутентификация пользователя
      */
@@ -85,21 +86,17 @@ export const useAuthStore = defineStore('auth', {
         this.error = null
         this.isChecking = true
         let response: AuthResponse
-        
+
+        const api = useApi()
+
         // Определяем тип аутентификации
         if ('telegramData' in credentials) {
-          response = await $fetch<AuthResponse>('/api/auth/telegram', {
-            method: 'POST',
-            body: credentials.telegramData
-          })
+          response = await api.post<AuthResponse>('/api/auth/telegram', credentials.telegramData)
         } else {
-          response = await $fetch<AuthResponse>('/api/auth/login', {
-            method: 'POST',
-            body: credentials
-          })
+          response = await api.post<AuthResponse>('/api/auth/login', credentials)
         }
-        
-        // Сохраняем токен в куки
+
+        // ✅ Сохраняем токен в куку в новом JSON-формате
         const cookiePayload: AuthCookiePayload = {
           token: response.token,
           userId: response.user.id,
@@ -111,41 +108,35 @@ export const useAuthStore = defineStore('auth', {
           sameSite: 'lax',
           secure: process.env.NODE_ENV === 'production'
         })
-        // Сохраняем всё в одну куку в виде JSON
         tokenCookie.value = JSON.stringify(cookiePayload)
-        
-        // Сохраняем sessionId в куки
+
+        // Сохраняем sessionId в отдельную куку
         const sessionIdCookie = useCookie('session_id', {
           maxAge: 60 * 60 * 24 * 7,
           sameSite: 'lax',
           secure: process.env.NODE_ENV === 'production'
         })
         sessionIdCookie.value = response.sessionId
-        
+
         // Обновляем состояние
         this.token = response.token
         this.user = response.user
-        this.isAuthenticated = true  // ✅ watch в плагине сработает и подключит сокет
+        this.isAuthenticated = true
         this.sessionId = response.sessionId
-        
-        // Показываем уведомление об успешном входе
+
         notifications.success(`Добро пожаловать, ${response.user.name}!`)
-        
-        // Перенаправление на кабинет
+
         const router = useRouter()
         router.push('/cabinet')
-        
+
         return response
       } catch (error: any) {
-        console.error('Ошибка входа:', error)
-        
+        console.error('[AuthStore] Ошибка входа:', error)
+
         let errorMessage = 'Ошибка авторизации'
-        if (error.data?.message) {
-          errorMessage = error.data.message
-        } else if (error.message) {
-          errorMessage = error.message
-        }
-        
+        if (error.data?.message) errorMessage = error.data.message
+        else if (error.message) errorMessage = error.message
+
         this.error = errorMessage
         notifications.error(errorMessage, 'Ошибка входа')
         throw error
@@ -153,7 +144,7 @@ export const useAuthStore = defineStore('auth', {
         this.isChecking = false
       }
     },
-    
+
     /**
      * Выход из системы
      */
@@ -163,64 +154,60 @@ export const useAuthStore = defineStore('auth', {
         const tokenCookie = useCookie('auth_token')
         const sessionIdCookie = useCookie('session_id')
         const token = tokenCookie.value
-        
+
         if (token) {
-          // Завершаем сессию на сервере
+          // ✅ Завершаем сессию на сервере
+          // 💡 Используем $fetch напрямую, чтобы избежать потенциальной рекурсии 401 → logout → useApi
           await $fetch('/api/auth/logout', {
             method: 'POST',
             credentials: 'include'
           })
         }
-        
+
         // Удаляем куки
         tokenCookie.value = null
         sessionIdCookie.value = null
-        
-        // ✅ Сокет отключается автоматически через watch в plugins/socket.client.ts
-        
+
         // Сбрасываем состояние
         this.resetState()
-        
+
         notifications.info('Вы вышли из системы')
-        
+
         const router = useRouter()
         router.push('/login')
       } catch (error) {
-        console.error('Logout failed:', error)
+        console.error('[AuthStore] Ошибка при выходе:', error)
         notifications.error('Ошибка при выходе из системы')
-        
+
         // Даже при ошибке удаляем токен и перенаправляем
-        const tokenCookie = useCookie('auth_token')
-        const sessionIdCookie = useCookie('session_id')
-        tokenCookie.value = null
-        sessionIdCookie.value = null
+        useCookie('auth_token').value = null
+        useCookie('session_id').value = null
         this.resetState()
-        
-        const router = useRouter()
-        router.push('/login')
+
+        useRouter().push('/login')
       }
     },
-    
+
     /**
      * Сброс состояния аутентификации
      */
     resetState() {
       this.token = null
       this.user = null
-      this.sessionId = null
+      this.sessionId = null      // ✅ Добавлено
       this.isAuthenticated = false
-      this.isChecking = false
+      this.isChecking = false    // ✅ Добавлено
       this.error = null
     }
   },
-  
+
   /**
-   * Синхронизация с куками
+   * Синхронизация с куками (вызывается при SSR/гидратации)
    */
   hydrate(state: AuthState) {
     const tokenCookie = useCookie('auth_token')
     const rawCookie = tokenCookie.value
-    
+
     if (!rawCookie) {
       state.token = null
       state.isAuthenticated = false
@@ -229,8 +216,9 @@ export const useAuthStore = defineStore('auth', {
     }
 
     try {
+      // ✅ Парсим новый JSON-формат куки
       const payload: AuthCookiePayload = JSON.parse(rawCookie)
-      
+
       // Восстанавливаем токен и минимальные данные пользователя
       state.token = payload.token
       state.user = { id: payload.userId, role: payload.role } as User

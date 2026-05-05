@@ -4,9 +4,10 @@ import { db } from '../db'
 import { users } from '../db/schema'
 import { eq } from 'drizzle-orm'
 import { verifyToken } from '../utils/jwt'
-import { extractJwt } from '../utils/cookies'
+import { extractJwt } from '../utils/cookies' // ✅ Централизованный хелпер
 
 export default eventHandler(async (event) => {
+  // ✅ Безопасно извлекаем JWT (поддержка старого и нового формата куки)
   const token = extractJwt(event)
 
   // 1. Нет токена — это НЕ ошибка, а нормальная ситуация для публичных страниц
@@ -16,8 +17,9 @@ export default eventHandler(async (event) => {
 
   try {
     const payload = await verifyToken(token)
+    
+    // Проверка формата payload.id
     if (typeof payload.id !== 'number') {
-      // Неверный токен — возвращаем null, а не крашим SSR
       return { user: null }
     }
 
@@ -26,18 +28,18 @@ export default eventHandler(async (event) => {
       return { user: null }
     }
 
-    // ✅ Успех: возвращаем безопасные данные пользователя
+    // ✅ Возвращаем только публичные данные
     return {
       user: {
         id: user.id,
+        login: user.login,
+        role: user.role,
         name: user.name,
-        role: user.role
       }
     }
-  } catch (e) {
-    // 2. Любая непредвиденная ошибка — логируем и возвращаем null
-    // Это предотвратит краш SSR при проблемах с инфраструктурой
-    console.error('[/api/me] Ошибка верификации токена:', e)
+  } catch (error) {
+    // 2. Ошибка верификации или БД — логируем и возвращаем null
+    console.error('[/api/me] Ошибка верификации токена:', error)
     return { user: null }
   }
 })

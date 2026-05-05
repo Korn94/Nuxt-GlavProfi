@@ -1,6 +1,7 @@
 // stores/users.ts
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { useApi } from '~/composables/useApi'
 
 export interface User {
   id: number
@@ -10,13 +11,6 @@ export interface User {
   telegramId?: number | null
   createdAt?: string
   updatedAt?: string
-}
-
-interface UsersState {
-  users: User[]
-  loading: boolean
-  error: string | null
-  lastFetch: number | null
 }
 
 export const useUsersStore = defineStore('users', () => {
@@ -52,14 +46,14 @@ export const useUsersStore = defineStore('users', () => {
   // ============================================
   // ACTIONS
   // ============================================
-  
+
   /**
    * Загрузка всех пользователей с кэшированием
    */
   async function fetchUsers(force = false) {
     // Если данные в кэше и не форсируем обновление — возвращаем кэш
     if (!force && isCacheValid.value && users.value.length > 0) {
-      console.log('[UsersStore] Using cached users')
+      console.log('[UsersStore] 📦 Используем кэш пользователей')
       return users.value
     }
 
@@ -67,22 +61,18 @@ export const useUsersStore = defineStore('users', () => {
     error.value = null
 
     try {
-      console.log('[UsersStore] Fetching users from API...')
-      
-      const response = await $fetch<{ users: User[] }>('/api/users', {
-        method: 'GET',
-        credentials: 'include'
-      })
+      console.log('[UsersStore] 📥 Загрузка списка пользователей из API...')
+      const api = useApi()
+      const response = await api.get<{ users: User[] }>('/api/users')
 
       users.value = response.users || []
       lastFetch.value = Date.now()
-      
-      console.log(`[UsersStore] Loaded ${users.value.length} users`)
+
+      console.log(`[UsersStore] ✅ Загружено ${users.value.length} пользователей`)
       return users.value
     } catch (err: any) {
-      console.error('[UsersStore] Failed to fetch users:', err)
+      console.error('[UsersStore] ❌ Ошибка загрузки пользователей:', err)
       error.value = err.data?.message || 'Не удалось загрузить список пользователей'
-      
       // Не выбрасываем ошибку, чтобы не ломать UI
       return users.value
     } finally {
@@ -96,17 +86,14 @@ export const useUsersStore = defineStore('users', () => {
   async function fetchUserById(id: number): Promise<User | null> {
     // Сначала проверяем кэш
     const cached = users.value.find(u => u.id === id)
-    if (cached) {
-      return cached
-    }
+    if (cached) return cached
 
     try {
-      const user = await $fetch<User>(`/api/users/${id}`, {
-        method: 'GET',
-        credentials: 'include'
-      })
+      console.log(`[UsersStore] 📥 Загрузка пользователя ID: ${id}`)
+      const api = useApi()
+      const user = await api.get<User>(`/api/users/${id}`)
 
-      // Добавляем в кэш если ещё нет
+      // Добавляем в кэш, если ещё нет
       const existingIndex = users.value.findIndex(u => u.id === id)
       if (existingIndex === -1) {
         users.value.push(user)
@@ -114,9 +101,10 @@ export const useUsersStore = defineStore('users', () => {
         users.value[existingIndex] = user
       }
 
+      console.log(`[UsersStore] ✅ Пользователь ${id} загружен`)
       return user
     } catch (err: any) {
-      console.error(`[UsersStore] Failed to fetch user ${id}:`, err)
+      console.error(`[UsersStore] ❌ Ошибка загрузки пользователя ${id}:`, err)
       return null
     }
   }
@@ -127,7 +115,6 @@ export const useUsersStore = defineStore('users', () => {
   async function getUserWithFetch(id: number): Promise<User | null> {
     const cached = users.value.find(u => u.id === id)
     if (cached) return cached
-
     return await fetchUserById(id)
   }
 
@@ -141,6 +128,7 @@ export const useUsersStore = defineStore('users', () => {
     } else {
       users.value.push(user)
     }
+    console.log(`[UsersStore] 🔄 Кэш пользователя ${user.id} обновлён`)
   }
 
   /**
@@ -150,6 +138,7 @@ export const useUsersStore = defineStore('users', () => {
     users.value = []
     lastFetch.value = null
     error.value = null
+    console.log('[UsersStore] 🧹 Кэш пользователей очищен')
   }
 
   /**

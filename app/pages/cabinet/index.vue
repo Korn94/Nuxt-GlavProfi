@@ -1,16 +1,13 @@
 <!-- app\pages\cabinet\index.vue -->
 <template>
-  <!-- Показываем контент только после проверки роли (защита от мелькания) -->
-  <PagesCabinet v-if="isAdmin" />
+  <PagesCabinet />
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { navigateTo } from '#app'
-
 definePageMeta({
   layout: 'cabinet',
-  middleware: ['require-auth'] // Сначала проверяем авторизацию
+  middleware: ['auth', 'role'],
+  allowedRoles: ['admin'] 
 })
 
 useHead({
@@ -18,33 +15,6 @@ useHead({
     { name: 'robots', content: 'noindex, nofollow' },
   ],
   title: 'CRM — Главная'
-})
-
-// 🔐 Флаг: показываем контент только если пользователь — админ
-const isAdmin = ref(false)
-
-onMounted(async () => {
-  try {
-    // Получаем данные текущего пользователя
-    const { user } = await $fetch('/api/me', {
-      method: 'GET',
-      credentials: 'include'
-    })
-    
-    // ✅ Если роль НЕ 'admin' — перенаправляем на ежедневную работу
-    if (user?.role !== 'admin') {
-      console.log(`[cabinet/index] 🔐 Доступ запрещён для роли "${user?.role}". Редирект на /cabinet/daily-work`)
-      return navigateTo('/cabinet/daily-work', { redirectCode: 302 })
-    }
-    
-    // ✅ Админ — показываем дашборд
-    isAdmin.value = true
-    
-  } catch (error) {
-    // Если ошибка авторизации — редирект на логин (дублирует middleware, но на всякий случай)
-    console.error('[cabinet/index] Ошибка проверки доступа:', error)
-    navigateTo('/login')
-  }
 })
 </script>
 

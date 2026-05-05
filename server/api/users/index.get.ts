@@ -1,23 +1,31 @@
-// server/api/users/get.ts
-import { eventHandler } from 'h3'
+// server/api/users/index.get.ts
+import { eventHandler, createError } from 'h3'
 import { db } from '../../db'
 import { users } from '../../db/schema'
 import { verifyToken } from '../../utils/jwt'
-import { createError } from 'h3'
-import { extractJwt } from '../../utils/cookies'
+import { extractJwt } from '../../utils/cookies' // ✅ Централизованный хелпер
 
 export default eventHandler(async (event) => {
+  // ✅ Безопасно извлекаем JWT из куки (поддержка старого и нового формата)
   const token = extractJwt(event)
-
+  
   if (!token) {
-    throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
+    throw createError({ statusCode: 401, statusMessage: 'Требуется авторизация' })
   }
 
   try {
     const payload = await verifyToken(token)
+    
+    // Загружаем всех пользователей из БД
     const allUsers = await db.select().from(users)
-    return { users: allUsers }
+    
+    // ✅ Исключаем пароли из ответа (безопасность)
+    // Drizzle возвращает все поля, нам нужно "вычистить" чувствительные данные
+    const safeUsers = allUsers.map(({ password, ...user }) => user)
+    
+    return { users: safeUsers }
   } catch (e) {
-    throw createError({ statusCode: 401, statusMessage: 'Invalid token' })
+    console.error('[API/Users] Ошибка верификации токена:', e)
+    throw createError({ statusCode: 401, statusMessage: 'Невалидный токен' })
   }
 })

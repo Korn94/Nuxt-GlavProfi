@@ -1,10 +1,12 @@
 // app/composables/useUserActions.ts
 import { ref } from 'vue'
-import type { User } from 'stores/users'
-import { useUsersStore } from 'stores/users'
+import type { User } from '../../stores/users'
+import { useUsersStore } from '../../stores/users'
+import { useApi } from '~/composables/useApi'
 
 export function useUserActions() {
   const usersStore = useUsersStore()
+  const api = useApi()
 
   // ── Состояние модалок ──────────────────────────────────────────────
   const isFormModalOpen = ref(false)
@@ -64,18 +66,12 @@ export function useUserActions() {
       if (editingUser.value) {
         // Обновление существующего
         logInfo(`Обновление пользователя ID: ${editingUser.value.id}`)
-        savedUser = await $fetch<User>(`/api/users/${editingUser.value.id}`, {
-          method: 'PUT',
-          body: formData
-        })
+        savedUser = await api.put<User>(`/api/users/${editingUser.value.id}`, formData)
         logInfo(`Пользователь обновлен: ${savedUser.login}`)
       } else {
         // Создание нового
         logInfo('Создание нового пользователя...')
-        savedUser = await $fetch<User>('/api/users', {
-          method: 'POST',
-          body: formData
-        })
+        savedUser = await api.post<User>('/api/users', formData)
         logInfo(`Пользователь создан: ${savedUser.login}`)
       }
 
@@ -100,10 +96,7 @@ export function useUserActions() {
 
     logInfo(`Смена пароля для ID: ${targetUser.value.id}`)
     try {
-      const updatedUser = await $fetch<User>(`/api/users/${targetUser.value.id}`, {
-        method: 'PUT',
-        body: { password: newPassword }
-      })
+      const updatedUser = await api.put<User>(`/api/users/${targetUser.value.id}`, { password: newPassword })
 
       usersStore.updateUserInCache(updatedUser)
       closeAllModals()
@@ -126,9 +119,7 @@ export function useUserActions() {
 
     logInfo(`Удаление пользователя ID: ${targetUser.value.id} (${targetUser.value.login})`)
     try {
-      await $fetch(`/api/users/${targetUser.value.id}`, {
-        method: 'DELETE'
-      })
+      await api.delete(`/api/users/${targetUser.value.id}`)
 
       // Принудительно обновляем список в сторе для синхронизации
       await usersStore.fetchUsers(true)

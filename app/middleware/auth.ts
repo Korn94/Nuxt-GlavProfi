@@ -2,28 +2,27 @@
 import { defineNuxtRouteMiddleware, useCookie, navigateTo } from '#app'
 
 export default defineNuxtRouteMiddleware((to: { path: string }) => {
-  const authCookie = useCookie('auth_token')
-  const rawValue = authCookie.value
+  const rawCookie = useCookie('auth_token').value
 
   let isAuthenticated = false
 
-  if (rawValue) {
+  if (rawCookie) {
     try {
-      // ✅ Новый формат: JSON-строка { token, userId, role }
-      const payload = JSON.parse(rawValue)
-      isAuthenticated = !!(payload.token && payload.userId)
+      // ✅ Новый формат: JSON { token, userId, role }
+      const parsed = JSON.parse(rawCookie)
+      isAuthenticated = !!(parsed.token && parsed.userId)
     } catch {
-      // 🔄 Старый формат (просто строка JWT) — для плавного перехода
-      isAuthenticated = rawValue.length > 20
+      // 🔄 Старый формат: просто строка JWT (обратная совместимость)
+      isAuthenticated = rawCookie.length > 20
     }
   }
 
-  // 📍 Если пользователь авторизован и пытается зайти на /login → редирект в кабинет
+  // 📍 Авторизован + пытается зайти на /login → редирект в кабинет
   if (isAuthenticated && to.path === '/login') {
     return navigateTo('/cabinet')
   }
 
-  // 📍 Если пользователь не авторизован и пытается зайти в /cabinet/** → редирект на логин
+  // 📍 Не авторизован + пытается зайти в /cabinet/** → редирект на логин
   if (!isAuthenticated && to.path.startsWith('/cabinet')) {
     return navigateTo('/login')
   }
