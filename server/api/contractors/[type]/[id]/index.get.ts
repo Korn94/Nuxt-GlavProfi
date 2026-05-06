@@ -1,48 +1,36 @@
 // server/api/contractors/[type]/[id]/index.get.ts
+/**
+ * Назначение: Получение полных данных контрагента по ID и типу
+ * ⚠️ Требует право `canViewContractors` (проверяется в мидлваре)
+ * 
+ * @param {string} type — тип контрагента: 'master'|'worker'|'foreman'|'office' (из пути)
+ * @param {string} id — ID контрагента (из пути)
+ * @returns { ContractorDTO } — полные данные контрагента
+ */
+
 import { defineEventHandler, getRouterParam, createError } from 'h3'
 import { ContractorService } from '../../../../services/contractors'
-import type { ContractorType } from '~/types/contractors'
 import { CONTRACTOR_TYPES } from '~/types/contractors'
+import type { ContractorType } from '~/types/contractors'
 
-/**
- * GET /api/contractors/master/123
- */
 export default defineEventHandler(async (event) => {
+  // ✅ Авторизация и права уже проверены мидлваром
   const type = getRouterParam(event, 'type') as ContractorType
   const id = parseInt(getRouterParam(event, 'id') || '0')
 
-  // Валидация
   if (!CONTRACTOR_TYPES.includes(type)) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Invalid contractor type'
-    })
+    throw createError({ statusCode: 400, message: 'Неверный тип контрагента' })
   }
 
   if (!id || id <= 0) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Invalid ID'
-    })
+    throw createError({ statusCode: 400, message: 'Неверный ID' })
   }
 
-  try {
-    const contractor = await ContractorService.getFullDTO(type, id)
-    
-    if (!contractor) {
-      throw createError({
-        statusCode: 404,
-        statusMessage: 'Contractor not found'
-      })
-    }
-
-    return contractor
-  } catch (error: any) {
-    if (error.statusCode) throw error
-    console.error(`Error fetching contractor:`, error)
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'Failed to fetch contractor'
-    })
+  const contractor = await ContractorService.getFullDTO(type, id)
+  
+  if (!contractor) {
+    throw createError({ statusCode: 404, message: 'Контрагент не найден' })
   }
+
+  return contractor
 })
