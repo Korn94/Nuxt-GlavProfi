@@ -36,10 +36,12 @@
 import { computed } from 'vue'
 import { useAuthStore } from 'stores/auth'
 import { useThemeStore } from 'stores/settings/theme'
+import { usePermissions } from '~/composables/usePermissions'
 
 const emit = defineEmits<{ closeSidebar: [] }>()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
+const { can, hasRole } = usePermissions()
 
 const isDark = computed(() => themeStore.isDark)
 
@@ -52,78 +54,76 @@ const menuItems = [
     title: 'Главная',
     path: '/cabinet',
     icon: 'mdi:home-outline',
-    roles: ['admin']
+    permission: 'canViewDashboard' as const
   },
   {
     title: 'Сотрудники',
     path: '/cabinet/contractors',
     icon: 'mdi:account-group-outline',
-    roles: ['admin']
+    permission: 'canManageUsers' as const
   },
   {
     title: 'Подневка',
     path: '/cabinet/daily-work',
     icon: 'mdi:calendar-today-outline',
-    roles: ['admin', 'foreman']
+    check: () => hasRole('foreman') || hasRole('admin')
   },
   {
     title: 'Объекты',
     path: '/cabinet/objects',
     icon: 'mdi:house-export-outline',
-    roles: ['admin']
+    permission: 'canViewObjects' as const
   },
   {
     title: 'Чеки',
     path: '/cabinet/materials',
     icon: 'mdi:receipt-text-outline',
-    roles: ['admin']
+    permission: 'canViewFinance' as const
   },
   {
     title: 'Операции',
     path: '/cabinet/operation',
     icon: 'mdi:instant-transfer',
-    roles: ['admin']
+    permission: 'canEditFinance' as const
   },
   { divider: true },
   {
     title: 'Онлайн',
     path: '/cabinet/online',
     icon: 'mdi:account-multiple-check-outline',
-    roles: ['admin']
+    permission: 'canViewWorkers' as const
   },
   {
     title: 'Тест',
     path: '/cabinet/testpage',
     icon: 'mdi:flask-outline',
-    roles: ['admin']
+    permission: 'canViewDashboard' as const,
+    roleCheck: 'admin' as const
   },
   { divider: true },
   {
     title: 'На сайт',
     path: '/',
     icon: 'mdi:web',
-    roles: ['admin']
+    alwaysShow: true
   },
   {
     title: 'Кейсы',
     path: '/cabinet/portfolio',
     icon: 'mdi:plus-circle-outline',
-    roles: ['admin', 'manager']
+    check: () => hasRole('manager') || hasRole('admin')
   },
   { divider: true },
   {
     title: 'Баланс',
     path: '/cabinet/balance',
     icon: 'mdi:currency-rub',
-    roles: ['admin']
+    permission: 'canViewSalary' as const
   },
 ]
 
-// Фильтрация по роли
+// Фильтрация по правам доступа
 const filteredMenu = computed(() => {
-  const user = authStore.user
-  if (!user) return []
-
   const result: any[] = []
   let hasPrevItem = false
 
@@ -132,7 +132,27 @@ const filteredMenu = computed(() => {
       if (hasPrevItem) result.push(item)
       continue
     }
-    if (!item.roles || item.roles.includes(user.role)) {
+
+    let isVisible = false
+
+    // Если всегда показывать
+    if (item.alwaysShow) {
+      isVisible = true
+    }
+    // Если есть явная проверка
+    else if (item.check) {
+      isVisible = item.check()
+    }
+    // Если есть проверка по конкретному праву
+    else if (item.permission) {
+      isVisible = can(item.permission)
+      // Дополнительная проверка по роли если указана
+      if (isVisible && item.roleCheck) {
+        isVisible = hasRole(item.roleCheck)
+      }
+    }
+
+    if (isVisible) {
       result.push(item)
       hasPrevItem = true
     }

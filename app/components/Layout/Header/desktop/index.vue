@@ -1,6 +1,6 @@
 <!-- app\components\Layout\Header\desktop\index.vue -->
 <template>
-  <header :class="{ scrolled: data.isScrolled, home: isHomePage }">
+  <header :class="{ scrolled: isScrolled, home: isHomePage }">
     <div class="container">
       <div class="logo">
         <NuxtLink to="/">
@@ -97,21 +97,19 @@
       </div>
     </div>
     <!-- Попап уведомления -->
-    <UiAlerts
-      :visible="data.isNotificationVisible"
-      message="Номер скопирован!"
-      color="green"
-      @update:visible="data.isNotificationVisible = false"
-    />
+    <UiNotificationsContainer />
   </header>
 </template>
 
 <script setup>
 import { useRoute, useRouter } from "vue-router";
-import { ref, computed, reactive, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 
 const route = useRoute();
 const router = useRouter();
+
+// Состояние для скролла
+const isScrolled = ref(false);
 
 // Состояние для главной страницы
 const isHomePage = computed(() => {
@@ -140,7 +138,7 @@ const scrollToSection = (sectionId) => {
 // Обработчик прокрутки для выделения активного раздела
 const handleScroll = () => {
   // Логика для фона при прокрутке
-  data.isScrolled = window.scrollY > 50;
+  isScrolled.value = window.scrollY > 50;
 
   // Логика для активности кнопки "Цены"
   if (isHomePage.value) {
@@ -157,17 +155,10 @@ const navigateTo = (path) => {
   router.push(path);
 };
 
-// Состояние для данных
-const data = reactive({
-  isScrolled: false,
-  isNotificationVisible: false,
-});
-
 // Копирование номера телефона
 const copyPhoneNumber = () => {
   const phoneNumber = "+79109096947";
   navigator.clipboard.writeText(phoneNumber).then(() => {
-    data.isNotificationVisible = true;
   });
 };
 

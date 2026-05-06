@@ -101,12 +101,8 @@
     </div>
 
     <!-- Всплывающее окно для уведомления -->
-    <UiAlerts
-      :visible="notificationVisible"
-      @update:visible="notificationVisible = $event"
-      class="fade-animation"
-    />
   </div>
+  <UiNotificationsContainer />
 </template>
 
 <script>
@@ -136,7 +132,6 @@ export default {
     const openSubItems = ref({}); // Открытые вложенные элементы
     const isLoading = ref(false);
     const errorMessage = ref("");
-    const notificationVisible = ref(false); // Состояние для показа уведомления
 
     // Загрузка данных для категории
     const loadCategoryData = async (categoryId) => {
@@ -271,7 +266,6 @@ export default {
 
       navigator.clipboard.writeText(text)
         .then(() => {
-          notificationVisible.value = true;
         })
         .catch((err) => {
           console.error("Ошибка копирования текста:", err);
@@ -503,7 +497,6 @@ export default {
       isLoading,
       errorMessage,
       copyToClipboard,
-      notificationVisible,
       highlightText,
       updatePrice,
       saveCategoryData, // Новая функция для сохранения данных категории

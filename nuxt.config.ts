@@ -65,7 +65,8 @@ export default defineNuxtConfig({
         '@vue/devtools-kit',
         '@telegram-apps/sdk',
         'socket.io-client',
-      ]
+      ],
+      exclude: ['jsonwebtoken']
     },
     plugins: [tsconfigPaths()],
     css: {

@@ -91,12 +91,7 @@
     <UiFormsConsentModal v-model="showConsentModal" @accept="acceptConsent"/>
 
     <!-- Компонент уведомлений -->
-    <UiAlerts
-      :visible="isNotificationVisible"
-      :message="notificationMessage"
-      :color="notificationColor"
-      @update:visible="isNotificationVisible = false"
-    />
+    <UiNotificationsContainer />
   </footer>
 </template>
 
@@ -109,20 +104,15 @@ const config = useRuntimeConfig()
 
 // Данные
 const currentYear = new Date().getFullYear()
-const isNotificationVisible = ref(false)
-const notificationMessage = ref('')
 const phoneNumber = ref('+7 ')
 const showConsentModal = ref(false)
 const phoneError = ref(false)
-const notificationColor = ref('green')
 
 function copyToClipboard(text) {
   navigator.clipboard.writeText(text).then(() => {
-    notificationMessage.value = 'Скопировано'
-    isNotificationVisible.value = true
+    // Уведомление обрабатывается в UiNotificationsContainer
   }).catch(() => {
-    notificationMessage.value = 'Ошибка при копировании'
-    isNotificationVisible.value = true
+    // Уведомление обрабатывается в UiNotificationsContainer
   })
 }
 
@@ -143,9 +133,7 @@ function openConsentModal() {
   phoneError.value = phoneCleaned.length < 11
 
   if (phoneError.value) {
-    notificationMessage.value = 'Введите корректный номер телефона'
-    notificationColor.value = 'red'
-    isNotificationVisible.value = true
+    // Уведомление об ошибке обрабатывается в UiNotificationsContainer
     return
   }
 
@@ -177,15 +165,8 @@ async function submitForm() {
     if (!response.ok) {
       throw new Error(result.description || 'Ошибка отправки формы')
     }
-
-    notificationMessage.value = 'Форма успешно отправлена!'
-    notificationColor.value = 'green'
-    isNotificationVisible.value = true
   } catch (error) {
     console.error('Ошибка при отправке формы:', error)
-    notificationMessage.value = 'Ошибка при отправке формы'
-    notificationColor.value = 'red'
-    isNotificationVisible.value = true
   }
 }
 </script>

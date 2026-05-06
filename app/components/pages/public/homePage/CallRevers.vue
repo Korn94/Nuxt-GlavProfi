@@ -19,12 +19,7 @@
     </div>
 
     <!-- Компонент уведомления -->
-    <UiAlerts
-      :visible="isNotificationVisible"
-      :message="notificationMessage"
-      :color="notificationColor"
-      @update:visible="isNotificationVisible = false"
-    />
+    <UiNotificationsContainer />
 
     <!-- Модальное окно согласия -->
     <UiFormsConsentModal v-model="showConsentModal" @accept="acceptConsent" />
@@ -41,10 +36,7 @@ const config = useRuntimeConfig()
 // Данные формы
 const name = ref('')
 const phoneNumber = ref('+7 ')
-const notificationMessage = ref('')
-const isNotificationVisible = ref(false)
 const phoneError = ref(false)
-const notificationColor = ref('green')
 const showConsentModal = ref(false)
 
 function textFilter() {
@@ -61,9 +53,6 @@ function openConsentModal() {
   const phoneCleaned = phoneNumber.value.replace(/\D/g, '')
   phoneError.value = phoneCleaned.length < 11
   if (phoneError.value) {
-    notificationMessage.value = 'Введите корректный номер телефона'
-    notificationColor.value = 'red'
-    isNotificationVisible.value = true
     return
   }
   showConsentModal.value = true
@@ -93,16 +82,8 @@ async function acceptConsent() {
     if (!response.ok) {
       throw new Error(result.description || 'Ошибка отправки формы')
     }
-
-    // Успех
-    notificationMessage.value = 'Форма успешно отправлена!'
-    notificationColor.value = 'green'
-    isNotificationVisible.value = true
   } catch (error) {
     console.error('Ошибка при отправке формы:', error)
-    notificationMessage.value = 'Ошибка при отправке формы'
-    notificationColor.value = 'red'
-    isNotificationVisible.value = true
   }
 }
 </script>

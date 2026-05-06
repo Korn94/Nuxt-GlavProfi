@@ -306,13 +306,11 @@
 
       </div>
       <!-- /!isLoading && !errorMessage -->
-
-      <!-- Всплывающее окно для уведомления -->
-      <UiAlerts :visible="notificationVisible" @update:visible="notificationVisible = $event" class="fade-animation" />
     </div>
     <!-- /price-list -->
   </div>
   <!-- /container -->
+   <UiNotificationsContainer />
 </template>
 
 <script setup>
@@ -352,7 +350,6 @@ const openSubItems = ref({})
 const openWorks = ref({})
 const isLoading = ref(false)
 const errorMessage = ref('')
-const notificationVisible = ref(false)
 // const isAdmin = ref(false)
 const openSubcategories = ref({})
 const currentSubcategoryId = ref(null)
@@ -654,7 +651,6 @@ const handleCopyClick = (item) => {
     navigator.clipboard.writeText(textToCopy)
       .then(() => {
         item.isCopied = true
-        notificationVisible.value = true
         setTimeout(() => {
           item.isCopied = false
         }, 5000)
@@ -675,7 +671,6 @@ const handleCopyClick = (item) => {
     try {
       document.execCommand('copy')
       item.isCopied = true
-      notificationVisible.value = true
       setTimeout(() => {
         item.isCopied = false
       }, 5000)
