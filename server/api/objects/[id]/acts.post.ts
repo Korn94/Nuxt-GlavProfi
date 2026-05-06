@@ -1,10 +1,19 @@
 // server/api/objects/[id]/acts.post.ts
+/**
+ * Назначение: Создание нового акта для объекта
+ * ⚠️ Требует право `canEditFinance` (проверяется в мидлваре)
+ * 
+ * @param {string} id — ID объекта (из пути)
+ * @body { name: string, amount: number, comment?, order?: number, status?: 'prepared'|'awaiting'|'signed' }
+ * @returns { Act } — созданный акт (с авто-генерацией ID)
+ */
+
 import { defineEventHandler, readBody, getRouterParam, createError } from 'h3'
 import { db } from '../../../db'
 import { objectActs } from '../../../db/schema'
-import { eq } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
+  // ✅ Авторизация и права уже проверены мидлваром
   const id = Number(getRouterParam(event, 'id'))
   if (isNaN(id)) throw createError({ statusCode: 400, message: 'Неверный ID' })
 
@@ -15,26 +24,14 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'Название и сумма обязательны' })
   }
 
-  try {
-    // Проверяем, нет ли уже акта с таким названием? (опционально)
-    // Пропускаем — пусть можно дублировать названия
+  const [newAct] = await db.insert(objectActs).values({
+    objectId: id,
+    name,
+    amount: String(amount),
+    comment,
+    order,
+    status
+  }).$returningId()
 
-    const [newAct] = await db
-      .insert(objectActs)
-      .values({
-        objectId: id,
-        name,
-        amount: String(amount),
-        comment,
-        order,
-        status
-        // ❌ Не передаём: statusDate, createdAt, updatedAt — они по умолчанию!
-      })
-      .$returningId()
-
-    return newAct
-  } catch (error) {
-    console.error('Ошибка создания акта:', error)
-    throw createError({ statusCode: 500, message: 'Не удалось создать акт' })
-  }
+  return newAct
 })

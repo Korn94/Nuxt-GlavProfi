@@ -1,10 +1,19 @@
 // server/api/objects/[id]/budget.post.ts
+/**
+ * Назначение: Создание новой позиции сметы объекта
+ * ⚠️ Требует право `canEditFinance` (проверяется в мидлваре)
+ * 
+ * @param {string} id — ID объекта (из пути)
+ * @body { name: string, amount: number, comment?, order?: number, workProgress?: string, actStatus?: string }
+ * @returns { BudgetItem } — созданная позиция (с авто-генерацией ID)
+ */
+
 import { defineEventHandler, readBody, getRouterParam, createError } from 'h3'
 import { db } from '../../../db'
 import { objectBudget } from '../../../db/schema'
-import { eq } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
+  // ✅ Авторизация и права уже проверены мидлваром
   const id = Number(getRouterParam(event, 'id'))
   if (isNaN(id)) throw createError({ statusCode: 400, message: 'Неверный ID' })
 
@@ -15,25 +24,15 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'Название и сумма обязательны' })
   }
 
-  try {
-    const [newItem] = await db
-      .insert(objectBudget)
-      .values({
-        objectId: id,
-        name,
-        amount: String(amount),
-        comment,
-        order,
-        workProgress,
-        actStatus,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      })
-      .$returningId()
+  const [newItem] = await db.insert(objectBudget).values({
+    objectId: id,
+    name,
+    amount: String(amount),
+    comment,
+    order,
+    workProgress,
+    actStatus
+  }).$returningId()
 
-    return newItem
-  } catch (error) {
-    console.error('Ошибка создания позиции сметы:', error)
-    throw createError({ statusCode: 500, message: 'Не удалось добавить позицию' })
-  }
+  return newItem
 })

@@ -1,10 +1,21 @@
-// server/api/users/[id]/delete.ts
+/**
+ * 📍 Файл: `server/api/users/[id]/delete.ts`
+ * 📍 Эндпоинт: `DELETE /api/users/[id]`
+ * 
+ * Назначение: Удаление пользователя + отвязка от контрагента
+ * ⚠️ Требует право `canDeleteRecords` (проверяется в мидлваре)
+ * 
+ * @param {string} id — ID пользователя (из пути)
+ * @returns { status: 'success', message: string }
+ */
+
 import { defineEventHandler, getRouterParam, createError } from 'h3'
 import { db } from '../../../db'
 import { users, masters, workers, foremans, offices } from '../../../db/schema'
 import { eq } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
+  // ✅ Авторизация и права уже проверены мидлваром
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, message: 'ID пользователя обязателен' })
 
@@ -14,7 +25,7 @@ export default defineEventHandler(async (event) => {
 
     const { contractorType, contractorId } = user
 
-    // Очищаем userId у контрагента, если он был
+    // Отвязываем пользователя от контрагента (если был привязан)
     if (contractorType && contractorId) {
       const ContractorModel = {
         master: masters,
@@ -30,15 +41,11 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Удаляем пользователя
     await db.delete(users).where(eq(users.id, parseInt(id)))
-
     return { status: 'success', message: 'Пользователь удален' }
+    
   } catch (error) {
-    console.error('Ошибка удаления пользователя:', error)
-    throw createError({
-      statusCode: 500,
-      message: 'Ошибка сервера при удалении пользователя'
-    })
+    console.error('[API/Users/Delete] Ошибка:', error)
+    throw createError({ statusCode: 500, message: 'Ошибка сервера при удалении' })
   }
 })

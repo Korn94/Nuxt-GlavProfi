@@ -1,10 +1,20 @@
 // server/api/objects/[id]/invoices.post.ts
+/**
+ * Назначение: Создание нового счёта для объекта
+ * ⚠️ Требует право `canEditFinance` (проверяется в мидлваре)
+ * 
+ * @param {string} id — ID объекта (из пути)
+ * @body { name: string, amount: number, comment?, subtype?, order?: number }
+ * @returns { Invoice & { amount: number } } — созданный счёт (с amount как number)
+ */
+
 import { defineEventHandler, readBody, getRouterParam, createError } from 'h3'
 import { db } from '../../../db'
 import { objectInvoices } from '../../../db/schema'
 import { eq, desc } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
+  // ✅ Авторизация и права уже проверены мидлваром
   const id = Number(getRouterParam(event, 'id'))
   if (isNaN(id)) throw createError({ statusCode: 400, message: 'Неверный ID' })
 
@@ -15,35 +25,22 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'Название и сумма обязательны' })
   }
 
-  try {
-    // Вставляем запись
-    await db.insert(objectInvoices).values({
-      objectId: id,
-      name,
-      amount: String(amount),
-      comment,
-      subtype,
-      order,
-      status: 'prepared'
-    })
+  await db.insert(objectInvoices).values({
+    objectId: id,
+    name,
+    amount: String(amount),
+    comment,
+    subtype,
+    order,
+    status: 'prepared'
+  })
 
-    // Получаем полную запись (аналогично objects/index.post.ts)
-    const [newInvoice] = await db.select().from(objectInvoices)
-      .where(eq(objectInvoices.objectId, id))
-      .orderBy(desc(objectInvoices.id))
-      .limit(1)
+  const [newInvoice] = await db.select().from(objectInvoices)
+    .where(eq(objectInvoices.objectId, id))
+    .orderBy(desc(objectInvoices.id))
+    .limit(1)
 
-    if (!newInvoice) {
-      throw createError({ statusCode: 500, message: 'Не удалось создать счёт' })
-    }
+  if (!newInvoice) throw createError({ statusCode: 500, message: 'Не удалось создать счёт' })
 
-    // Приводим amount к числу при ответе
-    return {
-      ...newInvoice,
-      amount: parseFloat(newInvoice.amount)
-    }
-  } catch (error) {
-    console.error('Ошибка создания счёта:', error)
-    throw createError({ statusCode: 500, message: 'Не удалось создать счёт' })
-  }
+  return { ...newInvoice, amount: parseFloat(newInvoice.amount) }
 })

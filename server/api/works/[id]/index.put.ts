@@ -1,80 +1,73 @@
 // server/api/works/[id].put.ts
+/**
+ * Назначение: Обновление данных работы + пересчёт баланса контрагента (если оплачена)
+ * ⚠️ Требует право `canEditObjects` (проверяется в мидлваре)
+ * 
+ * @param {string} id — ID работы (из пути)
+ * @body { workerAmount?, comment?, contractorId?, contractorType?, workTypes?, foremanId?, paid?, paymentDate?, operationDate?, objectId? }
+ * @returns { Work } — обновлённая запись работы
+ */
+
 import { defineEventHandler, readBody, getRouterParam, createError } from 'h3'
 import { db } from '../../../db'
 import { works, masters, workers } from '../../../db/schema'
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
+  // ✅ Авторизация и права уже проверены мидлваром
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, message: 'ID работы обязателен' })
 
-  try {
-    const body = await readBody(event)
-    const updates: any = {}
+  const body = await readBody(event)
+  const workId = parseInt(id)
 
-    // Собираем обновления
-    if (body.workerAmount !== undefined) updates.workerAmount = body.workerAmount
-    if (body.comment !== undefined) updates.comment = body.comment
-    if (body.contractorId !== undefined) updates.contractorId = body.contractorId
-    if (body.contractorType !== undefined) updates.contractorType = body.contractorType
-    if (body.workTypes !== undefined) updates.workTypes = body.workTypes
-    if (body.foremanId !== undefined) updates.foremanId = body.foremanId
-    if (body.paid !== undefined) updates.paid = body.paid
-    if (body.paymentDate !== undefined) updates.paymentDate = body.paymentDate
-    if (body.operationDate !== undefined) updates.operationDate = body.operationDate
-    if (body.objectId !== undefined) updates.objectId = body.objectId
-
-    // Проверяем наличие данных для обновления
-    if (Object.keys(updates).length === 0) {
-      throw createError({ statusCode: 400, message: 'Нет данных для обновления' })
-    }
-
-    // Получаем текущую работу
-    const [currentWork] = await db.select().from(works).where(eq(works.id, parseInt(id)))
-    if (!currentWork) throw createError({ statusCode: 404, message: 'Работа не найдена' })
-
-    // Объединяем текущие данные с обновлениями
-    const updatedWorkData = { ...currentWork, ...updates }
-
-    // Обновляем запись
-    await db.update(works).set(updates).where(eq(works.id, parseInt(id)))
-
-    // Получаем обновлённую работу
-    const [updatedWork] = await db.select().from(works).where(eq(works.id, parseInt(id)))
-
-    // Если работа оплачена — обновляем баланс контрагента
-    if (updatedWork && updatedWork.paid && updatedWork.contractorType && updatedWork.contractorId) {
-      const ContractorModel = 
-        updatedWork.contractorType === 'master' ? masters : 
-        updatedWork.contractorType === 'worker' ? workers : null
-
-      if (ContractorModel) {
-        const [contractor] = await db.select().from(ContractorModel)
-          .where(eq(ContractorModel.id, updatedWork.contractorId))
-
-        if (contractor) {
-          // Расчёт разницы между старым и новым workerAmount
-          const previousWorkerAmount = Number(currentWork.workerAmount)
-          const newWorkerAmount = Number(updatedWork.workerAmount)
-          const amountDifference = newWorkerAmount - previousWorkerAmount
-
-          const contractorBalance = Number(contractor.balance)
-          const updatedBalance = contractorBalance - amountDifference
-
-          // Обновляем баланс контрагента
-          await db.update(ContractorModel)
-            .set({ balance: updatedBalance.toFixed(2) })
-            .where(eq(ContractorModel.id, updatedWork.contractorId))
-        }
-      }
-    }
-
-    return updatedWork
-  } catch (error) {
-    console.error('Ошибка обновления работы:', error)
-    throw createError({ 
-      statusCode: 500,
-      message: 'Ошибка сервера при обновлении работы' 
-    })
+  // Собираем только переданные поля для обновления
+  const updates: Record<string, any> = {}
+  const updatableFields = [
+    'workerAmount', 'comment', 'contractorId', 'contractorType',
+    'workTypes', 'foremanId', 'paid', 'paymentDate', 'operationDate', 'objectId'
+  ]
+  for (const field of updatableFields) {
+    if (body[field] !== undefined) updates[field] = body[field]
   }
+
+  if (Object.keys(updates).length === 0) {
+    throw createError({ statusCode: 400, message: 'Нет данных для обновления' })
+  }
+
+  const [currentWork] = await db.select().from(works).where(eq(works.id, workId))
+  if (!currentWork) throw createError({ statusCode: 404, message: 'Работа не найдена' })
+
+  // Сохраняем старые значения для пересчёта баланса
+  const oldAmount = Number(currentWork.workerAmount)
+  const wasPaid = currentWork.paid
+
+  // Обновляем запись работы
+  await db.update(works).set(updates).where(eq(works.id, workId))
+
+  // Получаем обновлённую запись
+  const [updatedWork] = await db.select().from(works).where(eq(works.id, workId))
+  if (!updatedWork) throw createError({ statusCode: 500, message: 'Не удалось получить обновлённую работу' })
+
+  // 🔄 Пересчитываем баланс контрагента, если работа оплачена
+  if (updatedWork.paid && updatedWork.contractorType && updatedWork.contractorId) {
+    const ContractorModel = updatedWork.contractorType === 'master' ? masters :
+                           updatedWork.contractorType === 'worker' ? workers : null
+
+    if (ContractorModel) {
+      const newAmount = Number(updatedWork.workerAmount)
+      const diff = newAmount - oldAmount
+
+      // Если статус оплаты изменился с "нет" на "да" — вычитаем полную сумму
+      const amountToDeduct = !wasPaid && updatedWork.paid ? newAmount : diff
+
+      await db.update(ContractorModel)
+        .set({ 
+          balance: sql`balance - ${amountToDeduct}` // Атомарное обновление на уровне БД
+        })
+        .where(eq(ContractorModel.id, updatedWork.contractorId))
+    }
+  }
+
+  return updatedWork
 })

@@ -1,4 +1,14 @@
 // types/index.ts
+import type { users } from '../../server/db/schema'
+
+type DbUser = typeof users.$inferSelect
+
+declare module 'h3' {
+  interface H3EventContext {
+    user?: DbUser
+  }
+}
+
 /**
  * Типы для пользователя
  */
@@ -11,7 +21,6 @@ export interface User {
   updatedAt: string
   isVerified: boolean
 }
-
 /**
  * Типы для данных аутентификации
  */

@@ -99,7 +99,7 @@ const PROTECTED_PATHS: Record<string, PathRequirement> = {
   // ============================================
   // 👤 ПРОФИЛЬ И ДАННЫЕ ПОЛЬЗОВАТЕЛЯ
   // ============================================
-  '/api/me': { type: 'permission', value: 'canViewDashboard' },
+  // '/api/me': { type: 'permission', value: 'canViewDashboard' },
 
   // ============================================
   // 📊 АНАЛИТИКА И ДАШБОРДЫ
@@ -134,7 +134,6 @@ const PROTECTED_PATHS: Record<string, PathRequirement> = {
   // ============================================
   // 🏗️ ОБЪЕКТЫ СТРОИТЕЛЬСТВА
   // ============================================
-  '/api/objects': { type: 'permission', value: 'canViewObjects' },
   '/api/objects/[id]/budget': { type: 'permission', value: 'canViewFinance' },
   '/api/objects/[id]/balance': { type: 'permission', value: 'canViewFinance' },
   '/api/objects/[id]/comings': { type: 'permission', value: 'canViewFinance' },
@@ -149,6 +148,7 @@ const PROTECTED_PATHS: Record<string, PathRequirement> = {
   '/api/objects/contract/[id]': { type: 'permission', value: 'canEditObjects' },
   '/api/objects/invoices/[id]': { type: 'permission', value: 'canViewFinance' },
   '/api/objects/acts/[id]': { type: 'permission', value: 'canViewFinance' },
+  '/api/objects': { type: 'permission', value: 'canViewObjects' },
 
   // ============================================
   // 📋 ДОСКИ ЗАДАЧ (KANBAN)
