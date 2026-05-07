@@ -1,6 +1,7 @@
 // stores/foremanDaily.ts
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { useApi } from '~/composables/useApi' // 👈 Новый импорт
 import type {
   DailyAssignment,
   DailyWorker,
@@ -49,10 +50,12 @@ export const useForemanDailyStore = defineStore('foremanDaily', () => {
 
   // ── Действия ───────────────────────────────────────────────────────────
   async function fetchWorkers() {
-    error.value = null // 🔹 Сбрасываем ошибку перед новой попыткой
+    const api = useApi() // 👈 Инициализация useApi внутри функции
+    error.value = null
     console.log('[Store:foremanDaily] Загрузка списка рабочих/мастеров с подневкой...')
     try {
-      const data = await $fetch<DailyWorker[]>('/api/works/daily-work/workers-with-daily-rate')
+      // 👇 GET через useApi — токен и credentials автоматически
+      const data = await api.get<DailyWorker[]>('/api/works/daily-work/workers-with-daily-rate')
       workers.value = data || []
       data.forEach(w => {
         if (w.dailyRate > 0) dailyRates.value.set(w.id, w.dailyRate)
@@ -65,10 +68,11 @@ export const useForemanDailyStore = defineStore('foremanDaily', () => {
   }
 
   async function fetchActiveObjects() {
-    error.value = null // 🔹 Сбрасываем ошибку перед новой попыткой
+    const api = useApi() // 👈 Инициализация
+    error.value = null
     console.log('[Store:foremanDaily] Загрузка активных объектов...')
     try {
-      const data = await $fetch<ActiveObject[]>('/api/works/daily-work/active-objects')
+      const data = await api.get<ActiveObject[]>('/api/works/daily-work/active-objects')
       activeObjects.value = data || []
       console.log(`[Store:foremanDaily] Загружено объектов: ${activeObjects.value.length}`)
     } catch (e: any) {
@@ -78,12 +82,14 @@ export const useForemanDailyStore = defineStore('foremanDaily', () => {
   }
 
   async function fetchAssignments(workerId: number, contractorType: 'worker' | 'master', from: string, to: string) {
+    const api = useApi() // 👈 Инициализация
     console.log(`[Store:foremanDaily] Загрузка назначений для ${contractorType} #${workerId} с ${from} по ${to}`)
     
-    // ❗ Убрали loading.value = true, чтобы не перекрывать UI спиннером при параллельных запросах
     try {
-      const data = await $fetch<DailyAssignment[]>(
-        `/api/works/daily-work/daily-assignments?workerId=${workerId}&contractorType=${contractorType}&from=${from}&to=${to}`
+      // 👇 Параметры передаются через объект { params: {...} }
+      const data = await api.get<DailyAssignment[]>(
+        '/api/works/daily-work/daily-assignments',
+        { params: { workerId, contractorType, from, to } }
       )
       
       const grouped = new Map<string, DailyAssignment[]>()
@@ -93,7 +99,6 @@ export const useForemanDailyStore = defineStore('foremanDaily', () => {
         grouped.get(key)!.push(assignment)
       })
       
-      // Мерджим новые данные в общий кэш
       grouped.forEach((vals, key) => assignments.value.set(key, vals))
       console.log(`[Store:foremanDaily] Кэшировано ${grouped.size} дней назначений`)
     } catch (e: any) {
@@ -103,18 +108,17 @@ export const useForemanDailyStore = defineStore('foremanDaily', () => {
   }
 
   async function saveAssignment(payload: DailyAssignment) {
+    const api = useApi() // 👈 Инициализация
     console.log(`[Store:foremanDaily] Сохранение назначения на ${payload.date}`)
     try {
-      const res = await $fetch<{ id: number } & Omit<DailyAssignment, 'id'>>('/api/works', {
-        method: 'POST',
-        body: {
-          contractorId: payload.workerId,
-          contractorType: payload.contractorType,
-          objectId: payload.objectId,
-          workerAmount: payload.amount.toString(),
-          operationDate: payload.date,
-          workSource: 'daily'
-        }
+      // 👇 POST через useApi — body сериализуется автоматически, credentials не нужны
+      const res = await api.post<{ id: number } & Omit<DailyAssignment, 'id'>>('/api/works', {
+        contractorId: payload.workerId,
+        contractorType: payload.contractorType,
+        objectId: payload.objectId,
+        workerAmount: payload.amount.toString(),
+        operationDate: payload.date,
+        workSource: 'daily'
       })
 
       const key = `${payload.workerId}_${payload.date}`
@@ -142,9 +146,11 @@ export const useForemanDailyStore = defineStore('foremanDaily', () => {
   }
 
   async function deleteAssignment(id: number) {
+    const api = useApi() // 👈 Инициализация
     console.log(`[Store:foremanDaily] Удаление записи #${id}`)
     try {
-      await $fetch(`/api/works/${id}`, { method: 'DELETE' })
+      // 👇 DELETE через useApi
+      await api.delete(`/api/works/${id}`)
       
       const updatedMap = new Map<string, DailyAssignment[]>()
       assignments.value.forEach((arr, key) => {
@@ -166,33 +172,29 @@ export const useForemanDailyStore = defineStore('foremanDaily', () => {
   }
 
   async function applyBulk(payload: BulkAssignmentPayload) {
+    const api = useApi() // 👈 Инициализация
     console.log(`[Store:foremanDaily] Массовое применение на ${payload.dates.length} дней`)
     loading.value = true
     
     try {
-      // 🚀 Один запрос на весь пакет
-      const response = await $fetch<{ success: boolean; count: number; ids: number[] }>(
+      // 👇 POST с телом через useApi
+      const response = await api.post<{ success: boolean; count: number; ids: number[] }>(
         '/api/works/daily-work/bulk',
         {
-          method: 'POST',
-          body: {
-            workerId: payload.workerId,
-            contractorType: payload.contractorType,
-            assignments: payload.assignments.map(a => ({
-              objectId: a.objectId,
-              amount: a.amount.toString()
-            })),
-            dates: payload.dates
-          }
+          workerId: payload.workerId,
+          contractorType: payload.contractorType,
+          assignments: payload.assignments.map(a => ({
+            objectId: a.objectId,
+            amount: a.amount.toString()
+          })),
+          dates: payload.dates
         }
       )
 
-      // 🔄 Обновляем кеш стора с новыми записями
       payload.dates.forEach((date, dateIdx) => {
         const key = `${payload.workerId}_${date}`
         
         const newAssignments = payload.assignments.map((obj, objIdx) => {
-          // Вычисляем индекс ID в плоском массиве: даты × объекты
           const flatIndex = dateIdx * payload.assignments.length + objIdx
           const newId = response.ids[flatIndex]
           
@@ -224,7 +226,6 @@ export const useForemanDailyStore = defineStore('foremanDaily', () => {
     return Math.round(value / 50) * 50
   }
 
-  // 🔧 FIX: Полностью переписано для обхода noUncheckedIndexedAccess
   function calculateSplit(dailyRate: number, splits: { percentage: number }[]): number[] {
     if (splits.length === 0) return []
     
@@ -233,7 +234,6 @@ export const useForemanDailyStore = defineStore('foremanDaily', () => {
     const diff = dailyRate - rounded.reduce((sum, val) => sum + val, 0)
     
     if (diff !== 0) {
-      // Используем entries() чтобы TS не ругался на arr[i]
       let maxIdx = 0
       let maxPerc = -Infinity
       for (const [i, s] of splits.entries()) {

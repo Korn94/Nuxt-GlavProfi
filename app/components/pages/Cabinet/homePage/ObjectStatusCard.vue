@@ -168,6 +168,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { navigateTo } from '#app'
+import { useApi } from '~/composables/useApi' // 👈 Новый composable
+
+const api = useApi() // 👈 Инициализация
 
 // ── Типы ────────────────────────────────────────────────────────────
 interface DocStats {
@@ -185,14 +188,14 @@ interface ObjectStats {
 }
 
 // ── Состояние ───────────────────────────────────────────────────────
-const objectStats = ref < ObjectStats | null > (null)
-const criticalObjects = ref < any[] > ([])
-const documentStats = ref < { inProgress: DocStats; completed: DocStats } > ({
+const objectStats = ref<ObjectStats | null>(null)
+const criticalObjects = ref<any[]>([])
+const documentStats = ref<{ inProgress: DocStats; completed: DocStats }>({
   inProgress: { unsignedContracts: 0, unpaidInvoices: 0, actsToSign: 0 },
   completed: { unsignedContracts: 0, unpaidInvoices: 0, actsToSign: 0 },
 })
 const isLoading = ref(true)
-const error = ref < string | null > (null)
+const error = ref<string | null>(null)
 const updatedAt = ref('—')
 
 let refreshTimer: ReturnType<typeof setInterval>
@@ -217,7 +220,8 @@ async function fetchData() {
   isLoading.value = true
   error.value = null
   try {
-    const data = await $fetch < any[] > ('/api/objects')
+    // 👇 GET-запрос через useApi() — токен и credentials подставляются автоматически
+    const data = await api.get<any[]>('/api/objects')
 
     const stats: ObjectStats = { active: 0, waiting: 0, completed: 0, inProgress: 0, total: data.length }
     const docs = {
@@ -252,9 +256,10 @@ async function fetchData() {
 
     updatedAt.value = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
 
-  } catch (e) {
+  } catch (e: any) {
+    // 👇 Ошибки 401/403 уже обработаны в useApi(), здесь — только локальная логика UI
     console.error('[Объекты] Ошибка загрузки:', e)
-    error.value = 'Ошибка загрузки'
+    error.value = e?.message || 'Ошибка загрузки'
   } finally {
     isLoading.value = false
   }

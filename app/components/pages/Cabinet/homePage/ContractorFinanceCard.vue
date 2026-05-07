@@ -197,6 +197,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { navigateTo } from '#app'
+import { useApi } from '~/composables/useApi' // 👈 Новый composable
+
+const api = useApi() // 👈 Инициализация
 
 // ── Справочники ─────────────────────────────────────────────────────
 const contractorTypes = [
@@ -214,12 +217,12 @@ const typeIconMap: Record<string, string> = {
 }
 
 // ── Состояние ───────────────────────────────────────────────────────
-const contractorData = ref < any > (null)
-const expandedId = ref < number | null > (null)
-const loadingTransactions = ref < number | null > (null)
+const contractorData = ref<any>(null)
+const expandedId = ref<number | null>(null)
+const loadingTransactions = ref<number | null>(null)
 const transactions = ref<Record<number, { expenses: any[]; comings: any[] } | undefined>>({})
 const isLoading = ref(true)
-const error = ref < string | null > (null)
+const error = ref<string | null>(null)
 const updatedAt = ref('—')
 
 let refreshTimer: ReturnType<typeof setInterval>
@@ -276,12 +279,12 @@ async function fetchData() {
   isLoading.value = true
   error.value = null
   try {
-    // ✅ Исправлено: используем singular ключи для API
+    // 👇 Все запросы через api.get() — токен и credentials подставляются автоматически
     const [masters, workers, foremans, offices] = await Promise.all([
-      $fetch<any>('/api/contractors/master'),
-      $fetch<any>('/api/contractors/worker'),
-      $fetch<any>('/api/contractors/foreman'),
-      $fetch<any>('/api/contractors/office'),
+      api.get<any>('/api/contractors/master'),
+      api.get<any>('/api/contractors/worker'),
+      api.get<any>('/api/contractors/foreman'),
+      api.get<any>('/api/contractors/office'),
     ])
 
     // Обработка ответа (API возвращает { contractors: [], count: N })
@@ -313,6 +316,7 @@ async function fetchData() {
       minute: '2-digit' 
     })
   } catch (e: any) {
+    // 👇 Ошибки 401/403 уже обработаны в useApi(), здесь — только локальная логика UI
     console.error('[КонтрФинансы] Ошибка загрузки:', e)
     error.value = e?.message || 'Ошибка загрузки'
   } finally {
@@ -324,19 +328,17 @@ async function loadTransactions(contractor: any) {
   if (transactions.value[contractor.id]) return
   loadingTransactions.value = contractor.id
   try {
-    // ✅ Исправлено: передаём правильные параметры
+    // 👇 GET-запросы с параметрами через useApi()
     const [expenses, comings] = await Promise.all([
-      $fetch<any[]>('/api/expenses', { 
+      api.get<any[]>('/api/expenses', { 
         params: { 
-          contractorType: contractor.type,    // 'master', 'worker', etc.
+          contractorType: contractor.type,
           contractorId: contractor.id 
         } 
       }),
-      // ⚠️ Внимание: /api/comings не фильтрует по contractorType!
-      // Если нужно — создайте отдельный эндпоинт или фильтруйте на фронтенде
-      $fetch<any[]>('/api/comings', { 
+      api.get<any[]>('/api/comings', { 
         params: { 
-          objectId: contractor.objectId || undefined  // Если есть связь с объектом
+          objectId: contractor.objectId || undefined
         } 
       }),
     ])

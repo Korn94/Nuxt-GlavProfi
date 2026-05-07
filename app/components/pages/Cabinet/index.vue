@@ -42,7 +42,9 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from 'stores/auth'
 import { navigateTo } from '#app'
+import { useApi } from '~/composables/useApi' // 👈 Новый composable
 
+const api = useApi() // 👈 Инициализация
 const data = ref<any>(null)
 const contractorData = ref<any>(null)
 const isLoading = ref(true)
@@ -56,7 +58,6 @@ const roleLabels: Record<string, string> = {
   worker: 'Рабочий',
 }
 
-// ✅ Исправлено: singular ключи для API
 const contractorTypeMap: Record<string, string> = {
   office: 'office',
   foreman: 'foreman',
@@ -79,26 +80,24 @@ const formatBalance = (amount: number) =>
 async function fetchData() {
   isLoading.value = true
   try {
-    const response = await $fetch<{ user: any }>('/api/me', {
-      method: 'GET',
-      credentials: 'include'
-    })
+    // 👇 GET-запрос через useApi() — токен и credentials подставляются автоматически
+    const response = await api.get<{ user: any }>('/api/me')
 
     if (!response) return navigateTo('/login')
     data.value = response
 
     const user = response.user
     if (user.contractorId && user.contractorType) {
-      // ✅ Теперь type будет 'master', 'worker', etc.
       const type = contractorTypeMap[user.contractorType]
       if (type) {
-        contractorData.value = await $fetch(
-          `/api/contractors/${type}/${user.contractorId}`,
-          { method: 'GET', credentials: 'include' }
+        // 👇 Второй запрос — также через api.get()
+        contractorData.value = await api.get(
+          `/api/contractors/${type}/${user.contractorId}`
         )
       }
     }
   } catch (err) {
+    // 👇 Ошибки 401/403 уже обработаны в useApi(), здесь — только логирование
     console.error('[Главная] Ошибка загрузки данных:', err)
     data.value = null
   } finally {

@@ -69,6 +69,12 @@ export default defineNuxtConfig({
         '@vue/devtools-kit',
         '@telegram-apps/sdk',
         'socket.io-client',
+        'echarts',
+        'buffer', // CJS
+        'drizzle-orm/mysql-core',
+        'drizzle-orm',
+        'drizzle-orm/mysql2',
+        'mysql2/promise', // CJS
       ],
       exclude: ['jsonwebtoken']
     },

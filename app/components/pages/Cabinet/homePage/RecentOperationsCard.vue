@@ -67,6 +67,9 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { navigateTo } from '#app'
+import { useApi } from '~/composables/useApi' // 👈 Новый composable
+
+const api = useApi() // 👈 Инициализация
 
 interface Operation {
   id: number
@@ -77,9 +80,9 @@ interface Operation {
   objectName?: string
 }
 
-const operations = ref < Operation[] > ([])
+const operations = ref<Operation[]>([])
 const isLoading = ref(true)
-const error = ref < string | null > (null)
+const error = ref<string | null>(null)
 let refreshTimer: ReturnType<typeof setInterval>
 
 // ── Форматирование ───────────────────────────────────────────────────
@@ -103,9 +106,10 @@ async function fetchData() {
   isLoading.value = true
   error.value = null
   try {
+    // 👇 Все запросы через api.get() — токен и credentials подставляются автоматически
     const [comings, expenses] = await Promise.all([
-      $fetch < any[] > ('/api/comings'),
-      $fetch < any[] > ('/api/expenses'),
+      api.get<any[]>('/api/comings'),
+      api.get<any[]>('/api/expenses'),
     ])
 
     const all: Operation[] = [
@@ -117,9 +121,10 @@ async function fetchData() {
       .sort((a, b) => new Date(b.operationDate).getTime() - new Date(a.operationDate).getTime())
       .slice(0, 8)
 
-  } catch (e) {
+  } catch (e: any) {
+    // 👇 Ошибки 401/403 уже обработаны в useApi(), здесь — только локальная логика UI
     console.error('[Операции] Ошибка загрузки:', e)
-    error.value = 'Ошибка загрузки'
+    error.value = e?.message || 'Ошибка загрузки'
   } finally {
     isLoading.value = false
   }

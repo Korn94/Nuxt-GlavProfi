@@ -89,9 +89,11 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from 'stores/auth'
+import { useApi } from '~/composables/useApi' // 👈 Новый composable
 import CrmMenu from './ui/crm.vue'
 import BoardsMenu from './ui/boards.vue'
 
+const api = useApi() // 👈 Инициализация
 const router = useRouter()
 const authStore = useAuthStore()
 
@@ -123,13 +125,16 @@ const isBoardsAvailable = computed(() => {
 // Загрузка данных пользователя
 async function fetchUserData() {
   try {
-    const response = await fetch('/api/me', { method: 'GET', credentials: 'include' })
-    if (!response.ok) throw new Error('Не удалось загрузить данные пользователя')
-    const data = await response.json()
+    // 👇 GET-запрос через useApi() — токен и credentials подставляются автоматически
+    const data = await api.get<{ user: any }>('/api/me')
     user.value = data.user
-  } catch (err) {
+  } catch (err: any) {
+    // 👇 Ошибки 401 уже обработаны в useApi() (редирект на /login), 
+    // здесь — только дополнительная логика для неавторизованных
     console.error('[Сайдбар] Ошибка загрузки пользователя:', err)
-    router.push('/')
+    if (err.status !== 401) {
+      router.push('/')
+    }
   }
 }
 
@@ -146,7 +151,6 @@ function setMenuMode(mode: 'crm' | 'boards') {
 // 🔐 Обработчик клика по кнопке «Доски»
 function handleBoardsClick() {
   if (!isBoardsAvailable.value) {
-    // Опционально: показать уведомление (можно подключить вашу систему алертов)
     console.warn('[Header] ⚠️ Попытка доступа к «Доскам» без прав администратора')
     return
   }

@@ -153,6 +153,9 @@
 import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
 import { useHead } from 'nuxt/app'
 import { ref, computed, onMounted } from 'vue'
+import { useApi } from '~/composables/useApi' // 👈 Новый composable
+
+const api = useApi() // 👈 Инициализация
 
 definePageMeta({
   layout: 'cabinet',
@@ -261,31 +264,46 @@ function getActTooltip(obj: any) {
   return signed === total ? `Все ${total} подписаны` : `${signed} из ${total} подписано`
 }
 
+// ── Загрузка ────────────────────────────────────────────────────────
 async function fetchObjects() {
   loading.value = true
-  try { objects.value = await $fetch<any[]>('/api/objects', { credentials: 'include' }) || [] }
-  catch (e) { console.error('[Объекты]:', e) }
-  finally { loading.value = false }
+  try {
+    // 👇 GET-запрос через useApi() — токен и credentials подставляются автоматически
+    objects.value = await api.get<any[]>('/api/objects') || []
+  } catch (e: any) {
+    // 👇 Ошибки 401/403 уже обработаны в useApi(), здесь — только логирование
+    console.error('[Объекты] Ошибка загрузки:', e)
+  } finally {
+    loading.value = false
+  }
 }
 
 async function addObject() {
   if (!newObjectName.value.trim()) return
   loading.value = true
   try {
-    const c = await $fetch<any>('/api/objects', {
-      method: 'POST',
-      body: { name: newObjectName.value.trim(), status: currentTab.value },
-      credentials: 'include',
+    // 👇 POST-запрос через useApi() — body сериализуется автоматически
+    const c = await api.post<any>('/api/objects', {
+      name: newObjectName.value.trim(),
+      status: currentTab.value
     })
     objects.value.unshift({ ...c, totalBalance: 0 })
     newObjectName.value = ''
-  } catch (e) { console.error('[Объекты]:', e) }
-  finally { loading.value = false }
+  } catch (e: any) {
+    console.error('[Объекты] Ошибка создания:', e)
+  } finally {
+    loading.value = false
+  }
 }
 
 onMounted(async () => {
-  try { const me = await $fetch<any>('/api/me', { credentials: 'include' }); user.value = me.user }
-  catch { user.value = null }
+  try {
+    // 👇 GET-запрос через useApi() для получения данных пользователя
+    const me = await api.get<{ user: any }>('/api/me')
+    user.value = me.user
+  } catch {
+    user.value = null
+  }
   await fetchObjects()
 })
 </script>

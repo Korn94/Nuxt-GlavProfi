@@ -125,11 +125,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { navigateTo } from '#app'
+import { useApi } from '~/composables/useApi' // 👈 Новый composable
 
-const balanceData = ref < any > (null)
-const expenseCategories = ref < any[] > ([])
+const api = useApi() // 👈 Инициализация
+
+const balanceData = ref<any>(null)
+const expenseCategories = ref<any[]>([])
 const isLoading = ref(true)
-const error = ref < string | null > (null)
+const error = ref<string | null>(null)
 const showDateRange = ref(false)
 const localStartDate = ref('')
 const localEndDate = ref('')
@@ -195,9 +198,10 @@ async function fetchData() {
       ? { startDate: localStartDate.value, endDate: localEndDate.value }
       : {}
 
+    // 👇 Все запросы через api.get() — токен и credentials подставляются автоматически
     const [balance, stats] = await Promise.all([
-      $fetch < any > ('/api/balance', { params }),
-      $fetch < any[] > ('/api/expenses/stats', { params }),
+      api.get<any>('/api/balance', { params }),
+      api.get<any[]>('/api/expenses/stats', { params }),
     ])
 
     balanceData.value = balance
@@ -208,9 +212,10 @@ async function fetchData() {
       .map(i => ({ type: i.expenseType, amount: i.total }))
       .sort((a, b) => b.amount - a.amount)
 
-  } catch (e) {
+  } catch (e: any) {
+    // 👇 Ошибки 401/403 уже обработаны в useApi(), здесь — только локальная логика UI
     console.error('[ФинСводка] Ошибка загрузки:', e)
-    error.value = 'Ошибка загрузки'
+    error.value = e?.message || 'Ошибка загрузки'
   } finally {
     isLoading.value = false
   }

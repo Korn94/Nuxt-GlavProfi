@@ -1,5 +1,6 @@
 // app/composables/useContractors.ts
 import { ref, readonly, computed } from 'vue'
+import { useApi } from '~/composables/useApi' // 👈 Новый импорт
 import type { ContractorType, ContractorDTO, ContractorCreateInput, ContractorUpdateInput } from '~/types/contractors'
 import { CONTRACTOR_TYPES } from '~/types/contractors'
 
@@ -10,7 +11,6 @@ import { CONTRACTOR_TYPES } from '~/types/contractors'
  * const { contractors, loading, error, fetchAll, fetchOne, create, update, deleteContractor } = useContractors()
  */
 export const useContractors = () => {
-  // ✅ Использовать Record вместо mapped type
   const contractorsData = ref<Record<ContractorType, ContractorDTO[]>>({
     master: [],
     worker: [],
@@ -22,18 +22,20 @@ export const useContractors = () => {
 
   /**
    * Получить всех контрагентов определённого типа
-   * ✅ ДОБАВЛЕНО: параметр activeOnly (по умолчанию true — только активные)
+   * ✅ Параметр activeOnly (по умолчанию true — только активные)
    */
   async function fetchAll(type: ContractorType, activeOnly = true) {
+    const api = useApi() // 👈 Инициализация внутри функции
     loading.value = true
     error.value = null
 
     try {
-      const response = await $fetch<{
+      // 👇 GET с параметрами через { params: {...} }
+      const response = await api.get<{
         type: ContractorType
         count: number
         contractors: ContractorDTO[]
-      }>(`/api/contractors/${type}?activeOnly=${activeOnly}`)
+      }>(`/api/contractors/${type}`, { params: { activeOnly } })
       
       contractorsData.value[type] = response.contractors
       return response.contractors
@@ -50,11 +52,12 @@ export const useContractors = () => {
    * Получить одного контрагента
    */
   async function fetchOne(type: ContractorType, id: number) {
+    const api = useApi() // 👈 Инициализация
     loading.value = true
     error.value = null
 
     try {
-      const contractor = await $fetch<ContractorDTO>(`/api/contractors/${type}/${id}`)
+      const contractor = await api.get<ContractorDTO>(`/api/contractors/${type}/${id}`)
       
       // Обновляем в локальном кэше
       const list = contractorsData.value[type] || []
@@ -81,17 +84,16 @@ export const useContractors = () => {
    * Создать нового контрагента
    */
   async function create(type: ContractorType, input: ContractorCreateInput) {
+    const api = useApi() // 👈 Инициализация
     loading.value = true
     error.value = null
 
     try {
-      const response = await $fetch<{
+      // 👇 POST через useApi — body передаётся вторым аргументом
+      const response = await api.post<{
         statusCode: number
         contractor: ContractorDTO
-      }>(`/api/contractors/${type}`, {
-        method: 'POST',
-        body: input
-      })
+      }>(`/api/contractors/${type}`, input)
 
       const newContractor = response.contractor
       const list = contractorsData.value[type] || []
@@ -111,16 +113,15 @@ export const useContractors = () => {
    * Обновить контрагента
    */
   async function update(type: ContractorType, id: number, input: ContractorUpdateInput) {
+    const api = useApi() // 👈 Инициализация
     loading.value = true
     error.value = null
 
     try {
-      const updated = await $fetch<ContractorDTO>(
+      // 👇 PUT через useApi
+      const updated = await api.put<ContractorDTO>(
         `/api/contractors/${type}/${id}`,
-        {
-          method: 'PUT',
-          body: input
-        }
+        input
       )
 
       // Обновляем кэш
@@ -146,13 +147,13 @@ export const useContractors = () => {
    * Удалить контрагента
    */
   async function deleteContractor(type: ContractorType, id: number) {
+    const api = useApi() // 👈 Инициализация
     loading.value = true
     error.value = null
 
     try {
-      await $fetch(`/api/contractors/${type}/${id}`, {
-        method: 'DELETE'
-      })
+      // 👇 DELETE через useApi
+      await api.delete(`/api/contractors/${type}/${id}`)
 
       // Удаляем из кэша
       const list = contractorsData.value[type] || []
