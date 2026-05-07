@@ -59,6 +59,10 @@ export default defineNuxtConfig({
   ],
 
   vite: {
+    define: {
+      global: 'globalThis',
+      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
+    },
     optimizeDeps: {
       include: [
         '@vue/devtools-core',
@@ -68,7 +72,26 @@ export default defineNuxtConfig({
       ],
       exclude: ['jsonwebtoken']
     },
-    plugins: [tsconfigPaths()],
+    build: {
+      rollupOptions: {
+        external: ['buffer', 'stream', 'url'],
+      },
+    },
+    plugins: [
+      tsconfigPaths(),
+      {
+        name: 'buffer-polyfill',
+        transform(code, id) {
+          if (id.includes('socket.io-client')) {
+            return {
+              code: `import { Buffer } from 'buffer';\n${code}`,
+              map: null
+            }
+          }
+          return null
+        }
+      }
+    ],
     css: {
       preprocessorOptions: {
         scss: {
@@ -154,7 +177,9 @@ export default defineNuxtConfig({
       '/api/**': {
         cors: true,
         headers: {
-          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Origin': process.env.NODE_ENV === 'production' 
+            ? 'https://glavprofi.ru' 
+            : 'http://192.168.31.244:3000',
           'Access-Control-Allow-Credentials': 'true',
           'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
           'Access-Control-Allow-Headers': 'Content-Type, Authorization'
@@ -199,6 +224,7 @@ export default defineNuxtConfig({
     '~/plugins/yandexMetrica.js', // Подключение Яндекс.Метрики
     '~/plugins/telegram.client.ts',
     '~/plugins/socket.client.ts',
+    '~/plugins/buffer.client.ts',
   ],
 
   // Настройка переменных окружения

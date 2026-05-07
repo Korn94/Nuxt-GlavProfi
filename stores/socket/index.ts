@@ -13,7 +13,6 @@ import { ref, computed } from 'vue'
 import { socketService } from 'services/socket.service'
 import { setSessionId } from 'services/helpers/sessionId'
 import { useCookie } from 'nuxt/app'
-import { useAuthStore } from 'stores/auth'
 
 /**
  * Генерация уникального идентификатора вкладки
@@ -97,16 +96,18 @@ export const useSocketStore = defineStore('socket', () => {
       error.value = `Ошибка подключения: ${err.message}`
       reconnectAttempts.value++
 
-      // ✅ logout только при невалидном токене, НЕ при его отсутствии
+      // 🔐 Очищаем куки только при невалидном токене, НЕ при его отсутствии
       const isInvalidToken =
         err.message?.includes('Unauthorized') ||
         err.message?.includes('Invalid token') ||
         err.message?.includes('User not found')
 
       if (isInvalidToken && process.client) {
-        console.log('[SocketStore] 🔐 Невалидный токен, выполняем выход...')
-        const authStore = useAuthStore()
-        authStore.logout()
+        console.log('[SocketStore] 🔐 Невалидный токен, очищаем состояние')
+        useCookie('auth_token').value = null
+        useCookie('session_id').value = null
+        // Не вызываем logout() чтобы избежать циклических зависимостей и Buffer errors
+        window.location.href = '/login'
       }
     })
 

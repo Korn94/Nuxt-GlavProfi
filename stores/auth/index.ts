@@ -37,7 +37,7 @@ function parseAuthToken() {
 
 export const useAuthStore = defineStore('auth', {
   state: (): AuthState => ({
-    token: parseAuthToken(), // ✅ Теперь всегда чистый JWT или null
+    token: null, // ✅ Теперь всегда чистый JWT или null
     user: null,
     sessionId: null,
     isAuthenticated: false,

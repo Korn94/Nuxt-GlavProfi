@@ -8,10 +8,15 @@
  * - Автоматическое отключение при выходе
  * - Корректная очистка при закрытии страницы
  * - Реактивное отслеживание токена БЕЗ задержек
+ * 
+ * ✅ ИСПРАВЛЕНИЯ:
+ * - Явная передача токена в connect() для гарантии аутентификации
+ * - Задержка nextTick + setTimeout для гидратации куки
+ * - Улучшенная обработка ошибок подключения
  */
 
 import { defineNuxtPlugin, useCookie } from 'nuxt/app'
-import { computed, watch } from 'vue'
+import { computed, watch, nextTick } from 'vue'
 import { useSocketStore } from 'stores/socket'
 import { socketService } from 'services/socket.service'
 
@@ -45,13 +50,10 @@ export default defineNuxtPlugin(() => {
   const jwtToken = computed(() => {
     const rawCookie = useCookie('auth_token').value
     if (!rawCookie) return null
-
     try {
-      // Новый формат: JSON { token, userId, role }
       const parsed = JSON.parse(rawCookie)
       return parsed.token || null
     } catch {
-      // Старый формат: просто строка JWT (обратная совместимость)
       return rawCookie.length > 20 ? rawCookie : null
     }
   })
@@ -61,12 +63,16 @@ export default defineNuxtPlugin(() => {
   // ============================================
   watch(
     jwtToken,
-    (token, oldToken) => {
-      // 📍 Токен появился (вход или обновление)
+    async (token, oldToken) => {
+      // 🎯 КРИТИЧНО: ждём следующего тика + микро-задержку
+      await nextTick()  // ✅ Теперь работает
+      await new Promise(resolve => setTimeout(resolve, 50))
+
       if (token && !oldToken) {
         console.log('[SocketPlugin] 🔑 Токен обнаружен, подключаем сокет...')
         try {
-          socketService.connect()
+          // ✅ Передаём токен явно
+          socketService.connect(token)  // ✅ Теперь принимает аргумент
         } catch (err) {
           console.error('[SocketPlugin] ❌ Ошибка подключения:', err)
           socketStore.error = 'Не удалось подключиться к серверу'
@@ -85,7 +91,9 @@ export default defineNuxtPlugin(() => {
         console.log('[SocketPlugin] 🔄 Токен обновился, переподключаем сокет...')
         try {
           socketService.disconnect()
-          socketService.connect()
+          // Небольшая задержка перед переподключением
+          await new Promise(resolve => setTimeout(resolve, 100))
+          socketService.connect(token)
         } catch (err) {
           console.error('[SocketPlugin] ❌ Ошибка переподключения:', err)
         }
@@ -123,6 +131,10 @@ export default defineNuxtPlugin(() => {
       console.log('[SocketPlugin] 🔐 Невалидный токен, очищаем состояние')
       useCookie('auth_token').value = null
       useCookie('session_id').value = null
+      // Не используем navigateTo здесь чтобы избежать циклических зависимостей
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
     }
   })
 

@@ -12,11 +12,8 @@
 
 import type { FetchOptions } from 'ofetch'
 import { useCookie, navigateTo } from '#app'
-import { useAuthStore } from '../../stores/auth'
 
 export function useApi() {
-  const authStore = useAuthStore()
-
   /**
    * Безопасное извлечение JWT из куки (поддержка старого и нового формата)
    */
@@ -57,7 +54,9 @@ export function useApi() {
       // 🔐 401 — токен невалиден или истёк
       if (error.status === 401) {
         console.warn('[useApi] Токен невалиден, выполняем выход')
-        authStore.logout()
+        // ✅ Удаляем куки напрямую, чтобы избежать циклической зависимости с authStore
+        useCookie('auth_token').value = null
+        useCookie('session_id').value = null
         if (process.client && window.location.pathname !== '/login') {
           navigateTo('/login', { replace: true, external: false })
         }

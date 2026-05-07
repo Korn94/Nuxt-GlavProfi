@@ -19,6 +19,7 @@
     "@telegram-apps/sdk": "^3.11.8",
     "animate.css": "^4.1.1",
     "bcryptjs": "^3.0.2",
+    "buffer": "^6.0.3",
     "devtools": "^8.42.0",
     "echarts": "^6.0.0",
     "jsonwebtoken": "^9.0.2",

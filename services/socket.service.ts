@@ -14,7 +14,6 @@
 import { io, type Socket } from 'socket.io-client'
 import { useCookie } from '#app'
 import type { Subtask, Task, BoardColumn } from '~/types/boards'
-import { useAuthStore } from 'stores/auth'
 import { setSessionId } from 'services/helpers/sessionId'
 
 // ============================================
@@ -120,17 +119,38 @@ export class SocketService {
   private getJwtToken(): string | null {
     if (!process.client) return null
     
-    const match = document.cookie.match(/(?:^|; )auth_token=([^;]*)/)
-    
-    // ✅ Исправление для TS: проверяем наличие группы захвата перед decodeURIComponent
-    const rawCookie = match?.[1] ? decodeURIComponent(match[1]) : null
-    if (!rawCookie) return null
-
+    // Способ 1: через useCookie (надёжнее, чем document.cookie)
     try {
-      const parsed = JSON.parse(rawCookie)
-      return parsed.token || null
-    } catch {
-      return rawCookie.length > 20 ? rawCookie : null
+      const rawCookie = useCookie('auth_token').value
+      if (!rawCookie) return null
+      
+      // Новый формат: JSON { token, userId, role }
+      try {
+        const parsed = JSON.parse(rawCookie)
+        return parsed.token || null
+      } catch {
+        // Старый формат: просто строка
+        return rawCookie.length > 20 ? rawCookie : null
+      }
+    } catch (e) {
+      console.warn('[SocketService] ❌ Ошибка чтения куки:', e)
+    }
+    
+    // Фолбэк: document.cookie (если useCookie не сработал)
+    try {
+      const match = document.cookie.match(/(?:^|; )auth_token=([^;]*)/)
+      const rawCookie = match?.[1] ? decodeURIComponent(match[1]) : null
+      if (!rawCookie) return null
+      
+      try {
+        const parsed = JSON.parse(rawCookie)
+        return parsed.token || null
+      } catch {
+        return rawCookie.length > 20 ? rawCookie : null
+      }
+    } catch (e) {
+      console.warn('[SocketService] ❌ Фолбэк парсинг также не сработал:', e)
+      return null
     }
   }
 
@@ -194,17 +214,18 @@ export class SocketService {
     }
   }
 
-  connect(): void {
+  connect(explicitToken?: string): void {
     if (!this.socket) {
       this.init()
     } else if (!this.socket.connected) {
-      // ✅ Обновляем токен перед переподключением (на случай смены аккаунта)
-      const freshToken = this.getJwtToken()
-      if (freshToken && this.socket.io) {
-        // 👇 Каст к any нужен, т.к. TS не видит auth в Partial<ManagerOptions>
-        ;(this.socket.io.opts as any).auth = { token: freshToken }
-        console.log('[SocketService] 🔑 Токен обновлён перед подключением')
+      // ✅ Если токен передан явно — используем его, иначе парсим из куки
+      const authToken = explicitToken || this.getJwtToken() || ''
+      
+      // 👇 Обновляем конфиг перед подключением
+      if (this.socket.io) {
+        ;(this.socket.io.opts as any).auth = authToken ? { token: authToken } : {}
       }
+      
       this.socket.connect()
     }
   }
@@ -370,17 +391,18 @@ export class SocketService {
 
     this.socket.on('connect_error', (error: any) => {
       console.error('[SocketService] ⚠️ Ошибка подключения:', error.message)
-      // ✅ logout только при невалидном токене, НЕ при его отсутствии
+      // 🔐 Очищаем куки только при невалидном токене, НЕ при его отсутствии
       const isInvalidToken =
         error.message?.includes('Unauthorized') ||
         error.message?.includes('Invalid token') ||
         error.message?.includes('User not found')
-      if (isInvalidToken) {
-        console.log('[SocketService] 🔐 Невалидный токен, выполняем выход...')
-        if (process.client) {
-          const authStore = useAuthStore()
-          authStore.logout()
-        }
+
+      if (isInvalidToken && process.client) {
+        console.log('[SocketService] 🔐 Невалидный токен, очищаем состояние')
+        useCookie('auth_token').value = null
+        useCookie('session_id').value = null
+        // Не вызываем logout() чтобы избежать циклических зависимостей и Buffer errors
+        window.location.href = '/login'
       }
     })
 
@@ -675,7 +697,7 @@ export const socketService = new SocketService({
 // ============================================
 export function useSocket() {
   const init = () => socketService.init()
-  const connect = () => socketService.connect()
+  const connect = (token?: string) => socketService.connect(token)
   const disconnect = () => socketService.disconnect()
   const on = <T = any>(event: string, handler: (data: T) => void) => socketService.on(event, handler)
   const off = <T = any>(event: string, handler?: (data: T) => void) => socketService.off(event, handler)

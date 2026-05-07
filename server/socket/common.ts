@@ -76,6 +76,8 @@ export function getCorsConfig(isDev: boolean) {
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
       const allowedOrigins = [
         process.env.NUXT_PUBLIC_SITE_URL,
+        'http://192.168.31.244:3000', // ✅ Добавьте явно
+        'http://localhost:3000',
         'https://glavprofi.ru',
         'https://www.glavprofi.ru'
       ].filter(Boolean) as string[]
