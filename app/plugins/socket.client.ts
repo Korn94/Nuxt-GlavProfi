@@ -1,18 +1,13 @@
 // plugins/socket.client.ts
 /**
  * Nuxt Plugin для автоматического управления Socket.IO подключением
- * 
+ *
  * Архитектура:
  * - Инициализация сервиса ТОЛЬКО на клиенте
- * - Автоматическое подключение при наличии валидного токена
+ * - Автоматическое подключение при загрузке страницы (если токен уже есть)
+ * - Подключение при логине вызывается из auth store
  * - Автоматическое отключение при выходе
  * - Корректная очистка при закрытии страницы
- * - Реактивное отслеживание токена БЕЗ задержек
- * 
- * ✅ ИСПРАВЛЕНИЯ:
- * - Явная передача токена в connect() для гарантии аутентификации
- * - Задержка nextTick + setTimeout для гидратации куки
- * - Улучшенная обработка ошибок подключения
  */
 
 import { defineNuxtPlugin, useCookie } from 'nuxt/app'
@@ -31,17 +26,7 @@ export default defineNuxtPlugin(() => {
   const socketStore = useSocketStore()
 
   // ============================================
-  // ✅ 1. Инициализация сервиса (один раз)
-  // ============================================
-  try {
-    socketService.init()
-    console.log('[SocketPlugin] ✅ SocketService инициализирован')
-  } catch (error) {
-    console.error('[SocketPlugin] ❌ Ошибка инициализации:', error)
-  }
-
-  // ============================================
-  // ✅ 2. Безопасное извлечение JWT из куки
+  // ✅ 1. Безопасное извлечение JWT из куки
   // ============================================
   /**
    * Вычисляемое значение: чистый JWT из куки (поддержка старого и нового формата)
@@ -59,27 +44,44 @@ export default defineNuxtPlugin(() => {
   })
 
   // ============================================
-  // ✅ 3. Реактивное управление подключением
+  // ✅ 2. Инициализация сервиса (отложена до появления токена)
   // ============================================
+  // Не инициализируем сокет сразу - это будет сделано при подключении с токеном
+  console.log('[SocketPlugin] ✅ SocketService готов к инициализации')
+
+  // ============================================
+  // ✅ 3. Подключение при загрузке страницы (если токен уже был)
+  // ============================================
+  // Проверяем наличие токена сразу при инициализации плагина
+  // Это нужно для случаев перезагрузки страницы, когда пользователь уже авторизован
+  ;(async () => {
+    await nextTick()
+    const token = jwtToken.value
+
+    if (token) {
+      console.log('[SocketPlugin] 🔑 Токен найден при загрузке, подключаем сокет...')
+      try {
+        // Инициализируем с токеном и подключаемся
+        socketService.init(token)
+        socketService.connect(token)
+      } catch (err) {
+        console.error('[SocketPlugin] ❌ Ошибка подключения:', err)
+        socketStore.error = 'Не удалось подключиться к серверу'
+      }
+    } else {
+      console.log('[SocketPlugin] ℹ️ Токен не найден, ожидаем вход пользователя')
+    }
+  })()
+
+  // ============================================
+  // ✅ 4. Реактивное управление подключением
+  // ============================================
+  // Следим за изменениями токена для обработки выхода или перелогина
   watch(
     jwtToken,
     async (token, oldToken) => {
-      // 🎯 КРИТИЧНО: ждём следующего тика + микро-задержку
-      await nextTick()  // ✅ Теперь работает
-      await new Promise(resolve => setTimeout(resolve, 50))
-
-      if (token && !oldToken) {
-        console.log('[SocketPlugin] 🔑 Токен обнаружен, подключаем сокет...')
-        try {
-          // ✅ Передаём токен явно
-          socketService.connect(token)  // ✅ Теперь принимает аргумент
-        } catch (err) {
-          console.error('[SocketPlugin] ❌ Ошибка подключения:', err)
-          socketStore.error = 'Не удалось подключиться к серверу'
-        }
-      }
       // 📍 Токен исчез (выход)
-      else if (!token && oldToken) {
+      if (!token && oldToken) {
         console.log('[SocketPlugin] 🔓 Токен отсутствует, отключаем сокет...')
         socketService.disconnect()
         // Сбрасываем состояние стора, чтобы UI сразу отреагировал
@@ -98,12 +100,13 @@ export default defineNuxtPlugin(() => {
           console.error('[SocketPlugin] ❌ Ошибка переподключения:', err)
         }
       }
-    },
-    { immediate: true } // Срабатывает сразу при загрузке плагина
+      // 🎯 При появлении токена (login) - НЕ подключаем, это делает auth store
+      // Это предотвращает дублирование подключений
+    }
   )
 
   // ============================================
-  // ✅ 4. Синхронизация состояния с событиями сокета
+  // ✅ 5. Синхронизация состояния с событиями сокета
   // ============================================
   socketService.on('connect', () => {
     socketStore.isConnected = true
@@ -120,13 +123,13 @@ export default defineNuxtPlugin(() => {
     socketStore.isConnected = false
     socketStore.error = error.message || 'Ошибка подключения'
     console.error(`[SocketPlugin] ❌ Ошибка подключения: ${error.message}`)
-    
+
     // 🔐 Автоматический логаут при невалидном токене
-    const isInvalidToken = 
+    const isInvalidToken =
       error.message?.includes('Unauthorized') ||
       error.message?.includes('Invalid token') ||
       error.message?.includes('User not found')
-    
+
     if (isInvalidToken) {
       console.log('[SocketPlugin] 🔐 Невалидный токен, очищаем состояние')
       useCookie('auth_token').value = null
@@ -139,13 +142,13 @@ export default defineNuxtPlugin(() => {
   })
 
   // ============================================
-  // ✅ 5. Корректная очистка при закрытии вкладки
+  // ✅ 6. Корректная очистка при закрытии вкладки
   // ============================================
   const handleBeforeUnload = () => {
     console.log('[SocketPlugin] 🧹 beforeunload: отключаем сокет...')
     socketService.disconnect()
   }
-  
+
   if (process.client) {
     window.addEventListener('beforeunload', handleBeforeUnload)
   }

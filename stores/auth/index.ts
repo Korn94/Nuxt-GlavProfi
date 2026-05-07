@@ -138,6 +138,11 @@ export const useAuthStore = defineStore('auth', {
 
         notifications.success(`Добро пожаловать, ${response.user.name}!`)
 
+        // ✅ Подключаем сокет сразу после успешного логина
+        if (process.client) {
+          await this.connectSocket(response.token)
+        }
+
         const router = useRouter()
         router.push('/cabinet')
 
@@ -154,6 +159,28 @@ export const useAuthStore = defineStore('auth', {
         throw error
       } finally {
         this.isChecking = false
+      }
+    },
+
+    /**
+     * Подключение к сокету после успешной авторизации
+     */
+    async connectSocket(token: string) {
+      if (!process.client) return
+
+      try {
+        const { socketService } = await import('services/socket.service')
+        const { useSocketStore } = await import('stores/socket')
+
+        // Инициализируем сервис если ещё не инициализирован
+        socketService.init()
+
+        // Подключаемся с явной передачей токена
+        socketService.connect(token)
+
+        console.log('[AuthStore] 🟡 Сокет подключён после логина')
+      } catch (error) {
+        console.error('[AuthStore] ❌ Ошибка подключения сокета:', error)
       }
     },
 

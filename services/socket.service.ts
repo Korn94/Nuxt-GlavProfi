@@ -30,15 +30,15 @@ interface EventHandlerMap {
   'reconnect': SocketEventHandler<number>
   'reconnect_failed': SocketEventHandler
   'error': SocketEventHandler<any>
-  
+
   // События сессии
   'session:initialized': SocketEventHandler<{ sessionId: string; userId: number }>
-  
+
   // События вкладок
   'tab:registered': SocketEventHandler<{ tabId: string; currentPath: string }>
   'board:subscribed': SocketEventHandler<{ boardId: number; success: boolean }>
   'board:unsubscribed': SocketEventHandler<{ success: boolean }>
-  
+
   // События задач
   'board:task:created': SocketEventHandler<{ task: Task; boardId: number }>
   'board:task:updated': SocketEventHandler<{ task: Task; boardId: number }>
@@ -48,7 +48,7 @@ interface EventHandlerMap {
     status: string
     tasks: Array<{ id: number; order: number }>
   }>
-  
+
   // События подзадач
   'board:subtask:created': SocketEventHandler<{ subtask: Subtask; boardId: number }>
   'board:subtask:updated': SocketEventHandler<{ subtask: Subtask; boardId: number }>
@@ -57,7 +57,7 @@ interface EventHandlerMap {
     taskId: number
     boardId: number
   }>
-  
+
   // События колонок
   'board:column:created': SocketEventHandler<{ column: BoardColumn; boardId: number }>
   'board:column:updated': SocketEventHandler<{ column: BoardColumn; boardId: number }>
@@ -66,7 +66,7 @@ interface EventHandlerMap {
     boardId: number
     columns: Array<{ id: number; order: number }>
   }>
-  
+
   // Динамические события
   [key: string]: SocketEventHandler
 }
@@ -118,12 +118,12 @@ export class SocketService {
    */
   private getJwtToken(): string | null {
     if (!process.client) return null
-    
+
     // Способ 1: через useCookie (надёжнее, чем document.cookie)
     try {
       const rawCookie = useCookie('auth_token').value
       if (!rawCookie) return null
-      
+
       // Новый формат: JSON { token, userId, role }
       try {
         const parsed = JSON.parse(rawCookie)
@@ -135,13 +135,13 @@ export class SocketService {
     } catch (e) {
       console.warn('[SocketService] ❌ Ошибка чтения куки:', e)
     }
-    
+
     // Фолбэк: document.cookie (если useCookie не сработал)
     try {
       const match = document.cookie.match(/(?:^|; )auth_token=([^;]*)/)
       const rawCookie = match?.[1] ? decodeURIComponent(match[1]) : null
       if (!rawCookie) return null
-      
+
       try {
         const parsed = JSON.parse(rawCookie)
         return parsed.token || null
@@ -157,7 +157,7 @@ export class SocketService {
   // ============================================
   // PUBLIC METHODS - Initialization
   // ============================================
-  init(): void {
+  init(explicitToken?: string): void {
     if (!process.client) {
       console.log('[SocketService] ⚠️ Работа на сервере, пропускаем инициализацию')
       return
@@ -169,16 +169,18 @@ export class SocketService {
 
     try {
       console.log('[SocketService] 🚀 Инициализация Socket.IO...')
-      
+
       const isProd = process.env.NODE_ENV === 'production'
       const socketUrl = isProd
         ? `${window.location.protocol}//${window.location.host}`
         : `http://${window.location.hostname}:3001`
-      
+
       console.log(`[SocketService] 📍 Socket URL: ${socketUrl} (prod: ${isProd})`)
 
-      // ✅ Используем хелпер для извлечения чистого JWT
-      const authToken = this.getJwtToken() || ''
+      // ✅ Используем хелпер для извлечения чистого JWT, или явный токен
+      const authToken = explicitToken || this.getJwtToken() || ''
+
+      console.log('[SocketService] 🔑 Токен для инициализации (длина:', authToken?.length || 0, ')')
 
       this.socket = io(socketUrl, {
         path: this.config.path,
@@ -216,17 +218,39 @@ export class SocketService {
 
   connect(explicitToken?: string): void {
     if (!this.socket) {
-      this.init()
-    } else if (!this.socket.connected) {
-      // ✅ Если токен передан явно — используем его, иначе парсим из куки
+      this.init(explicitToken)
+      return
+    }
+
+    // ✅ Если сокет уже существует, но не подключён — обновляем токен и подключаемся
+    if (!this.socket.connected) {
       const authToken = explicitToken || this.getJwtToken() || ''
-      
+
       // 👇 Обновляем конфиг перед подключением
       if (this.socket.io) {
-        ;(this.socket.io.opts as any).auth = authToken ? { token: authToken } : {}
+        (this.socket.io.opts as any).auth = authToken ? { token: authToken } : {}
       }
-      
+
+      console.log('[SocketService] 🔑 Подключение с токеном (длина:', authToken?.length || 0, ')')
       this.socket.connect()
+    }
+    // ✅ Если сокет уже подключён, но нужно обновить токен — переподключаемся
+    else if (explicitToken && this.socket.connected) {
+      const authToken = explicitToken
+      console.log('[SocketService] 🔄 Токен обновлён, переподключение...')
+
+      // Отключаемся
+      this.socket.disconnect()
+
+      // Обновляем конфиг
+      if (this.socket.io) {
+        (this.socket.io.opts as any).auth = { token: authToken }
+      }
+
+      // Подключаемся заново
+      setTimeout(() => {
+        this.socket?.connect()
+      }, 100)
     }
   }
 
