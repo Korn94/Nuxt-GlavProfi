@@ -1,7 +1,7 @@
 <!-- app/components/Layout/Cabinet/Header/ui/crm.vue -->
 <template>
   <ul class="nav-list">
-    <template v-for="(item, index) in filteredMenu" :key="index">
+    <template v-for="item in filteredMenu" :key="item.path">
 
       <!-- Разделитель -->
       <li v-if="item.divider" class="nav-divider" />
@@ -28,20 +28,18 @@
         <span class="nav-link__label">{{ isDark ? 'Светлая тема' : 'Тёмная тема' }}</span>
       </button>
     </li>
-
   </ul>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useAuthStore } from 'stores/auth'
 import { useThemeStore } from 'stores/settings/theme'
 import { usePermissions } from '~/composables/usePermissions'
+import type { Role, Permissions } from '~/types/permissions';
 
 const emit = defineEmits<{ closeSidebar: [] }>()
-const authStore = useAuthStore()
 const themeStore = useThemeStore()
-const { can, hasRole } = usePermissions()
+const { can, hasRole, isChecking } = usePermissions()
 
 const isDark = computed(() => themeStore.isDark)
 
@@ -49,120 +47,75 @@ function toggleTheme() {
   themeStore.toggleTheme()
 }
 
-const menuItems = [
-  {
-    title: 'Главная',
-    path: '/cabinet',
-    icon: 'mdi:home-outline',
-    permission: 'canViewDashboard' as const
-  },
-  {
-    title: 'Сотрудники',
-    path: '/cabinet/contractors',
-    icon: 'mdi:account-group-outline',
-    permission: 'canManageUsers' as const
-  },
-  {
-    title: 'Подневка',
-    path: '/cabinet/daily-work',
-    icon: 'mdi:calendar-today-outline',
-    check: () => hasRole('foreman') || hasRole('admin')
-  },
-  {
-    title: 'Объекты',
-    path: '/cabinet/objects',
-    icon: 'mdi:house-export-outline',
-    permission: 'canViewObjects' as const
-  },
-  {
-    title: 'Чеки',
-    path: '/cabinet/materials',
-    icon: 'mdi:receipt-text-outline',
-    permission: 'canViewFinance' as const
-  },
-  {
-    title: 'Операции',
-    path: '/cabinet/operation',
-    icon: 'mdi:instant-transfer',
-    permission: 'canEditFinance' as const
-  },
+// ✅ 1. Сделали title, path, icon опциональными, так как есть разделители
+interface MenuItem {
+  title?: string
+  path?: string
+  icon?: string
+  permission?: keyof Permissions
+  roleCheck?: Role
+  check?: () => boolean
+  alwaysShow?: boolean
+  divider?: boolean
+}
+
+// ✅ Явно типизируем массив, чтобы TS корректно выводил типы
+const menuItems: MenuItem[] = [
+  { title: 'Главная', path: '/cabinet', icon: 'mdi:home-outline', permission: 'canViewDashboard' as const },
+  { title: 'Сотрудники', path: '/cabinet/contractors', icon: 'mdi:account-group-outline', permission: 'canManageUsers' as const },
+  { title: 'Подневка', path: '/cabinet/daily-work', icon: 'mdi:calendar-today-outline', check: () => hasRole('foreman') || hasRole('admin') },
+  { title: 'Объекты', path: '/cabinet/objects', icon: 'mdi:house-export-outline', permission: 'canViewObjects' as const },
+  { title: 'Чеки', path: '/cabinet/materials', icon: 'mdi:receipt-text-outline', permission: 'canViewFinance' as const },
+  { title: 'Операции', path: '/cabinet/operation', icon: 'mdi:instant-transfer', permission: 'canEditFinance' as const },
   { divider: true },
-  {
-    title: 'Онлайн',
-    path: '/cabinet/online',
-    icon: 'mdi:account-multiple-check-outline',
-    permission: 'canViewWorkers' as const
-  },
-  {
-    title: 'Тест',
-    path: '/cabinet/testpage',
-    icon: 'mdi:flask-outline',
-    permission: 'canViewDashboard' as const,
-    roleCheck: 'admin' as const
-  },
+  { title: 'Онлайн', path: '/cabinet/online', icon: 'mdi:account-multiple-check-outline', permission: 'canViewWorkers' as const },
+  { title: 'Тест', path: '/cabinet/testpage', icon: 'mdi:flask-outline', permission: 'canViewDashboard' as const, roleCheck: 'admin' as const },
   { divider: true },
-  {
-    title: 'На сайт',
-    path: '/',
-    icon: 'mdi:web',
-    alwaysShow: true
-  },
-  {
-    title: 'Кейсы',
-    path: '/cabinet/portfolio',
-    icon: 'mdi:plus-circle-outline',
-    check: () => hasRole('manager') || hasRole('admin')
-  },
+  { title: 'На сайт', path: '/', icon: 'mdi:web', alwaysShow: true },
+  { title: 'Кейсы', path: '/cabinet/portfolio', icon: 'mdi:plus-circle-outline', check: () => hasRole('manager') || hasRole('admin') },
   { divider: true },
-  {
-    title: 'Баланс',
-    path: '/cabinet/balance',
-    icon: 'mdi:currency-rub',
-    permission: 'canViewSalary' as const
-  },
+  { title: 'Баланс', path: '/cabinet/balance', icon: 'mdi:currency-rub', permission: 'canViewSalary' as const },
 ]
 
 // Фильтрация по правам доступа
 const filteredMenu = computed(() => {
-  const result: any[] = []
+  // 🎯 КРИТИЧНО: пока права загружаются — показываем ВСЕ пункты
+  // Это гарантирует идентичный рендер на сервере и клиенте
+  if (isChecking.value) {
+    return menuItems.filter(item => !item.divider)
+  }
+  
+  const result: MenuItem[] = []
   let hasPrevItem = false
-
+  
   for (const item of menuItems) {
     if (item.divider) {
       if (hasPrevItem) result.push(item)
       continue
     }
-
+    
     let isVisible = false
-
-    // Если всегда показывать
     if (item.alwaysShow) {
       isVisible = true
-    }
-    // Если есть явная проверка
-    else if (item.check) {
+    } else if (item.check) {
       isVisible = item.check()
-    }
-    // Если есть проверка по конкретному праву
-    else if (item.permission) {
+    } else if (item.permission) {
       isVisible = can(item.permission)
-      // Дополнительная проверка по роли если указана
       if (isVisible && item.roleCheck) {
         isVisible = hasRole(item.roleCheck)
       }
     }
-
+    
     if (isVisible) {
       result.push(item)
       hasPrevItem = true
     }
   }
-
-  // Убираем разделитель в конце если он последний
-  while (result.length && result[result.length - 1].divider) {
+  
+  // Убираем лишние разделители в конце
+  while (result.length > 0 && result[result.length - 1]?.divider) {
     result.pop()
   }
-
   return result
 })
 
@@ -186,10 +139,6 @@ function handleClick() {
   background: var(--crm-border);
   margin: 6px 8px;
 }
-
-// .nav-item {
-  // пустой — стили на .nav-link
-// }
 
 .nav-link {
   display: flex;
@@ -230,7 +179,6 @@ function handleClick() {
     }
   }
 
-  // Активная страница
   &.router-link-exact-active {
     background: var(--crm-accent-dim);
     color: var(--crm-accent);
@@ -243,7 +191,7 @@ function handleClick() {
       background: var(--crm-accent-dim);
     }
   }
-  // Кнопка переключения темы
+
   &--theme {
     width: 100%;
     background: transparent;

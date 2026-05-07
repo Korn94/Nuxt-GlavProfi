@@ -1,7 +1,8 @@
 // middleware/auth.ts
 import { defineNuxtRouteMiddleware, useCookie, navigateTo } from '#app'
+import { useAuthStore } from '../../stores/auth'
 
-export default defineNuxtRouteMiddleware((to: { path: string }) => {
+export default defineNuxtRouteMiddleware(async (to: { path: string }) => {
   const rawCookie = useCookie('auth_token').value
   let isAuthenticated = false
   
@@ -14,6 +15,17 @@ export default defineNuxtRouteMiddleware((to: { path: string }) => {
     }
   }
 
+  // 🔐 Если авторизован и заходим в /cabinet — ждём инициализацию стора
+  if (isAuthenticated && to.path.startsWith('/cabinet')) {
+    const authStore = useAuthStore()
+    
+    // ✅ Ждём completion init(), если данные ещё не загружены
+    if (!authStore.isAuthenticated || !authStore.user?.role) {
+      await authStore.init()
+    }
+  }
+
+  // Редиректы
   if (isAuthenticated && to.path === '/login') {
     return navigateTo('/cabinet')
   }

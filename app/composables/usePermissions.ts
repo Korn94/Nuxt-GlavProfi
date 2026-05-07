@@ -24,6 +24,7 @@ import { ROLE_PERMISSIONS } from '../../server/utils/permissions'
 
 export function usePermissions() {
   const authStore = useAuthStore()
+  const isChecking = computed(() => authStore.isChecking)
 
   // ============================================
   // ВЫЧИСЛЯЕМЫЕ ДАННЫЕ
@@ -39,9 +40,11 @@ export function usePermissions() {
    * ✅ Теперь используется напрямую вместо динамических геттеров
    */
   const permissions = computed((): Permissions => {
+    // 👇 Всегда возвращаем валидный объект, даже если роль ещё не загружена
     const currentRole = role.value
-    if (!currentRole) return ROLE_PERMISSIONS.worker
-    return ROLE_PERMISSIONS[currentRole] || ROLE_PERMISSIONS.worker
+    return currentRole 
+      ? (ROLE_PERMISSIONS[currentRole] || ROLE_PERMISSIONS.worker)
+      : ROLE_PERMISSIONS.worker // 👈 Дефолт для SSR и начального рендера
   })
 
   // ============================================
@@ -85,6 +88,7 @@ export function usePermissions() {
     hasRole,
     isAdmin,
     role,
-    permissions // ✅ Реактивный объект прав
+    permissions, // ✅ Реактивный объект прав
+    isChecking
   }
 }

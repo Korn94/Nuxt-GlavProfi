@@ -164,6 +164,9 @@ export default defineNuxtConfig({
     experimental: {
       websocket: true,
     },
+    externals: {
+      inline: ['jsonwebtoken'] // если используете его
+    },
     plugins: [
       './plugins/socket.io.ts'
     ],

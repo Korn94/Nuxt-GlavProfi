@@ -30,37 +30,56 @@
 
       <!-- Переключатель режимов -->
       <div class="mode-switcher">
-        <button class="mode-switcher__btn" :class="{ 'mode-switcher__btn--active': menuMode === 'crm' }"
-          @click="setMenuMode('crm')">
+        <!-- Кнопка CRM -->
+        <button 
+          class="mode-switcher__btn" 
+          :class="{ 'mode-switcher__btn--active': menuMode === 'crm' }"
+          @click="setMenuMode('crm')"
+        >
           <Icon name="mdi:database" size="16" />
           <span>CRM</span>
         </button>
         
-        <!-- Кнопка «Доски» с блокировкой для не-админов -->
-        <button 
-          class="mode-switcher__btn" 
-          :class="{ 
-            'mode-switcher__btn--active': menuMode === 'boards',
-            'mode-switcher__btn--disabled': !isBoardsAvailable
-          }"
-          @click="handleBoardsClick"
-          :disabled="!isBoardsAvailable"
-          :title="!isBoardsAvailable ? 'Доступно только администраторам' : ''"
-        >
-          <Icon name="mdi:clipboard-text-multiple-outline" size="16" />
-          <span>Доски</span>
-          <!-- Индикатор блокировки -->
-          <span v-if="!isBoardsAvailable" class="mode-switcher__lock">
-            <Icon name="mdi:lock-outline" size="12" />
-          </span>
-        </button>
+        <!-- 🔐 Кнопка «Доски» — только для админов (v-if/v-else для гидратации) -->
+        <template v-if="isBoardsAvailable">
+          <button 
+            class="mode-switcher__btn" 
+            :class="{ 'mode-switcher__btn--active': menuMode === 'boards' }"
+            @click="setMenuMode('boards')"
+          >
+            <Icon name="mdi:clipboard-text-multiple-outline" size="16" />
+            <span>Доски</span>
+          </button>
+        </template>
+        <template v-else>
+          <button
+            class="mode-switcher__btn"
+            :class="{
+              'mode-switcher__btn--active': menuMode === 'boards',
+              'mode-switcher__btn--disabled': !isBoardsAvailable
+            }"
+            :disabled="!isBoardsAvailable"
+            :aria-disabled="!isBoardsAvailable ? 'true' : undefined"
+            :title="!isBoardsAvailable ? 'Доступно только администраторам' : 'Переключить на доски'"
+            @click="handleBoardsClick"
+          >
+            <Icon name="mdi:clipboard-text-multiple-outline" size="16" />
+            <span>Доски</span>
+            <span v-if="!isBoardsAvailable" class="mode-switcher__lock" aria-hidden="true">
+              <Icon name="mdi:lock-outline" size="12" />
+            </span>
+          </button>
+        </template>
       </div>
 
       <!-- Меню -->
       <nav class="sidebar-nav">
+        <!-- 👇 CrmMenu и BoardsMenu теперь рендерятся всегда, 
+             а фильтрация пунктов внутри них идёт через usePermissions с дефолтными правами -->
         <CrmMenu v-if="menuMode === 'crm'" @close-sidebar="closeSidebarOnMobile" />
         <BoardsMenu v-else-if="menuMode === 'boards' && isBoardsAvailable" @close-sidebar="closeSidebarOnMobile" />
-        <!-- Заглушка для не-админов, если вдруг переключили -->
+        
+        <!-- Заглушка для не-админов, если вдруг переключили на доски -->
         <div v-else-if="menuMode === 'boards'" class="boards-restricted">
           <Icon name="mdi:lock-outline" size="24" />
           <p>Раздел «Доски» доступен только администраторам</p>
@@ -119,22 +138,21 @@ const userInitials = computed(() => {
 
 // 🔐 Проверка: доступен ли раздел «Доски» (только для админов)
 const isBoardsAvailable = computed(() => {
-  return user.value?.role === 'admin'
+  // Пока пользователь не загружен — разрешаем рендер (дефолтное состояние)
+  // Это предотвращает гидратационные расхождения
+  if (!user.value) return true
+  return user.value.role === 'admin'
 })
 
 // Загрузка данных пользователя
 async function fetchUserData() {
   try {
-    // 👇 GET-запрос через useApi() — токен и credentials подставляются автоматически
     const data = await api.get<{ user: any }>('/api/me')
     user.value = data.user
   } catch (err: any) {
-    // 👇 Ошибки 401 уже обработаны в useApi() (редирект на /login), 
-    // здесь — только дополнительная логика для неавторизованных
     console.error('[Сайдбар] Ошибка загрузки пользователя:', err)
-    if (err.status !== 401) {
-      router.push('/')
-    }
+    // 🎯 Не делаем редирект здесь — это задача middleware/auth.ts
+    // Просто оставляем user = null, компоненты адаптируются
   }
 }
 
