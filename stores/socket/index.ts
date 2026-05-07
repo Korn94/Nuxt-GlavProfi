@@ -19,20 +19,14 @@ import { useAuthStore } from 'stores/auth'
  * Генерация уникального идентификатора вкладки
  */
 function generateTabId(): string {
-  const tabIdCookie = useCookie<string>('tab_id', {
-    maxAge: 60 * 60 * 24 * 90,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    path: '/'
-  })
+  if (!process.client) return '' // На сервере вкладок не существует
 
-  if (tabIdCookie.value) {
-    return tabIdCookie.value
-  }
+  const STORAGE_KEY = 'socket_tab_id'
+  const existing = sessionStorage.getItem(STORAGE_KEY)
+  if (existing) return existing
 
   const newTabId = `tab_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
-  tabIdCookie.value = newTabId
-
+  sessionStorage.setItem(STORAGE_KEY, newTabId)
   console.log('[SocketStore] 🆔 Сгенерирован новый ID вкладки:', newTabId)
   return newTabId
 }

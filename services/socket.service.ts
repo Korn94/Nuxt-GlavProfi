@@ -118,15 +118,18 @@ export class SocketService {
    * Старый формат: просто строка JWT
    */
   private getJwtToken(): string | null {
-    const rawCookie = useCookie('auth_token')?.value
+    if (!process.client) return null
+    
+    const match = document.cookie.match(/(?:^|; )auth_token=([^;]*)/)
+    
+    // ✅ Исправление для TS: проверяем наличие группы захвата перед decodeURIComponent
+    const rawCookie = match?.[1] ? decodeURIComponent(match[1]) : null
     if (!rawCookie) return null
 
     try {
-      // Новый формат: парсим JSON
       const parsed = JSON.parse(rawCookie)
       return parsed.token || null
     } catch {
-      // Старый формат: просто строка (обратная совместимость)
       return rawCookie.length > 20 ? rawCookie : null
     }
   }
@@ -165,7 +168,7 @@ export class SocketService {
         reconnectionAttempts: this.config.reconnectionAttempts,
         reconnectionDelay: this.config.reconnectionDelay,
         // ✅ Передаём только чистый JWT
-        auth: { token: authToken },
+        auth: authToken ? { token: authToken } : {},
         secure: window.location.protocol === 'https:',
         rejectUnauthorized: process.env.NODE_ENV === 'production',
         timeout: 20000

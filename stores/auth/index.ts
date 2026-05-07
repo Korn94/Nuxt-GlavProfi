@@ -28,9 +28,16 @@ interface AuthCookiePayload {
   role: string
 }
 
+function parseAuthToken() {
+  const raw = useCookie('auth_token').value
+  if (!raw) return null
+  try { return JSON.parse(raw).token || null }
+  catch { return raw.length > 20 ? raw : null }
+}
+
 export const useAuthStore = defineStore('auth', {
   state: (): AuthState => ({
-    token: useCookie('auth_token').value || null,
+    token: parseAuthToken(), // ✅ Теперь всегда чистый JWT или null
     user: null,
     sessionId: null,
     isAuthenticated: false,
@@ -72,6 +79,11 @@ export const useAuthStore = defineStore('auth', {
       } catch (error) {
         console.error('[AuthStore] Ошибка проверки авторизации:', error)
         this.resetState()
+        // ✅ Добавляем редирект, если проверка не прошла
+        if (process.client) {
+          const { navigateTo } = await import('#app')
+          navigateTo('/login')
+        }
       } finally {
         this.isChecking = false
       }

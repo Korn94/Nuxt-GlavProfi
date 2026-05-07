@@ -77,8 +77,8 @@ export async function authenticateUser(token: string): Promise<SocketUser> {
       email: user.login,
       role: user.role,
       name: user.name || user.login,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
+      createdAt: user.createdAt ?? new Date().toISOString(),
+      updatedAt: user.updatedAt ?? new Date().toISOString(),
       isVerified: true
     }
   } catch (error) {
@@ -130,44 +130,44 @@ export async function socketAuthMiddleware(
     // ============================================
     // ИЗВЛЕЧЕНИЕ ТОКЕНА ИЗ РАЗНЫХ ИСТОЧНИКОВ
     // ============================================
-    
     let token: string | undefined
-    
+
     // 1. Проверяем socket.handshake.auth.token (основной способ)
-    if (socket.handshake.auth?.token) {
-      token = socket.handshake.auth.token as string
-      console.log('[SocketAuth] 📦 Токен найден в auth.token')
+    // ✅ ИСПРАВЛЕНО: проверяем тип и длину, а не только наличие ключа
+    if (typeof socket.handshake.auth?.token === 'string' && socket.handshake.auth.token.trim().length > 0) {
+      token = socket.handshake.auth.token.trim()
+      console.log('[SocketAuth] 📦 Токен найден в auth.token (длина:', token.length, ')')
     }
-    
     // 2. Проверяем socket.handshake.auth.auth_token (альтернативное имя)
-    else if (socket.handshake.auth?.auth_token) {
-      token = socket.handshake.auth.auth_token as string
-      console.log('[SocketAuth] 📦 Токен найден в auth.auth_token')
+    else if (typeof socket.handshake.auth?.auth_token === 'string' && socket.handshake.auth.auth_token.trim().length > 0) {
+      token = socket.handshake.auth.auth_token.trim()
+      console.log('[SocketAuth] 📦 Токен найден в auth.auth_token (длина:', token.length, ')')
     }
-    
     // 3. Проверяем query параметры (для обратной совместимости)
-    else if (socket.handshake.query?.token) {
-      token = socket.handshake.query.token as string
-      console.log('[SocketAuth] 📦 Токен найден в query.token')
+    else if (typeof socket.handshake.query?.token === 'string' && socket.handshake.query.token.trim().length > 0) {
+      token = socket.handshake.query.token.trim()
+      console.log('[SocketAuth] 📦 Токен найден в query.token (длина:', token.length, ')')
     }
-    
     // 4. Проверяем заголовок Authorization (Bearer token)
     else if (socket.handshake.headers?.authorization) {
       const authHeader = socket.handshake.headers.authorization as string
       if (authHeader.startsWith('Bearer ')) {
-        token = authHeader.substring(7)
-        console.log('[SocketAuth] 📦 Токен найден в Authorization header')
+        token = authHeader.substring(7).trim()
+        if (token.length > 0) {
+          console.log('[SocketAuth] 📦 Токен найден в Authorization header (длина:', token.length, ')')
+        }
       }
     }
-    
+
     // ============================================
     // ПРОВЕРКА НАЛИЧИЯ ТОКЕНА
     // ============================================
-    
-    if (!token) {
-      console.error('[SocketAuth] ❌ Токен не предоставлен. Доступные ключи auth:', 
-        socket.handshake.auth ? Object.keys(socket.handshake.auth) : 'none')
-      
+    // ✅ ИСПРАВЛЕНО: явная проверка на строку и минимальную длину
+    if (!token || typeof token !== 'string' || token.length < 10) {
+      console.error('[SocketAuth] ❌ Токен не предоставлен или невалиден. auth:', 
+        socket.handshake.auth ? Object.keys(socket.handshake.auth) : 'none',
+        'token value length:', token?.length
+      )
       return next(new Error('No token provided'))
     }
     

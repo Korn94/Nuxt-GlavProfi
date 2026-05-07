@@ -12,7 +12,8 @@
  */
 
 import { defineEventHandler, createError } from 'h3'
-import { verifyAuth, getUserPermissions, hasRoleLevel, requirePermission } from '../utils/permissions'
+import { verifyAuth } from '../utils/auth'
+import { getUserPermissions, hasRoleLevel, requirePermission } from '../utils/permissions'
 import type { Role, Permissions } from '~/types/permissions'
 import type { users } from '../db/schema'
 
