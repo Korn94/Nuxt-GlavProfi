@@ -13,7 +13,6 @@ interface AuthState {
   isAuthenticated: boolean
   isChecking: boolean
   error: string | null
-  // 👇 Новые поля для прав
   permissions: AppPermissions | null
   roleLevel: number | null
 }
@@ -45,7 +44,6 @@ export const useAuthStore = defineStore('auth', {
     isAuthenticated: false,
     isChecking: true,
     error: null,
-    // 👇 Добавить эти поля:
     permissions: null,
     roleLevel: null
   }),
@@ -58,40 +56,44 @@ export const useAuthStore = defineStore('auth', {
     getError: (state) => state.error,
   },
 
-actions: {
-  async init() {
-    try {
-      this.isChecking = true
-      this.error = null
+  actions: {
+    /**
+     * Инициализация сессии (вызывается при SSR/гидратации и F5)
+     */
+    async init(): Promise<void> {
+      try {
+        this.isChecking = true
+        this.error = null
 
-      if (!this.token) {
+        if (!this.token) {
+          this.resetState()
+          return
+        }
+
+        const api = useApi()
+
+        // 🆕 Загружаем данные параллельно, чтобы избежать частичного состояния стора
+        const [userRes, permsRes] = await Promise.all([
+          api.get<{ user: User }>('/api/auth/check'),
+          api.get<UserPermissionsResponse>('/api/permissions')
+        ])
+
+        this.user = userRes.user
+        this.permissions = permsRes.permissions
+        this.roleLevel = permsRes.level
+        this.isAuthenticated = true
+
+      } catch (error) {
+        console.error('[AuthStore] Ошибка проверки авторизации:', error)
         this.resetState()
-        return
+        if (process.client) {
+          const { navigateTo } = await import('#app')
+          navigateTo('/login')
+        }
+      } finally {
+        this.isChecking = false
       }
-
-      const api = useApi()
-      
-      // 1. Проверяем токен и получаем данные пользователя
-      const { user } = await api.get<{ user: User }>('/api/auth/check')
-      this.user = user
-      this.isAuthenticated = true
-      
-      // 2. 🆕 Загружаем актуальные права с сервера
-      const { permissions, role, level } = await api.get<UserPermissionsResponse>('/api/permissions')
-      this.permissions = permissions
-      this.roleLevel = level
-
-    } catch (error) {
-      console.error('[AuthStore] Ошибка проверки авторизации:', error)
-      this.resetState()
-      if (process.client) {
-        const { navigateTo } = await import('#app')
-        navigateTo('/login')
-      }
-    } finally {
-      this.isChecking = false
-    }
-  },
+    },
 
     /**
      * Аутентификация пользователя
@@ -169,8 +171,6 @@ actions: {
 
       try {
         const { socketService } = await import('services/socket.service')
-        const { useSocketStore } = await import('stores/socket')
-
         socketService.init()
         socketService.connect(token)
 
@@ -188,13 +188,26 @@ actions: {
       try {
         const tokenCookie = useCookie('auth_token')
         const sessionIdCookie = useCookie('session_id')
-        const token = tokenCookie.value
 
-        if (token) {
+        // Пытаемся сообщить серверу о выходе (не критично, если упадёт)
+        if (tokenCookie.value) {
           await $fetch('/api/auth/logout', {
             method: 'POST',
             credentials: 'include'
-          })
+          }).catch(() => {})
+        }
+
+        // 🆕 Отключаем сокет перед сбросом состояния
+        if (process.client) {
+          try {
+            const { socketService } = await import('services/socket.service')
+            // Вызываем disconnect() напрямую. Он должен быть публичным
+            // и безопасно обрабатывать ситуацию, когда сокет уже закрыт.
+            socketService.disconnect()
+            console.log('[AuthStore] 🔌 Сокет отключён')
+          } catch (e) {
+            console.error('[AuthStore] Ошибка отключения сокета:', e)
+          }
         }
 
         tokenCookie.value = null
@@ -228,8 +241,8 @@ actions: {
       this.isAuthenticated = false
       this.isChecking = false
       this.error = null
-      this.permissions = null  // 👈
-      this.roleLevel = null    // 👈
+      this.permissions = null
+      this.roleLevel = null
     }
   },
 

@@ -144,6 +144,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permissions> = {
  * Получить права пользователя по его роли
  */
 export function getUserPermissions(role: Role): Permissions {
+  // Защита от неизвестной роли в БД
   return ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.worker
 }
 
@@ -159,11 +160,11 @@ export function hasPermission(user: DbUser, permission: keyof Permissions): bool
 
 /**
  * Проверить минимальный уровень роли (для иерархических операций)
- * @param userRole - Текущая роль пользователя
- * @param requiredLevel - Требуемый минимальный уровень
+ * @param userRole - Текущая роль пользователя (строго тип Role)
+ * @param requiredLevel - Требуемая минимальная роль
  */
-export function hasRoleLevel(userRole: string, requiredLevel: Role): boolean {
-  const userLevel = ROLE_LEVELS[userRole as Role] || 0
+export function hasRoleLevel(userRole: Role, requiredLevel: Role): boolean {
+  const userLevel = ROLE_LEVELS[userRole] || 0
   const requiredLevelValue = ROLE_LEVELS[requiredLevel]
   return userLevel >= requiredLevelValue
 }
@@ -212,7 +213,8 @@ export function requireRoleLevel(
   requiredLevel: Role,
   customMessage?: string
 ): void {
-  if (!hasRoleLevel(user.role, requiredLevel)) {
+  // Приводим роль пользователя к типу Role (так как в БД это строка)
+  if (!hasRoleLevel(user.role as Role, requiredLevel)) {
     throw createError({
       statusCode: 403,
       statusMessage: customMessage || `Требуется роль не ниже ${requiredLevel}`

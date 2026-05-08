@@ -1,107 +1,69 @@
 // app/composables/useApi.ts
 /**
- * Единый HTTP-клиент с автоматической подстановкой токена и обработкой ошибок.
+ * Глобальный HTTP-клиент для API
  * 
- * ⚠️ Читаем токен напрямую из куки, чтобы избежать циклических зависимостей с authStore.
- * 
- * @example
- * const api = useApi()
- * const data = await api.get('/api/objects')
- * await api.post('/api/users', { name: 'Test' })
+ * ✅ Автоматически подставляет JWT из authStore
+ * ✅ Глобально обрабатывает 401 (выход из системы) и 403 (уведомление)
+ * ✅ Безопасен для SSR (интерцепторы работают только на клиенте)
+ * ✅ Упрощённая типизация, совместимая с Nuxt 3/4
  */
+import { useRuntimeConfig } from 'nuxt/app'
+import { useAuthStore } from '../../stores/auth'
+import { useNotifications } from '~/composables/useNotifications'
 
-import type { FetchOptions } from 'ofetch'
-import { useCookie, navigateTo } from '#app'
+export const useApi = () => {
+  const authStore = useAuthStore()
+  const notifications = useNotifications()
+  const config = useRuntimeConfig()
 
-export function useApi() {
-  /**
-   * Безопасное извлечение JWT из куки (поддержка старого и нового формата)
-   */
-  function extractJwt(): string | null {
-    const raw = useCookie('auth_token').value
-    if (!raw) return null
+  const fetcher = $fetch.create({
+    baseURL: (config.public.apiBase as string) || '',
+    credentials: 'include',
 
-    try {
-      // Новый формат: JSON { token, userId, role }
-      const parsed = JSON.parse(raw)
-      return parsed.token || null
-    } catch {
-      // Старый формат: просто строка JWT
-      return raw.length > 20 ? raw : null
-    }
-  }
+    onRequest({ options }) {
+      const token = authStore.token
+      if (token) {
+        const headers = new Headers(options.headers as HeadersInit)
+        headers.set('Authorization', `Bearer ${token}`)
+        options.headers = headers
+      }
+    },
 
-  /**
-   * Базовая функция запроса
-   */
-  async function request<T>(url: string, options: FetchOptions = {}): Promise<T> {
-    const token = extractJwt()
+    onResponseError({ response }) {
+      // Интерцепторы срабатывают только на клиенте
+      if (!process.client) return
 
-    const headers: Record<string, string> = {
-      ...(options.headers as Record<string, string> || {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {})
-    }
+      const url = response.url || ''
+      const status = response.status
 
-    try {
-      return await $fetch<T>(url, {
-        ...options,
-        headers,
-        credentials: options.credentials || 'include',
-        // ✅ Фикс: Nuxt $fetch требует строгие литералы метода, приводим тип
-        method: options.method as any
-      })
-    } catch (error: any) {
-      // 🔐 401 — токен невалиден или истёк
-      if (error.status === 401) {
-        console.warn('[useApi] Токен невалиден, выполняем выход')
-        // ✅ Удаляем куки напрямую, чтобы избежать циклической зависимости с authStore
-        useCookie('auth_token').value = null
-        useCookie('session_id').value = null
-        if (process.client && window.location.pathname !== '/login') {
-          navigateTo('/login', { replace: true, external: false })
+      if (status === 401) {
+        // ⛔ Не вызываем logout для эндпоинтов авторизации, чтобы избежать зацикливания
+        if (!url.includes('/api/auth/')) {
+          console.warn('[useApi] ⚠️ Сессия истекла или токен невалиден (401). Выполняется выход...')
+          authStore.logout()
         }
+      } 
+      else if (status === 403) {
+        notifications.error('У вас нет прав для выполнения этой операции', 'Доступ запрещён')
       }
-
-      // 🚫 403 — нет прав доступа
-      if (error.status === 403) {
-        console.warn('[useApi] Доступ запрещён:', error.data?.message || error.message)
-      }
-
-      throw error
     }
-  }
+  })
 
-  /** GET запрос */
-  function get<T>(url: string, options?: FetchOptions) {
-    return request<T>(url, { ...options, method: 'GET' })
-  }
-
-  /** POST запрос */
-  function post<T>(url: string, body?: any, options?: FetchOptions) {
-    return request<T>(url, { ...options, method: 'POST', body })
-  }
-
-  /** PUT запрос */
-  function put<T>(url: string, body?: any, options?: FetchOptions) {
-    return request<T>(url, { ...options, method: 'PUT', body })
-  }
-
-  /** PATCH запрос */
-  function patch<T>(url: string, body?: any, options?: FetchOptions) {
-    return request<T>(url, { ...options, method: 'PATCH', body })
-  }
-
-  /** DELETE запрос */
-  function del<T>(url: string, options?: FetchOptions) {
-    return request<T>(url, { ...options, method: 'DELETE' })
-  }
+  // ✅ Упрощённые типы: избегаем сложных union-экстракций Nuxt
+  type FetchOpts = Omit<NonNullable<Parameters<typeof fetcher>[1]>, 'method' | 'body'>
+  type ApiBody = Record<string, any> | null
 
   return {
-    request,
-    get,
-    post,
-    put,
-    patch,
-    delete: del
+    get: <T = unknown>(url: string, opts?: FetchOpts) =>
+      fetcher<T>(url, { ...opts, method: 'GET' as const }),
+
+    post: <T = unknown>(url: string, body?: ApiBody, opts?: FetchOpts) =>
+      fetcher<T>(url, { ...opts, body, method: 'POST' as const }),
+
+    put: <T = unknown>(url: string, body?: ApiBody, opts?: FetchOpts) =>
+      fetcher<T>(url, { ...opts, body, method: 'PUT' as const }),
+
+    delete: <T = unknown>(url: string, opts?: FetchOpts) =>
+      fetcher<T>(url, { ...opts, method: 'DELETE' as const }),
   }
 }

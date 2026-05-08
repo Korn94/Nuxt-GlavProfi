@@ -3,17 +3,23 @@
  * Composable для проверки прав доступа на клиенте
  * 
  * ⚠️ Использует типы из ~/types/permissions — не дублируйте их здесь!
- * Права загружаются из стора авторизации, синхронизация с сервером — через /api/permissions (опционально)
+ * Права загружаются из стора авторизации, синхронизация с сервером — через /api/permissions
  * 
  * @example
  * // В компоненте:
- * const { can, hasRole, isAdmin } = usePermissions()
+ * const { can, hasRole, isReady } = usePermissions()
  * 
- * <button v-if="can('canEditObjects')">Редактировать</button>
- * <div v-if="hasRole('admin')">Только для админов</div>
+ * <template>
+ *   <!-- Показываем лоадер, пока идёт проверка авторизации -->
+ *   <div v-if="!isReady" class="skeleton">Проверка доступа...</div>
+ *   
+ *   <!-- Рендерим контент только когда всё готово -->
+ *   <template v-else>
+ *     <button v-if="can('canEditObjects')">Редактировать</button>
+ *     <div v-if="hasRole('admin')">Только для админов</div>
+ *   </template>
+ * </template>
  */
-
-// app/composables/usePermissions.ts
 
 import { computed } from 'vue'
 import { useAuthStore } from '../../stores/auth'
@@ -22,7 +28,12 @@ import { ROLE_LEVELS } from '~/types/permissions'
 
 export function usePermissions() {
   const authStore = useAuthStore()
-  const isChecking = computed(() => authStore.isChecking)
+
+  // ✅ Флаг: проверка авторизации завершена (пользователь вошёл или это гость)
+  const isReady = computed(() => !authStore.isChecking)
+  
+  // ✅ Флаг: пользователь успешно аутентифицирован
+  const isAuthenticated = computed(() => authStore.isAuthenticated)
 
   const role = computed(() => authStore.user?.role as Role | null)
 
@@ -85,6 +96,8 @@ export function usePermissions() {
     isAdmin,
     role,
     permissions,
-    isChecking
+    isChecking: authStore.isChecking, // Оставляем для обратной совместимости
+    isReady,          // ✅ НОВОЕ: готовность к рендеру
+    isAuthenticated   // ✅ НОВОЕ: статус авторизации
   }
 }

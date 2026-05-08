@@ -69,7 +69,7 @@ const PUBLIC_PATHS = [
  * - { type: 'custom', value: (user) => boolean } — кастомная проверка
  *
  * ✅ Поддерживает wildcard '**' для группировки путей
- * - { type: 'custom', value: (user) => boolean } — кастомная проверка
+ * ✅ Поддерживает параметры маршрута '[id]'
  *
  * 📋 Полная карта всех API endpoint'ов проекта:
  *
@@ -256,14 +256,26 @@ function getPathWithoutQuery(path: string): string {
 
 /**
  * Проверить, соответствует ли путь шаблону
- * Поддерживает wildcard '**' для группировки
+ * ✅ Безопасно экранирует спецсимволы RegExp
+ * ✅ Поддерживает ** (любые сегменты) и [param] (один сегмент)
  */
 function matchPath(pattern: string, path: string): boolean {
-  if (pattern.includes('**')) {
-    const regex = new RegExp('^' + pattern.replace(/\*\*/g, '.*') + '$')
-    return regex.test(path)
+  // Если нет динамических элементов, используем быструю проверку префикса
+  if (!pattern.includes('**') && !pattern.includes('[')) {
+    return path === pattern || path.startsWith(pattern + '/') || path.startsWith(pattern)
   }
-  return path.startsWith(pattern)
+
+  // Экранируем все спецсимволы RegExp, кроме * и [ ]
+  let escaped = pattern.replace(/[-\/\\^$+?.()|{}]/g, '\\$&')
+  
+  // Заменяем [param] на паттерн для одного сегмента пути (без /)
+  escaped = escaped.replace(/\[[^\]]+\]/g, '[^/]+')
+  
+  // Заменяем ** на .* (любые символы, включая /)
+  escaped = escaped.replace(/\*\*/g, '.*')
+  
+  const regex = new RegExp(`^${escaped}$`)
+  return regex.test(path)
 }
 
 /**
@@ -329,7 +341,7 @@ export default defineEventHandler(async (event) => {
     else if (requirement.type === 'role') {
       // Проверка минимального уровня роли
       const requiredRole = requirement.value as Role
-      if (!hasRoleLevel(user.role, requiredRole)) {
+      if (!hasRoleLevel(user.role as Role, requiredRole)) {
         throw createError({
           statusCode: 403,
           statusMessage: requirement.message || `Доступ запрещён. Требуется роль не ниже: ${requiredRole}`
