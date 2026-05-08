@@ -13,43 +13,43 @@
  * <div v-if="hasRole('admin')">Только для админов</div>
  */
 
+// app/composables/usePermissions.ts
+
 import { computed } from 'vue'
 import { useAuthStore } from '../../stores/auth'
 import type { Role, Permissions } from '~/types/permissions'
 import { ROLE_LEVELS } from '~/types/permissions'
 
-// ✅ Импортируем конфигурацию прав с сервера (единый источник истины)
-// В будущем можно заменить на динамическую загрузку через API
-import { ROLE_PERMISSIONS } from '../../server/utils/permissions'
-
 export function usePermissions() {
   const authStore = useAuthStore()
   const isChecking = computed(() => authStore.isChecking)
 
-  // ============================================
-  // ВЫЧИСЛЯЕМЫЕ ДАННЫЕ
-  // ============================================
-
-  /**
-   * Текущая роль пользователя (реактивная)
-   */
   const role = computed(() => authStore.user?.role as Role | null)
 
-  /**
-   * Права текущей роли (реактивный объект Permissions)
-   * ✅ Теперь используется напрямую вместо динамических геттеров
-   */
+  // ✅ Читаем права из реактивного состояния стора
   const permissions = computed((): Permissions => {
-    // 👇 Всегда возвращаем валидный объект, даже если роль ещё не загружена
-    const currentRole = role.value
-    return currentRole 
-      ? (ROLE_PERMISSIONS[currentRole] || ROLE_PERMISSIONS.worker)
-      : ROLE_PERMISSIONS.worker // 👈 Дефолт для SSR и начального рендера
+    return authStore.permissions || {
+      // Дефолтные права для "гостя" / SSR-рендера
+      canViewDashboard: false,
+      canViewObjects: false,
+      canCreateObjects: false,
+      canEditObjects: false,
+      canDeleteObjects: false,
+      canViewFinance: false,
+      canEditFinance: false,
+      canViewWorkers: false,
+      canEditWorkers: false,
+      canViewReports: false,
+      canExportReports: false,
+      canManageUsers: false,
+      canDeleteRecords: false,
+      canViewAllObjects: false,
+      canAssignWorkers: false,
+      canApproveWorks: false,
+      canViewSalary: false,
+      canEditSalary: false
+    }
   })
-
-  // ============================================
-  // МЕТОДЫ ПРОВЕРКИ ПРАВ
-  // ============================================
 
   function can(permission: keyof Permissions): boolean {
     return permissions.value[permission] || false
@@ -65,10 +65,9 @@ export function usePermissions() {
 
   function hasRoleLevel(requiredLevel: Role): boolean {
     const currentRole = role.value
-    if (!currentRole) return false
-    
-    const userLevel = ROLE_LEVELS[currentRole] || 0
-    return userLevel >= ROLE_LEVELS[requiredLevel]
+    if (!currentRole || authStore.roleLevel === null) return false
+    const requiredLevelValue = ROLE_LEVELS[requiredLevel]
+    return authStore.roleLevel >= requiredLevelValue
   }
 
   function hasRole(checkRole: Role): boolean {
@@ -77,9 +76,6 @@ export function usePermissions() {
 
   const isAdmin = computed(() => hasRole('admin'))
 
-  // ============================================
-  // ПУБЛИЧНЫЙ ИНТЕРФЕЙС
-  // ============================================
   return {
     can,
     canAll,
@@ -88,7 +84,7 @@ export function usePermissions() {
     hasRole,
     isAdmin,
     role,
-    permissions, // ✅ Реактивный объект прав
+    permissions,
     isChecking
   }
 }

@@ -4,7 +4,7 @@ import { useCookie, useRouter } from 'nuxt/app'
 import { useNotifications } from '~/composables/useNotifications'
 import { useApi } from '~/composables/useApi'
 import type { User } from '~/types'
-import { ROLE_PERMISSIONS, type Role, type Permissions as AppPermissions } from '~/types/permissions'
+import type { Role, Permissions as AppPermissions, UserPermissionsResponse } from '~/types/permissions'
 
 interface AuthState {
   token: string | null
@@ -13,6 +13,9 @@ interface AuthState {
   isAuthenticated: boolean
   isChecking: boolean
   error: string | null
+  // 👇 Новые поля для прав
+  permissions: AppPermissions | null
+  roleLevel: number | null
 }
 
 interface AuthResponse {
@@ -41,7 +44,10 @@ export const useAuthStore = defineStore('auth', {
     sessionId: null,
     isAuthenticated: false,
     isChecking: true,
-    error: null
+    error: null,
+    // 👇 Добавить эти поля:
+    permissions: null,
+    roleLevel: null
   }),
 
   getters: {
@@ -50,45 +56,42 @@ export const useAuthStore = defineStore('auth', {
     getIsAuthenticated: (state) => state.isAuthenticated,
     getIsChecking: (state) => state.isChecking,
     getError: (state) => state.error,
-    
-    // 👇 Вычисляем права на лету на основе роли (без отдельного поля в state)
-    getPermissions: (state): AppPermissions | null => {
-      const role = state.user?.role as Role
-      return role ? ROLE_PERMISSIONS[role] || null : null
-    }
   },
 
-  actions: {
-    /**
-     * Инициализация хранилища - проверка текущего состояния аутентификации
-     */
-    async init() {
-      try {
-        this.isChecking = true
-        this.error = null
+actions: {
+  async init() {
+    try {
+      this.isChecking = true
+      this.error = null
 
-        if (!this.token) {
-          this.resetState()
-          return
-        }
-
-        const api = useApi()
-        const { user } = await api.get<{ user: User }>('/api/auth/check')
-
-        this.user = user
-        this.isAuthenticated = true
-
-      } catch (error) {
-        console.error('[AuthStore] Ошибка проверки авторизации:', error)
+      if (!this.token) {
         this.resetState()
-        if (process.client) {
-          const { navigateTo } = await import('#app')
-          navigateTo('/login')
-        }
-      } finally {
-        this.isChecking = false
+        return
       }
-    },
+
+      const api = useApi()
+      
+      // 1. Проверяем токен и получаем данные пользователя
+      const { user } = await api.get<{ user: User }>('/api/auth/check')
+      this.user = user
+      this.isAuthenticated = true
+      
+      // 2. 🆕 Загружаем актуальные права с сервера
+      const { permissions, role, level } = await api.get<UserPermissionsResponse>('/api/permissions')
+      this.permissions = permissions
+      this.roleLevel = level
+
+    } catch (error) {
+      console.error('[AuthStore] Ошибка проверки авторизации:', error)
+      this.resetState()
+      if (process.client) {
+        const { navigateTo } = await import('#app')
+        navigateTo('/login')
+      }
+    } finally {
+      this.isChecking = false
+    }
+  },
 
     /**
      * Аутентификация пользователя
@@ -225,6 +228,8 @@ export const useAuthStore = defineStore('auth', {
       this.isAuthenticated = false
       this.isChecking = false
       this.error = null
+      this.permissions = null  // 👈
+      this.roleLevel = null    // 👈
     }
   },
 

@@ -44,6 +44,7 @@ const PUBLIC_PATHS = [
   '/api/auth/login',
   '/api/auth/telegram',
   '/api/auth/check',     // ✅ Нужен для фоновой проверки токена
+  '/api/permissions',
 
   // 👤 Профиль пользователя (возвращает { user: null } для гостей)
   '/api/me',
