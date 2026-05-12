@@ -165,9 +165,14 @@ import type { ContractorType, ContractorDTO } from '~/types/contractors'
 import { CONTRACTOR_TYPES } from '~/types/contractors'
 
 // ── Meta ───────────────────────────────────────────────────────────
+import { useApi } from '~/composables/useApi' // 👈 Новый composable
+
+const api = useApi() // 👈 Инициализация
+
 definePageMeta({
   layout: 'cabinet',
-  middleware: ['require-auth']
+  middleware: 'role',
+  allowedRoles: ['admin'],
 })
 
 // ── Router ─────────────────────────────────────────────────────────

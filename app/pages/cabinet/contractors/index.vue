@@ -166,7 +166,16 @@ import { useContractors } from '~/composables/useContractors'
 import type { ContractorType, ContractorDTO } from '~/types/contractors'
 import { CONTRACTOR_TYPES } from '~/types/contractors'
 
-definePageMeta({ layout: 'cabinet', middleware: ['require-auth'] })
+import { useApi } from '~/composables/useApi' // 👈 Новый composable
+
+const api = useApi() // 👈 Инициализация
+
+definePageMeta({
+  layout: 'cabinet',
+  middleware: 'role',
+  allowedRoles: ['admin'],
+})
+
 
 const router = useRouter()
 const contractorsStore = useContractors()

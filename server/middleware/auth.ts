@@ -52,6 +52,24 @@ const PUBLIC_PATHS = [
   // 🟢 Публичные данные
   '/api/online',         // ✅ Публичный список онлайн-пользователей
 
+  // 💰 Прайс-листы (публичный просмотр цен)
+  '/api/price/list',
+  '/api/price/list/**',
+  '/api/price/calc/**',
+  '/api/price/categories',
+  '/api/price/subcategories',
+  '/api/price/items',
+  '/api/price/pages',
+  '/api/price/details',
+  '/api/price/dopworks',
+
+  // 🖼️ Портфолио (публичный просмотр)
+  '/api/portfolio',
+  '/api/portfolio/**',
+
+  // ✉️ Отправка сообщений (публичная форма обратной связи)
+  '/api/send-message',
+
   // ✅ Иконки
   '/api/_nuxt_icon',
   '/api/_nuxt_icon/**',
@@ -202,15 +220,17 @@ const PROTECTED_PATHS: Record<string, PathRequirement> = {
   // ============================================
   // 💵 ПРАЙС-ЛИСТЫ И КАЛЬКУЛЯЦИИ
   // ============================================
-  '/api/price/list': { type: 'permission', value: 'canViewObjects' },
-  '/api/price/list/[slug]': { type: 'permission', value: 'canViewObjects' },
-  '/api/price/calc/[slug]': { type: 'permission', value: 'canViewObjects' },
-  '/api/price/categories': { type: 'permission', value: 'canViewObjects' },
-  '/api/price/subcategories': { type: 'permission', value: 'canViewObjects' },
-  '/api/price/items': { type: 'permission', value: 'canViewObjects' },
-  '/api/price/pages': { type: 'permission', value: 'canViewObjects' },
-  '/api/price/details': { type: 'permission', value: 'canViewObjects' },
-  '/api/price/dopworks': { type: 'permission', value: 'canViewObjects' },
+  // ⚠️ GET-запросы (просмотр) теперь публичные — см. PUBLIC_PATHS выше
+  // POST/PUT/DELETE запросы всё ещё требуют прав
+  '/api/price/list': { type: 'permission', value: 'canEditObjects' },
+  '/api/price/list/[slug]': { type: 'permission', value: 'canEditObjects' },
+  '/api/price/calc/[slug]': { type: 'permission', value: 'canEditObjects' },
+  '/api/price/categories': { type: 'permission', value: 'canEditObjects' },
+  '/api/price/subcategories': { type: 'permission', value: 'canEditObjects' },
+  '/api/price/items': { type: 'permission', value: 'canEditObjects' },
+  '/api/price/pages': { type: 'permission', value: 'canEditObjects' },
+  '/api/price/details': { type: 'permission', value: 'canEditObjects' },
+  '/api/price/dopworks': { type: 'permission', value: 'canEditObjects' },
 
   // ============================================
   // 🖼️ ПОРТФОЛИО
@@ -226,11 +246,6 @@ const PROTECTED_PATHS: Record<string, PathRequirement> = {
   // ============================================
   '/api/attachments': { type: 'permission', value: 'canViewDashboard' },
   '/api/comments': { type: 'permission', value: 'canViewDashboard' },
-
-  // ============================================
-  // ✉️ СООБЩЕНИЯ
-  // ============================================
-  '/api/send-message': { type: 'permission', value: 'canViewDashboard' },
 
   // ============================================
   // 🗑️ УДАЛЕНИЕ ЗАПИСЕЙ — общее правило
@@ -267,13 +282,13 @@ function matchPath(pattern: string, path: string): boolean {
 
   // Экранируем все спецсимволы RegExp, кроме * и [ ]
   let escaped = pattern.replace(/[-\/\\^$+?.()|{}]/g, '\\$&')
-  
+
   // Заменяем [param] на паттерн для одного сегмента пути (без /)
   escaped = escaped.replace(/\[[^\]]+\]/g, '[^/]+')
-  
+
   // Заменяем ** на .* (любые символы, включая /)
   escaped = escaped.replace(/\*\*/g, '.*')
-  
+
   const regex = new RegExp(`^${escaped}$`)
   return regex.test(path)
 }

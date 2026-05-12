@@ -5,7 +5,7 @@
     <h1>Актуальные цены на <span>{{ activeCategoryTitle }}</span> - 2026 год</h1>
 
     <!-- Навигация -->
-    <PagesPublicPricesUiNavigation :categories="categories" :active-category="activeCategory"
+    <PagesPublicPricesUiNavigation :categories="props.categories" :active-category="activeCategory"
       @update:active-category="setCategory" />
 
     <!-- Таблица -->
@@ -319,6 +319,10 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from 'stores/auth'
 
 const props = defineProps({
+  categories: {
+    type: Array,
+    required: true
+  },
   activeCategory: {
     type: String,
     required: true
@@ -333,15 +337,8 @@ const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 
-// Статические категории (временно)
-const categories = [
-  { id: "otdelochnye-raboty", name: "Отделочные работы", title: "Отделочные работы" },
-  { id: "plumbing", name: "Сантехника", title: "работы по Сантехнике" },
-  { id: "electricity", name: "Электромонтаж", title: "Электромонтаж" }
-]
-
 // Состояния
-const activeCategory = ref(route.params.category || 'floor')
+const activeCategory = ref(props.activeCategory || route.params.category || 'floor')
 const activeWork = ref('all')
 const works = ref([])
 const searchQuery = ref('')
@@ -476,7 +473,7 @@ const isAdmin = ref(isAdminUser)
 
 // Вычисляемое свойство для динамического заголовка
 const activeCategoryTitle = computed(() => {
-  const category = categories.find(cat => cat.id === activeCategory.value)
+  const category = props.categories?.find(cat => cat.id === activeCategory.value)
   return category ? category.title : 'Выберите категорию'
 })
 
@@ -687,6 +684,13 @@ const handleCopyClick = (item) => {
 const setCategory = async (categoryId) => {
   await router.push({ params: { category: categoryId } })
 }
+
+// Синхронизация activeCategory с props
+watch(() => props.activeCategory, (newVal) => {
+  if (newVal && newVal !== activeCategory.value) {
+    activeCategory.value = newVal
+  }
+})
 
 // Реактивное обновление works при изменении pageData
 watch(pageData, () => {

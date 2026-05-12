@@ -1,12 +1,22 @@
 <!-- app/components/Layout/Cabinet/Header/ui/crm.vue -->
 <template>
   <ul class="nav-list">
-    <template v-for="item in filteredMenu" :key="item.path">
+    <template v-for="item in filteredMenu" :key="item.id">
 
-      <!-- Разделитель -->
-      <li v-if="item.divider" class="nav-divider" />
+      <!-- 🔘 Скелетон загрузки (пока права не проверены) -->
+      <li v-if="item.skeleton" class="nav-item nav-item--skeleton">
+        <span class="nav-link__icon nav-link__icon--skeleton">
+          <span class="skeleton-icon" />
+        </span>
+        <span class="nav-link__label nav-link__label--skeleton">
+          <span class="skeleton-text" />
+        </span>
+      </li>
 
-      <!-- Пункт меню -->
+      <!-- ➖ Разделитель -->
+      <li v-else-if="item.divider" class="nav-divider" />
+
+      <!-- ✅ Обычный пункт меню -->
       <li v-else class="nav-item">
         <NuxtLink :to="item.path" class="nav-link" @click="handleClick">
           <span class="nav-link__icon">
@@ -32,14 +42,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useThemeStore } from 'stores/settings/theme'
 import { usePermissions } from '~/composables/usePermissions'
-import type { Role, Permissions } from '~/types/permissions';
+import type { Role, Permissions } from '~/types/permissions'
 
 const emit = defineEmits<{ closeSidebar: [] }>()
 const themeStore = useThemeStore()
 const { can, hasRole, isChecking } = usePermissions()
+
+// Флаг завершения гидратации (чтобы не менять DOM во время сравнения сервер/клиент)
+const isHydrated = ref(false)
 
 const isDark = computed(() => themeStore.isDark)
 
@@ -47,8 +60,9 @@ function toggleTheme() {
   themeStore.toggleTheme()
 }
 
-// ✅ 1. Сделали title, path, icon опциональными, так как есть разделители
+// ✅ Типизация пункта меню
 interface MenuItem {
+  id: string
   title?: string
   path?: string
   icon?: string
@@ -57,32 +71,46 @@ interface MenuItem {
   check?: () => boolean
   alwaysShow?: boolean
   divider?: boolean
+  skeleton?: boolean
 }
 
-// ✅ Явно типизируем массив, чтобы TS корректно выводил типы
+// ✅ Генератор скелетона (статичный, идентичен на сервере и клиенте)
+function getSkeletonMenu(): MenuItem[] {
+  return [
+    { id: 'sk-1', skeleton: true },
+    { id: 'sk-2', skeleton: true },
+    { id: 'sk-3', skeleton: true },
+    { id: 'sk-div-1', divider: true },
+    { id: 'sk-4', skeleton: true },
+    { id: 'sk-5', skeleton: true },
+    { id: 'sk-div-2', divider: true },
+    { id: 'sk-6', skeleton: true },
+  ]
+}
+
+// ✅ Конфигурация меню
 const menuItems: MenuItem[] = [
-  { title: 'Главная', path: '/cabinet', icon: 'mdi:home-outline', permission: 'canViewDashboard' as const },
-  { title: 'Сотрудники', path: '/cabinet/contractors', icon: 'mdi:account-group-outline', permission: 'canManageUsers' as const },
-  { title: 'Подневка', path: '/cabinet/daily-work', icon: 'mdi:calendar-today-outline', check: () => hasRole('foreman') || hasRole('admin') },
-  { title: 'Объекты', path: '/cabinet/objects', icon: 'mdi:house-export-outline', permission: 'canViewObjects' as const },
-  { title: 'Чеки', path: '/cabinet/materials', icon: 'mdi:receipt-text-outline', permission: 'canViewFinance' as const },
-  { title: 'Операции', path: '/cabinet/operation', icon: 'mdi:instant-transfer', permission: 'canEditFinance' as const },
-  { divider: true },
-  { title: 'Онлайн', path: '/cabinet/online', icon: 'mdi:account-multiple-check-outline', permission: 'canViewWorkers' as const },
-  { title: 'Тест', path: '/cabinet/testpage', icon: 'mdi:flask-outline', permission: 'canViewDashboard' as const, roleCheck: 'admin' as const },
-  { divider: true },
-  { title: 'На сайт', path: '/', icon: 'mdi:web', alwaysShow: true },
-  { title: 'Кейсы', path: '/cabinet/portfolio', icon: 'mdi:plus-circle-outline', check: () => hasRole('manager') || hasRole('admin') },
-  { divider: true },
-  { title: 'Баланс', path: '/cabinet/balance', icon: 'mdi:currency-rub', permission: 'canViewSalary' as const },
+  { id: 'dashboard', title: 'Главная', path: '/cabinet', icon: 'mdi:home-outline', permission: 'canViewDashboard' as const },
+  { id: 'contractors', title: 'Сотрудники', path: '/cabinet/contractors', icon: 'mdi:account-group-outline', permission: 'canManageUsers' as const },
+  { id: 'daily-work', title: 'Подневка', path: '/cabinet/daily-work', icon: 'mdi:calendar-today-outline', check: () => hasRole('foreman') || hasRole('admin') },
+  { id: 'objects', title: 'Объекты', path: '/cabinet/objects', icon: 'mdi:house-export-outline', permission: 'canViewObjects' as const },
+  { id: 'materials', title: 'Чеки', path: '/cabinet/materials', icon: 'mdi:receipt-text-outline', permission: 'canViewFinance' as const },
+  { id: 'operations', title: 'Операции', path: '/cabinet/operation', icon: 'mdi:instant-transfer', permission: 'canEditFinance' as const },
+  { id: 'div-1', divider: true },
+  { id: 'online', title: 'Онлайн', path: '/cabinet/online', icon: 'mdi:account-multiple-check-outline', permission: 'canViewWorkers' as const },
+  { id: 'test', title: 'Тест', path: '/cabinet/testpage', icon: 'mdi:flask-outline', permission: 'canViewDashboard' as const, roleCheck: 'admin' as const },
+  { id: 'div-2', divider: true },
+  { id: 'website', title: 'На сайт', path: '/', icon: 'mdi:web', alwaysShow: true },
+  { id: 'portfolio', title: 'Кейсы', path: '/cabinet/portfolio', icon: 'mdi:plus-circle-outline', check: () => hasRole('manager') || hasRole('admin') },
+  { id: 'div-3', divider: true },
+  { id: 'balance', title: 'Баланс', path: '/cabinet/balance', icon: 'mdi:currency-rub', permission: 'canViewSalary' as const },
 ]
 
-// Фильтрация по правам доступа
+// ✅ Логика фильтрации
 const filteredMenu = computed(() => {
-  // 🎯 КРИТИЧНО: пока права загружаются — показываем ВСЕ пункты
-  // Это гарантирует идентичный рендер на сервере и клиенте
-  if (isChecking.value) {
-    return menuItems.filter(item => !item.divider)
+  // Пока идет гидратация или проверка прав — возвращаем статичный скелетон
+  if (!isHydrated.value || isChecking) {
+    return getSkeletonMenu()
   }
   
   const result: MenuItem[] = []
@@ -122,6 +150,11 @@ const filteredMenu = computed(() => {
 function handleClick() {
   emit('closeSidebar')
 }
+
+onMounted(() => {
+  // Разрешаем реальную фильтрацию только после монтирования
+  isHydrated.value = true
+})
 </script>
 
 <style lang="scss" scoped>
@@ -204,5 +237,48 @@ function handleClick() {
       color: var(--crm-text-primary);
     }
   }
+}
+
+// ── Скелетон загрузки ─────────────────────────────────────────────
+@keyframes skeleton-pulse {
+  0% { opacity: 0.5; }
+  50% { opacity: 1; }
+  100% { opacity: 0.5; }
+}
+
+.nav-item--skeleton {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  pointer-events: none;
+}
+
+.nav-link__icon--skeleton .skeleton-icon,
+.nav-link__label--skeleton .skeleton-text {
+  display: block;
+  background: var(--crm-bg-elevated);
+  border-radius: var(--crm-radius-sm);
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.skeleton-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.skeleton-text {
+  width: 70px;
+  height: 14px;
+}
+
+// Плавное появление реальных пунктов после замены скелетона
+.nav-item:not(.nav-item--skeleton) {
+  animation: nav-fade-in 0.25s ease forwards;
+}
+
+@keyframes nav-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 </style>

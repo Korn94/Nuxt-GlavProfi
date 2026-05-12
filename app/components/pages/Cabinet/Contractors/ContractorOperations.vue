@@ -9,7 +9,7 @@
         История операций
       </h3>
       <div class="contractor-operations__controls">
-        <button 
+        <button
           class="crm-btn crm-btn--sm crm-btn--ghost"
           @click="refreshOperations"
           :disabled="loading"
@@ -87,8 +87,8 @@
       </div>
 
       <div v-else class="operations-list">
-        <div 
-          v-for="operation in filteredOperations" 
+        <div
+          v-for="operation in filteredOperations"
           :key="`balance-${operation.id}`"
           :class="['operation-item', `operation-item--${operation.type}`]"
         >
@@ -100,8 +100,8 @@
               <div class="operation-info__title">{{ operation.title }}</div>
               <div class="operation-info__meta">
                 <span class="operation-info__date">{{ formatDate(operation.date) }}</span>
-                <NuxtLink 
-                  v-if="operation.object && operation.objectId" 
+                <NuxtLink
+                  v-if="operation.object && operation.objectId"
                   :to="`/cabinet/objects/${operation.objectId}`"
                   class="operation-info__object operation-info__link"
                   target="_blank"
@@ -126,8 +126,8 @@
             <span :class="['operation-amount', `operation-amount--${operation.type}`]">
               {{ getAmountDisplay(operation) }}
             </span>
-            <button 
-              class="operation-btn" 
+            <button
+              class="operation-btn"
               @click="viewOperation(operation)"
               title="Открыть"
             >
@@ -141,7 +141,7 @@
       <div v-if="filteredOperations.length > 0" class="operations-section__footer">
         <div class="operations-summary">
           <div class="summary-item">
-            <span class="summary-item__label">Расходы (Работа)</span>
+            <span class="summary-item__label">Расходы (Оплата за работа)</span>
             <span class="summary-item__value summary-item__value--expense">
               −{{ formatCurrency(totalExpenses) }}
             </span>
@@ -178,8 +178,8 @@
       </div>
 
       <div v-else class="operations-list">
-        <div 
-          v-for="operation in filteredAdditional" 
+        <div
+          v-for="operation in filteredAdditional"
           :key="`additional-${operation.id}`"
           class="operation-item operation-item--additional"
         >
@@ -207,8 +207,8 @@
             <span class="operation-amount operation-amount--additional">
               {{ formatCurrency(operation.amount) }}
             </span>
-            <button 
-              class="operation-btn" 
+            <button
+              class="operation-btn"
               @click="viewOperation(operation)"
               title="Открыть"
             >
@@ -249,6 +249,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import type { ContractorType } from '~/types/contractors'
+import { useApi } from '~/composables/useApi'
 
 interface Operation {
   id: number
@@ -266,6 +267,8 @@ const props = defineProps<{
   contractorId: number
   contractorType: ContractorType
 }>()
+
+const api = useApi()
 
 // ── State ──────────────────────────────────────────────────────────
 const operations = ref<Operation[]>([]) // Основная история (Работа)
@@ -424,11 +427,11 @@ function formatCurrency(amount: number): string {
 
 function formatDate(dateStr: string | undefined): string {
   if (!dateStr) return '—'
-  
+
   try {
     const date = new Date(dateStr)
     if (isNaN(date.getTime())) return '—'
-    
+
     // ✅ Всегда возвращаем дату в формате ДД.ММ.ГГ
     return date.toLocaleDateString('ru-RU', {
       day: '2-digit',
@@ -453,12 +456,12 @@ async function loadOperations() {
 
   try {
     // Загружаем расходы (все типы)
-    const expensesResponse = await $fetch<any[]>(
+    const expensesResponse = await api.get<any[]>(
       `/api/expenses?contractorType=${props.contractorType}&contractorId=${props.contractorId}`
     )
-    
+
     // Загружаем работы (только оплаченные)
-    const worksResponse = await $fetch<any[]>(
+    const worksResponse = await api.get<any[]>(
       `/api/works?contractorType=${props.contractorType}&contractorId=${props.contractorId}`
     )
 
@@ -468,7 +471,7 @@ async function loadOperations() {
       .map(e => ({
         id: e.id,
         type: 'expense' as const,
-        title: 'Расход (Работа)',
+        title: 'Оплата',
         amount: parseFloat(e.amount),
         date: e.operationDate,
         object: e.objectName,
@@ -496,7 +499,7 @@ async function loadOperations() {
         .map(w => ({
           id: w.id,
           type: 'income' as const,
-          title: `Работа: ${w.workTypes}`,
+          title: `Работа принята: ${w.workTypes}`,
           amount: parseFloat(w.workerAmount),
           date: w.operationDate,
           object: w.objectName,      // ✅ Используем имя, а не ID
@@ -609,7 +612,7 @@ onMounted(() => {
 // ── Секции операций ────────────────────────────────────────────────
 .operations-section {
   border-top: 1px solid var(--crm-border);
-  
+
   &--additional {
     background: var(--crm-bg-elevated);
   }
@@ -779,16 +782,16 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  
+
   &:hover {
     color: var(--crm-accent-hover);
     text-decoration: underline;
-    
+
     .link-icon {
       transform: translateX(2px);
     }
   }
-  
+
   .link-icon {
     opacity: 0.7;
     transition: transform 0.2s ease;
@@ -801,7 +804,7 @@ onMounted(() => {
   gap: 4px;
   font-size: var(--crm-text-xs);
   color: var(--crm-text-muted);
-  
+
   // Если объект без ссылки — чуть приглушённый цвет
   &:not(.operation-info__link) {
     opacity: 0.9;

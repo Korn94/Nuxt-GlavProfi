@@ -71,8 +71,7 @@ export const useAuthStore = defineStore('auth', {
         }
 
         const api = useApi()
-
-        // 🆕 Загружаем данные параллельно, чтобы избежать частичного состояния стора
+        // ... (твой код с Promise.all для загрузки userRes и permsRes) ...
         const [userRes, permsRes] = await Promise.all([
           api.get<{ user: User }>('/api/auth/check'),
           api.get<UserPermissionsResponse>('/api/permissions')
@@ -91,7 +90,19 @@ export const useAuthStore = defineStore('auth', {
           navigateTo('/login')
         }
       } finally {
-        this.isChecking = false
+        // ✅ FIX: Задержка обновления флага на клиенте
+        // Это предотвращает изменение DOM во время гидратации
+        if (process.client) {
+          // Динамический импорт, чтобы избежать проблем с серверным рендерингом
+          import('vue').then(({ nextTick }) => {
+            nextTick(() => {
+              this.isChecking = false
+            })
+          })
+        } else {
+          // На сервере меняем сразу
+          this.isChecking = false
+        }
       }
     },
 
@@ -256,7 +267,7 @@ export const useAuthStore = defineStore('auth', {
     if (!rawCookie) {
       state.token = null
       state.isAuthenticated = false
-      state.isChecking = false
+      state.isChecking = true
       return
     }
     
@@ -275,7 +286,7 @@ export const useAuthStore = defineStore('auth', {
       console.log('[AuthStore] Ошибка парсинга куки')
       state.token = null
       state.isAuthenticated = false
-      state.isChecking = false
+      state.isChecking = true
     }
   }
 })

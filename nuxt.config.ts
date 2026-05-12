@@ -55,7 +55,7 @@ export default defineNuxtConfig({
   // Глобальные стили
   css: [
     './app/assets/styles/index.scss', // Основные стили
-    'animate.css/animate.min.css', // Анимации
+    './node_modules/animate.css/animate.min.css', // Анимации
   ],
 
   vite: {
