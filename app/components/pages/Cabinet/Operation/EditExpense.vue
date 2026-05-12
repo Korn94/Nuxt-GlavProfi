@@ -101,6 +101,9 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useApi } from '~/composables/useApi'
+
+const api = useApi()
 
 const props = defineProps<{
   isOpen: boolean
@@ -190,11 +193,11 @@ function selectType(type: string) {
 async function loadData() {
   try {
     const [workerRes, masterRes, foremanRes, officeRes, objs] = await Promise.all([
-      $fetch<any>('/api/contractors/worker', { credentials: 'include' }),
-      $fetch<any>('/api/contractors/master', { credentials: 'include' }),
-      $fetch<any>('/api/contractors/foreman', { credentials: 'include' }),
-      $fetch<any>('/api/contractors/office', { credentials: 'include' }),
-      $fetch<any[]>('/api/objects', { credentials: 'include' }),
+      api.get<any>('/api/contractors/worker'),
+      api.get<any>('/api/contractors/master'),
+      api.get<any>('/api/contractors/foreman'),
+      api.get<any>('/api/contractors/office'),
+      api.get<any[]>('/api/objects'),
     ])
 
     const workers = workerRes?.contractors || workerRes || []
@@ -218,7 +221,7 @@ async function loadExpenseData() {
   if (!props.expenseId) return
 
   try {
-    const expense = await $fetch<any>(`/api/expenses/${props.expenseId}`, { credentials: 'include' })
+    const expense = await api.get<any>(`/api/expenses/${props.expenseId}`)
 
     form.value = {
       amount: expense.amount,
@@ -258,11 +261,7 @@ async function submitExpense() {
 
   loading.value = true
   try {
-    const result = await $fetch(`/api/expenses/${props.expenseId}`, {
-      method: 'PUT',
-      body: { ...form.value },
-      credentials: 'include',
-    })
+    const result = await api.put(`/api/expenses/${props.expenseId}`, { ...form.value })
     emit('expense-updated', result)
     close()
   } catch (e: any) {

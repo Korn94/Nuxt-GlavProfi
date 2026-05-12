@@ -246,6 +246,9 @@
 import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
 import { useHead } from 'nuxt/app'
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { useApi } from '~/composables/useApi'
+
+const api = useApi()
 
 // ── Состояние ───────────────────────────────────────────────────────
 const isModalOpen = ref(false)
@@ -332,7 +335,7 @@ async function fetchMaterials() {
     if (maxAmount.value) params.maxAmount = maxAmount.value
     if (amountPrefix.value.trim()) params.amountPrefix = amountPrefix.value.trim()
 
-    const data = await $fetch < any[] > ('/api/materials', { method: 'GET', params, credentials: 'include' })
+    const data = await api.get<any[]>('/api/materials', { params })
     materials.value = (data || []).map(m => ({ ...m, amount: Number(m.amount) }))
   } catch (e) {
     console.error('[Материалы] Ошибка загрузки:', e)
@@ -341,7 +344,7 @@ async function fetchMaterials() {
 
 async function fetchObjects() {
   try {
-    objects.value = await $fetch < any[] > ('/api/objects', { credentials: 'include' }) || []
+    objects.value = await api.get<any[]>('/api/objects') || []
   } catch (e) {
     console.error('[Материалы] Ошибка загрузки объектов:', e)
   }
@@ -358,13 +361,9 @@ async function saveMaterial() {
 
   try {
     if (isEditing.value) {
-      await $fetch(`/api/materials/${currentMaterial.value.id}`, {
-        method: 'PUT', body: currentMaterial.value, credentials: 'include'
-      })
+      await api.put(`/api/materials/${currentMaterial.value.id}`, currentMaterial.value)
     } else {
-      const created = await $fetch < any > ('/api/materials', {
-        method: 'POST', body: currentMaterial.value, credentials: 'include'
-      })
+      const created = await api.post<any>('/api/materials', currentMaterial.value)
       materials.value.push(created)
     }
     closeModal()
@@ -389,7 +388,7 @@ function editMaterial(material: any) {
 async function deleteMaterial(id: number) {
   if (!confirm('Удалить этот материал?')) return
   try {
-    await $fetch(`/api/materials/${id}`, { method: 'DELETE', credentials: 'include' })
+    await api.delete(`/api/materials/${id}`)
     materials.value = materials.value.filter(m => m.id !== id)
   } catch (e) {
     console.error('[Материалы] Ошибка удаления:', e)
@@ -399,9 +398,7 @@ async function deleteMaterial(id: number) {
 async function toggleCheck(material: any) {
   if (material.hasReceipt) return
   try {
-    await $fetch(`/api/materials/${material.id}/toggle-check`, {
-      method: 'PATCH', body: { hasReceipt: true }, credentials: 'include'
-    })
+    await api.patch(`/api/materials/${material.id}/toggle-check`, { hasReceipt: true })
     const idx = materials.value.findIndex(m => m.id === material.id)
     if (idx !== -1) materials.value[idx].hasReceipt = true
   } catch (e) {

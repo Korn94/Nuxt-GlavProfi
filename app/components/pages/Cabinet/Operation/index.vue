@@ -47,6 +47,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useApi } from '~/composables/useApi'
+
+const api = useApi()
 
 // ── Фильтры ─────────────────────────────────────────────────────────
 const startDate = ref('')
@@ -110,7 +113,7 @@ async function loadBalance() {
   loadingBalance.value = true
   errorBalance.value = null
   try {
-    balance.value = await $fetch('/api/balance', { params: getParams() })
+    balance.value = await api.get('/api/balance', { params: getParams() })
   } catch {
     errorBalance.value = 'Не удалось загрузить баланс'
   } finally {
@@ -122,7 +125,7 @@ async function loadExpenses() {
   loadingExpenses.value = true
   errorExpenses.value = null
   try {
-    const data = await $fetch < any[] > ('/api/expenses', { params: getParams() })
+    const data = await api.get<any[]>('/api/expenses', { params: getParams() })
     expenses.value = Array.isArray(data) ? data : []
   } catch {
     errorExpenses.value = 'Не удалось загрузить расходы'
@@ -135,7 +138,7 @@ async function loadComings() {
   loadingComings.value = true
   errorComings.value = null
   try {
-    const data = await $fetch < any[] > ('/api/comings', { params: getParams() })
+    const data = await api.get<any[]>('/api/comings', { params: getParams() })
     comings.value = Array.isArray(data) ? data : []
   } catch {
     errorComings.value = 'Не удалось загрузить приходы'
@@ -146,7 +149,7 @@ async function loadComings() {
 
 async function loadExpenseStats() {
   try {
-    expenseStats.value = await $fetch < any[] > ('/api/expenses/stats', { params: getParams() }) || []
+    expenseStats.value = await api.get<any[]>('/api/expenses/stats', { params: getParams() }) || []
   } catch (e) {
     console.error('[Операции] Ошибка загрузки статистики:', e)
   }
@@ -154,7 +157,7 @@ async function loadExpenseStats() {
 
 async function loadObjectLabels() {
   try {
-    const data = await $fetch < any[] > ('/api/objects')
+    const data = await api.get<any[]>('/api/objects')
       ; (data || []).forEach(obj => { objectLabels.value[obj.id] = obj.name })
   } catch (e) {
     console.error('[Операции] Ошибка загрузки объектов:', e)

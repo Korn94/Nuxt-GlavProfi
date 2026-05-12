@@ -58,6 +58,9 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useApi } from '~/composables/useApi'
+
+const api = useApi()
 
 const props = defineProps < { isOpen: boolean } > ()
 const emit = defineEmits < { close: []; 'income-added': [result: any] } > ()
@@ -107,7 +110,7 @@ function syncAmount() {
 // ── Загрузка ────────────────────────────────────────────────────────
 async function loadData() {
   try {
-    objects.value = await $fetch < any[] > ('/api/objects') || []
+    objects.value = await api.get<any[]>('/api/objects') || []
   } catch (e) {
     console.error('[ДобавитьПриход] Ошибка загрузки объектов:', e)
   }
@@ -133,11 +136,7 @@ async function submitIncome() {
   if (!validate()) return
   loading.value = true
   try {
-    const result = await $fetch('/api/comings', {
-      method: 'POST',
-      body: { ...form.value },
-      credentials: 'include',
-    })
+    const result = await api.post('/api/comings', { ...form.value })
     emit('income-added', result)
     close()
   } catch {

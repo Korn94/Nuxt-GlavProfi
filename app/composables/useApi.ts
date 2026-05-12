@@ -65,5 +65,8 @@ export const useApi = () => {
 
     delete: <T = unknown>(url: string, opts?: FetchOpts) =>
       fetcher<T>(url, { ...opts, method: 'DELETE' as const }),
+
+    patch: <T = unknown>(url: string, body?: ApiBody, opts?: FetchOpts) =>
+      fetcher<T>(url, { ...opts, body, method: 'PATCH' as const }),
   }
 }

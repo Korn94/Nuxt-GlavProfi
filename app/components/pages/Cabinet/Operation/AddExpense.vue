@@ -97,6 +97,9 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useApi } from '~/composables/useApi'
+
+const api = useApi()
 
 const props = defineProps < { isOpen: boolean } > ()
 const emit = defineEmits < { close: []; 'expense-added': [result: any] } > ()
@@ -182,11 +185,11 @@ async function loadData() {
   try {
     // ✅ Исправлено: singular ключи для API
     const [workerRes, masterRes, foremanRes, officeRes, objs] = await Promise.all([
-      $fetch<any>('/api/contractors/worker', { credentials: 'include' }),
-      $fetch<any>('/api/contractors/master', { credentials: 'include' }),
-      $fetch<any>('/api/contractors/foreman', { credentials: 'include' }),
-      $fetch<any>('/api/contractors/office', { credentials: 'include' }),
-      $fetch<any[]>('/api/objects', { credentials: 'include' }),
+      api.get<any>('/api/contractors/worker'),
+      api.get<any>('/api/contractors/master'),
+      api.get<any>('/api/contractors/foreman'),
+      api.get<any>('/api/contractors/office'),
+      api.get<any[]>('/api/objects'),
     ])
     
     // ✅ API возвращает { contractors: [], count: N }, обрабатываем это
@@ -226,11 +229,7 @@ async function submitExpense() {
   if (!validate()) return
   loading.value = true
   try {
-    const result = await $fetch('/api/expenses', {
-      method: 'POST',
-      body: { ...form.value },
-      credentials: 'include',
-    })
+    const result = await api.post('/api/expenses', { ...form.value })
     emit('expense-added', result)
     close()
   } catch {
