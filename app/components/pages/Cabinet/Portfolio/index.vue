@@ -167,10 +167,11 @@
 <script setup lang="ts">
 import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
 import { ref, computed, onMounted } from 'vue'
+import { useApi } from '~/composables/useApi'
 
 definePageMeta({
   layout: 'cabinet',
-  middleware: 'role',
+  middleware: ['auth', 'role'],
   allowedRoles: ['admin', 'manager'],
 })
 
@@ -184,6 +185,8 @@ const searchQuery = ref('')
 // Модальное окно удаления
 const showDeleteModal = ref(false)
 const caseToDelete = ref<any>(null)
+
+const api = useApi()
 
 // Все возможные категории (как в публичной части)
 const allCategories = [
@@ -260,11 +263,11 @@ const getSizeClass = (bytes: number) => {
 // ── Загрузка размера для кейса ─────────────────────────────────
 const loadCaseSize = async (caseItem: any) => {
   try {
-    const data = await $fetch(`/api/portfolio/${caseItem.slug}/size`) as { 
+    const data = await api.get<{
       totalSize: number, 
       fileCount: number, 
       caseId: number 
-    }
+    }>(`/api/portfolio/${caseItem.slug}/size`)
     caseItem.totalSize = data.totalSize
     caseItem.fileCount = data.fileCount
   } catch (err) {
@@ -285,7 +288,7 @@ const loadAllSizes = async () => {
 const fetchCases = async () => {
   loading.value = true
   try {
-    const response = await $fetch<{ data: any[], meta: any }>('/api/portfolio', {
+    const response = await api.get<{ data: any[], meta: any }>('/api/portfolio', {
       params: { limit: 100, page: 1, admin: 'true' }
     })
     cases.value = response?.data || []
@@ -305,11 +308,7 @@ const togglePublish = async (caseItem: any) => {
     const currentStatus = caseItem.isPublished ?? caseItem.is_published ?? false
     
     // 🔥 Отправляем как JSON (по умолчанию $fetch)
-    await $fetch(`/api/portfolio/${caseItem.slug}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' }, // явное указание
-      body: { isPublished: !currentStatus }
-    })
+    await api.put(`/api/portfolio/${caseItem.slug}`, { isPublished: !currentStatus })
     
     // Обновляем локально
     caseItem.isPublished = !currentStatus
@@ -332,9 +331,7 @@ const deleteCase = async () => {
   
   deleting.value = true
   try {
-    await $fetch(`/api/portfolio/${caseToDelete.value.slug}`, {
-      method: 'DELETE'
-    })
+    await api.delete(`/api/portfolio/${caseToDelete.value.slug}`)
     // ✅ Безопасное удаление из массива
     cases.value = cases.value.filter(c => c.id !== caseToDelete.value!.id)
     showDeleteModal.value = false

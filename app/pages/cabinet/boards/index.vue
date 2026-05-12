@@ -12,7 +12,7 @@ import BoardsIndex from '~/components/pages/cabinet/Boards/index.vue'
 // Мета-данные страницы
 definePageMeta({
   layout: 'cabinet',
-  middleware: 'role',
+  middleware: ['auth', 'role'],
   allowedRoles: ['admin', 'manager', 'foreman', 'master', 'worker'],
   title: 'Доски задач',
   description: 'Управление досками задач и папками'

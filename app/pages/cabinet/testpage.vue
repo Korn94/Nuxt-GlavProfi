@@ -220,7 +220,11 @@ import { socketService } from 'services/socket.service'
 import { useCookie } from 'nuxt/app'
 import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
 
-definePageMeta({ layout: 'cabinet', middleware: ['require-auth'] })
+definePageMeta({
+  layout: 'cabinet',
+  middleware: ['auth', 'role'],
+  allowedRoles: ['admin'] 
+})
 
 // ── Stores ──────────────────────────────────────────────────────────
 const authStore = useAuthStore()

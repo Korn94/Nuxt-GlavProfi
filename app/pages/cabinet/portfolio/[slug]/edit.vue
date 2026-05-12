@@ -166,8 +166,8 @@ import Seo from '~/components/pages/public/projects/create/Seo.vue'
 
 definePageMeta({
   layout: 'cabinet',
-  middleware: 'role',
-  allowedRoles: ['admin', 'manager'] // 🔥 Добавлен manager
+  middleware: ['auth', 'role'],
+  allowedRoles: ['admin', 'manager']
 })
 
 useHead({

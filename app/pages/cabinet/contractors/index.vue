@@ -172,8 +172,8 @@ const api = useApi() // 👈 Инициализация
 
 definePageMeta({
   layout: 'cabinet',
-  middleware: 'role',
-  allowedRoles: ['admin'],
+  middleware: ['auth', 'role'],
+  allowedRoles: ['admin'] 
 })
 
 

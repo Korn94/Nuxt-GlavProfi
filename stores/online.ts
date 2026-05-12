@@ -12,6 +12,7 @@
 import { defineStore } from 'pinia'
 import { socketService } from 'services/socket.service'
 import type { OnlineUser } from '~/types'
+import { useApi } from '~/composables/useApi'
 
 /**
  * Интерфейс состояния store
@@ -125,7 +126,8 @@ export const useOnlineStore = defineStore('online', {
       try {
         console.log('[OnlineStore] 📥 Загрузка списка онлайн-пользователей...')
 
-        const response = await $fetch<{
+        const api = useApi()
+        const response = await api.get<{
           users: OnlineUser[],
           total: number,
           online: number,

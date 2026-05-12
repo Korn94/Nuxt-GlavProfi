@@ -100,7 +100,7 @@ import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
 // 🛡️ Middleware: доступ только авторизованным админам
 definePageMeta({
   layout: 'cabinet',
-  middleware: ['require-auth', 'role']
+  middleware: ['auth', 'role']
 })
 
 const usersStore = useUsersStore()

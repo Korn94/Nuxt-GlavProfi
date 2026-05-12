@@ -455,7 +455,7 @@ onMounted(() => Promise.all([fetchMaterials(), fetchObjects()]))
 // ── Мета ─────────────────────────────────────────────────────────────
 definePageMeta({
   layout: 'cabinet',
-  middleware: 'role',
+  middleware: ['auth', 'role'],
   allowedRoles: ['admin']
 })
 

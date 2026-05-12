@@ -159,8 +159,8 @@ const api = useApi() // 👈 Инициализация
 
 definePageMeta({
   layout: 'cabinet',
-  middleware: 'role',
-  allowedRoles: ['admin'],
+  middleware: ['auth', 'role'],
+  allowedRoles: ['admin'] 
 })
 
 useHead({ title: 'CRM — Объекты', meta: [{ name: 'robots', content: 'noindex, nofollow' }] })

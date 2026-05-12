@@ -5,7 +5,7 @@
 <script setup>
 definePageMeta({
   layout: 'cabinet',
-  middleware: 'role',
+  middleware: ['auth', 'role'],
   allowedRoles: ['admin', 'manager']
 })
 

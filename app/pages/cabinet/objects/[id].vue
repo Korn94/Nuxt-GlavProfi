@@ -182,8 +182,8 @@ import { useRoute, useRouter } from 'vue-router'
 // ── Мета ─────────────────────────────────────────────────────────────
 definePageMeta({
   layout: 'cabinet',
-  middleware: 'role',
-  allowedRoles: ['admin']
+  middleware: ['auth', 'role'],
+  allowedRoles: ['admin'] 
 })
 
 // ── Route ─────────────────────────────────────────────────────────────

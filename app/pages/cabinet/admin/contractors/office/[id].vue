@@ -31,7 +31,7 @@ const error = ref(null)
 
 definePageMeta({
   layout: 'cabinet',
-  middleware: 'role',
+  middleware: ['auth', 'role'],
   allowedRoles: ['admin']
 });
 

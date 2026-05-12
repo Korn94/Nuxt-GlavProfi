@@ -120,7 +120,11 @@ import DailyAssignmentSheet from '~/components/pages/cabinet/DailyWork/DailyAssi
 import BulkSelectionHint from '~/components/pages/cabinet/DailyWork/BulkSelectionHint.vue'
 import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
 
-definePageMeta({ layout: 'cabinet', middleware: 'role', allowedRoles: ['admin', 'foreman'] })
+definePageMeta({
+  layout: 'cabinet',
+  middleware: ['auth', 'role'],
+  allowedRoles: ['admin', 'foreman'] 
+})
 
 const store = useForemanDailyStore()
 const { formatCurrency } = useDailyAssignment()

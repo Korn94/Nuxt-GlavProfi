@@ -86,7 +86,7 @@ const showUserSelect = computed(() => {
 
 definePageMeta({
   layout: "cabinet",
-  middleware: 'role',
+  middleware: ['auth', 'role'],
   allowedRoles: ['admin']
 });
 

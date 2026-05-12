@@ -53,7 +53,7 @@ import { CONTRACTOR_TYPES } from '~/types/contractors'
 // ── Meta ───────────────────────────────────────────────────────────
 definePageMeta({
   layout: 'cabinet',
-  middleware: ['require-auth']
+  middleware: ['auth', 'role']
 })
 
 // ── Маршруто ───────────────────────────────────────────────────────
