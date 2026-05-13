@@ -80,7 +80,7 @@ export default defineNuxtConfig({
     },
     build: {
       rollupOptions: {
-        external: ['buffer', 'stream', 'url'],
+        external: ['stream', 'url'],
       },
     },
     plugins: [
