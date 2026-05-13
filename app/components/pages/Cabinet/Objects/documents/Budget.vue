@@ -135,6 +135,7 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick } from 'vue'
+import { useApi } from '~/composables/useApi'
 
 const props = defineProps < {
   objectId: number
@@ -142,6 +143,7 @@ const props = defineProps < {
   objectIncome: number
 } > ()
 
+const api = useApi()
 const items = ref < any[] > ([])
 const isModalOpen = ref(false)
 const editingItem = ref < any > (null)
@@ -165,7 +167,7 @@ function formatCurrency(v: any) {
 
 async function loadBudget() {
   try {
-    const data = await $fetch < any[] > (`/api/objects/${props.objectId}/budget`)
+        const data = await api.get<any[]>(`/api/objects/${props.objectId}/budget`)
     items.value = (data || []).map(i => ({ ...i, amount: parseFloat(i.amount) || 0 }))
   } catch (e) { console.error('[Смета] Ошибка загрузки:', e) }
 }
@@ -184,22 +186,14 @@ async function save() {
 
   try {
     if (editingItem.value) {
-      const updated = await $fetch < any > (`/api/objects/budget/${editingItem.value.id}`, {
-        method: 'PUT', body: { name, amount, comment }, credentials: 'include'
-      })
+      const updated = await api.put<any>(`/api/objects/budget/${editingItem.value.id}`, { name, amount, comment })
       if (workProgress !== editingItem.value.workProgress || actStatus !== editingItem.value.actStatus) {
-        await $fetch(`/api/objects/budget/${editingItem.value.id}/status`, {
-          method: 'PUT', body: { workProgress, actStatus }, credentials: 'include'
-        })
+        await api.put(`/api/objects/budget/${editingItem.value.id}/status`, { workProgress, actStatus })
       }
       const idx = items.value.findIndex(i => i.id === editingItem.value.id)
       if (idx !== -1) items.value.splice(idx, 1, { ...updated, workProgress, actStatus })
     } else {
-      const created = await $fetch < any > (`/api/objects/${props.objectId}/budget`, {
-        method: 'POST',
-        body: { name, amount, comment, workProgress, actStatus, order: items.value.length },
-        credentials: 'include'
-      })
+      const created = await api.post<any>(`/api/objects/${props.objectId}/budget`, { name, amount, comment, workProgress, actStatus, order: items.value.length })
       items.value.push(created)
     }
     isModalOpen.value = false
@@ -212,7 +206,7 @@ function confirmDelete(id: number) {
 
 async function deleteItem(id: number) {
   try {
-    await $fetch(`/api/objects/budget/${id}`, { method: 'DELETE', credentials: 'include' })
+    await api.delete(`/api/objects/budget/${id}`)
     items.value = items.value.filter(i => i.id !== id)
   } catch (e) { console.error('[Смета] Ошибка удаления:', e) }
 }

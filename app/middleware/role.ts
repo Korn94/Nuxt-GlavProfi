@@ -36,7 +36,9 @@ export default defineNuxtRouteMiddleware((to: RouteLocationNormalized) => {
     // Повреждённая или старая кука → удаляем её для очистки
     console.log('[Middleware/Role] Старая или повреждённая кука удалена')
     useCookie('auth_token').value = null
-    return navigateTo('/login')
+    // Важно: не делаем navigateTo здесь, чтобы избежать бесконечного цикла
+    // auth middleware сам перенаправит на /login
+    return
   }
 
   // ============================================

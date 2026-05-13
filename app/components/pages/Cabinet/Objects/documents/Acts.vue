@@ -92,6 +92,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { useApi } from '~/composables/useApi'
 
 const props = defineProps < {
   objectId: number
@@ -101,6 +102,7 @@ const props = defineProps < {
 
 const emit = defineEmits < { refresh: [] } > ()
 
+const api = useApi()
 const localItems = ref < any[] > (props.items || [])
 const isModalOpen = ref(false)
 const editing = ref < any > (null)
@@ -129,13 +131,9 @@ async function save() {
   if (!name || amount == null || Number(amount) < 0) { alert('Введите корректные название и сумму'); return }
   try {
     if (editing.value) {
-      await $fetch(`/api/objects/acts/${editing.value.id}`, {
-        method: 'PUT', body: { name, amount, comment, status }
-      })
+      await api.put(`/api/objects/acts/${editing.value.id}`, { name, amount, comment, status })
     } else {
-      await $fetch(`/api/objects/${props.objectId}/acts`, {
-        method: 'POST', body: { name, amount, comment, status }
-      })
+      await api.post(`/api/objects/${props.objectId}/acts`, { name, amount, comment, status })
     }
     isModalOpen.value = false
     emit('refresh')
@@ -148,7 +146,7 @@ function confirmDelete(id: number) {
 
 async function deleteItem(id: number) {
   try {
-    await $fetch(`/api/objects/acts/${id}`, { method: 'DELETE' })
+    await api.delete(`/api/objects/acts/${id}`)
     emit('refresh')
   } catch { alert('Не удалось удалить акт') }
 }

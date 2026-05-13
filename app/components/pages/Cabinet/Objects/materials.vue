@@ -176,6 +176,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
+import { useApi } from '~/composables/useApi'
 
 const props = defineProps<{
   materials: any[]
@@ -189,6 +190,7 @@ const emit = defineEmits<{
 }>()
 
 const route = useRoute()
+const api = useApi()
 
 // ── Фильтры ──────────────────────────────────────────────────────────
 const filterType = ref('')
@@ -268,7 +270,7 @@ async function fetchMaterials() {
     if (startDate.value) params.startDate = startDate.value
     if (endDate.value) params.endDate = endDate.value
 
-    const data = await $fetch<any[]>('/api/materials', { params, credentials: 'include' })
+    const data = await api.get<any[]>('/api/materials', { params })
     localMaterials.value = (data || []).map(m => ({ ...m, amount: Number(m.amount) }))
   } catch (e) {
     console.error('[Материалы] Ошибка загрузки:', e)
@@ -285,16 +287,12 @@ async function saveMaterial() {
 
   try {
     if (isEditing.value) {
-      const updated = await $fetch<any>(`/api/materials/${currentMaterial.value.id}`, {
-        method: 'PUT', body: currentMaterial.value, credentials: 'include'
-      })
+      const updated = await api.put<any>(`/api/materials/${currentMaterial.value.id}`, currentMaterial.value)
       const idx = localMaterials.value.findIndex(m => m.id === updated.id)
       if (idx !== -1) localMaterials.value.splice(idx, 1, { ...updated, amount: Number(updated.amount) })
       emit('update', updated)
     } else {
-      const created = await $fetch<any>('/api/materials', {
-        method: 'POST', body: currentMaterial.value, credentials: 'include'
-      })
+      const created = await api.post<any>('/api/materials', currentMaterial.value)
       localMaterials.value.push({ ...created, amount: Number(created.amount) })
       emit('add', created)
     }
@@ -319,7 +317,7 @@ function editMaterial(m: any) {
 async function deleteMaterial(id: number) {
   if (!confirm('Удалить этот материал?')) return
   try {
-    await $fetch(`/api/materials/${id}`, { method: 'DELETE', credentials: 'include' })
+    await api.delete(`/api/materials/${id}`)
     localMaterials.value = localMaterials.value.filter(m => m.id !== id)
     emit('delete', id)
   } catch (e) {
@@ -330,9 +328,7 @@ async function deleteMaterial(id: number) {
 async function toggleCheck(m: any) {
   if (m.hasReceipt) return
   try {
-    await $fetch(`/api/materials/${m.id}/toggle-check`, {
-      method: 'PATCH', body: { hasReceipt: true }, credentials: 'include'
-    })
+    await api.patch(`/api/materials/${m.id}/toggle-check`, { hasReceipt: true })
     const item = localMaterials.value.find(x => x.id === m.id)
     if (item) item.hasReceipt = true
   } catch (e) {

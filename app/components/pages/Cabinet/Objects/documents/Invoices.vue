@@ -110,6 +110,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { useApi } from '~/composables/useApi'
 
 const props = defineProps < {
   objectId: number
@@ -117,6 +118,7 @@ const props = defineProps < {
   isAdmin: boolean
 } > ()
 
+const api = useApi()
 const emit = defineEmits < {
   add: [item: any]
   update: [item: any]
@@ -156,16 +158,12 @@ async function save() {
   try {
     let result: any
     if (editing.value) {
-      result = await $fetch < any > (`/api/objects/invoices/${editing.value.id}`, {
-        method: 'PUT', body: { name, amount, comment, subtype }, credentials: 'include'
-      })
+      result = await api.put<any>(`/api/objects/invoices/${editing.value.id}`, { name, amount, comment, subtype })
       const idx = localItems.value.findIndex(i => i.id === editing.value.id)
       if (idx !== -1) localItems.value.splice(idx, 1, result)
       emit('update', result)
     } else {
-      result = await $fetch < any > (`/api/objects/${props.objectId}/invoices`, {
-        method: 'POST', body: { name, amount, comment, subtype }, credentials: 'include'
-      })
+      result = await api.post<any>(`/api/objects/${props.objectId}/invoices`, { name, amount, comment, subtype })
       localItems.value.push(result)
       emit('add', result)
     }
@@ -175,9 +173,7 @@ async function save() {
 
 async function setStatus(item: any, newStatus: string) {
   try {
-    const updated = await $fetch < any > (`/api/objects/invoices/${item.id}`, {
-      method: 'PUT', body: { status: newStatus }, credentials: 'include'
-    })
+    const updated = await api.put<any>(`/api/objects/invoices/${item.id}`, { status: newStatus })
     const idx = localItems.value.findIndex(i => i.id === item.id)
     if (idx !== -1) localItems.value.splice(idx, 1, updated)
     emit('update', updated)
@@ -190,7 +186,7 @@ function confirmDelete(id: number) {
 
 async function deleteItem(id: number) {
   try {
-    await $fetch(`/api/objects/invoices/${id}`, { method: 'DELETE', credentials: 'include' })
+   await api.delete(`/api/objects/invoices/${id}`)
     localItems.value = localItems.value.filter(i => i.id !== id)
     emit('delete', id)
   } catch { alert('Не удалось удалить счёт') }
