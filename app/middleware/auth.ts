@@ -15,7 +15,13 @@ function hasValidAuthCookie(): boolean {
     return !!(parsed.token && parsed.userId)
   } catch {
     // Старый формат: простая строка JWT (длина > 20 символов)
-    return raw.length > 20
+    // Если это не строка токена — удаляем куку как невалидную
+    if (raw.length <= 20) {
+      console.log('[Middleware/Auth] Старая или невалидная кука удалена')
+      useCookie('auth_token').value = null
+      return false
+    }
+    return true
   }
 }
 

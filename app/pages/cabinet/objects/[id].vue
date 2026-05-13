@@ -178,6 +178,7 @@ import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
 import { useHead } from 'nuxt/app'
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useApi } from '~/composables/useApi'
 
 // ── Мета ─────────────────────────────────────────────────────────────
 definePageMeta({
@@ -189,6 +190,7 @@ definePageMeta({
 // ── Route ─────────────────────────────────────────────────────────────
 const route = useRoute()
 const router = useRouter()
+const api = useApi()
 const objectId = Number(route.params.id)
 
 if (isNaN(objectId)) {
@@ -252,7 +254,7 @@ const formatCurrency = (v: any) =>
 // ── API ───────────────────────────────────────────────────────────────
 async function fetchFullObject() {
   try {
-    const data = await $fetch < any > (`/api/objects/${objectId}/full`, { credentials: 'include' })
+    const data = await api.get<any>(`/api/objects/${objectId}/full`)
     object.value = {
       ...data,
       finances: {
@@ -269,9 +271,7 @@ async function fetchFullObject() {
 
 async function fetchMaterials() {
   try {
-    const data = await $fetch < any[] > ('/api/materials', {
-      params: { objectId }, credentials: 'include'
-    })
+    const data = await api.get<any[]>('/api/materials', { params: { objectId } })
     materials.value = (data || []).map(m => ({ ...m, amount: Number(m.amount || 0) }))
   } catch (e) {
     console.error('[Объект] Ошибка загрузки материалов:', e)
@@ -280,7 +280,7 @@ async function fetchMaterials() {
 
 async function fetchOperations() {
   try {
-    const data = await $fetch < any > (`/api/objects/${objectId}/operations`, { credentials: 'include' })
+    const data = await api.get<any>(`/api/objects/${objectId}/operations`)
     operations.value = [
       ...(data.comings || []).map((op: any) => ({ ...op, type: 'coming', amount: Number(op.amount) })),
       ...(data.works || []).map((op: any) => ({ ...op, type: 'work', amount: Number(op.amount) })),
@@ -319,7 +319,7 @@ function handleWorkDeleted(id: number) {
 // ── Lifecycle ─────────────────────────────────────────────────────────
 onMounted(async () => {
   try {
-    const me = await $fetch < any > ('/api/me')
+    const me = await api.get<any>('/api/me')
     isAdmin.value = me?.user?.role === 'admin'
   } catch { isAdmin.value = false }
   await refreshObjectData()

@@ -275,6 +275,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { useApi } from '~/composables/useApi'
 
 const props = defineProps < {
   objectId: number
@@ -289,6 +290,7 @@ const emit = defineEmits < {
 } > ()
 
 const route = useRoute()
+const api = useApi()
 
 // ── Данные ───────────────────────────────────────────────────────────
 const comings = ref < any[] > ([])
@@ -396,7 +398,7 @@ function syncWorkAmount() { const n = parseNumber(localWorkValue.value); if (!is
 // ── Загрузка ─────────────────────────────────────────────────────────
 async function fetchOperations() {
   try {
-    const data = await $fetch < any > (`/api/objects/${props.objectId}/operations`, { credentials: 'include' })
+    const data = await api.get<any>(`/api/objects/${props.objectId}/operations`)
     comings.value = (data.comings || []).map((op: any) => ({ ...op, amount: Number(op.amount) }))
     works.value = (data.works || []).map((op: any) => ({
       ...op,
@@ -419,8 +421,8 @@ async function fetchContractors() {
   try {
     // ✅ Исправлено: singular ключи для API
     const [mastersResponse, workersResponse] = await Promise.all([
-      $fetch<any>('/api/contractors/master', { credentials: 'include' }),
-      $fetch<any>('/api/contractors/worker', { credentials: 'include' }),
+      api.get<any>('/api/contractors/master'),
+      api.get<any>('/api/contractors/worker'),
     ])
     
     // ✅ API возвращает { contractors: [], count: N }, обрабатываем это
@@ -439,7 +441,7 @@ async function fetchContractors() {
 async function fetchForemans() {
   try {
     // ✅ Исправлено: singular ключ
-    const response = await $fetch<any>('/api/contractors/foreman', { credentials: 'include' })
+    const response = await api.get<any>('/api/contractors/foreman')
     // ✅ Обрабатываем ответ { contractors: [] } или прямой массив
     foremans.value = response?.contractors || response || []
   } catch (e) {

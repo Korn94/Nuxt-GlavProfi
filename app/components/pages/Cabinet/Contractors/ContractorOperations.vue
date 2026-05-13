@@ -22,17 +22,26 @@
     <!-- ═══════════════════════════ FILTERS ════════════════════════════ -->
     <div class="contractor-operations__filters">
       <div class="filter-group">
-        <label class="filter-label">Тип операций</label>
-        <select v-model="selectedSection" class="filter-select">
-          <option value="all">Все операции</option>
-          <option value="balance">Взаиморасчёты (Работа)</option>
-          <option value="additional">Дополнительные (ЗП, Топливо)</option>
-        </select>
+        <label class="filter-label">С</label>
+        <input
+          v-model="dateFrom"
+          type="date"
+          class="filter-date"
+          :max="dateTo || undefined"
+        />
       </div>
-
+      <div class="filter-group">
+        <label class="filter-label">По</label>
+        <input
+          v-model="dateTo"
+          type="date"
+          class="filter-date"
+          :min="dateFrom || undefined"
+        />
+      </div>
       <div class="filter-group">
         <label class="filter-label">Период</label>
-        <select v-model="selectedPeriod" class="filter-select">
+        <select v-model="selectedPeriodPreset" class="filter-select">
           <option value="">Все время</option>
           <option value="week">Неделя</option>
           <option value="month">Месяц</option>
@@ -65,8 +74,8 @@
       </button>
     </div>
 
-    <!-- Пусто -->
-    <div v-else-if="filteredOperations.length === 0 && filteredAdditional.length === 0" class="contractor-operations__empty">
+    <!-- Пусто (если обе секции пустые) -->
+    <div v-else-if="operations.length === 0 && additionalOperations.length === 0" class="contractor-operations__empty">
       <Icon name="mdi:inbox-outline" size="28" />
       <span>Нет операций</span>
     </div>
@@ -78,6 +87,13 @@
           <Icon name="mdi:handshake" size="16" />
           Взаиморасчёты (влияет на баланс)
         </h4>
+        <div class="operations-section__filters">
+          <select v-model="selectedBalanceFilter" class="filter-select filter-select--sm">
+            <option value="all">Все типы</option>
+            <option value="payment">Оплата</option>
+            <option value="accepted">Работа принята</option>
+          </select>
+        </div>
         <span class="operations-section__count">{{ filteredOperations.length }}</span>
       </div>
 
@@ -276,37 +292,84 @@ const additionalOperations = ref<Operation[]>([]) // Доп. история (З�
 const loading = ref(false)
 const error = ref<string | null>(null)
 
-const selectedSection = ref<'all' | 'balance' | 'additional'>('all')
-const selectedPeriod = ref('')
+const selectedPeriodPreset = ref('')
+const dateFrom = ref('')
+const dateTo = ref('')
+const selectedBalanceFilter = ref<'all' | 'payment' | 'accepted'>('all')
 
 // ── Computed ───────────────────────────────────────────────────────
+// Вспомогательная функция для получения диапазона дат
+function getDateRange() {
+  // Сначала проверяем явные даты (они всегда приоритетнее)
+  const explicitFrom = dateFrom.value ? new Date(dateFrom.value) : null
+  const explicitTo = dateTo.value ? new Date(dateTo.value) : null
+
+  if (explicitFrom || explicitTo) {
+    const from = explicitFrom
+    const to = explicitTo
+    // Если указана только дата окончания, добавляем время до конца дня
+    if (to && !explicitFrom) {
+      to.setHours(23, 59, 59, 999)
+    }
+    return { from, to }
+  }
+
+  // Если явных дат нет, используем пресет
+  if (!selectedPeriodPreset.value) {
+    return { from: null, to: null }
+  }
+
+  const now = new Date()
+  const filterDate = new Date()
+
+  switch (selectedPeriodPreset.value) {
+    case 'week':
+      filterDate.setDate(now.getDate() - 7)
+      break
+    case 'month':
+      filterDate.setMonth(now.getMonth() - 1)
+      break
+    case 'quarter':
+      filterDate.setMonth(now.getMonth() - 3)
+      break
+    case 'year':
+      filterDate.setFullYear(now.getFullYear() - 1)
+      break
+  }
+
+  return { from: filterDate, to: null }
+}
+
 const filteredOperations = computed(() => {
-  let filtered = operations.value
+  let filtered = [...operations.value]
+
+  // Фильтр по типу операции в разделе "Взаиморасчёты"
+  if (selectedBalanceFilter.value !== 'all') {
+    filtered = filtered.filter(op => {
+      if (selectedBalanceFilter.value === 'payment') {
+        return op.type === 'expense' // Оплата
+      } else if (selectedBalanceFilter.value === 'accepted') {
+        return op.type === 'income' // Работа принята
+      }
+      return true
+    })
+  }
 
   // Фильтр по периоду
-  if (selectedPeriod.value) {
-    const now = new Date()
-    const filterDate = new Date()
-
-    switch (selectedPeriod.value) {
-      case 'week':
-        filterDate.setDate(now.getDate() - 7)
-        break
-      case 'month':
-        filterDate.setMonth(now.getMonth() - 1)
-        break
-      case 'quarter':
-        filterDate.setMonth(now.getMonth() - 3)
-        break
-      case 'year':
-        filterDate.setFullYear(now.getFullYear() - 1)
-        break
-    }
-
-    // ✅ Добавляем проверку на наличие даты
+  const { from, to } = getDateRange()
+  if (from) {
     filtered = filtered.filter(op => {
-      if (!op.date) return false // Пропускаем операции без даты
-      return new Date(op.date) >= filterDate
+      if (!op.date) return false
+      const opDate = new Date(op.date)
+      if (to) {
+        return opDate >= from && opDate <= to
+      }
+      return opDate >= from
+    })
+  } else if (to) {
+    filtered = filtered.filter(op => {
+      if (!op.date) return false
+      return new Date(op.date) <= to
     })
   }
 
@@ -319,32 +382,23 @@ const filteredOperations = computed(() => {
 })
 
 const filteredAdditional = computed(() => {
-  let filtered = additionalOperations.value
+  let filtered = [...additionalOperations.value]
 
   // Фильтр по периоду
-  if (selectedPeriod.value) {
-    const now = new Date()
-    const filterDate = new Date()
-
-    switch (selectedPeriod.value) {
-      case 'week':
-        filterDate.setDate(now.getDate() - 7)
-        break
-      case 'month':
-        filterDate.setMonth(now.getMonth() - 1)
-        break
-      case 'quarter':
-        filterDate.setMonth(now.getMonth() - 3)
-        break
-      case 'year':
-        filterDate.setFullYear(now.getFullYear() - 1)
-        break
-    }
-
-    // ✅ Добавляем проверку на наличие даты
+  const { from, to } = getDateRange()
+  if (from) {
     filtered = filtered.filter(op => {
       if (!op.date) return false
-      return new Date(op.date) >= filterDate
+      const opDate = new Date(op.date)
+      if (to) {
+        return opDate >= from && opDate <= to
+      }
+      return opDate >= from
+    })
+  } else if (to) {
+    filtered = filtered.filter(op => {
+      if (!op.date) return false
+      return new Date(op.date) <= to
     })
   }
 
@@ -356,14 +410,9 @@ const filteredAdditional = computed(() => {
   })
 })
 
-// Показывать секции в зависимости от фильтра
-const showBalanceSection = computed(() => {
-  return selectedSection.value === 'all' || selectedSection.value === 'balance'
-})
-
-const showAdditionalSection = computed(() => {
-  return selectedSection.value === 'all' || selectedSection.value === 'additional'
-})
+// Показывать секции (теперь всегда показываем обе секции)
+const showBalanceSection = computed(() => true)
+const showAdditionalSection = computed(() => true)
 
 // Итого по взаиморасчётам
 const totalExpenses = computed(() => {
@@ -609,6 +658,34 @@ onMounted(() => {
   color-scheme: dark;
 }
 
+.filter-select--sm {
+  padding: 3px 6px;
+  font-size: var(--crm-text-xxs);
+}
+
+.filter-date {
+  background: var(--crm-bg-elevated);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-md);
+  color: var(--crm-text-primary);
+  font-size: var(--crm-text-xs);
+  padding: 5px 8px;
+  outline: none;
+  cursor: pointer;
+  transition: var(--crm-transition);
+
+  &:focus {
+    border-color: var(--crm-accent);
+  }
+
+  color-scheme: dark;
+
+  &::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    cursor: pointer;
+  }
+}
+
 // ── Секции операций ────────────────────────────────────────────────
 .operations-section {
   border-top: 1px solid var(--crm-border);
@@ -624,6 +701,14 @@ onMounted(() => {
     padding: 12px 16px;
     background: var(--crm-bg-overlay);
     border-bottom: 1px solid var(--crm-border);
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  &__filters {
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
   &__title {
@@ -1047,6 +1132,15 @@ onMounted(() => {
 
   .operations-summary {
     gap: 12px;
+  }
+
+  .filter-group {
+    flex-basis: 100%;
+  }
+
+  .filter-date {
+    flex-grow: 1;
+    min-width: 0;
   }
 }
 </style>

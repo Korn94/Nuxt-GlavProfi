@@ -33,8 +33,9 @@ export default defineNuxtRouteMiddleware((to: RouteLocationNormalized) => {
     const parsed = JSON.parse(rawCookie)
     userRole = parsed.role as Role || null
   } catch {
-    // Повреждённая кука → безопасный редирект на логин
-    console.log('[Middleware/Role] Кука повреждена, требуется повторный вход')
+    // Повреждённая или старая кука → удаляем её для очистки
+    console.log('[Middleware/Role] Старая или повреждённая кука удалена')
+    useCookie('auth_token').value = null
     return navigateTo('/login')
   }
 
