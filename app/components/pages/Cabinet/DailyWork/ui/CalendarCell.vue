@@ -15,9 +15,9 @@
     <!-- ✅ Индикатор сдвигаем выше по z-index, чтобы он был поверх выделения -->
     <div v-if="assignments.length === 0" class="daily-cell__placeholder" />
     <div v-else class="daily-cell__indicator" :style="indicatorStyle" />
-    <span v-if="assignments.length > 1" class="daily-cell__count">
+    <!-- <span v-if="assignments.length > 1" class="daily-cell__count">
       {{ assignments.length }}
-    </span>
+    </span> -->
   </div>
 </template>
 
@@ -51,8 +51,12 @@ function getObjectColor(objectId: number): string {
 
 const indicatorStyle = computed(() => {
   if (props.assignments.length === 0) return {}
+
+  // Сортируем назначения по objectId для консистентного отображения цветов
+  const sortedAssignments = [...props.assignments].sort((a, b) => a.objectId - b.objectId)
+
   let cumulative = 0
-  const segments = props.assignments.map(a => {
+  const segments = sortedAssignments.map(a => {
     const color = getObjectColor(a.objectId)
     const from = cumulative
     cumulative += a.percentage

@@ -10,10 +10,9 @@
 import { defineEventHandler, getQuery, createError } from 'h3'
 import { db } from '../../../db'
 import { works, objects } from '../../../db/schema'
-import { and, eq, gte, lte } from 'drizzle-orm'
+import { and, eq, gte, lte, isNotNull } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
-  // ✅ Авторизация и права уже проверены мидлваром
   const query = getQuery(event)
 
   const workerId = Number(query.workerId)
@@ -43,21 +42,54 @@ export default defineEventHandler(async (event) => {
         eq(works.contractorId, workerId),
         eq(works.contractorType, contractorType),
         eq(works.workSource, 'daily'),
+        isNotNull(works.operationDate), // 🔹 Фильтруем записи без даты
         gte(works.operationDate, new Date(from)),
         lte(works.operationDate, new Date(to + 'T23:59:59'))
       )
     )
     .orderBy(works.operationDate)
 
-  return result.map(r => ({
-    id: r.id,
-    workerId: r.workerId,
-    contractorType: r.contractorType as 'worker' | 'master',
-    date: r.operationDate ? r.operationDate.toISOString().split('T')[0] : '',
-    objectId: r.objectId,
-    objectName: r.objectName || 'Неизвестный объект',
-    amount: Number(r.amount) || 0,
-    percentage: 100,
-    workSource: r.workSource as 'daily' | 'volume'
-  }))
+  // 🔹 Вспомогательная функция для безопасного получения даты
+  function getDateKey(date: Date | null): string {
+    if (!date) return ''
+    return date.toISOString().split('T')[0] ?? ''
+  }
+
+  // Группируем по дате для расчета процентов
+  const groupedByDate = new Map<string, typeof result>()
+  
+  for (const r of result) {
+    const dateKey = getDateKey(r.operationDate)
+    if (!dateKey) continue // 🔹 Пропускаем записи без валидной даты
+    
+    if (!groupedByDate.has(dateKey)) {
+      groupedByDate.set(dateKey, [])
+    }
+    const group = groupedByDate.get(dateKey)
+    if (group) {
+      group.push(r)
+    }
+  }
+
+  // Рассчитываем percentage для каждой записи
+  return result.map(r => {
+    const dateKey = getDateKey(r.operationDate)
+    const recordsOnDate = groupedByDate.get(dateKey) ?? []
+    const totalAmount = recordsOnDate.reduce((sum, rec) => sum + Number(rec.amount ?? 0), 0)
+    const percentage = totalAmount > 0
+      ? Math.round((Number(r.amount ?? 0) / totalAmount) * 100)
+      : 100
+
+    return {
+      id: r.id,
+      workerId: r.workerId,
+      contractorType: r.contractorType as 'worker' | 'master',
+      date: dateKey,
+      objectId: r.objectId,
+      objectName: r.objectName || 'Неизвестный объект',
+      amount: Number(r.amount ?? 0),
+      percentage,
+      workSource: r.workSource as 'daily' | 'volume'
+    }
+  })
 })

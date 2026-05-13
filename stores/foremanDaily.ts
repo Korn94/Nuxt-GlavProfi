@@ -99,7 +99,11 @@ export const useForemanDailyStore = defineStore('foremanDaily', () => {
         grouped.get(key)!.push(assignment)
       })
       
-      grouped.forEach((vals, key) => assignments.value.set(key, vals))
+      grouped.forEach((vals, key) => {
+        // Сортируем по objectId для консистентного отображения цветов
+        vals.sort((a, b) => a.objectId - b.objectId)
+        assignments.value.set(key, vals)
+      })
       console.log(`[Store:foremanDaily] Кэшировано ${grouped.size} дней назначений`)
     } catch (e: any) {
       console.error('[Store:foremanDaily] Ошибка загрузки назначений:', e)
@@ -136,6 +140,8 @@ export const useForemanDailyStore = defineStore('foremanDaily', () => {
         current.push(newEntry)
       }
 
+      // Сортируем по objectId для консистентного отображения цветов
+      current.sort((a, b) => a.objectId - b.objectId)
       assignments.value.set(key, current)
       console.log('[Store:foremanDaily] Назначение успешно сохранено')
       return res
@@ -159,6 +165,8 @@ export const useForemanDailyStore = defineStore('foremanDaily', () => {
           return a.id !== id
         })
         if (filtered.length > 0) {
+          // Сортируем по objectId для консистентного отображения цветов
+          filtered.sort((a, b) => a.objectId - b.objectId)
           updatedMap.set(key, filtered)
         }
       })
@@ -208,6 +216,8 @@ export const useForemanDailyStore = defineStore('foremanDaily', () => {
           }
         })
         
+        // Сортируем по objectId для консистентного отображения цветов
+        newAssignments.sort((a, b) => a.objectId - b.objectId)
         assignments.value.set(key, newAssignments)
       })
 
