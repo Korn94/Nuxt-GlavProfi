@@ -44,7 +44,7 @@
               <Icon name="solar:user-rounded-outline" size="16" class="info-row__icon" />
               <div class="info-row__body">
                 <span class="info-row__label">Прораб</span>
-                <span class="info-row__value">{{ object.foreman?.name || 'Не назначен' }}</span>
+                <span class="info-row__value">{{ object.foreman && typeof object.foreman === 'object' ? object.foreman.name : 'Не назначен' }}</span>
               </div>
             </div>
             <div class="info-row">

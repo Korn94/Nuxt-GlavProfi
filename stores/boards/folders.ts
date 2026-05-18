@@ -1,6 +1,7 @@
 // stores/boards/folders.ts
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { useApi } from '~/composables/useApi'
 import type { BoardFolder, CreateBoardFolderData, UpdateBoardFolderData } from '~/types/boards'
 
 export const useBoardFoldersStore = defineStore('boardFolders', () => {
@@ -52,9 +53,8 @@ export const useBoardFoldersStore = defineStore('boardFolders', () => {
     loading.value = true
     error.value = null
     try {
-      const response = await $fetch<{ folders: BoardFolder[], total: number }>('/api/boards/folders', {
-        method: 'GET'
-      })
+      const api = useApi()
+      const response = await api.get<{ folders: BoardFolder[], total: number }>('/api/boards/folders')
       folders.value = response.folders || []
     } catch (err: any) {
       error.value = err.data?.message || 'Ошибка при загрузке папок'
@@ -70,9 +70,8 @@ export const useBoardFoldersStore = defineStore('boardFolders', () => {
     loading.value = true
     error.value = null
     try {
-      const response = await $fetch<{ folder: BoardFolder }>('/api/boards/folders/' + id, {
-        method: 'GET'
-      })
+      const api = useApi()
+      const response = await api.get<{ folder: BoardFolder }>(`/api/boards/folders/${id}`)
       // Обновляем папку в списке или добавляем новую
       const index = folders.value.findIndex(f => f.id === id)
       if (index !== -1) {
@@ -103,14 +102,12 @@ export const useBoardFoldersStore = defineStore('boardFolders', () => {
     loading.value = true
     error.value = null
     try {
-      const response = await $fetch<{
+      const api = useApi()
+      const response = await api.post<{
         success: boolean
         folder: BoardFolder
-        board?: { id: number; name: string } | null // ✅ Явно указываем что board может быть null
-      }>('/api/boards/folders', {
-        method: 'POST',
-        body: data
-      })
+        board?: { id: number; name: string } | null
+      }>('/api/boards/folders', data)
       
       folders.value.unshift(response.folder)
       activeFolderId.value = response.folder.id
@@ -121,7 +118,7 @@ export const useBoardFoldersStore = defineStore('boardFolders', () => {
       
       return {
         folder: response.folder,
-        board: response.board || null // ✅ Гарантируем возврат null вместо undefined
+        board: response.board || null
       }
     } catch (err: any) {
       error.value = err.data?.message || 'Ошибка при создании папки'
@@ -137,12 +134,10 @@ export const useBoardFoldersStore = defineStore('boardFolders', () => {
     loading.value = true
     error.value = null
     try {
-      const response = await $fetch<{ success: boolean, folder: BoardFolder }>(
+      const api = useApi()
+      const response = await api.put<{ success: boolean, folder: BoardFolder }>(
         `/api/boards/folders/${id}`,
-        {
-          method: 'PUT',
-          body: data
-        }
+        data
       )
       
       // Обновляем папку в списке
@@ -166,12 +161,8 @@ export const useBoardFoldersStore = defineStore('boardFolders', () => {
     loading.value = true
     error.value = null
     try {
-      await $fetch<{ success: boolean, message: string }>(
-        `/api/boards/folders/${id}`,
-        {
-          method: 'DELETE'
-        }
-      )
+      const api = useApi()
+      await api.delete<{ success: boolean, message: string }>(`/api/boards/folders/${id}`)
       
       // Удаляем папку из списка
       folders.value = folders.value.filter(f => f.id !== id)
@@ -197,10 +188,8 @@ export const useBoardFoldersStore = defineStore('boardFolders', () => {
     loading.value = true
     error.value = null
     try {
-      await $fetch<{ success: boolean, message: string }>('/api/boards/folders/order', {
-        method: 'PUT',
-        body: { updates }
-      })
+      const api = useApi()
+      await api.put<{ success: boolean, message: string }>('/api/boards/folders/order', { updates })
       
       // Обновляем порядок локально
       updates.forEach(update => {
@@ -225,13 +214,12 @@ export const useBoardFoldersStore = defineStore('boardFolders', () => {
     loading.value = true
     error.value = null
     try {
-      const response = await $fetch<{
-        boards: any[] // Board[]
+      const api = useApi()
+      const response = await api.get<{
+        boards: any[]
         total: number
         folderId: number
-      }>(`/api/boards/folders/${folderId}/boards`, {
-        method: 'GET'
-      })
+      }>(`/api/boards/folders/${folderId}/boards`)
       
       return response.boards
     } catch (err: any) {

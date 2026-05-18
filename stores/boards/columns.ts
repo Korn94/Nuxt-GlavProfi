@@ -14,6 +14,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { BoardColumn, CreateBoardColumnData, UpdateBoardColumnData } from '~/types/boards'
 import { socketService } from 'services/socket.service'
+import { useApi } from '~/composables/useApi'
 
 // ============================================
 // ТИПЫ
@@ -130,14 +131,13 @@ export const useColumnsStore = defineStore('columns', () => {
     try {
       console.log(`[ColumnsStore] 📥 Fetching columns for board ${boardId}`)
       
-      const response = await $fetch<{
+      const api = useApi()
+      const response = await api.get<{
         success: boolean
         columns: BoardColumn[]
         total: number
         boardId: number
-      }>(`/api/boards/${boardId}/columns`, {
-        method: 'GET'
-      })
+      }>(`/api/boards/${boardId}/columns`)
       
       columns.value = response.columns || []
       columnsByBoard.value = { [boardId]: columns.value }
@@ -197,13 +197,11 @@ export const useColumnsStore = defineStore('columns', () => {
     try {
       console.log('[ColumnsStore] 📤 Creating column on server...')
       
-      const response = await $fetch<{
+      const api = useApi()
+      const response = await api.post<{
         success: boolean
         column: BoardColumn
-      }>(`/api/boards/${boardId}/columns`, {
-        method: 'POST',
-        body: data
-      })
+      }>(`/api/boards/${boardId}/columns`, data)
       
       if (!response.column) {
         throw new Error('Failed to create column: no column returned')
@@ -243,13 +241,11 @@ export const useColumnsStore = defineStore('columns', () => {
         throw new Error('Не удалось определить доску для колонки')
       }
       
-      const response = await $fetch<{
+      const api = useApi()
+      const response = await api.put<{
         success: boolean
         column: BoardColumn
-      }>(`/api/boards/${column.boardId}/columns/${columnId}`, {
-        method: 'PUT',
-        body: data
-      })
+      }>(`/api/boards/${column.boardId}/columns/${columnId}`, data)
       
       if (!response.column) {
         throw new Error('Failed to update column: no column returned')
@@ -285,14 +281,13 @@ export const useColumnsStore = defineStore('columns', () => {
         throw new Error('Не удалось определить доску для колонки')
       }
       
-      await $fetch<{
+      const api = useApi()
+      await api.delete<{
         success: boolean
         message: string
         columnId: number
         boardId: number
-      }>(`/api/boards/${column.boardId}/columns/${columnId}`, {
-        method: 'DELETE'
-      })
+      }>(`/api/boards/${column.boardId}/columns/${columnId}`)
       
       console.log(`[ColumnsStore] ✅ Column ${columnId} deleted on server.`)
       
@@ -320,15 +315,13 @@ export const useColumnsStore = defineStore('columns', () => {
     try {
       console.log(`[ColumnsStore] 📤 Updating columns order for board ${boardId}...`)
       
-      await $fetch<{
+      const api = useApi()
+      await api.put<{
         success: boolean
         message: string
         boardId: number
         updated: number
-      }>(`/api/boards/${boardId}/columns/order`, {
-        method: 'PUT',
-        body: { updates }
-      })
+      }>(`/api/boards/${boardId}/columns/order`, { updates })
       
       console.log(`[ColumnsStore] ✅ Columns order updated on server.`)
       

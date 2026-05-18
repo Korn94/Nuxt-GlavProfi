@@ -162,7 +162,8 @@ watch(() => props.object, obj => { form.value = { ...obj } }, { deep: true })
 watch(() => props.modelValue, async visible => {
   if (!visible) return
   try {
-    foremans.value = await api.get<any[]>('/api/contractors/foremans') || []
+    const response = await api.get<{ contractors: any[] }>('/api/contractors/foreman')
+    foremans.value = response?.contractors || []
   } catch (e) {
     console.error('[EditModal] Ошибка загрузки прорабов:', e)
   }

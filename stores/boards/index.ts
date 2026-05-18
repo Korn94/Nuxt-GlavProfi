@@ -1,6 +1,7 @@
 // stores/boards/index.ts
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { useApi } from '~/composables/useApi'
 import type { Board, CreateBoardData, UpdateBoardData } from '~/types/boards'
 export { useTasksStore } from './tasks'
 export { useSubtasksStore } from './subtasks'
@@ -53,9 +54,8 @@ export const useBoardsStore = defineStore('boards', () => {
     error.value = null
 
     try {
-      const response = await $fetch<{ boards: Board[], total: number }>('/api/boards', {
-        method: 'GET'
-      })
+      const api = useApi()
+      const response = await api.get<{ boards: Board[], total: number }>('/api/boards')
 
       boards.value = response.boards || []
     } catch (err: any) {
@@ -73,9 +73,8 @@ export const useBoardsStore = defineStore('boards', () => {
     error.value = null
 
     try {
-      const response = await $fetch<{ board: Board }>(`/api/boards/${id}`, {
-        method: 'GET'
-      })
+      const api = useApi()
+      const response = await api.get<{ board: Board }>(`/api/boards/${id}`)
 
       // Обновляем доску в списке или добавляем новую
       const index = boards.value.findIndex(board => board.id === id)
@@ -101,10 +100,8 @@ export const useBoardsStore = defineStore('boards', () => {
     error.value = null
 
     try {
-      const response = await $fetch<{ success: boolean, board: Board }>('/api/boards', {
-        method: 'POST',
-        body: data
-      })
+      const api = useApi()
+      const response = await api.post<{ success: boolean, board: Board }>('/api/boards', data)
 
       // Добавляем новую доску в начало списка
       if (response.board) {
@@ -127,10 +124,8 @@ export const useBoardsStore = defineStore('boards', () => {
     error.value = null
 
     try {
-      const response = await $fetch<{ success: boolean, board: Board }>(`/api/boards/${id}`, {
-        method: 'PUT',
-        body: data
-      })
+      const api = useApi()
+      const response = await api.put<{ success: boolean, board: Board }>(`/api/boards/${id}`, data)
 
       // Обновляем доску в списке
       const index = boards.value.findIndex(board => board.id === id)
@@ -154,9 +149,8 @@ export const useBoardsStore = defineStore('boards', () => {
     error.value = null
 
     try {
-      await $fetch<{ success: boolean, message: string }>(`/api/boards/${id}`, {
-        method: 'DELETE'
-      })
+      const api = useApi()
+      await api.delete<{ success: boolean, message: string }>(`/api/boards/${id}`)
 
       // Удаляем доску из списка
       boards.value = boards.value.filter(board => board.id !== id)

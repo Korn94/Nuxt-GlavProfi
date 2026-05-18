@@ -176,6 +176,7 @@ import { useRouter } from 'vue-router'
 import { useBoardFoldersStore } from 'stores/boards/folders'
 import { useBoardsStore } from 'stores/boards'
 import { useNotificationStore } from 'stores/notifications'
+import { useApi } from '~/composables/useApi'
 import type { CreateFolderForm } from '~/types/boards'
 
 const emit = defineEmits<{ closeSidebar: [] }>()
@@ -328,7 +329,8 @@ async function fetchObjects() {
   objectsLoading.value = true
   objectsError.value = null
   try {
-    const res = await $fetch('/api/objects')
+    const api = useApi()
+    const res = await api.get<any[]>('/api/objects')
     availableObjects.value = Array.isArray(res) ? res : []
   } catch {
     objectsError.value = 'Не удалось загрузить объекты'
