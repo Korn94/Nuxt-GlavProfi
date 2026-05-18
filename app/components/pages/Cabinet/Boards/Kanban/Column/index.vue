@@ -179,6 +179,7 @@ import { useTasksStore } from 'stores/boards/tasks'
 import { useColumns } from '~/composables/boards/useColumns'
 import { socketService } from 'services/socket.service'
 import { useNotifications } from '~/composables/useNotifications'
+import { useApi } from '~/composables/useApi'
 import TaskCard from '../TaskCard.vue'
 import type { Task, BoardColumn } from '~/types/boards'
 
@@ -386,14 +387,15 @@ const handleDrop = async (event: DragEvent) => {
     const taskId = dragData.taskId
     const fromColumnId = dragData.columnId
     const toColumnId = props.column.id
+
+    // ✅ Получаем экземпляр API один раз для всех случаев
+    const api = useApi()
     
     // ✅ СЛУЧАЙ 1: Перемещение между колонками
     if (fromColumnId !== toColumnId) {
       await tasksStore.updateTaskOptimistic(taskId, { columnId: toColumnId })
-      await $fetch(`/api/boards/tasks/${taskId}`, {
-        method: 'PUT',
-        body: { columnId: toColumnId }
-      })
+      const api = useApi()
+      await api.put(`/api/boards/tasks/${taskId}`, { columnId: toColumnId })
     } 
     // ✅ СЛУЧАЙ 2: Перемещение внутри одной колонки (изменение order)
     else if (dropIndex.value !== null) {
@@ -419,10 +421,7 @@ const handleDrop = async (event: DragEvent) => {
             task.order = update.order
           }
         }
-        await $fetch(`/api/boards/${props.boardId}/tasks/order`, {
-          method: 'PUT',
-          body: { updates }
-        })
+        await api.put(`/api/boards/${props.boardId}/tasks/order`, { updates })
       }
     }
   } catch (error) {

@@ -197,6 +197,7 @@
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { useTagsStore } from 'stores/boards/tags'
 import { useNotifications } from '~/composables/useNotifications'
+import { useApi } from '~/composables/useApi'
 import type { Tag } from '~/types/boards'
 
 // ============================================
@@ -289,10 +290,8 @@ const toggleTag = async (tag: Tag) => {
 
 const addTag = async (tagId: number) => {
   try {
-    await $fetch(`/api/boards/tasks/${props.task.id}/tags`, {
-      method: 'POST',
-      body: { tagIds: [tagId] }
-    })
+    const api = useApi()
+    await api.post(`/api/boards/tasks/${props.task.id}/tags`, { tagIds: [tagId] })
     
     notifications.success('Тег добавлен')
     emit('updated')
@@ -304,9 +303,8 @@ const addTag = async (tagId: number) => {
 
 const removeTag = async (tagId: number) => {
   try {
-    await $fetch(`/api/boards/tasks/${props.task.id}/tags/${tagId}`, {
-      method: 'DELETE'
-    })
+    const api = useApi()
+    await api.delete(`/api/boards/tasks/${props.task.id}/tags/${tagId}`)
     
     notifications.success('Тег удалён')
     emit('updated')

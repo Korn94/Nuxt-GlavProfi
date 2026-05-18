@@ -72,6 +72,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useTaskModalStore } from 'stores/boards/taskModal'
 import { useTasksStore } from 'stores/boards/tasks'
 import { socketService } from 'services/socket.service'
+import { useApi } from '~/composables/useApi'
 import type { Task } from '~/types/boards'
 
 // ============================================
@@ -257,11 +258,9 @@ const handleMoveToColumn = async (newColumnId: number) => {
       columnId: newColumnId 
     })
     
-    // ✅ 2. Прямой API-запрос (минуя store, чтобы не триггерить loading)
-    await $fetch(`/api/boards/tasks/${props.task.id}`, {
-      method: 'PUT',
-      body: { columnId: newColumnId }
-    })
+    // ✅ 2. Прямой API-запрос через useApi
+    const api = useApi()
+    await api.put(`/api/boards/tasks/${props.task.id}`, { columnId: newColumnId })
     
     emit('moveTask', props.task.id, newColumnId)
     

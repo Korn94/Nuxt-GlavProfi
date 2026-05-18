@@ -56,6 +56,7 @@
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useAuthStore } from 'stores/auth'
 import { useNotifications } from '~/composables/useNotifications'
+import { useApi } from '~/composables/useApi'
 import type { Comment } from '~/types/boards'
 
 // ============================================
@@ -167,14 +168,12 @@ const addComment = async () => {
   addingComment.value = true
   
   try {
-    const response = await $fetch<{ success: boolean; comment: Comment }>(
+    const api = useApi()
+    const response = await api.post<{ success: boolean; comment: Comment }>(
       `/api/boards/tasks/${props.taskId}/comments`,
       {
-        method: 'POST',
-        body: {
-          comment: trimmedComment,
-          parentId: props.parentId || null
-        }
+        comment: trimmedComment,
+        parentId: props.parentId || null
       }
     )
     

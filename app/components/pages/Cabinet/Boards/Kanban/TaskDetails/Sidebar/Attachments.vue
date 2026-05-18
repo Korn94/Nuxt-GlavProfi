@@ -211,6 +211,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useNotifications } from '~/composables/useNotifications'
+import { useApi } from '~/composables/useApi'
 import type { Attachment } from '~/types/boards'
 import type { Task } from '~/types/boards'
 
@@ -398,21 +399,19 @@ const uploadFiles = async () => {
       formData.append('files', file)
     })
     
-    // Имитация прогресса (т.к. $fetch не поддерживает progress events напрямую)
+    // Имитация прогресса (т.к. useApi.post с FormData не поддерживает progress events напрямую)
     const progressInterval = setInterval(() => {
       if (uploadProgress.value < 90) {
         uploadProgress.value += 10
       }
     }, 200)
     
-    const response = await $fetch<{
+    const api = useApi()
+    const response = await api.post<{
       success: boolean
       attachments: Attachment[]
       message: string
-    }>(`/api/boards/tasks/${props.task.id}/attachments`, {
-      method: 'POST',
-      body: formData
-    })
+    }>(`/api/boards/tasks/${props.task.id}/attachments`, formData)
     
     clearInterval(progressInterval)
     uploadProgress.value = 100
@@ -457,11 +456,9 @@ const deleteAttachment = async () => {
   deleting.value = true
   
   try {
-    await $fetch<{ success: boolean; message: string }>(
-      `/api/boards/tasks/${props.task.id}/attachments/${attachmentToDelete.value.id}`,
-      {
-        method: 'DELETE'
-      }
+    const api = useApi()
+    await api.delete<{ success: boolean; message: string }>(
+      `/api/boards/tasks/${props.task.id}/attachments/${attachmentToDelete.value.id}`
     )
     
     notifications.success('Вложение удалено')

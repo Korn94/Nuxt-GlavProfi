@@ -195,7 +195,8 @@ async function fetchContractors() {
 
 async function fetchUsers() {
   try {
-    const data = await $fetch('/api/users', { credentials: 'include' })
+    const api = useApi()
+    const data = await api.get('/api/users')
     allUsers.value = data.users || []
   } catch (err) {
     console.error('Ошибка загрузки пользователей:', err)

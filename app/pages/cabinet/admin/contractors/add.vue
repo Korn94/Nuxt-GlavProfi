@@ -93,10 +93,8 @@ definePageMeta({
 // Загрузка пользователей
 onMounted(async () => {
   try {
-    const data = await $fetch("/api/users", {
-      method: "GET",
-      credentials: "include"
-    });
+    const api = useApi()
+    const data = await api.get('/api/users')
     users.value = data.users
   } catch (error) {
     console.error("Ошибка при загрузке пользователей:", error);

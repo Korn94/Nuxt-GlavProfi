@@ -46,6 +46,7 @@
 import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
 import { createError, useRoute } from 'nuxt/app'
 import { ref, computed, onMounted } from 'vue'
+import { useApi } from '~/composables/useApi'
 import { useContractors } from '~/composables/useContractors'
 import type { ContractorType, ContractorDTO } from '~/types/contractors'
 import { CONTRACTOR_TYPES } from '~/types/contractors'
@@ -110,7 +111,8 @@ async function loadContractors() {
 
 async function loadUsers() {
   try {
-    const response = await $fetch('/api/users', { method: 'GET' })
+    const api = useApi()
+    const response = await api.get('/api/users')
     availableUsers.value = Array.isArray(response) ? response : []
   } catch (err) {
     console.error('[Contractors] Ошибка загрузки пользователей:', err)

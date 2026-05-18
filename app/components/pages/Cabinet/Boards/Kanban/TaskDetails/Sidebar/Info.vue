@@ -142,6 +142,7 @@
 import { computed, ref, watch, onMounted } from 'vue'
 import { useUsersStore } from 'stores/users'
 import type { Task } from '~/types/boards'
+import { useApi } from '~/composables/useApi'
 
 // ============================================
 // ✅ ЛОКАЛЬНЫЙ ИНТЕРФЕЙС ДЛЯ ПОЛЬЗОВАТЕЛЯ ИЗ API
@@ -217,7 +218,8 @@ const creatorAvatarColor = computed(() => {
 // ============================================
 const fetchUser = async (userId: number): Promise<ApiUser | null> => {
   try {
-    const user = await $fetch<ApiUser>(`/api/users/${userId}`)
+    const api = useApi()
+    const user = await api.get<ApiUser>(`/api/users/${userId}`)
     return user
   } catch (error) {
     console.error(`Failed to fetch user ${userId}:`, error)
