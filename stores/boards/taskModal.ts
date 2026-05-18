@@ -16,7 +16,7 @@ export const useTaskModalStore = defineStore('taskModal', {
   }),
 
   actions: {
-    open(p0: string, p1: null, taskId: number, taskData?: Task) {
+    open(taskId: number, p1: null = null, p2: number | null = null, taskData?: Task) {
       this.isOpen = true
       this.taskId = taskId
       this.taskData = taskData || null
