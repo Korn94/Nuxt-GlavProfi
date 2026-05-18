@@ -104,10 +104,10 @@
               <th>Сумма</th>
               <th>Статус</th>
               <th>Контрагент</th>
+              <th>Комм.</th>
               <th>Вид работы</th>
               <th>Прораб</th>
               <th>Принято</th>
-              <th>Комм.</th>
               <th>Действия</th>
             </tr>
           </thead>
@@ -128,13 +128,13 @@
               <td class="td--name">
                 {{contractors.find(c => c.id === w.contractorId && c.type === w.contractorType)?.name || '—'}}
               </td>
+              <td class="td--comment">{{ w.comment || '—' }}</td>
               <td>{{ w.workType || '—' }}</td>
               <td class="td--name">{{foremans.find(f => f.id === w.supervisorId)?.name || '—'}}</td>
               <td class="td--center">
                 <Icon :name="w.acceptedByClient ? 'mdi:check-circle' : 'mdi:close-circle'" size="16"
                   :class="w.acceptedByClient ? 'pos' : 'neg'" />
               </td>
-              <td class="td--comment">{{ w.rejectionComment || '—' }}</td>
               <td class="td--actions">
                 <template v-if="!w.paid && !w.acceptedByClient">
                   <button class="action-btn action-btn--accept" @click="acceptWork(w.id)" title="Принять">
@@ -479,9 +479,7 @@ async function addComing() {
 
   loadingComing.value = true
   try {
-    const created = await $fetch < any > ('/api/comings', {
-      method: 'POST', body: { ...newComing.value, objectId: props.objectId }, credentials: 'include'
-    })
+    const created = await api.post<any>('/api/comings', { ...newComing.value, objectId: props.objectId })
     emit('add-coming', created)
     comings.value.push({ ...created, amount: Number(created.amount) })
     closeModals()
@@ -508,36 +506,28 @@ async function addWork() {
     let result: any
 
     if (newWork.value.immediatePayment) {
-      result = await $fetch < any > ('/api/works/create-and-pay', {
-        method: 'POST',
-        body: {
-          workerAmount: Number(newWork.value.amount),
-          contractorId: newWork.value.contractorId,
-          contractorType: selectedCategory.value,
-          workTypes: newWork.value.workType,
-          foremanId: newWork.value.supervisorId || null,
-          comment: newWork.value.comment || '',
-          objectId: props.objectId,
-          operationDate,
-        },
-        credentials: 'include',
+      result = await api.post<any>('/api/works/create-and-pay', {
+        workerAmount: Number(newWork.value.amount),
+        contractorId: newWork.value.contractorId,
+        contractorType: selectedCategory.value,
+        workTypes: newWork.value.workType,
+        foremanId: newWork.value.supervisorId || null,
+        comment: newWork.value.comment || '',
+        objectId: props.objectId,
+        operationDate,
       })
     } else {
-      result = await $fetch < any > ('/api/works', {
-        method: 'POST',
-        body: {
-          workerAmount: Number(newWork.value.amount),
-          contractorId: newWork.value.contractorId,
-          workTypes: newWork.value.workType,
-          foremanId: newWork.value.supervisorId || null,
-          comment: newWork.value.comment || '',
-          paid: false,
-          paymentDate: null,
-          operationDate,
-          objectId: props.objectId,
-          contractorType: selectedCategory.value,
-        },
-        credentials: 'include',
+      result = await api.post<any>('/api/works', {
+        workerAmount: Number(newWork.value.amount),
+        contractorId: newWork.value.contractorId,
+        contractorType: selectedCategory.value,
+        workTypes: newWork.value.workType,
+        foremanId: newWork.value.supervisorId || null,
+        comment: newWork.value.comment || '',
+        paid: false,
+        paymentDate: null,
+        operationDate,
+        objectId: props.objectId,
       })
     }
 
@@ -565,7 +555,7 @@ async function addWork() {
 // ── Управление работами ───────────────────────────────────────────────
 async function payWork(id: number) {
   try {
-    const result = await $fetch < any > (`/api/works/pay-work/${id}`, { method: 'POST', credentials: 'include' })
+    const result = await api.post<any>(`/api/works/pay-work/${id}`)
     const w = works.value.find(x => x.id === id)
     if (w) { w.paid = true; w.paymentDate = result.paymentDate }
   } catch (e) { console.error('[Операции] Ошибка оплаты:', e) }
@@ -573,7 +563,7 @@ async function payWork(id: number) {
 
 async function acceptWork(id: number) {
   try {
-    await $fetch(`/api/works/accept/${id}`, { method: 'POST', credentials: 'include' })
+    await api.post(`/api/works/accept/${id}`)
     const w = works.value.find(x => x.id === id)
     if (w) { w.acceptedByClient = true; w.rejectionComment = null }
   } catch (e) { console.error('[Операции] Ошибка принятия:', e) }
@@ -583,9 +573,7 @@ async function rejectWork(id: number) {
   const comment = prompt('Введите причину отклонения:')
   if (!comment) return
   try {
-    await $fetch(`/api/works/reject/${id}`, {
-      method: 'POST', body: { comment }, credentials: 'include'
-    })
+await api.post(`/api/works/reject/${id}`, { comment })
     const w = works.value.find(x => x.id === id)
     if (w) { w.rejectionComment = comment; w.acceptedByClient = false }
   } catch (e) { console.error('[Операции] Ошибка отклонения:', e) }
@@ -597,7 +585,7 @@ async function deleteWork(id: number, isPaid: boolean) {
     : 'Удалить работу?'
   if (!confirm(msg)) return
   try {
-    await $fetch(`/api/works/${id}`, { method: 'DELETE', credentials: 'include' })
+    await api.delete(`/api/works/${id}`)
     works.value = works.value.filter(w => w.id !== id)
     emit('delete-work', id)
   } catch (e) { console.error('[Операции] Ошибка удаления:', e) }

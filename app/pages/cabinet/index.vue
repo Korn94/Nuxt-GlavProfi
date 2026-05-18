@@ -1,13 +1,47 @@
 <!-- app\pages\cabinet\index.vue -->
 <template>
-  <PagesCabinet />
+  <div class="cabinet-router-loader">
+    <Icon name="mdi:loading" class="animate-spin" size="24" />
+    <span class="ml-2">Загрузка...</span>
+  </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+import { onMounted } from 'vue'
+import { navigateTo, useHead, useRouter } from 'nuxt/app'
+import { useAuthStore } from 'stores/auth'
+import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
+
+const authStore = useAuthStore()
+const router = useRouter()
+
 definePageMeta({
   layout: 'cabinet',
   middleware: ['auth', 'role'],
-  allowedRoles: ['admin'] 
+});
+
+// Карта: роль → целевой роут
+const ROLE_ROUTES: Record<string, string> = {
+  admin: '/cabinet/admin',
+  manager: '/cabinet/admin',    // менеджеры пока видят как админы
+  foreman: '/cabinet/foreman',
+  master: '/cabinet/foreman',   // мастера → интерфейс прораба
+  worker: '/cabinet/foreman',   // рабочие → минималка
+}
+
+onMounted(async () => {
+  // Ждём завершения проверки авторизации, если она ещё идёт
+  if (authStore.isChecking) {
+    await authStore.init().catch(() => {
+      // Если проверка упала — init() сам сделает редирект на /login
+    })
+  }
+  
+  const role = authStore.user?.role || 'worker'
+  const targetRoute = ROLE_ROUTES[role] || '/cabinet/foreman'
+  
+  // replace вместо push — чтобы не ломать историю навигации
+  await router.replace(targetRoute)
 })
 
 useHead({
@@ -18,58 +52,22 @@ useHead({
 })
 </script>
 
-<style lang="scss">
-.cabinet-page {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 1.5rem;
-  
-  &__grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 20px;
-    margin-top: 1.5rem;
-    
-    // Секция с финансовой сводкой и последними операциями
-    .top-section {
-      display: grid;
-      grid-column: span 3;
-      grid-template-columns: 2fr 1fr;
-      gap: 20px;
-      
-      // Ключевая настройка: оба блока будут иметь одинаковую высоту
-      .finance-summary,
-      .recent-operations {
-        display: flex;
-        flex-direction: column;
-      }
-      
-      // Для мобильных устройств
-      @media (max-width: 992px) {
-        grid-template-columns: 1fr;
-      }
-    }
-    
-    // Секция со статусами объектов
-    .bottom-section {
-      grid-column: span 3;
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 20px;
-    }
-    
-    // Общие стили для карточек
-    .card {
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-    }
-    
-    .card__body {
-      display: flex;
-      flex-direction: column;
-      flex-grow: 1;
-    }
-  }
+<style lang="scss" scoped>
+.cabinet-router-loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--crm-text-muted);
+  font-size: var(--crm-text-md);
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 </style>
