@@ -135,22 +135,24 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useApi } from '~/composables/useApi'
 
-const props = defineProps < {
+const props = defineProps<{
   modelValue: boolean
   object: any
-} > ()
+}>()
 
-const emit = defineEmits < {
+const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   'updated': [obj: any]
   'completed': [obj: any]
   'deleted': []
-} > ()
+}>()
 
 const router = useRouter()
-const form = ref < any > ({ ...props.object })
-const foremans = ref < any[] > ([])
+const api = useApi()
+const form = ref<any>({ ...props.object })
+const foremans = ref<any[]>([])
 const saving = ref(false)
 
 // ── Синхронизация формы при изменении объекта ────────────────────────
@@ -160,7 +162,7 @@ watch(() => props.object, obj => { form.value = { ...obj } }, { deep: true })
 watch(() => props.modelValue, async visible => {
   if (!visible) return
   try {
-    foremans.value = await $fetch < any[] > ('/api/contractors/foremans') || []
+    foremans.value = await api.get<any[]>('/api/contractors/foremans') || []
   } catch (e) {
     console.error('[EditModal] Ошибка загрузки прорабов:', e)
   }
@@ -170,9 +172,7 @@ watch(() => props.modelValue, async visible => {
 async function handleSubmit() {
   saving.value = true
   try {
-    const updated = await $fetch < any > (`/api/objects/${props.object.id}`, {
-      method: 'PUT', body: form.value, credentials: 'include'
-    })
+    const updated = await api.put<any>(`/api/objects/${props.object.id}`, form.value)
     emit('updated', updated)
     emit('update:modelValue', false)
   } catch (e) {
@@ -186,9 +186,7 @@ async function handleSubmit() {
 // ── Смена статуса ────────────────────────────────────────────────────
 async function setStatus(status: string) {
   try {
-    const updated = await $fetch < any > (`/api/objects/${props.object.id}`, {
-      method: 'PUT', body: { status }, credentials: 'include'
-    })
+    const updated = await api.put<any>(`/api/objects/${props.object.id}`, { status })
     emit('updated', updated)
     emit('completed', updated)
     emit('update:modelValue', false)
@@ -214,9 +212,7 @@ function confirmAction(action: 'complete' | 'cancel' | 'delete') {
 
 async function deleteObject() {
   try {
-    await $fetch(`/api/objects/${props.object.id}`, {
-      method: 'DELETE', credentials: 'include'
-    })
+    await api.delete(`/api/objects/${props.object.id}`)
     emit('deleted')
     emit('update:modelValue', false)
     router.push('/cabinet/objects')

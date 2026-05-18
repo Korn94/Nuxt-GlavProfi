@@ -60,7 +60,21 @@
 
         <div v-for="worker in store.workersWithDailyRate" :key="worker.id" class="grid-row">
           <div class="grid-row__info">
-            <span class="info-name" :title="worker.name">{{ worker.name }}</span>
+            <NuxtLink
+              v-if="isAdmin"
+              :to="`/cabinet/contractors/${worker.contractorType}/${worker.id}`"
+              class="info-name info-name--link"
+              :title="worker.name"
+            >
+              {{ worker.name }}
+            </NuxtLink>
+            <span
+              v-else
+              class="info-name"
+              :title="worker.name"
+            >
+              {{ worker.name }}
+            </span>
             <span class="info-balance">{{ formatCurrency(worker.balance) }}</span>
           </div>
           <CalendarCell
@@ -115,6 +129,7 @@ import { ref, computed, onMounted, watch, onUnmounted, nextTick } from 'vue'
 import { useForemanDailyStore } from 'stores/foremanDaily'
 import { useBulkSelection } from '~/composables/daily-work/useBulkSelection'
 import { useDailyAssignment } from '~/composables/daily-work/useDailyAssignment'
+import { usePermissions } from '~/composables/usePermissions'
 import type { DailyWorker, DailyAssignment } from '~/types/daily-assignments'
 import CalendarCell from './ui/CalendarCell.vue'
 import DailyAssignmentSheet from './DailyAssignmentSheet.vue'
@@ -158,6 +173,7 @@ const {
 // ── Стор и утилиты ────────────────────────────────────────────
 const store = useForemanDailyStore()
 const { formatCurrency } = useDailyAssignment()
+const { isAdmin } = usePermissions()
 
 // ── Локальное состояние ───────────────────────────────────────
 const sheetOpen = ref(false)
@@ -799,10 +815,21 @@ defineExpose({
   overflow: hidden;
   text-overflow: ellipsis;
   margin-bottom: 2px;
-  transition: font-size 0.15s ease;
+  transition: font-size 0.15s ease, color 0.15s ease;
+  
   
   .grid-wrapper.scrolled & {
     font-size: var(--crm-text-xs);
+  }
+}
+
+.info-name--link {
+  color: var(--crm-accent);
+  text-decoration: none;
+
+  &:hover {
+    color: var(--crm-accent-hover, #4a7be8);
+    text-decoration: underline;
   }
 }
 
