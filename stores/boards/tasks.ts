@@ -2,6 +2,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Task, UpdateTaskData, CreateTaskData } from '~/types/boards'
+import { useApi } from '~/composables/useApi'
 
 export const useTasksStore = defineStore('tasks', () => {
   // ============================================
@@ -146,9 +147,9 @@ export const useTasksStore = defineStore('tasks', () => {
     tasksByBoard.value = {}
     try {
       console.log(`[TasksStore] 📥 Fetching tasks for board ${boardId}`)
-      const response = await $fetch<{ tasks: Task[]; total: number }>(
-        `/api/boards/${boardId}/tasks`,
-        { method: 'GET' }
+      const api = useApi()
+      const response = await api.get<{ tasks: Task[]; total: number }>(
+        `/api/boards/${boardId}/tasks`
       )
       tasks.value = response.tasks || []
       tasksByBoard.value = { [boardId]: tasks.value }
@@ -173,9 +174,9 @@ export const useTasksStore = defineStore('tasks', () => {
     error.value = null
     try {
       console.log(`[TasksStore] 📥 Fetching task by ID: ${id}`)
-      const response = await $fetch<{ task: Task }>(
-        `/api/boards/tasks/${id}`,
-        { method: 'GET' }
+      const api = useApi()
+      const response = await api.get<{ task: Task }>(
+        `/api/boards/tasks/${id}`
       )
       // Обновляем задачу в списке или добавляем новую
       const index = tasks.value.findIndex(task => task.id === id)
@@ -216,12 +217,10 @@ export const useTasksStore = defineStore('tasks', () => {
     error.value = null
     try {
       console.log('[TasksStore] 📤 Creating task on server...')
-      const response = await $fetch<{ success: boolean; task: Task }>(
+      const api = useApi()
+      const response = await api.post<{ success: boolean; task: Task }>(
         `/api/boards/${boardId}/tasks`,
-        {
-          method: 'POST',
-          body: data
-        }
+        data
       )
       if (!response.task) {
         throw new Error('Failed to create task: no task returned')
@@ -251,12 +250,10 @@ export const useTasksStore = defineStore('tasks', () => {
     error.value = null
     try {
       console.log(`[TasksStore] 📤 Updating task ${id} on server...`)
-      const response = await $fetch<{ success: boolean; task: Task }>(
+      const api = useApi()
+      const response = await api.put<{ success: boolean; task: Task }>(
         `/api/boards/tasks/${id}`,
-        {
-          method: 'PUT',
-          body: data
-        }
+        data
       )
       if (!response.task) {
         throw new Error('Failed to update task: no task returned')
@@ -282,9 +279,9 @@ export const useTasksStore = defineStore('tasks', () => {
     error.value = null
     try {
       console.log(`[TasksStore] 📤 Deleting task ${id} on server...`)
-      await $fetch<{ success: boolean; message: string }>(
-        `/api/boards/tasks/${id}`,
-        { method: 'DELETE' }
+      const api = useApi()
+      await api.delete<{ success: boolean; message: string }>(
+        `/api/boards/tasks/${id}`
       )
       console.log(`[TasksStore] ✅ Task ${id} deleted on server.`)
       // ⛔ Не удаляем из store здесь - придёт socket событие
@@ -308,12 +305,12 @@ export const useTasksStore = defineStore('tasks', () => {
     console.log(`[TasksStore] 🔄 Optimistically updating task ${id}:`, data)
     // ✅ ПРОВЕРКА: tasks.value может быть undefined
     if (!tasks.value) return
-    
+
     const globalIndex = tasks.value.findIndex(task => task.id === id)
     if (globalIndex !== -1 && tasks.value[globalIndex]) {
       tasks.value[globalIndex] = { ...tasks.value[globalIndex], ...data }
     }
-    
+
     // ✅ ПРОВЕРКА: currentBoardId.value и tasksByBoard.value могут быть undefined
     if (currentBoardId.value) {
       const boardTasks = tasksByBoard.value[currentBoardId.value]
@@ -399,7 +396,7 @@ export const useTasksStore = defineStore('tasks', () => {
    */
   function handleTaskUpdated(task: Task) {
     console.log(`[TasksStore] 📡 Socket: task:updated ${task.id}`)
-    
+
     // Обновляем в глобальном списке
     const globalIndex = tasks.value.findIndex(t => t.id === task.id)
     if (globalIndex !== -1) {
@@ -411,12 +408,12 @@ export const useTasksStore = defineStore('tasks', () => {
     } else {
       tasks.value = [...tasks.value, task]
     }
-    
+
     // ✅ ИСПРАВЛЕНО: Обновляем в списке по доске с проверками
     if (task.boardId) {
       // ✅ Сохраняем массив в переменную с fallback на пустой массив
       const boardTasks = tasksByBoard.value[task.boardId] ?? []
-      
+
       const boardIndex = boardTasks.findIndex(t => t.id === task.id)
       if (boardIndex !== -1) {
         // Обновляем существующую задачу
@@ -433,7 +430,7 @@ export const useTasksStore = defineStore('tasks', () => {
         ]
       }
     }
-    
+
     console.log(`[TasksStore] ✅ Updated task ${task.id} in store`)
   }
 
@@ -471,7 +468,7 @@ export const useTasksStore = defineStore('tasks', () => {
     tasks: Array<{ id: number; order: number }>
   }) {
     console.log(`[TasksStore] 📡 Socket: tasks:reordered в колонке "${data.status}"`, data.tasks)
-    
+
     // ✅ ПРОВЕРКА: tasksByBoard.value[data.boardId] может быть undefined
     const boardTasks = tasksByBoard.value[data.boardId]
     if (boardTasks && boardTasks.length > 0) {
@@ -482,7 +479,7 @@ export const useTasksStore = defineStore('tasks', () => {
         }
       })
     }
-    
+
     // ✅ ПРОВЕРКА: tasks.value может быть undefined
     if (tasks.value && tasks.value.length > 0) {
       tasks.value.forEach(task => {
@@ -494,7 +491,7 @@ export const useTasksStore = defineStore('tasks', () => {
         }
       })
     }
-    
+
     console.log(`[TasksStore] ✅ Порядок задач обновлён для доски ${data.boardId}`)
   }
 

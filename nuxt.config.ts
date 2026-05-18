@@ -238,14 +238,15 @@ export default defineNuxtConfig({
 
   // Настройка переменных окружения
   runtimeConfig: {
+    // Приватные переменные (доступны только на сервере)
+    telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
+    telegramChatId: process.env.TELEGRAM_CHAT_ID,
     public: {
       yandexMetricaId: process.env.YANDEX_METRICA_ID, // ID Яндекс.Метрики
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 
         (process.env.NODE_ENV === 'production' 
           ? 'https://glavprofi.ru' 
           : `http://${process.env.NUXT_HOST || '0.0.0.0'}:${process.env.PORT || 3000}`),
-      telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
-      telegramChatId: process.env.TELEGRAM_CHAT_ID,
 
       // Базовый URL для загруженных файлов
       uploadsBaseUrl: process.env.NUXT_PUBLIC_UPLOADS_BASE_URL || '',

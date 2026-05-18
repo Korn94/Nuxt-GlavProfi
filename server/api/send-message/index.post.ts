@@ -25,9 +25,10 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Получаем токен и chatId из переменных окружения
-    const botToken = process.env.TELEGRAM_BOT_TOKEN
-    const chatId = process.env.TELEGRAM_CHAT_ID
+    // Получаем токен и chatId из runtime config (через useRuntimeConfig)
+    const config = useRuntimeConfig()
+    const botToken = config.telegramBotToken || process.env.TELEGRAM_BOT_TOKEN
+    const chatId = config.telegramChatId || process.env.TELEGRAM_CHAT_ID
 
     if (!botToken || !chatId) {
       console.error('Telegram credentials not configured')
@@ -40,32 +41,51 @@ export default defineEventHandler(async (event) => {
     // Формируем URL для отправки сообщения
     const url = `https://api.telegram.org/bot${botToken}/sendMessage`
 
-    // Отправляем запрос к Telegram API
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: message,
-        parse_mode: 'HTML'
+    // Отправляем запрос к Telegram API с увеличенным таймаутом
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 секунд
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: message,
+          parse_mode: 'HTML'
+        }),
+        signal: controller.signal
       })
-    })
 
-    const result = await response.json()
+      clearTimeout(timeoutId)
+      const result = await response.json()
 
-    if (!result.ok) {
-      console.error('Telegram API error:', result.description)
-      throw createError({
-        statusCode: response.status,
-        statusMessage: result.description || 'Failed to send message to Telegram'
-      })
-    }
+      if (!result.ok) {
+        console.error('Telegram API error:', result.description)
+        throw createError({
+          statusCode: response.status,
+          statusMessage: result.description || 'Failed to send message to Telegram'
+        })
+      }
 
-    return {
-      success: true,
-      message: 'Message sent successfully'
+      return {
+        success: true,
+        message: 'Message sent successfully'
+      }
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId)
+
+      if (fetchError.name === 'AbortError') {
+        console.error('Telegram API request timed out')
+        throw createError({
+          statusCode: 504,
+          statusMessage: 'Gateway Timeout: Telegram API did not respond'
+        })
+      }
+
+      throw fetchError
     }
   } catch (error: any) {
     console.error('Error sending message:', error)
