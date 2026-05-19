@@ -316,7 +316,10 @@ const handleAcceptTask = async () => {
  */
 const handleDeleteTask = async () => {
   try {
-    // ✅ 1. Удаляем через API
+    // ✅ 1. Оптимистичное удаление из store (для мгновенной реакции UI)
+    taskStore.handleTaskDeleted(props.task.id)
+
+    // ✅ 2. Удаляем через API
     const api = useApi()
     await api.delete(`/api/boards/tasks/${props.task.id}`)
 

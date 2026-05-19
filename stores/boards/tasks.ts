@@ -2,6 +2,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Task, UpdateTaskData, CreateTaskData } from '~/types/boards'
+import { useApi } from '~/composables/useApi'
 
 export const useTasksStore = defineStore('tasks', () => {
   // ============================================
@@ -145,10 +146,9 @@ export const useTasksStore = defineStore('tasks', () => {
     tasks.value = []
     tasksByBoard.value = {}
     try {
-      console.log(`[TasksStore] 📥 Fetching tasks for board ${boardId}`)
-      const response = await $fetch<{ tasks: Task[]; total: number }>(
-        `/api/boards/${boardId}/tasks`,
-        { method: 'GET' }
+      const api = useApi()
+      const response = await api.get<{ tasks: Task[]; total: number }>(
+        `/api/boards/${boardId}/tasks`
       )
       tasks.value = response.tasks || []
       tasksByBoard.value = { [boardId]: tasks.value }
@@ -173,9 +173,9 @@ export const useTasksStore = defineStore('tasks', () => {
     error.value = null
     try {
       console.log(`[TasksStore] 📥 Fetching task by ID: ${id}`)
-      const response = await $fetch<{ task: Task }>(
-        `/api/boards/tasks/${id}`,
-        { method: 'GET' }
+      const api = useApi()
+      const response = await api.get<{ task: Task }>(
+        `/api/boards/tasks/${id}`
       )
       // Обновляем задачу в списке или добавляем новую
       const index = tasks.value.findIndex(task => task.id === id)
@@ -216,12 +216,11 @@ export const useTasksStore = defineStore('tasks', () => {
     error.value = null
     try {
       console.log('[TasksStore] 📤 Creating task on server...')
-      const response = await $fetch<{ success: boolean; task: Task }>(
+      console.log('[TasksStore] 📤 Creating task on server...')
+      const api = useApi()
+      const response = await api.post<{ success: boolean; task: Task }>(
         `/api/boards/${boardId}/tasks`,
-        {
-          method: 'POST',
-          body: data
-        }
+        data
       )
       if (!response.task) {
         throw new Error('Failed to create task: no task returned')

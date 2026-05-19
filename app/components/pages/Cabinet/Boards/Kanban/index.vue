@@ -444,6 +444,15 @@ watch(
   async (newBoardId, oldBoardId) => {
     if (newBoardId && newBoardId !== oldBoardId) {
       console.log('[Kanban] 🔄 Смена доски:', { from: oldBoardId, to: newBoardId })
+
+      // ✅ Отписываемся от старой доски
+      if (oldBoardId) {
+        unsubscribeFromBoard(oldBoardId)
+      }
+
+      // ✅ Подписываемся на новую доску
+      subscribeToBoard(newBoardId)
+
       await fetchData()
     }
   },
