@@ -1,102 +1,122 @@
 // server/api/send-message/index.ts
 import { defineEventHandler, readBody, createError } from 'h3'
+import nodemailer from 'nodemailer'
 
 export default defineEventHandler(async (event) => {
-  // Обработка CORS preflight запросов
-  if (event.method === 'OPTIONS') {
-    return null
-  }
-
+  if (event.method === 'OPTIONS') return null
   if (event.method !== 'POST') {
-    throw createError({
-      statusCode: 405,
-      statusMessage: 'Method Not Allowed'
-    })
+    throw createError({ statusCode: 405, statusMessage: 'Method Not Allowed' })
   }
 
   try {
     const body = await readBody(event)
-    const { message } = body
+    const { message, name, phone, comment } = body // Деструктурируем данные для письма
 
     if (!message) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Message is required'
-      })
+      throw createError({ statusCode: 400, statusMessage: 'Message is required' })
     }
 
-    // Получаем токен и chatId из runtime config (через useRuntimeConfig)
     const config = useRuntimeConfig()
-    const botToken = config.telegramBotToken || process.env.TELEGRAM_BOT_TOKEN
-    const chatId = config.telegramChatId || process.env.TELEGRAM_CHAT_ID
+    
+    // --- 1. Отправка в Telegram (как было) ---
+    const sendTelegram = async () => {
+      const botToken = config.telegramBotToken
+      const chatId = config.telegramChatId
+      
+      if (!botToken || !chatId) return // Если не настроено, просто пропускаем
+      
+      const url = `https://api.telegram.org/bot${botToken}/sendMessage`
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 сек таймаут
 
-    if (!botToken || !chatId) {
-      console.error('Telegram credentials not configured')
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Telegram configuration error'
-      })
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: 'HTML' }),
+          signal: controller.signal
+        })
+        clearTimeout(timeoutId)
+        const result = await response.json()
+        if (!result.ok) console.error('Telegram error:', result.description)
+      } catch (e: any) {
+        clearTimeout(timeoutId)
+        console.error('Telegram fetch error:', e.message)
+        // Не выбрасываем ошибку, чтобы не блокировать отправку на почту
+      }
     }
 
-    // Формируем URL для отправки сообщения
-    const url = `https://api.telegram.org/bot${botToken}/sendMessage`
+    // --- 2. Отправка на почту (Новое) ---
+    const sendEmail = async () => {
+      const emailConfig = config.email
+      
+      // Если почта не настроена, выходим
+      if (!emailConfig.host || !emailConfig.user || !emailConfig.to) return
 
-    // Отправляем запрос к Telegram API с увеличенным таймаутом
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 секунд
-
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
+      // Создаем транспорт (можно вынести в утилиту, если отправляете часто)
+      const transporter = nodemailer.createTransport({
+        host: emailConfig.host,
+        port: emailConfig.port,
+        secure: emailConfig.secure,
+        auth: {
+          user: emailConfig.user,
+          pass: emailConfig.pass,
         },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: message,
-          parse_mode: 'HTML'
-        }),
-        signal: controller.signal
       })
 
-      clearTimeout(timeoutId)
-      const result = await response.json()
-
-      if (!result.ok) {
-        console.error('Telegram API error:', result.description)
-        throw createError({
-          statusCode: response.status,
-          statusMessage: result.description || 'Failed to send message to Telegram'
-        })
+      // Формируем красивое тело письма
+      const mailOptions = {
+        from: emailConfig.from,
+        to: emailConfig.to,
+        subject: `🔥 Новая заявка с сайта: ${name || 'Аноним'}`,
+        text: message, // Текстовая версия
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px;">
+            <h2 style="color: #00c3f5;">Новая заявка с сайта ГлавПрофи</h2>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+              <tr>
+                <td style="padding: 8px; background: #f9f9f9; font-weight: bold;">Имя:</td>
+                <td style="padding: 8px;">${name || 'Не указано'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; background: #f9f9f9; font-weight: bold;">Телефон:</td>
+                <td style="padding: 8px;">
+                  <a href="tel:${phone?.replace(/\D/g,'')}">${phone || 'Не указан'}</a>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; background: #f9f9f9; font-weight: bold; vertical-align: top;">Комментарий:</td>
+                <td style="padding: 8px;">${comment || 'Без комментария'}</td>
+              </tr>
+            </table>
+            <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+            <p style="font-size: 12px; color: #888;">Заявка отправлена автоматически.</p>
+          </div>
+        `,
       }
 
-      return {
-        success: true,
-        message: 'Message sent successfully'
+      try {
+        await transporter.sendMail(mailOptions)
+        console.log('✅ Email sent successfully')
+      } catch (error: any) {
+        console.error('❌ Email sending error:', error.message)
+        // Не выбрасываем ошибку, чтобы не ломать ответ клиенту, если ТГ работает
       }
-    } catch (fetchError: any) {
-      clearTimeout(timeoutId)
-
-      if (fetchError.name === 'AbortError') {
-        console.error('Telegram API request timed out')
-        throw createError({
-          statusCode: 504,
-          statusMessage: 'Gateway Timeout: Telegram API did not respond'
-        })
-      }
-
-      throw fetchError
     }
+
+    // Запускаем обе отправки параллельно
+    await Promise.all([
+      sendTelegram(),
+      sendEmail()
+    ])
+
+    return { success: true, message: 'Заявка отправлена' }
+
   } catch (error: any) {
-    console.error('Error sending message:', error)
-
-    if (error.statusCode) {
-      throw error
-    }
-
+    console.error('Critical error in send-message:', error)
     throw createError({
       statusCode: 500,
-      statusMessage: 'Internal server error'
+      statusMessage: error.message || 'Internal server error'
     })
   }
 })

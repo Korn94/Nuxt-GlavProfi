@@ -44,6 +44,7 @@ const PUBLIC_PATHS = [
   '/api/auth/login',
   '/api/auth/telegram',
   '/api/auth/check',     // ✅ Нужен для фоновой проверки токена
+  '/api/auth/logout',
   '/api/permissions',
 
   // 👤 Профиль пользователя (возвращает { user: null } для гостей)
@@ -53,9 +54,9 @@ const PUBLIC_PATHS = [
   '/api/online',         // ✅ Публичный список онлайн-пользователей
 
   // 💰 Прайс-листы (публичный просмотр цен)
-  '/api/price/list',
-  '/api/price/list/**',
-  '/api/price/calc/**',
+  '/api/price/list',           // Базовый путь
+  '/api/price/list/',          // Префикс для вложенных
+  '/api/price/calc/',          // ✅ Калькулятор — теперь работает!
   '/api/price/categories',
   '/api/price/subcategories',
   '/api/price/items',

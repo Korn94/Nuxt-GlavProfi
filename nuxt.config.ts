@@ -241,6 +241,18 @@ export default defineNuxtConfig({
     // Приватные переменные (доступны только на сервере)
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
     telegramChatId: process.env.TELEGRAM_CHAT_ID,
+
+    // Добавляем настройки почты
+    email: {
+      host: process.env.NUXT_EMAIL_HOST,
+      port: Number(process.env.NUXT_EMAIL_PORT) || 465,
+      secure: process.env.NUXT_EMAIL_SECURE === 'true',
+      user: process.env.NUXT_EMAIL_USER,
+      pass: process.env.NUXT_EMAIL_PASS,
+      to: process.env.NUXT_EMAIL_TO,
+      from: process.env.NUXT_EMAIL_FROM || 'noreply@glavprofi.ru',
+    },
+
     public: {
       yandexMetricaId: process.env.YANDEX_METRICA_ID, // ID Яндекс.Метрики
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 

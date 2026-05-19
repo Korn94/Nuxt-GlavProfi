@@ -1,4 +1,4 @@
-<!-- app/components/public/remont-pomescheniy/index/blocks/PremisesGrid.vue -->
+<!-- app/components/public/remont-pomesheniy/index/blocks/PremisesGrid.vue -->
 <template>
   <section class="premises-grid" ref="sectionRef">
     <div class="container">
@@ -52,7 +52,24 @@
                   <span class="premises-grid__price-main">{{ item.price }}</span>
                   <span class="premises-grid__price-example" v-if="item.priceExample">{{ item.priceExample }}</span>
                 </div>
-                <a href="#" class="premises-grid__item-link" @click.prevent>Подробнее →</a>
+                
+                <!-- 🔗 Условная ссылка / индикатор разработки (Список) -->
+                <!-- Если готово: NuxtLink с классом ссылки. Если нет: span с классом disabled -->
+                <NuxtLink 
+                  v-if="item.isReady"
+                  :to="getPageLink(item.slug)"
+                  class="premises-grid__item-link"
+                >
+                  Подробнее →
+                </NuxtLink>
+                <span 
+                  v-else
+                  class="premises-grid__item-link premises-grid__item-link--disabled"
+                  title="Страница в разработке"
+                >
+                  <Icon name="mdi:link-off" size="14" style="vertical-align: middle; margin-left: 4px;" />
+                  Страница в разработке
+                </span>
               </div>
 
               <!-- Изображение (третий блок справа) -->
@@ -84,7 +101,23 @@
                 <div class="premises-grid__prices">
                   <span class="premises-grid__price-main">{{ item.price }}</span>
                   <span class="premises-grid__price-example" v-if="item.priceExample">{{ item.priceExample }}</span>
-                  <a href="#" class="premises-grid__card-link" @click.prevent>Подробнее →</a>
+                  
+                  <!-- 🔗 Условная ссылка / индикатор разработки (Сетка) -->
+                  <NuxtLink 
+                    v-if="item.isReady"
+                    :to="getPageLink(item.slug)"
+                    class="premises-grid__card-link"
+                  >
+                    Подробнее →
+                  </NuxtLink>
+                  <span 
+                    v-else
+                    class="premises-grid__card-link premises-grid__card-link--disabled"
+                    title="Страница в разработке"
+                  >
+                  <Icon name="mdi:link-off" size="14" style="vertical-align: middle; margin-left: 4px;" />
+                    Страница в разработке
+                  </span>
                 </div>
 
               </div>
@@ -127,20 +160,23 @@ const categoryLabels = {
   other: 'Прочие объекты'
 };
 
-// 💡 ЗАМЕНИТЕ ПУТИ НА РЕАЛЬНЫЕ ИЗОБРАЖЕНИЯ
+// 🎯 Хелпер для генерации ссылок
+const getPageLink = (slug) => `/remont-pomescheniy/${slug}`;
+
+// 💡 Данные помещений — добавьте isReady: true, когда страница готова
 const premises = [
-  { slug: 'banki', title: 'Банки', subtitle: 'отделения, операционные залы, хранилища', category: 'commercial', price: 'от 14 000 ₽ за м²', priceExample: 'за 100 м² ~1.4–2.0 млн ₽', description: 'Работаем с учетом требований безопасности: усиленные перегородки, кабель-каналы под охранно-пожарную сигнализацию, зоны для инкассации. Выполняем монтаж по спец. ТЗ, соблюдаем режим конфиденциальности на объекте.', image: 'main/remont-pomescheniy/banki.webp' },
-  { slug: 'magaziny', title: 'Магазины', subtitle: 'ТЦ, стрит-ритейл, бутики', category: 'commercial', price: 'от 13 000 ₽ за м²', priceExample: 'за 100 м² ~1.3–1.9 млн ₽', description: 'Монтируем витринные группы, торговое оборудование, напольные покрытия по вашей спецификации. Работаем в график ТЦ (ночные смены) или в свободном режиме для отдельно стоящих зданий. Сдаем объект готовым к выкладке товара.', image: 'main/remont-pomescheniy/magaziny.webp' },
-  { slug: 'ofisy', title: 'Офисы', subtitle: 'административные здания, кол-центры', category: 'commercial', price: 'от 11 000 ₽ за м²', priceExample: 'за 100 м² ~1.1–1.6 млн ₽', description: 'Выполняем отделку по вашему ТЗ или проекту. Перед стартом проверяем основание и коммуникации: если проект конфликтует с реальным объектом — сообщаем до начала работ. Собственные бригады: ГКЛ, маляры, электрики.', image: 'main/remont-pomescheniy/ofisy.webp' },
-  { slug: 'salony', title: 'Салоны красоты', subtitle: 'барбершопы, СПА', category: 'commercial', price: 'от 15 000 ₽ за м²', priceExample: 'за 100 м² ~1.5–2.2 млн ₽', description: 'Реализуем проект с «мокрыми» зонами: гидроизоляция, закладные под оборудование. Проверяем вводные мощности и сечение кабелей до начала чистовой отделки.', image: 'main/remont-pomescheniy/salony.webp' },
-  { slug: 'fitnes', title: 'Фитнес-клубы', subtitle: 'спортивные залы', category: 'commercial', price: 'от 14 000 ₽ за м²', priceExample: 'за 100 м² ~1.4–2.0 млн ₽', description: 'Монтаж ударопрочных покрытий, зеркальных стен, душевых с трапами — строго по проекту. Проверяем основание под спортивные полы, герметичность мокрых зон.', image: 'main/remont-pomescheniy/fitnes.webp' },
-  { slug: 'sklady', title: 'Склады', subtitle: 'логистические центры, места хранения', category: 'industrial', price: 'от 8 500 ₽ за м²', priceExample: 'за 100 м² ~0.9–1.3 млн ₽', description: 'Устройство промышленных полов (топпинг, наливные) по вашей технологии. Проверяем геометрию основания, усадку бетона перед началом работ. Монтируем пандусы, разметку, освещение по проекту.', image: 'main/remont-pomescheniy/sklady.webp' },
-  { slug: 'ceha', title: 'Производство', subtitle: 'цеха, заводы', category: 'industrial', price: 'от 12 000 ₽ за м²', priceExample: 'за 100 м² ~1.2–2.5 млн ₽', description: 'Работаем по тех. заданию инженеров: усиленные коммуникации, спец. покрытия, безопасные зоны. Проверяем допуски под оборудование, соответствие монтажа нормам охраны труда.', image: 'main/remont-pomescheniy/ceha.webp' },
-  { slug: 'angary', title: 'Ангары', subtitle: 'модульные здания', category: 'industrial', price: 'от 9 000 ₽ за м²', priceExample: 'за 100 м² ~0.9–1.4 млн ₽', description: 'Внутренняя отделка по проекту: утепление, обшивка, ввод коммуникаций. Проверяем герметичность контура, мостики холода до начала чистовых работ. Работаем с сэндвич-панелями, профлистом.', image: 'main/remont-pomescheniy/angary.webp' },
-  { slug: 'pischevye', title: 'Пищевые производства', subtitle: '', category: 'industrial', price: 'от 16 000 ₽ за м²', priceExample: 'за 100 м² ~1.6–2.4 млн ₽', description: 'Монтаж по СанПиН: плитка, стоки, бесшовные покрытия — по вашей спецификации. Проверяем уклоны полов, герметичность стыков до сдачи. Работаем с пищевыми материалами (нержавейка, спец. смеси).', image: 'main/remont-pomescheniy/pischevye.webp' },
-  { slug: 'medicina', title: 'Медицинские помещения', subtitle: 'клиники, кабинеты, лаборатории', category: 'other', price: 'от 18 000 ₽ за м²', priceExample: 'за 100 м² ~1.8–2.8 млн ₽', description: 'Отделка по проекту или ТЗ: бесшовные покрытия, стены под дезинфекцию, специфические материалы. Проверяем основание под спец. полы, герметичность мокрых зон. Работаем с медицинскими материалами (линолеум, нержавейка, спец. смеси и прочие).', image: 'main/remont-pomescheniy/medicina.webp' },
-  { slug: 'mopy', title: 'МОПы', subtitle: 'подъезды, холлы ЖК', category: 'other', price: 'от 4 500 ₽ за м²', priceExample: 'за 100 м² ~0.5–0.8 млн ₽', description: 'Ремонт по регламенту УК: антивандальные материалы, износостойкая покраска. Работаем в график, не создаем шум в часы покоя.', image: 'main/remont-pomescheniy/mopy.webp' },
-  { slug: 'fasady', title: 'Фасады зданий', subtitle: '', category: 'other', price: 'от 3 500 ₽ за м²', priceExample: 'за 100 м² ~0.4–0.7 млн ₽', description: 'Монтаж фасадов: утепление, облицовка, герметизация. Проверяем основание, крепеж, точку росы до начала работ. Работаем на высоте с допуском, соблюдаем ГОСТ по теплоизоляции.', image: 'main/remont-pomescheniy/fasady.webp' }
+  { slug: 'banki', title: 'Банки', subtitle: 'отделения, операционные залы, хранилища', category: 'commercial', price: 'от 14 000 ₽ за м²', priceExample: 'за 100 м² ~1.4–2.0 млн ₽', description: 'Работаем с учетом требований безопасности: усиленные перегородки, кабель-каналы под охранно-пожарную сигнализацию, зоны для инкассации. Выполняем монтаж по спец. ТЗ, соблюдаем режим конфиденциальности на объекте.', image: 'main/remont-pomescheniy/banki.webp', isReady: false },
+  { slug: 'magaziny', title: 'Магазины', subtitle: 'ТЦ, стрит-ритейл, бутики', category: 'commercial', price: 'от 13 000 ₽ за м²', priceExample: 'за 100 м² ~1.3–1.9 млн ₽', description: 'Монтируем витринные группы, торговое оборудование, напольные покрытия по вашей спецификации. Работаем в график ТЦ (ночные смены) или в свободном режиме для отдельно стоящих зданий. Сдаем объект готовым к выкладке товара.', image: 'main/remont-pomescheniy/magaziny.webp', isReady: false },
+  { slug: 'ofisy', title: 'Офисы', subtitle: 'административные здания, кол-центры', category: 'commercial', price: 'от 11 000 ₽ за м²', priceExample: 'за 100 м² ~1.1–1.6 млн ₽', description: 'Выполняем отделку по вашему ТЗ или проекту. Перед стартом проверяем основание и коммуникации: если проект конфликтует с реальным объектом — сообщаем до начала работ. Собственные бригады: ГКЛ, маляры, электрики.', image: 'main/remont-pomescheniy/ofisy.webp', isReady: false },
+  { slug: 'salony', title: 'Салоны красоты', subtitle: 'барбершопы, СПА', category: 'commercial', price: 'от 15 000 ₽ за м²', priceExample: 'за 100 м² ~1.5–2.2 млн ₽', description: 'Реализуем проект с «мокрыми» зонами: гидроизоляция, закладные под оборудование. Проверяем вводные мощности и сечение кабелей до начала чистовой отделки.', image: 'main/remont-pomesheniy/salony.webp', isReady: false },
+  { slug: 'fitnes', title: 'Фитнес-клубы', subtitle: 'спортивные залы', category: 'commercial', price: 'от 14 000 ₽ за м²', priceExample: 'за 100 м² ~1.4–2.0 млн ₽', description: 'Монтаж ударопрочных покрытий, зеркальных стен, душевых с трапами — строго по проекту. Проверяем основание под спортивные полы, герметичность мокрых зон.', image: 'main/remont-pomescheniy/fitnes.webp', isReady: false },
+  { slug: 'sklady', title: 'Склады', subtitle: 'логистические центры, места хранения', category: 'industrial', price: 'от 8 500 ₽ за м²', priceExample: 'за 100 м² ~0.9–1.3 млн ₽', description: 'Устройство промышленных полов (топпинг, наливные) по вашей технологии. Проверяем геометрию основания, усадку бетона перед началом работ. Монтируем пандусы, разметку, освещение по проекту.', image: 'main/remont-pomesheniy/sklady.webp', isReady: false },
+  { slug: 'ceha', title: 'Производство', subtitle: 'цеха, заводы', category: 'industrial', price: 'от 12 000 ₽ за м²', priceExample: 'за 100 м² ~1.2–2.5 млн ₽', description: 'Работаем по тех. заданию инженеров: усиленные коммуникации, спец. покрытия, безопасные зоны. Проверяем допуски под оборудование, соответствие монтажа нормам охраны труда.', image: 'main/remont-pomesheniy/ceha.webp', isReady: false },
+  { slug: 'angary', title: 'Ангары', subtitle: 'модульные здания', category: 'industrial', price: 'от 9 000 ₽ за м²', priceExample: 'за 100 м² ~0.9–1.4 млн ₽', description: 'Внутренняя отделка по проекту: утепление, обшивка, ввод коммуникаций. Проверяем герметичность контура, мостики холода до начала чистовых работ. Работаем с сэндвич-панелями, профлистом.', image: 'main/remont-pomesheniy/angary.webp', isReady: false },
+  { slug: 'pischevye', title: 'Пищевые производства', subtitle: '', category: 'industrial', price: 'от 16 000 ₽ за м²', priceExample: 'за 100 м² ~1.6–2.4 млн ₽', description: 'Монтаж по СанПиН: плитка, стоки, бесшовные покрытия — по вашей спецификации. Проверяем уклоны полов, герметичность стыков до сдачи. Работаем с пищевыми материалами (нержавейка, спец. смеси).', image: 'main/remont-pomesheniy/pischevye.webp', isReady: false },
+  { slug: 'medicina', title: 'Медицинские помещения', subtitle: 'клиники, кабинеты, лаборатории', category: 'other', price: 'от 18 000 ₽ за м²', priceExample: 'за 100 м² ~1.8–2.8 млн ₽', description: 'Отделка по проекту или ТЗ: бесшовные покрытия, стены под дезинфекцию, специфические материалы. Проверяем основание под спец. полы, герметичность мокрых зон. Работаем с медицинскими материалами (линолеум, нержавейка, спец. смеси и прочие).', image: 'main/remont-pomesheniy/medicina.webp', isReady: false },
+  { slug: 'mopy', title: 'МОПы', subtitle: 'подъезды, холлы ЖК', category: 'other', price: 'от 4 500 ₽ за м²', priceExample: 'за 100 м² ~0.5–0.8 млн ₽', description: 'Ремонт по регламенту УК: антивандальные материалы, износостойкая покраска. Работаем в график, не создаем шум в часы покоя.', image: 'main/remont-pomesheniy/mopy.webp', isReady: false },
+  { slug: 'fasady', title: 'Фасады зданий', subtitle: '', category: 'other', price: 'от 3 500 ₽ за м²', priceExample: 'за 100 м² ~0.4–0.7 млн ₽', description: 'Монтаж фасадов: утепление, облицовка, герметизация. Проверяем основание, крепеж, точку росы до начала работ. Работаем на высоте с допуском, соблюдаем ГОСТ по теплоизоляции.', image: 'main/remont-pomesheniy/fasady.webp', isReady: false }
 ];
 
 const filteredItems = computed(() => {
@@ -276,7 +312,6 @@ $services-text-secondary: $text-gray;
       border-color: transparent;
       color: $background-dark;
       font-weight: 600;
-      // box-shadow: 0 4px 15px rgba(0, 195, 245, 0.3);
     }
   }
 
@@ -329,7 +364,7 @@ $services-text-secondary: $text-gray;
     }
   }
 
-  // === РЕЖИМ СПИСКА (вертикальные блоки) ===
+  // === РЕЖИМ СПИСКА ===
   &__list--list {
     display: flex;
     flex-direction: column;
@@ -337,16 +372,14 @@ $services-text-secondary: $text-gray;
   }
 
   &__item--list {
-    // Убираем общий padding, добавляем overflow для обрезки изображения
     padding: 0;
     overflow: hidden;
-    // Остальные стили (фон, бордер, анимация) оставляем без изменений
     background: rgba(255, 255, 255, 0.04);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: $border-radius;
     display: flex;
-    gap: 0; // Убираем gap, чтобы изображение прилегало вплотную
+    gap: 0;
     align-items: stretch;
     transition: all 0.35s ease;
     opacity: 0;
@@ -376,14 +409,10 @@ $services-text-secondary: $text-gray;
   &__item-content {
     flex: 1;
     min-width: 0;
-    padding: 1.8rem 1rem 1.8rem 1.8rem; // Справа 1rem — небольшой зазор до изображения
+    padding: 1.8rem 1rem 1.8rem 1.8rem;
 
-    @media (max-width: 900px) {
-      padding: 1.4rem;
-    }
-    @media (max-width: 768px) {
-      padding: 1.4rem;
-    }
+    @media (max-width: 900px) { padding: 1.4rem; }
+    @media (max-width: 768px) { padding: 1.4rem; }
   }
 
   &__item-title {
@@ -413,12 +442,11 @@ $services-text-secondary: $text-gray;
   &__item-sidebar {
     display: flex;
     flex-direction: column;
-    // align-items: center;
     justify-content: end;
     gap: 1rem;
     flex-shrink: 0;
     min-width: 200px;
-    padding: 1.8rem 1rem 1.8rem 0; // Справа 0, чтобы прилегало к изображению
+    padding: 1.8rem 1rem 1.8rem 0;
 
     @media (max-width: 900px) {
       align-items: flex-start;
@@ -454,6 +482,7 @@ $services-text-secondary: $text-gray;
     color: rgba($text-light, 0.5);
   }
 
+  // === ССЫЛКА (Список) - Оригинальные стили + модификатор disabled ===
   &__item-link {
     color: $blue;
     font-weight: 500;
@@ -461,7 +490,25 @@ $services-text-secondary: $text-gray;
     transition: color 0.3s ease;
     text-decoration: none;
     white-space: nowrap;
-    &:hover { color: $blue-light; }
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+
+    &:hover { 
+      color: $blue-light; 
+    }
+
+    // Стили для состояния "В разработке"
+    &--disabled {
+      color: rgba($text-light, 0.4);
+      cursor: not-allowed;
+      pointer-events: none;
+      font-weight: 400;
+      
+      &:hover {
+        color: rgba($text-light, 0.4); // Фикс цвета при ховере
+      }
+    }
   }
 
   // === Изображение в режиме списка ===
@@ -472,13 +519,12 @@ $services-text-secondary: $text-gray;
     aspect-ratio: 16 / 9;
     overflow: hidden;
     background: rgba(0, 0, 0, 0.2);
-    // На десктопе: скругление только с правой стороны
     border-top-right-radius: $border-radius;
     border-bottom-right-radius: $border-radius;
 
     @media (max-width: 900px) {
       width: 100%;
-      aspect-ratio: 21 / 9; // Широкий баннер на планшете
+      aspect-ratio: 21 / 9;
       border-radius: 0;
       order: 3;
     }
@@ -489,7 +535,6 @@ $services-text-secondary: $text-gray;
     }
   }
 
-  // Ховер-эффект для изображения в списке
   &__item--list:hover &__item-image img {
     transform: scale(1.05);
   }
@@ -502,7 +547,7 @@ $services-text-secondary: $text-gray;
     transition: transform 0.4s ease;
   }
 
-  // === РЕЖИМ СЕТКИ (карточки) ===
+  // === РЕЖИМ СЕТКИ ===
   &__list--grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -536,7 +581,6 @@ $services-text-secondary: $text-gray;
     }
   }
 
-  // === Изображение в режиме сетки (с оверлеем) ===
   &__card-image {
     position: relative;
     width: 100%;
@@ -581,7 +625,6 @@ $services-text-secondary: $text-gray;
     margin: 0;
   }
 
-  // === Контент под изображением в сетке ===
   &__card-body {
     padding: 1.2rem 1.4rem 1.4rem;
     display: flex;
@@ -606,6 +649,7 @@ $services-text-secondary: $text-gray;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
   }
 
+  // === ССЫЛКА (Сетка) - Оригинальные стили + модификатор disabled ===
   &__card-link {
     color: $blue;
     font-weight: 500;
@@ -613,8 +657,26 @@ $services-text-secondary: $text-gray;
     transition: color 0.3s ease;
     text-decoration: none;
     align-self: flex-start;
-    &:hover { color: $blue-light; }
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    
+    &:hover { 
+      color: $blue-light; 
+    }
     margin-top: 1em;
+
+    // Стили для состояния "В разработке"
+    &--disabled {
+      color: rgba($text-light, 0.4);
+      cursor: not-allowed;
+      pointer-events: none;
+      font-weight: 400;
+      
+      &:hover {
+        color: rgba($text-light, 0.4);
+      }
+    }
   }
 
   // === Разделитель ===

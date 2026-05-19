@@ -1,9 +1,10 @@
+<!-- app\components\ui\forms\index.vue -->
 <template>
 <div>
   <form @submit.prevent="submitForm">
     <!-- Блок с именем и телефоном на одной строке -->
     <div class="input-group">
-      <input type="text" v-model="name" v-on:input="textFilter" placeholder="Имя (не обязательно)" class="inline-input"/>
+      <input type="text" v-model="name" @input="textFilter" placeholder="Имя (не обязательно)" class="inline-input"/>
       <input type="text" v-phone-format id="phone" v-model="phoneNumber" required placeholder="Телефон" class="inline-input" :class="{ 'error-border': phoneError }"/>
     </div>
     <div>
@@ -31,10 +32,6 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRuntimeConfig } from '#imports'
-
-// Получаем конфиг с токеном и ID чата
-const config = useRuntimeConfig()
 
 // Реактивные данные
 const name = ref('')
@@ -59,6 +56,7 @@ function textFilter() {
 // Отправка формы через API
 async function submitForm() {
   const phoneCleaned = phoneNumber.value.replace(/\D/g, '')
+  
   // Проверка телефона
   if (phoneCleaned.length < 11) {
     phoneError.value = true
@@ -67,42 +65,51 @@ async function submitForm() {
   }
   phoneError.value = false
 
-  // Формирование сообщения
-  const message = `
-    Сообщение с формы:
-    ФИО: ${name.value}
-    Номер телефона: ${phoneNumber.value}
-    Комментарий: ${comment.value}
-  `
+  // ✅ Формируем структурированные данные для отправки
+  const formData = {
+    name: name.value.trim(),
+    phone: phoneNumber.value,
+    comment: comment.value.trim(),
+    // Дублируем message для обратной совместимости
+    message: `Заявка: ${name.value || 'Аноним'}, тел: ${phoneNumber.value}\n${comment.value ? 'Комментарий: ' + comment.value : ''}`
+  }
 
   try {
-    // Отправляем через API (без暴露 токена)
+    // Отправляем через API (токены хранятся на сервере, клиент их не видит)
     const response = await fetch('/api/send-message', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ message })
+      body: JSON.stringify(formData)
     })
 
     const result = await response.json()
 
     if (!response.ok) {
-      throw new Error(result.description || 'Ошибка отправки формы')
+      throw new Error(result.statusMessage || result.description || 'Ошибка отправки формы')
     }
 
     // Успех
     showNotification('Форма успешно отправлена!', 'green')
     triggerYandexGoal('FORM_SUBMITTED')
+    
+    // Очистка формы после успешной отправки
+    name.value = ''
+    phoneNumber.value = '+7 '
+    comment.value = ''
+    agreed.value = false
+    
   } catch (error) {
     console.error('Ошибка при отправке формы:', error)
     let errorMessage = 'Ошибка при отправке формы'
+    
     if (error.response?.status === 401) {
       errorMessage = 'Неверный токен Telegram'
     } else if (error.response?.status === 403) {
       errorMessage = 'Бот заблокирован или недоступен'
     } else if (error.request) {
-      errorMessage = 'Нет ответа от сервера Telegram'
+      errorMessage = 'Нет ответа от сервера'
     }
     showNotification(errorMessage, 'red')
     triggerYandexGoal('FORM_ERROR')
@@ -124,11 +131,12 @@ function triggerYandexGoal(goal) {
 </script>
 
 <style lang="scss" scoped>
+// ... ваши стили без изменений ...
 $primary-color: #00c3f5;
-$highlight-color: #ff9800;  // Цвет подсветки
+$highlight-color: #ff9800;
 $border-color: #ddd;
 $background-light: #f7f7f7;
-$sub-item-bg: #f0f0f0; // Цвет фона для расшифровок
+$sub-item-bg: #f0f0f0;
 $text-color: #18191b;
 $shadow-color: rgba(0, 0, 0, 0.05);
 
@@ -139,12 +147,12 @@ form {
 
   .input-group {
     display: flex;
-    gap: 10px; /* Расстояние между полями */
-    align-items: center; /* Выравнивание по центру */
+    gap: 10px;
+    align-items: center;
     margin: 0;
 
     .inline-input {
-      flex: 1; /* Поля занимают равное пространство */
+      flex: 1;
       padding: 12px 15px;
       border: 1px solid $border-color;
       width: 100%;

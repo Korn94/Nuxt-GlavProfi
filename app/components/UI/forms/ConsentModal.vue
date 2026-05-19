@@ -1,3 +1,4 @@
+<!-- app\components\ui\forms\ConsentModal.vue -->
 <template>
   <div v-if="modelValue" class="modal-overlay">
     <div class="modal-content">

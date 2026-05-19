@@ -1,3 +1,4 @@
+<!-- app\components\ui\forms\ContactForm.vue -->
 <template>
     <div class="modal" @click="closeModal">
       <div class="content">
@@ -11,7 +12,8 @@
             <p class="text">Отправь фото — получи быстрый расчет</p>
             <UiAnimationsArrow />
           </div>
-          <NuxtLink href="https://api.whatsapp.com/send?phone=79109096947" target="_blank"><Icon name="bxl:whatsapp" size="28px" class="whatsapp" /></NuxtLink>
+          <NuxtLink href="https://api.whatsapp.com/send?phone=79109096947" target="_blank"><img src="https://maxicons.ru/icons/Max_logo.svg" alt="MAX" width="24" height="24" /></NuxtLink>
+          <!-- <NuxtLink href="https://api.whatsapp.com/send?phone=79109096947" target="_blank"><Icon name="bxl:whatsapp" size="28px" class="whatsapp" /></NuxtLink> -->
           <NuxtLink href="tg://resolve?domain=glavprofii" target="_blank"><Icon name="bxl:telegram" size="28px" class="tg" /></NuxtLink>
         </div>
       </div>
