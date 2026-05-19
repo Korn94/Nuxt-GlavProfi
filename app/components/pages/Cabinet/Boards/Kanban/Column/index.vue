@@ -258,11 +258,16 @@ const columnMenuPosition = ref<{ top: string; right: string }>({
 // ============================================
 const canSubmit = computed(() => newTask.value.title.trim().length > 0)
 
+type Priority = 'low' | 'medium' | 'high' | 'urgent'
+
 const sortedTasks = computed(() => {
   return [...tasksRef.value].sort((a, b) => {
-    const priorityOrder: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 }
-    const aPriority = a.priority || 'low'
-    const bPriority = b.priority || 'low'
+    const priorityOrder: Record<Priority, number> = { urgent: 0, high: 1, medium: 2, low: 3 }
+    
+    // ✅ Приводим к типу Priority с фолбэком
+    const aPriority = (a.priority || 'low') as Priority
+    const bPriority = (b.priority || 'low') as Priority
+    
     const priorityDiff = priorityOrder[aPriority] - priorityOrder[bPriority]
     if (priorityDiff !== 0) return priorityDiff
     return (a.order ?? 0) - (b.order ?? 0)

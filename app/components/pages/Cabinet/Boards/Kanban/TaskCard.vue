@@ -12,42 +12,42 @@
   >
     <!-- Приоритет и статус -->
     <div class="task-card-header">
-      <span class="task-priority" :class="`priority-${task.priority}`">
-        {{ getPriorityLabel(task.priority) }}
+      <span class="task-priority" :class="`priority-${reactiveTask.priority}`">
+        {{ getPriorityLabel(reactiveTask.priority) }}
       </span>
       <!-- ✅ ПОКАЗЫВАЕМ СТАТУС ТОЛЬКО ЕСЛИ НЕТ КОЛОНКИ (для обратной совместимости) -->
       <span
-        v-if="!task.columnId"
+        v-if="!reactiveTask.columnId"
         class="task-status"
-        :class="`status-${task.status}`"
+        :class="`status-${reactiveTask.status}`"
       >
-        {{ getStatusLabel(task.status) }}
+        {{ getStatusLabel(reactiveTask.status) }}
       </span>
       <!-- ✅ КНОПКИ ДЕЙСТВИЙ (принять/удалить/завершить) -->
       <div class="task-card-actions" @click.stop>
         <button
-          v-if="task.status === 'todo'"
+          v-if="reactiveTask.status === 'todo'"
           class="task-action-btn task-action-btn--accept"
-          @click="handleAcceptTask"
+          @mousedown.stop="handleAcceptTask"
           title="Принять задачу"
         >
           <Icon name="mdi:check-circle-outline" size="18" />
         </button>
         <button
-          v-if="task.status === 'in_progress' || task.status === 'done'"
+          v-if="reactiveTask.status === 'in_progress' || reactiveTask.status === 'done'"
           class="task-action-btn task-action-btn--complete"
-          :class="{ 'task-action-btn--completed': task.status === 'done' }"
-          @click="handleCompleteTask"
-          :title="task.status === 'done' ? 'Задача завершена' : 'Завершить задачу'"
+          :class="{ 'task-action-btn--completed': reactiveTask.status === 'done' }"
+          @mousedown.stop="handleCompleteTask"
+          :title="reactiveTask.status === 'done' ? 'Отменить завершение' : 'Завершить задачу'"
         >
           <Icon
-            :name="task.status === 'done' ? 'mdi:check-circle' : 'mdi:check-circle-outline'"
+            :name="reactiveTask.status === 'done' ? 'mdi:check-circle' : 'mdi:check-circle-outline'"
             size="18"
           />
         </button>
         <button
           class="task-action-btn task-action-btn--delete"
-          @click="handleDeleteTask"
+          @mousedown.stop="handleDeleteTask"
           title="Удалить задачу"
         >
           <Icon name="mdi:trash-can-outline" size="18" />
@@ -57,15 +57,14 @@
 
     <!-- Основное содержимое -->
     <div class="task-card-body">
-      <h3 class="task-card-title">{{ task.title }}</h3>
-      <p v-if="task.description" class="task-card-description">
-        {{ truncateText(task.description, 80) }}
+      <h3 class="task-card-title">{{ reactiveTask.title }}</h3>
+      <p v-if="reactiveTask.description" class="task-card-description">
+        {{ truncateText(reactiveTask.description, 80) }}
       </p>
-
       <!-- Теги -->
-      <div v-if="task.tags && task.tags.length > 0" class="task-card-tags">
+      <div v-if="reactiveTask.tags && reactiveTask.tags.length > 0" class="task-card-tags">
         <span
-          v-for="tag in task.tags"
+          v-for="tag in reactiveTask.tags"
           :key="tag.id"
           class="task-card-tag"
           :style="{ backgroundColor: tag.color }"
@@ -78,19 +77,19 @@
     <!-- Футер с мета-данными -->
     <div class="task-card-footer">
       <div class="task-card-meta">
-        <span v-if="task.dueDate" class="task-card-meta-item">
+        <span v-if="reactiveTask.dueDate" class="task-card-meta-item">
           <Icon name="mdi:calendar" size="14" />
-          {{ formatDate(task.dueDate) }}
+          {{ formatDate(reactiveTask.dueDate) }}
         </span>
-        <span v-if="task.assignedTo" class="task-card-meta-item">
+        <span v-if="reactiveTask.assignedTo" class="task-card-meta-item">
           <Icon name="mdi:account" size="14" />
           Исполнитель
         </span>
       </div>
       <div class="task-card-stats">
-        <span v-if="hasSubtasks && task.subtasks" class="task-card-subtasks">
+        <span v-if="hasSubtasks && reactiveTask.subtasks" class="task-card-subtasks">
           <Icon name="mdi:checkbox-marked-circle" size="14" />
-          {{ getCompletedSubtasks(task.subtasks) }}/{{ task.subtasks.length }}
+          {{ getCompletedSubtasks(reactiveTask.subtasks) }}/{{ reactiveTask.subtasks?.length }}
         </span>
       </div>
     </div>
@@ -98,7 +97,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useTaskModalStore } from 'stores/boards/taskModal'
 import { useTasksStore } from 'stores/boards/tasks'
 import { socketService } from 'services/socket.service'
@@ -133,8 +132,25 @@ const isDropped = ref(false)
 const initialPosition = ref({ x: 0, y: 0 })
 const dragStartPosition = ref({ x: 0, y: 0 })
 
+// ✅ НОВОЕ: Локальный статус для мгновенного оптимистичного обновления
+const localStatus = ref(props.task.status)
+
 // ============================================
-// COMPUTED - Стили с анимацией
+// COMPUTED - Реактивная задача из store
+// ============================================
+/**
+ * ✅ ГЛАВНОЕ ИСПРАВЛЕНИЕ:
+ * Вместо использования статичного props.task, берём актуальные данные из store.
+ * Это гарантирует, что при обновлении через сокет компонент сразу перерендерится.
+ */
+const reactiveTask = computed(() => {
+  const storeTask = taskStore.tasks.find(t => t.id === props.task.id)
+  // Если задача есть в store — используем её, иначе — пропс как фолбэк
+  return storeTask || props.task
+})
+
+// ============================================
+// COMPUTED - Стили с анимацией (используем reactiveTask)
 // ============================================
 const cardStyle = computed(() => {
   const baseStyle: Record<string, string | number> = {
@@ -151,8 +167,8 @@ const cardStyle = computed(() => {
     baseStyle.animation = 'drop-animation 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
   }
 
-  // Затемнение для завершённых задач
-  if (props.task.status === 'done') {
+  // ✅ ИСПОЛЬЗУЕМ reactiveTask.status ВМЕСТО props.task.status
+  if (reactiveTask.value.status === 'done') {
     baseStyle.opacity = '0.6'
   }
 
@@ -163,8 +179,25 @@ const cardStyle = computed(() => {
 // COMPUTED - Есть ли подзадачи
 // ============================================
 const hasSubtasks = computed(() => {
-  return props.task.subtasks && props.task.subtasks.length > 0
+  return reactiveTask.value.subtasks && reactiveTask.value.subtasks.length > 0
 })
+
+// ============================================
+// WATCH - Синхронизация localStatus со store
+// ============================================
+/**
+ * Следим за изменениями статуса в store и обновляем localStatus.
+ * Это нужно, когда сокет пришёл от ДРУГОГО пользователя.
+ */
+watch(
+  () => reactiveTask.value.status,
+  (newStatus) => {
+    if (newStatus && newStatus !== localStatus.value) {
+      localStatus.value = newStatus
+      console.log(`[TaskCard] 🔄 Synced status from store: ${newStatus}`)
+    }
+  }
+)
 
 // ============================================
 // NATIVE DRAG & DROP
@@ -191,7 +224,6 @@ const handleDragStart = (event: DragEvent) => {
 
   // Визуальная обратная связь
   isDragging.value = true
-
   if (taskCardRef.value) {
     taskCardRef.value.style.boxShadow = `0 8px 24px rgba(0, 195, 245, 0.4)`
   }
@@ -275,7 +307,6 @@ const getCompletedSubtasks = (subtasks: any[] | undefined): number => {
 // ============================================
 const openTaskDetails = () => {
   taskModalStore.open(props.task.id)
-
   // Принудительно обновляем данные из стора
   const fullTask = taskStore.tasks.find((t: { id: number }) => t.id === props.task.id)
   if (fullTask) {
@@ -284,7 +315,7 @@ const openTaskDetails = () => {
 }
 
 // ============================================
-// METHODS - ДЕЙСТВИЯ С ЗАДАЧАМИ (ПРИНЯТЬ/УДАЛИТЬ)
+// METHODS - ДЕЙСТВИЯ С ЗАДАЧАМИ (ПРИНЯТЬ/УДАЛИТЬ/ЗАВЕРШИТЬ)
 // ============================================
 
 /**
@@ -332,25 +363,35 @@ const handleDeleteTask = async () => {
 }
 
 /**
- * Завершить задачу (перевод в статус "done")
+ * Завершить/отменить задачу (переключение статуса между "done" и "in_progress")
  */
 const handleCompleteTask = async () => {
   try {
-    // ✅ 1. Оптимистичное обновление в store
+    // ✅ Определяем новый статус: если задача завершена → возвращаем в работу, иначе → завершаем
+    const newStatus = localStatus.value === 'done' ? 'in_progress' : 'done'
+
+    // ✅ 1. Мгновенно обновляем локальный статус для мгновенного UI
+    localStatus.value = newStatus
+
+    // ✅ 2. Оптимистичное обновление в store
     await taskStore.updateTaskOptimistic(props.task.id, {
-      status: 'done'
+      status: newStatus
     })
 
-    // ✅ 2. Прямой API-запрос через useApi
+    // ✅ 3. Прямой API-запрос через useApi
     const api = useApi()
     await api.put(`/api/boards/tasks/${props.task.id}`, {
-      status: 'done'
+      status: newStatus
     })
 
-    console.log(`[TaskCard] ✅ Task ${props.task.id} completed`)
+    console.log(`[TaskCard] ✅ Task ${props.task.id} ${newStatus === 'done' ? 'completed' : 'reopened'}`)
   } catch (error) {
-    console.error('[TaskCard] ❌ Failed to complete task:', error)
-    // ✅ Fallback: перезагружаем задачи при ошибке
+    console.error('[TaskCard] ❌ Failed to toggle task completion:', error)
+    // ✅ При ошибке восстанавливаем статус из store
+    const storeTask = taskStore.tasks.find(t => t.id === props.task.id)
+    if (storeTask) {
+      localStatus.value = storeTask.status
+    }
     await taskStore.fetchTasks(props.boardId)
   }
 }
@@ -358,7 +399,6 @@ const handleCompleteTask = async () => {
 // ============================================
 // DRAG & DROP — ОБРАБОТКА ПЕРЕМЕЩЕНИЯ МЕЖДУ КОЛОНКАМИ
 // ============================================
-
 /**
  * Обработчик перемещения задачи в новую колонку
  * Вызывается из Column/index.vue при drop
@@ -377,7 +417,6 @@ const handleMoveToColumn = async (newColumnId: number) => {
     await api.put(`/api/boards/tasks/${props.task.id}`, { columnId: newColumnId })
 
     emit('moveTask', props.task.id, newColumnId)
-
   } catch (error) {
     console.error('[TaskCard] ❌ Failed to move task:', error)
     // ✅ Fallback: перезагружаем задачи при ошибке

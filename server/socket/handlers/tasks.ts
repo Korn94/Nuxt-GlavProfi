@@ -71,7 +71,7 @@ export function broadcastTaskCreated(io: Server, task: Task, boardId: number) {
   const roomName = `board:${boardId}`
   
   // ✅ Используем io.to() — отправляем ВСЕМ в комнате (включая отправителя API)
-  io.to(roomName).emit('board:task:created', { task })
+  io.to(roomName).emit('board:task:created', { task, boardId })
   
   console.log(`[Socket] 🆕 Task ${task.id} created, broadcasted to room "${roomName}"`)
 }
@@ -86,7 +86,7 @@ export function broadcastTaskUpdated(io: Server, task: Task, boardId: number) {
   const roomName = `board:${boardId}`
   
   // ✅ Используем io.to() — отправляем ВСЕМ в комнате
-  io.to(roomName).emit('board:task:updated', { task })
+  io.to(roomName).emit('board:task:updated', { task, boardId })
   
   console.log(`[Socket] 🔄 Task ${task.id} updated, broadcasted to room "${roomName}"`)
 }
@@ -100,8 +100,8 @@ export function broadcastTaskUpdated(io: Server, task: Task, boardId: number) {
 export function broadcastTaskDeleted(io: Server, taskId: number, boardId: number) {
   const roomName = `board:${boardId}`
   
-  // ✅ Используем io.to() — отправляем ВСЕМ в комнате
-  io.to(roomName).emit('board:task:deleted', { taskId })
+  // ✅ ИСПРАВЛЕНО: передаём taskId, а не task
+  io.to(roomName).emit('board:task:deleted', { taskId, boardId })
   
   console.log(`[Socket] 🗑️ Task ${taskId} deleted, broadcasted to room "${roomName}"`)
 }
