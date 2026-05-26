@@ -33,7 +33,7 @@ const emit = defineEmits<{
 // 2. Конфигурация вкладок
 // -----------------------------------------------------------------------------
 const tabs = [
-  { id: 'walls', label: 'Стены', icon: 'material-symbols:wall' },
+  { id: 'walls', label: 'Стены', icon: 'mdi:wall' },
   { id: 'floor', label: 'Пол', icon: 'material-symbols:floor' },
   { id: 'ceiling', label: 'Потолок', icon: 'material-symbols:roofing' }
 ] as const

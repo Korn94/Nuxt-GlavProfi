@@ -59,7 +59,7 @@
     </footer>
 
     <div v-else class="empty-state">
-      <Icon name="material-symbols:construction-outline" size="48" class="empty-icon" />
+      <Icon name="mdi:construction-outline" size="48" class="empty-icon" />
       <p>Пока не выбрано ни одной работы.<br>Используйте поиск выше для добавления.</p>
     </div>
   </div>

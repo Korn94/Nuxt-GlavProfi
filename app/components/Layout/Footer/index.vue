@@ -1,3 +1,4 @@
+<!-- app\components\Layout\Footer\index.vue -->
 <template>
   <footer class="footer">
     <div class="footer-container">
@@ -46,7 +47,7 @@
       <div class="footer-social">
         <h3 class="footer-title">Обратный звонок</h3>
         <!-- Форма связи -->
-        <form class="footer-contact-form" @submit.prevent="submitForm">
+        <form class="footer-contact-form" @submit.prevent="openConsentModal">
           <input
             type="tel"
             v-model="phoneNumber"
@@ -54,19 +55,19 @@
             placeholder="Обратный звонок"
             required
             :class="{ 'error-border': phoneError }"
+            :disabled="isSubmitting"
           />
-          <UiButtonsSecondary type="button" @click="openConsentModal">Отправить</UiButtonsSecondary>
+          <UiButtonsSecondary type="button" @click="openConsentModal" :disabled="isSubmitting">
+            {{ isSubmitting ? '...' : 'Отправить' }}
+          </UiButtonsSecondary>
         </form>
 
-        <!-- <h3 class="footer-title">Свяжитесь с нами</h3> -->
         <div class="social-icons">
+          <NuxtLink href="https://max.ru/u/f9LHodD0cOLfbBSpAeCwHBcJ83SJtKVj9mVKY7K8OLd6OwYB0gH6g3XE_Cs" target="_blank"><img src="https://maxicons.ru/icons/Max_logo.svg" alt="MAX" width="22" height="22" class="ico" /></NuxtLink>
           <NuxtLink href="tg://resolve?domain=glavprofii" target="_blank">
             <Icon name="mdi:telegram" class="ico" size="28px" />
           </NuxtLink>
-          <!-- <NuxtLink href="https://api.whatsapp.com/send?phone=79109096947" target="_blank">
-            <Icon name="mdi:whatsapp" class="ico" size="28px" />
-          </NuxtLink> -->
-          <NuxtLink href=" https://vk.com/glavprofi " target="_blank">
+          <!-- <NuxtLink href=" https://vk.com/glavprofi " target="_blank">
             <Icon name="mdi:vk" class="ico" size="28px" />
           </NuxtLink>
           <NuxtLink href="https://instagram.com/glavprofi " target="_blank">
@@ -74,7 +75,7 @@
           </NuxtLink>
           <NuxtLink href="https://youtube.com/ @glavstroy62" target="_blank">
             <Icon name="mdi:youtube" class="ico" size="28px" />
-          </NuxtLink>
+          </NuxtLink> -->
         </div>
         
       </div>
@@ -97,22 +98,23 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRuntimeConfig } from '#imports'
-
-// Получаем конфиг с токеном и ID чата
-const config = useRuntimeConfig()
+import { useNotifications } from '~/composables/useNotifications'
 
 // Данные
 const currentYear = new Date().getFullYear()
 const phoneNumber = ref('+7 ')
 const showConsentModal = ref(false)
 const phoneError = ref(false)
+const isSubmitting = ref(false)
+
+// Композабл для уведомлений
+const notifications = useNotifications()
 
 function copyToClipboard(text) {
   navigator.clipboard.writeText(text).then(() => {
-    // Уведомление обрабатывается в UiNotificationsContainer
+    notifications.success('ИНН скопирован', 'Готово')
   }).catch(() => {
-    // Уведомление обрабатывается в UiNotificationsContainer
+    notifications.error('Не удалось скопировать', 'Ошибка')
   })
 }
 
@@ -133,7 +135,7 @@ function openConsentModal() {
   phoneError.value = phoneCleaned.length < 11
 
   if (phoneError.value) {
-    // Уведомление об ошибке обрабатывается в UiNotificationsContainer
+    notifications.error('Введите корректный номер телефона', 'Ошибка')
     return
   }
 
@@ -146,10 +148,17 @@ function acceptConsent() {
 }
 
 async function submitForm() {
-  const message = `
-    Сообщение с футера:
-    Номер телефона: ${phoneNumber.value}
-  `
+  isSubmitting.value = true
+
+  // ✅ Формируем структурированные данные для бэкенда
+  const formData = {
+    name: '', // В футере нет поля имени
+    phone: phoneNumber.value,
+    comment: '',
+    source: 'footer', // 👈 Источник заявки для аналитики
+    // Дублируем message для логов и обратной совместимости
+    message: `📞 Заявка с футера:\n📱 Телефон: ${phoneNumber.value}`
+  }
 
   try {
     const response = await fetch('/api/send-message', {
@@ -157,16 +166,31 @@ async function submitForm() {
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ message })
+      body: JSON.stringify(formData) // 👈 Отправляем объект
     })
 
     const result = await response.json()
 
     if (!response.ok) {
-      throw new Error(result.description || 'Ошибка отправки формы')
+      throw new Error(result.statusMessage || result.description || 'Ошибка отправки')
     }
+
+    // ✅ Успех
+    notifications.success('Заявка отправлена! Мы перезвоним.', 'Успех')
+    
+    // Очистка поля
+    phoneNumber.value = '+7 '
+    
+    // Логируем статус каналов
+    if (result.channels) {
+      console.log('📊 Footer form status:', result.channels)
+    }
+    
   } catch (error) {
     console.error('Ошибка при отправке формы:', error)
+    notifications.error('Не удалось отправить. Попробуйте позже.', 'Ошибка')
+  } finally {
+    isSubmitting.value = false
   }
 }
 </script>
@@ -186,15 +210,14 @@ $subtext-color: #bdc3c7;
 
   .footer-container {
     display: flex;
-    flex-wrap: wrap; // Разрешаем перенос блоков на новую строку
+    flex-wrap: wrap;
     justify-content: space-between;
     max-width: 1200px;
     margin: 0 auto;
     gap: 20px;
 
-    // Адаптация для маленьких экранов
     @media (max-width: 768px) {
-      flex-direction: column; // Все блоки в колонку
+      flex-direction: column;
     }
   }
 
@@ -204,7 +227,6 @@ $subtext-color: #bdc3c7;
     margin-bottom: 15px;
     color: $primary-color;
 
-    // Уменьшаем размер заголовков на маленьких экранах
     @media (max-width: 768px) {
       font-size: 1rem;
       text-align: center;
@@ -217,7 +239,6 @@ $subtext-color: #bdc3c7;
     margin-bottom: 15px;
     color: $subtext-color;
 
-    // Центрирование текста на маленьких экранах
     @media (max-width: 768px) {
       text-align: center;
     }
@@ -232,6 +253,11 @@ $subtext-color: #bdc3c7;
       font-size: 0.9rem;
       margin-bottom: 8px;
       color: $subtext-color;
+      cursor: pointer;
+      
+      &:hover span {
+        color: $primary-color;
+      }
     }
     
     strong {
@@ -240,11 +266,7 @@ $subtext-color: #bdc3c7;
     
     span {
       color: $subtext-color;
-      cursor: pointer;
-
-      &:hover {
-        color: $primary-color;
-      }
+      transition: color 0.3s ease;
     }
   }
 
@@ -268,7 +290,6 @@ $subtext-color: #bdc3c7;
       }
     }
 
-    // Центрирование ссылок на маленьких экранах
     @media (max-width: 768px) {
       li {
         margin-bottom: 5px;
@@ -278,6 +299,7 @@ $subtext-color: #bdc3c7;
 
   .social-icons {
     display: flex;
+    align-items: center;
     gap: 1em;
     margin-top: 2em;
 
@@ -290,7 +312,6 @@ $subtext-color: #bdc3c7;
       }
     }
 
-    // Изменяем расположение иконок на маленьких экранах
     @media (max-width: 768px) {
       justify-content: center;
     }
@@ -311,6 +332,7 @@ $subtext-color: #bdc3c7;
       outline: none;
       color: $text-color;
       background-color: $background-color;
+      transition: all 0.3s ease;
 
       &::placeholder {
         color: $subtext-color;
@@ -320,17 +342,26 @@ $subtext-color: #bdc3c7;
         border-color: #00c3f5;
         box-shadow: 0 0 5px rgba(0, 195, 245, 0.5);
       }
+
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
     }
 
     button {
       padding: 10px 15px;
+      
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
     }
 
     .error-border {
       border-color: red !important;
     }
 
-    // Адаптация формы на маленьких экранах
     @media (max-width: 768px) {
       flex-direction: column;
       width: 100%;
@@ -348,7 +379,6 @@ $subtext-color: #bdc3c7;
 
   .footer-bottom {
     text-align: center;
-    // margin-top: 4em;
     font-size: 0.8rem;
     color: $subtext-color;
 

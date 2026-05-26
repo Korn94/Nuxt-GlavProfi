@@ -1,3 +1,4 @@
+// app\plugins\phoneFormat.js
 import { defineNuxtPlugin } from '#app'
 
 // Функция formatPhoneNumber принимает строку value и форматирует ее в соответствии с требуемым форматом

@@ -1,3 +1,4 @@
+<!-- app\components\pages\public\homePage\index.vue -->
 <template>
   <div class="container">
     <!-- Фон с видео -->

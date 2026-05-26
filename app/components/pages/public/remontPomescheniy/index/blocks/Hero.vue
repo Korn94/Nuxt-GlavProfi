@@ -1,4 +1,4 @@
-<!-- app/components/public/remont-pomescheniy/index/blocks/Hero.vue -->
+<!-- app\components\pages\public\remontPomescheniy\index\blocks\Hero.vue -->
 <template>
   <section class="hero" ref="heroSection">
     <div class="container">
@@ -35,7 +35,8 @@
         
         <!-- CTA блок -->
         <div class="hero__actions fade-in-up">
-          <button class="hero__btn" @click="onGetQuote">
+          <!-- 👇 Кнопка теперь открывает модальное окно -->
+          <button class="hero__btn" @click="openModal">
             Получить коммерческое предложение
           </button>
           <p class="hero__disclaimer">
@@ -48,6 +49,13 @@
         
       </div>
     </div>
+
+    <!-- 👇 Модальная форма (условный рендеринг) -->
+    <UiFormsContactForm
+      v-if="showModal"
+      @close="closeModal"
+      @formSubmitted="handleFormSubmitted"
+    />
   </section>
 </template>
 
@@ -56,6 +64,24 @@ import { onMounted, ref } from 'vue';
 
 const heroSection = ref(null);
 const telegramLink = 'https://t.me/glavprofii'
+
+// 👇 Управление модальным окном
+const showModal = ref(false)
+
+const openModal = () => {
+  showModal.value = true
+}
+
+const closeModal = () => {
+  showModal.value = false
+}
+
+const handleFormSubmitted = (formData) => {
+  console.log('📩 Форма отправлена:', formData)
+  closeModal()
+  // Можно добавить аналитику:
+  // triggerYandexGoal('KP_REQUESTED')
+}
 
 // Анимация появления при скролле
 onMounted(() => {
@@ -76,11 +102,6 @@ onMounted(() => {
     observer.observe(el);
   });
 });
-
-const onGetQuote = () => {
-  console.log('Get quote clicked')
-  // Логика: скролл к форме / модалка / аналитика
-}
 
 // Данные преимуществ
 const benefits = [
@@ -108,23 +129,8 @@ const benefits = [
 // === Базовые настройки секции ===
 .hero {
   padding: 4rem 0;
-  // background: $background-dark;
   overflow: hidden;
   position: relative;
-
-  // Декоративное свечение на фоне (опционально)
-  // &::before {
-  //   content: '';
-  //   position: absolute;
-  //   top: -50%;
-  //   right: -20%;
-  //   width: 600px;
-  //   height: 600px;
-  //   background: radial-gradient(circle, rgba(0, 195, 245, 0.08) 0%, transparent 70%);
-  //   border-radius: 50%;
-  //   pointer-events: none;
-  //   z-index: 0;
-  // }
 
   .container {
     max-width: 1200px;
@@ -179,9 +185,9 @@ const benefits = [
 
   // === Плашка с УТП ===
   &__badge {
-    background: rgba($green, 0.08);        // Мягкий зелёный фон
-    border: 1px solid rgba($green, 0.25);  // Лёгкая обводка
-    border-left: 3px solid $green;         // Акцентный бордер слева
+    background: rgba($green, 0.08);
+    border: 1px solid rgba($green, 0.25);
+    border-left: 3px solid $green;
     border-radius: $border-radius;
     padding: 1rem 1.25rem;
     margin-bottom: 2.5rem;
@@ -206,7 +212,7 @@ const benefits = [
     margin-bottom: 2.5rem;
   }
 
-  // === Карточка преимущества (стекло + ховер) ===
+  // === Карточка преимущества ===
   &__benefit-card {
     background: rgba(255, 255, 255, 0.05);
     backdrop-filter: blur(8px);

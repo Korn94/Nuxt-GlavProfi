@@ -1,3 +1,4 @@
+<!-- app\components\pages\public\contacts\index.vue -->
 <template>
   <div class="contacts-page">
     <header class="page-header">
@@ -22,13 +23,13 @@
 
           <!-- Социальные сети -->
           <div class="social-icons">
+            <NuxtLink href="https://max.ru/u/f9LHodD0cOLfbBSpAeCwHBcJ83SJtKVj9mVKY7K8OLd6OwYB0gH6g3XE_Cs" target="_blank">
+             <img src="https://maxicons.ru/icons/Max_logo_black.svg" alt="Иконка MAX" width="24" height="24">
+            </NuxtLink>
             <NuxtLink href="tg://resolve?domain=glavprofii" target="_blank">
               <Icon name="mdi:telegram" class="ico" size="28px" />
             </NuxtLink>
-            <!-- <NuxtLink href="https://api.whatsapp.com/send?phone=79109096947" target="_blank">
-              <Icon name="mdi:whatsapp" class="ico" size="28px" />
-            </NuxtLink> -->
-            <NuxtLink href=" https://vk.com/glavprofi " target="_blank">
+            <!-- <NuxtLink href=" https://vk.com/glavprofi " target="_blank">
               <Icon name="mdi:vk" class="ico" size="28px" />
             </NuxtLink>
             <NuxtLink href="https://instagram.com/glavprofi " target="_blank">
@@ -36,19 +37,13 @@
             </NuxtLink>
             <NuxtLink href="https://youtube.com/ @glavstroy62" target="_blank">
               <Icon name="mdi:youtube" class="ico" size="28px" />
-            </NuxtLink>
+            </NuxtLink> -->
           </div>
         </section>
 
         <!-- Форма обратной связи -->
         <section class="contact-form">
-          <UiForms @formSubmitted="handleFormSubmission" />
-          <!-- <Notification
-            :visible="notificationVisible"
-            :message="notificationMessage"
-            :color="notificationColor"
-            @update:visible="notificationVisible = false"
-          /> -->
+          <UiForms />
         </section>
       </div>
 
@@ -60,26 +55,6 @@
     </main>
   </div>
 </template>
-
-
-<script setup>
-import { ref } from 'vue';
-
-const notificationVisible = ref(false);
-const notificationMessage = ref('');
-const notificationColor = ref('green');
-
-const handleFormSubmission = (isSuccess) => {
-  if (isSuccess) {
-    notificationMessage.value = 'Сообщение успешно отправлено!';
-    notificationColor.value = 'green';
-  } else {
-    notificationMessage.value = 'Ошибка при отправке сообщения. Попробуйте позже.';
-    notificationColor.value = 'red';
-  }
-  notificationVisible.value = true;
-};
-</script>
 
 <style lang="scss" scoped>
 .contacts-page {

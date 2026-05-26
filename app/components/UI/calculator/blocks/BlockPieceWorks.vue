@@ -61,7 +61,7 @@
     </footer>
 
     <div v-else class="empty-state">
-      <Icon name="material-symbols:tools-outline" size="48" class="empty-icon" />
+      <Icon name="mdi:tools" size="48" class="empty-icon" />
       <p>Дополнительные работы не выбраны.<br>Используйте поиск выше для добавления.</p>
     </div>
   </div>
