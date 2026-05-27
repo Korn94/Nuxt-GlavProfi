@@ -35,7 +35,7 @@
     <!-- Список добавленных допов -->
     <ul v-if="addedExtras.length" class="works-list">
       <li v-for="extra in addedExtras" :key="extra.itemId" class="work-item extra-item">
-        <span class="work-name">{{ extra.work.name }}</span>
+        <p class="work-name">{{ extra.work.name }}</p>
         <div class="extra-controls">
           <button type="button" class="qty-btn" @click="updateQty(extra.itemId, -1)">
             <Icon name="material-symbols:remove" size="14" />

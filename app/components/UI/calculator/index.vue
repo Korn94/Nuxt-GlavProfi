@@ -35,6 +35,7 @@
       <BlockDemolition
         :available-items="demolitionItems"
         :selected-works="state.demolitionWorks"
+        :all-works="allWorksFlat"
         @add="addDemolitionWork"
         @remove="removeDemolitionWork"
         @update-qty="updateDemolitionQty"
@@ -59,6 +60,7 @@
       <BlockPieceWorks
         :available-items="allPieceWorks"
         :selected-works="state.pieceWorks"
+        :all-works="allWorksFlat"
         @add="addPieceWork"
         @remove="removePieceWork"
         @update-qty="updatePieceQty"
@@ -140,14 +142,17 @@ const { result } = useCalculatorCore(state, allWorksFlat)
 const currentSectionData = computed(() => sections.value?.[state.section] || { standard: [], piece: [] })
 const availableGroups = computed(() => Object.values(FINISH_GROUPS).filter(g => g.section === state.section))
 
-// Стабильный список всех штучных/погонных работ из ВСЕХ разделов
+// Стабильный список всех штучных/погонных работ из ТЕКУЩЕЙ секции
 const allPieceWorks = computed(() =>
-  allWorksFlat.value.filter(w => w.normalizedUnit === 'piece' || w.normalizedUnit === 'linear')
+  allWorksFlat.value.filter(w =>
+    (w.normalizedUnit === 'piece' || w.normalizedUnit === 'linear') &&
+    w.section === state.section
+  )
 )
 
-// Демонтаж берётся из общего пула, а не только из текущей вкладки
+// Демонтаж берётся только из текущей секции
 const demolitionItems = computed(() =>
-  allWorksFlat.value.filter(w => w.isDemolition)
+  allWorksFlat.value.filter(w => w.isDemolition && w.section === state.section)
 )
 
 // -----------------------------------------------------------------------------

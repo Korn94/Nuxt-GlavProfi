@@ -53,6 +53,20 @@ const KEYWORD_TO_SECTION: Record<string, CalculatorSection> = {
  * Категория проверяется первой, чтобы избежать ложных срабатываний на общих словах.
  */
 function resolveSection(itemName: string, categoryName: string): CalculatorSection | null {
+  // Сначала проверяем название категории — она имеет приоритет
+  // Например: "Демонтаж и подготовка" → определяем секцию по подкатегории внутри неё
+  const categoryLower = categoryName.toLowerCase()
+
+  // Для категории "Демонтаж и подготовка" определяем секцию по имени подкатегории
+  if (categoryLower.includes('демонтаж') || categoryLower.includes('подготовка')) {
+    // Ищем ключевые слова в itemName для определения секции
+    for (const [keyword, section] of Object.entries(KEYWORD_TO_SECTION)) {
+      if (itemName.toLowerCase().includes(keyword)) return section
+    }
+    // Если не нашли, пробуем определить по подкатегории (она передаётся в categoryName)
+    return null
+  }
+
   // Ставим категорию вперед: "9. Потолки Прокладка провода"
   const searchText = `${categoryName} ${itemName}`.toLowerCase()
   

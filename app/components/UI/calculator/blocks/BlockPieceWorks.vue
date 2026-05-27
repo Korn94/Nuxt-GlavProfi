@@ -26,10 +26,10 @@
     <TransitionGroup name="list" tag="div" class="works-list">
       <div v-for="work in selectedWorks" :key="work.itemId" class="work-row">
         <div class="work-info">
-          <span class="work-name">{{ getItemName(work.itemId) }}</span>
-          <span class="work-unit-price">
+          <p class="work-name">{{ getItemName(work.itemId) }}</p>
+          <p class="work-unit-price">
             {{ formatPrice(getItemPrice(work.itemId)) }} ₽/{{ getUnitLabel(getItemUnit(work.itemId)) }}
-          </span>
+          </p>
         </div>
 
         <div class="work-controls">
@@ -47,9 +47,9 @@
           <button type="button" class="qty-btn" @click="changeQty(work.itemId, 1)">
             <Icon name="material-symbols:add" size="16" />
           </button>
-          <span class="row-total">
+          <p class="row-total">
             {{ formatPrice(getItemPrice(work.itemId) * work.quantity) }} ₽
-          </span>
+          </p>
           <button type="button" class="remove-btn" @click="emit('remove', work.itemId)" title="Удалить работу">
             <Icon name="material-symbols:delete-outline" size="20" />
           </button>
@@ -81,6 +81,7 @@ import WorkSearchSelect from '~/components/ui/calculator/shared/WorkSearchSelect
 const props = defineProps<{
   availableItems: NormalizedWorkItem[]
   selectedWorks: Array<{ itemId: number; quantity: number }>
+  allWorks?: NormalizedWorkItem[] // Полный список всех работ для поиска цен
 }>()
 
 const emit = defineEmits<{
@@ -110,7 +111,8 @@ function onQtyInput(itemId: number, event: Event) {
   emit('update-qty', itemId, isNaN(val) || val < 1 ? 1 : val)
 }
 
-const findItem = (id: number) => props.availableItems.find(i => i.id === id)
+// Хелперы для поиска данных: сначала в availableItems, затем во allWorks
+const findItem = (id: number) => props.availableItems.find(i => i.id === id) || props.allWorks?.find(i => i.id === id)
 const getItemName = (id: number) => findItem(id)?.name || 'Неизвестная работа'
 const getItemPrice = (id: number) => findItem(id)?.pricePerUnit || 0
 const getItemUnit = (id: number) => findItem(id)?.normalizedUnit || 'piece'
@@ -365,6 +367,7 @@ function getUnitLabel(unit: WorkUnit): string {
   }
 
   p {
+    color: $text-gray;
     margin: 0;
     line-height: 1.5;
   }

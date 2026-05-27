@@ -54,6 +54,7 @@ export interface DBPriceItem {
   unit: string
   price: string
   sub_category_id: number
+  category_id?: number // ✅ Для определения демонтажа
 }
 
 /** Нормализованная позиция для фронтенд-логики */

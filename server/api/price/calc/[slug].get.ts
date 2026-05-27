@@ -90,7 +90,8 @@ export default defineEventHandler(async (event) => {
           name: row.itemName,
           unit: row.itemUnit,
           price: row.itemPrice,
-          sub_category_id: row.itemSubCategoryId // Важно для нормализации
+          sub_category_id: row.itemSubCategoryId,
+          category_id: row.categoryId // ✅ Добавляем ID категории для определения демонтажа
         })
       }
     }

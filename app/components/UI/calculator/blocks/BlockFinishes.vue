@@ -221,6 +221,7 @@ function getGroupConfig(id: string): FinishGroupConfig | undefined {
   }
 
   p {
+    color: $text-gray;
     margin: 0;
     line-height: 1.5;
   }

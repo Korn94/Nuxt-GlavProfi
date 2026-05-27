@@ -89,9 +89,9 @@
           </button>
         </div>
 
-        <span v-if="!isManualPerimeter" class="form-helper">
+        <p v-if="!isManualPerimeter" class="form-helper">
           Рассчитано: √Площадь × 4
-        </span>
+        </p>
       </div>
 
       <!-- 4. Площадь стен -->
@@ -135,9 +135,9 @@
           </button>
         </div>
 
-        <span v-if="!isWallAreaManual && calculatedWallArea > 0" class="form-helper">
+        <p v-if="!isWallAreaManual && calculatedWallArea > 0" class="form-helper">
           Рассчитано: {{ calculatedWallAreaText }}
-        </span>
+        </p>
       </div>
 
     </div>

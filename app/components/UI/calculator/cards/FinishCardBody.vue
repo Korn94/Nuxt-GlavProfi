@@ -24,7 +24,7 @@
       <h5 class="section-title">Состав работ (база)</h5>
       <ul class="works-list">
         <li v-for="work in baseWorks" :key="work.id" class="work-item">
-          <span class="work-name">{{ work.name }}</span>
+          <p class="work-name">{{ work.name }}</p>
           <span class="work-detail">
             {{ formatPrice(work.pricePerUnit) }} ₽/м² × {{ instance.area.toFixed(1) }} м²
           </span>

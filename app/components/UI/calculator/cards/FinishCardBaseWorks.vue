@@ -14,7 +14,7 @@
             >
             <span class="checkbox-custom"></span>
           </label>
-          <span class="work-name">{{ work.name }}</span>
+          <p class="work-name">{{ work.name }}</p>
         </div>
         
         <div class="work-calc">
