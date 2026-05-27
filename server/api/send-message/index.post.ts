@@ -167,7 +167,9 @@ export default defineEventHandler(async (event) => {
                 <td style="padding:8px;background:#f9f9f9;font-weight:bold;vertical-align:top">
                   Комментарий:
                 </td>
-                <td style="padding:8px">${comment || '-'}</td>
+                <td style="padding:8px;white-space:pre-line;font-family:monospace;font-size:13px;line-height:1.5">
+                  ${comment || '-'}
+                </td>
               </tr>
               ${filesHtmlRow}
             </table>

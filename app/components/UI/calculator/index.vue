@@ -70,7 +70,9 @@
       <BlockSummary
         :result="result"
         :area="state.dimensions.floorArea"
-        @submit-lead="handleLeadSubmit"
+        :calculator-state="state"
+        :all-works="allWorksFlat"
+        source-label="Калькулятор ремонта на сайте ГлавПрофи"
       />
 
     </template>
@@ -175,19 +177,6 @@ function updateInstanceExtraQty(instanceId: string, itemId: number, qty: number)
   const extra = state.surfaceInstances.find(i => i.instanceId === instanceId)?.extras.find(e => e.itemId === itemId)
   if (extra) extra.qty = Math.max(1, qty)
 }
-
-// -----------------------------------------------------------------------------
-// 4. Обработка заявки
-// -----------------------------------------------------------------------------
-function handleLeadSubmit() {
-  console.log('📤 Отправка лида:', {
-    input: state,
-    result: result.value,
-    timestamp: Date.now()
-  })
-
-  alert('Заявка успешно сформирована! (см. консоль)')
-}
 </script>
 
 <style lang="scss" scoped>
@@ -209,7 +198,7 @@ function handleLeadSubmit() {
   box-shadow:
     0 20px 60px rgba(0, 0, 0, 0.25),
     0 0 0 1px rgba(0, 195, 245, 0.05);
-  overflow: hidden;
+  overflow: clip;
   font-family: 'Rubik', sans-serif;
   padding: 3rem;
 

@@ -3,6 +3,7 @@
   <div class="block-summary">
     <div class="summary-content">
 
+      <!-- === Итоговая сумма === -->
       <div class="total-section">
         <span class="label">Итоговая стоимость работ:</span>
         <span class="price">{{ formatPrice(total) }} ₽</span>
@@ -12,41 +13,79 @@
         </div>
       </div>
 
+      <!-- === Кнопка открытия модалки === -->
       <div class="actions">
-        <button type="button" class="btn-submit" @click="emit('submit-lead')" :disabled="total === 0">
-          <Icon name="material-symbols:send" size="20" />
+        <button
+          type="button"
+          class="btn-submit"
+          :disabled="total === 0"
+          @click="isModalOpen = true"
+        >
+          <Icon name="mdi:send" size="20" />
           Получить точную смету
         </button>
       </div>
+
+      <!-- === Уведомление после успешной отправки === -->
+      <Transition name="fade">
+        <div v-if="showSuccessBanner" class="success-banner">
+          <Icon name="mdi:check-circle" size="22" class="success-banner__icon" />
+          <div class="success-banner__text">
+            <strong>Заявка отправлена!</strong>
+            <span>Инженер свяжется с вами в течение 24 часов.</span>
+          </div>
+        </div>
+      </Transition>
 
       <p class="disclaimer">
         <Icon name="mdi:information-outline" size="14" class="disclaimer__icon" />
         Расчёт является предварительным. Точная стоимость определяется после замера.
       </p>
     </div>
+
+    <!-- === Модальное окно === -->
+    <LeadModal
+      v-model:is-open="isModalOpen"
+      :result="result"
+      :area="area"
+      :calculator-state="calculatorState"
+      :all-works="allWorks"
+      :source-label="sourceLabel"
+      @success="onSuccess"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import type { CalculationResult } from '~/types/calculator'
+import { computed, ref } from 'vue'
+import type { CalculationResult, CalculatorState, WorkUnit } from '~/types/calculator'
+import LeadModal from '../modals/LeadModal.vue'
 
 // -----------------------------------------------------------------------------
-// 1. Props & Emits
+// 1. Props
 // -----------------------------------------------------------------------------
-const props = defineProps<{
-  result: CalculationResult
-  area: number
-}>()
-
-const emit = defineEmits<{
-  (e: 'submit-lead'): void
-}>()
+const props = withDefaults(
+  defineProps<{
+    result: CalculationResult
+    area: number
+    calculatorState: CalculatorState
+    allWorks: Array<{ id: number; name: string; pricePerUnit: number; normalizedUnit: WorkUnit }>
+    sourceLabel?: string
+  }>(),
+  {
+    sourceLabel: 'Калькулятор ремонта',
+  }
+)
 
 // -----------------------------------------------------------------------------
-// 2. Вычисления
+// 2. Состояние
 // -----------------------------------------------------------------------------
+const isModalOpen = ref(false)
+const showSuccessBanner = ref(false)
 
+// -----------------------------------------------------------------------------
+// 3. Вычисления
+// -----------------------------------------------------------------------------
 const total = computed(() => props.result.summary.grandTotal)
 
 const pricePerM2 = computed(() => {
@@ -57,28 +96,38 @@ const pricePerM2 = computed(() => {
 })
 
 // -----------------------------------------------------------------------------
-// 3. Утилиты
+// 4. Утилиты
 // -----------------------------------------------------------------------------
 function formatPrice(price: number): string {
   return new Intl.NumberFormat('ru-RU').format(Math.round(price))
+}
+
+// -----------------------------------------------------------------------------
+// 5. Обработка успеха
+// -----------------------------------------------------------------------------
+function onSuccess() {
+  showSuccessBanner.value = true
+  // Скрываем баннер через 8 секунд
+  setTimeout(() => {
+    showSuccessBanner.value = false
+  }, 8000)
 }
 </script>
 
 <style lang="scss" scoped>
 @use "@/assets/styles/variables" as *;
 
-// === Контейнер итогового блока (тёмная карточка с акцентом) ===
+// === Контейнер итогового блока ===
 .block-summary {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(0, 195, 245, 0.2);
   border-radius: 16px;
   padding: 2.5rem 2rem;
   margin-top: 2rem;
-  // position: relative;
-  // z-index: 1;
-  overflow: hidden;
+  position: relative;
+  z-index: 1;
+  overflow: clip;
 
-  // Градиентная линия сверху (как в ApplicationCTA и главном wrapper)
   &::before {
     content: '';
     position: absolute;
@@ -89,7 +138,6 @@ function formatPrice(price: number): string {
     background: $blue-gradient;
   }
 
-  // Декоративное свечение
   &::after {
     content: '';
     position: absolute;
@@ -111,17 +159,16 @@ function formatPrice(price: number): string {
   }
 }
 
-// === Контент ===
 .summary-content {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1.8rem;
   text-align: center;
   position: relative;
   z-index: 1;
 }
 
-// === Секция итоговой суммы ===
+// === Итоговая сумма ===
 .total-section {
   .label {
     display: block;
@@ -166,7 +213,7 @@ function formatPrice(price: number): string {
   }
 }
 
-// === Кнопка отправки ===
+// === Кнопка ===
 .actions {
   display: flex;
   justify-content: center;
@@ -209,6 +256,43 @@ function formatPrice(price: number): string {
   }
 }
 
+// === Баннер успеха ===
+.success-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 1rem 1.2rem;
+  background: rgba($green, 0.1);
+  border: 1px solid rgba($green, 0.3);
+  border-radius: 12px;
+  max-width: 460px;
+  margin: 0 auto;
+  width: 100%;
+
+  &__icon {
+    color: $green;
+    flex-shrink: 0;
+  }
+
+  &__text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    text-align: left;
+
+    strong {
+      color: #4ade80;
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    span {
+      color: rgba($text-light, 0.75);
+      font-size: 0.85rem;
+    }
+  }
+}
+
 // === Дисклеймер ===
 .disclaimer {
   display: flex;
@@ -227,5 +311,17 @@ function formatPrice(price: number): string {
     flex-shrink: 0;
     opacity: 0.7;
   }
+}
+
+// === Анимации ===
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
 }
 </style>
