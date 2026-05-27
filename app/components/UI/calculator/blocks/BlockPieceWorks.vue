@@ -17,6 +17,7 @@
         :model-value="null"
         :items="availableItems"
         placeholder="+ Нажмите, чтобы выбрать и добавить работу..."
+        :exclude-item-ids="selectedWorks.map(w => w.itemId)"
         class="select-wrapper"
         @select="handleAdd"
       />

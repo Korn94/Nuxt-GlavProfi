@@ -15,6 +15,7 @@
         :model-value="null"
         :items="groupSelectItems"
         placeholder="+ Нажмите, чтобы выбрать и добавить покрытие..."
+        :exclude-item-ids="surfaceInstances.map(i => i.finishGroupId)"
         class="select-wrapper"
         @select="handleSelectGroup"
       />

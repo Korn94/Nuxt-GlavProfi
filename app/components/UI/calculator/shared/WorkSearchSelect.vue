@@ -66,6 +66,7 @@ const props = defineProps<{
   modelValue: number | null
   items: NormalizedWorkItem[]
   placeholder?: string
+  excludeItemIds?: (number | string)[] // IDs работ, которые нужно исключить из списка (поддерживает number и string)
 }>()
 
 const emit = defineEmits<{
@@ -90,14 +91,24 @@ const selectedItem = computed(() =>
   props.items.find(i => i.id === props.modelValue) || null
 )
 
-/** Фильтрация списка по поисковому запросу */
+/** Фильтрация списка по поисковому запросу и исключение выбранных работ */
 const filteredItems = computed(() => {
-  if (!searchQuery.value.trim()) return props.items
-  
-  const query = searchQuery.value.toLowerCase().trim()
-  return props.items.filter(item => 
-    item.name.toLowerCase().includes(query)
-  )
+  let result = props.items
+
+  // Исключаем работы, которые уже добавлены
+  if (props.excludeItemIds && props.excludeItemIds.length > 0) {
+    result = result.filter(item => !props.excludeItemIds?.some(id => id === item.id || id === String(item.id)))
+  }
+
+  // Применяем поиск
+  if (searchQuery.value.trim()) {
+    const query = searchQuery.value.toLowerCase().trim()
+    result = result.filter(item =>
+      item.name.toLowerCase().includes(query)
+    )
+  }
+
+  return result
 })
 
 // -----------------------------------------------------------------------------
