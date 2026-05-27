@@ -80,84 +80,184 @@ function formatPrice(price: number): string {
 </script>
 
 <style lang="scss" scoped>
-@use "@/assets/styles/calculator-vars.scss" as *;
+@use "@/assets/styles/variables" as *;
 
-.card-body { padding: 16px; }
+// === Тело карточки ===
+.card-body {
+  padding: 1.2rem;
+}
 
-// Опции
+// === Панель опций ===
 .options-panel {
-  padding: 12px 16px;
-  background: rgba($primary, 0.03);
-  border-bottom: 1px solid $border-light;
-  margin-bottom: 16px;
+  padding: 1rem 1.2rem;
+  background: rgba(0, 195, 245, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  margin-bottom: 1.2rem;
+  border-radius: 8px;
 }
 
 .option-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
-  &:last-child { margin-bottom: 0; }
+  gap: 0.8rem;
+  margin-bottom: 0.6rem;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
 }
 
 .option-label {
   font-size: 0.85rem;
-  color: $text-secondary;
-  min-width: 100px;
+  color: rgba($text-light, 0.6);
+  min-width: 110px;
+  font-family: 'Rubik', sans-serif;
+  flex-shrink: 0;
 }
 
 .option-select {
   flex: 1;
-  padding: 6px 10px;
-  border: 1px solid $border-color;
-  border-radius: 6px;
+  padding: 0.5rem 0.8rem;
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
   font-size: 0.9rem;
-  background: $bg-white;
-  &:focus { border-color: $primary; outline: none; }
+  font-family: 'Rubik', sans-serif;
+  background: rgba(255, 255, 255, 0.04);
+  color: $text-light;
+  transition: all 0.25s ease;
+  cursor: pointer;
+
+  // Стилизация стрелки select для тёмной темы
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%2300c3f5' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 2rem;
+
+  &:focus {
+    outline: none;
+    border-color: $blue;
+    background-color: rgba(0, 195, 245, 0.06);
+    box-shadow: 0 0 0 3px rgba(0, 195, 245, 0.12);
+  }
+
+  // Опции внутри dropdown (зависит от ОС, но фон стараемся задать)
+  option {
+    background: #2a2b2e;
+    color: $text-light;
+  }
 }
 
-// Список базовых работ
-.works-section { margin-bottom: 20px; }
+// === Секция базовых работ ===
+.works-section {
+  margin-bottom: 1.5rem;
+}
+
 .section-title {
-  margin: 0 0 10px;
-  font-size: 0.9rem;
+  margin: 0 0 0.7rem;
+  font-size: 0.82rem;
   font-weight: 600;
-  color: $text-primary;
+  color: rgba($text-light, 0.55);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.08em;
+  font-family: 'Rubik', sans-serif;
 }
 
 .works-list {
   list-style: none;
   margin: 0;
   padding: 0;
-  border: 1px solid $border-light;
-  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
   overflow: hidden;
 }
 
 .work-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  border-bottom: 1px solid $border-light;
-  font-size: 0.85rem;
-  background: $bg-white;
+  gap: 0.8rem;
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.88rem;
+  background: rgba(255, 255, 255, 0.02);
+  transition: background 0.2s ease;
 
-  &:last-child { border-bottom: none; }
-  &.empty { color: $text-muted; font-style: italic; justify-content: center; }
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &.empty {
+    color: rgba($text-light, 0.4);
+    font-style: italic;
+    justify-content: center;
+    padding: 1.2rem;
+  }
 }
 
-.work-name { flex: 1; font-weight: 500; color: $text-primary; line-height: 1.3; }
-.work-detail { color: $text-secondary; white-space: nowrap; }
-.work-total { font-weight: 600; color: $primary; white-space: nowrap; }
+.work-name {
+  flex: 1;
+  font-weight: 500;
+  color: rgba($text-light, 0.9);
+  line-height: 1.35;
+  font-family: 'Rubik', sans-serif;
+  min-width: 0;
+}
 
-// Анимации
-.slide-enter-active, .slide-leave-active { transition: all 0.25s ease; max-height: 300px; overflow: hidden; }
-.slide-enter-from, .slide-leave-to { max-height: 0; opacity: 0; }
+.work-detail {
+  color: rgba($text-light, 0.5);
+  white-space: nowrap;
+  font-size: 0.82rem;
+  font-family: 'Rubik', sans-serif;
+}
 
-span {
-  color: unset;
+.work-total {
+  font-weight: 700;
+  color: $blue-light;
+  white-space: nowrap;
+  font-family: 'Rubik', sans-serif;
+}
+
+// === Анимация раскрытия опций ===
+.slide-enter-active,
+.slide-leave-active {
+  transition: all 0.3s ease;
+  max-height: 400px;
+  overflow: hidden;
+}
+
+.slide-enter-from,
+.slide-leave-to {
+  max-height: 0;
+  opacity: 0;
+}
+
+// === Адаптив ===
+@media (max-width: 640px) {
+  .option-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
+  }
+
+  .option-label {
+    min-width: unset;
+  }
+
+  .option-select {
+    width: 100%;
+  }
+
+  .work-item {
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .work-name {
+    flex-basis: 100%;
+  }
+
+  .work-detail {
+    font-size: 0.78rem;
+  }
 }
 </style>

@@ -86,7 +86,7 @@ function onToggleExclude(itemId: number) {
 
 /** 
  * 🧮 Маппинг базовых работ с учётом опций.
- * ✅ Исправлено: опции заменяют только работы с совпадающим subCategoryId.
+ * Опции заменяют только работы с совпадающим subCategoryId.
  */
 const resolvedBaseWorks = computed(() => {
   if (!props.config || !props.config.baseItemIds?.length) return []
@@ -128,33 +128,48 @@ const resolvedBaseWorks = computed(() => {
 </script>
 
 <style lang="scss" scoped>
-@use "@/assets/styles/calculator-vars.scss" as *;
+@use "@/assets/styles/variables" as *;
 
+// === Карточка покрытия (тёмная тема) ===
 .finish-card {
-  background: $bg-white;
-  border: 1px solid $border-color;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   overflow: hidden;
-  transition: box-shadow 0.2s;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+
+  &:hover {
+    border-color: rgba(0, 195, 245, 0.2);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  }
 }
 
+// === Контент карточки ===
 .card-content {
-  padding: 16px;
+  padding: 1.2rem;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 1.2rem;
 }
 
+// === Секция доп. работ (раскрывающаяся) ===
 .extras-section {
-  margin-top: 8px;
-  padding-top: 12px;
-  border-top: 1px dashed $border-color;
+  margin-top: 0.5rem;
+  padding-top: 1rem;
+  border-top: 1px dashed rgba(255, 255, 255, 0.1);
 }
 
-.slide-enter-active, .slide-leave-active { transition: all 0.25s ease; max-height: 600px; overflow: hidden; }
-.slide-enter-from, .slide-leave-to { max-height: 0; opacity: 0; }
+// === Анимация раскрытия ===
+.slide-enter-active,
+.slide-leave-active {
+  transition: all 0.3s ease;
+  max-height: 800px;
+  overflow: hidden;
+}
 
-span {
-  color: unset;
+.slide-enter-from,
+.slide-leave-to {
+  max-height: 0;
+  opacity: 0;
 }
 </style>

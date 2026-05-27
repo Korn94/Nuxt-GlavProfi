@@ -2,7 +2,10 @@
 <template>
   <div class="block-demolition">
     <header class="block-header">
-      <h3 class="block-title">🔨 Демонтаж и подготовка</h3>
+      <h3 class="block-title">
+        <Icon name="mdi:hammer-wrench" size="22" class="block-title__icon" />
+        Демонтаж и подготовка
+      </h3>
       <p class="block-desc">Нажмите на работу из списка, чтобы сразу добавить её в смету.</p>
     </header>
 
@@ -31,12 +34,12 @@
           <button type="button" class="qty-btn" @click="changeQty(work.itemId, -0.5)">
             <Icon name="material-symbols:remove" size="16" />
           </button>
-          <input 
-            type="number" 
-            :value="work.quantity" 
-            @input="onQtyInput(work.itemId, $event)" 
-            class="qty-input" 
-            min="0.5" 
+          <input
+            type="number"
+            :value="work.quantity"
+            @input="onQtyInput(work.itemId, $event)"
+            class="qty-input"
+            min="0.5"
             step="0.5"
           >
           <button type="button" class="qty-btn" @click="changeQty(work.itemId, 0.5)">
@@ -111,7 +114,7 @@ const getItemName = (id: number) => findItem(id)?.name || 'Неизвестна�
 const getItemPrice = (id: number) => findItem(id)?.pricePerUnit || 0
 const getItemUnit = (id: number) => findItem(id)?.normalizedUnit || 'piece'
 
-const blockTotal = computed(() => 
+const blockTotal = computed(() =>
   props.selectedWorks.reduce((sum, w) => sum + (getItemPrice(w.itemId) * w.quantity), 0)
 )
 
@@ -132,77 +135,257 @@ function getUnitLabel(unit: WorkUnit): string {
 </script>
 
 <style lang="scss" scoped>
-@use "@/assets/styles/calculator-vars.scss" as *;
+@use "@/assets/styles/variables" as *;
 
+// === Контейнер блока (тёмная карточка) ===
 .block-demolition {
-  background: $bg-white;
-  border: 1px solid $border-color;
-  border-radius: 12px;
-  padding: $spacing-md;
-  margin-bottom: $spacing-md;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 1.8rem;
+  margin-bottom: 1.5rem;
+  position: relative;
+  z-index: 1;
 }
 
-.block-header { margin-bottom: $spacing-md; }
-.block-title { margin: 0 0 4px; font-size: 1.1rem; font-weight: 600; color: $text-primary; }
-.block-desc { margin: 0; font-size: 0.85rem; color: $text-secondary; line-height: 1.4; }
+// === Заголовок блока ===
+.block-header {
+  margin-bottom: 1.5rem;
+}
 
-.add-row { margin-bottom: $spacing-md; }
-.select-wrapper { width: 100%; }
+.block-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 0 0.4rem;
+  font-family: 'Rubik', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: $text-light;
+  line-height: 1.3;
 
-// Список работ
-.works-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: $spacing-md; }
+  &__icon {
+    color: $blue-light;
+    flex-shrink: 0;
+  }
+}
 
+.block-desc {
+  margin: 0;
+  font-size: 0.88rem;
+  color: rgba($text-light, 0.6);
+  line-height: 1.5;
+}
+
+// === Строка поиска ===
+.add-row {
+  margin-bottom: 1.5rem;
+}
+
+.select-wrapper {
+  width: 100%;
+}
+
+// === Список работ ===
+.works-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-bottom: 1.5rem;
+}
+
+// === Строка работы ===
 .work-row {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: 10px 12px; background: $bg-light; border-radius: 8px; border: 1px solid transparent; transition: all 0.2s;
-  &:hover { border-color: rgba($primary, 0.2); background: rgba($primary, 0.02); }
-  @include mobile { flex-direction: column; align-items: flex-start; gap: 8px; }
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1.1rem;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: all 0.25s ease;
+
+  &:hover {
+    border-color: rgba(0, 195, 245, 0.25);
+    background: rgba(0, 195, 245, 0.04);
+  }
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.8rem;
+  }
 }
 
-.work-info { display: flex; flex-direction: column; gap: 2px; }
-.work-name { font-size: 0.9rem; font-weight: 500; color: $text-primary; line-height: 1.2; }
-.work-unit-price { font-size: 0.75rem; color: $text-secondary; }
+// === Информация о работе ===
+.work-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  flex: 1;
+}
 
-.work-controls { display: flex; align-items: center; gap: 6px; }
+.work-name {
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: rgba($text-light, 0.95);
+  line-height: 1.3;
+  font-family: 'Rubik', sans-serif;
+}
+
+.work-unit-price {
+  font-size: 0.78rem;
+  color: rgba($text-light, 0.5);
+}
+
+// === Контролы количества ===
+.work-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
 .qty-btn {
-  display: flex; align-items: center; justify-content: center;
-  width: 28px; height: 28px; border: 1px solid $border-color; background: $bg-white;
-  border-radius: 6px; cursor: pointer; color: $primary;
-  &:hover { background: rgba($primary, 0.05); }
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  cursor: pointer;
+  color: $blue-light;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(0, 195, 245, 0.12);
+    border-color: rgba(0, 195, 245, 0.3);
+  }
 }
+
 .qty-input {
-  width: 48px; height: 28px; text-align: center; border: 1px solid $border-color;
-  border-radius: 6px; font-size: 0.9rem; font-weight: 500; color: $text-primary;
-  -moz-appearance: textfield; appearance: textfield;
-  &::-webkit-inner-spin-button, &::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  width: 52px;
+  height: 30px;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: 'Rubik', sans-serif;
+  color: $text-light;
+  background: rgba(255, 255, 255, 0.04);
+  transition: all 0.2s ease;
+
+  -moz-appearance: textfield;
+  appearance: textfield;
+
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: $blue;
+    background: rgba(0, 195, 245, 0.06);
+  }
 }
-.row-total { font-weight: 600; font-size: 0.95rem; color: $text-primary; min-width: 70px; text-align: right; margin-left: 4px; }
+
+.row-total {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: $blue-light;
+  min-width: 75px;
+  text-align: right;
+  margin-left: 0.3rem;
+  font-family: 'Rubik', sans-serif;
+}
+
 .remove-btn {
-  display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;
-  border: none; background: transparent; color: $danger; cursor: pointer; border-radius: 6px; opacity: 0.7;
-  &:hover { opacity: 1; background: rgba($danger, 0.08); }
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: transparent;
+  color: rgba(#ff6b6b, 0.7);
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    color: #ff6b6b;
+    background: rgba(#ff6b6b, 0.12);
+  }
 }
 
-// Футер
+// === Футер блока ===
 .block-footer {
-  display: flex; justify-content: space-between; align-items: center; padding-top: 12px;
-  border-top: 1px dashed $border-color; font-size: 0.9rem; color: $text-secondary;
-  .footer-total { font-size: 1.1rem; color: $primary; }
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 1rem;
+  border-top: 1px dashed rgba(255, 255, 255, 0.12);
+  font-size: 0.92rem;
+  color: rgba($text-light, 0.65);
+  font-family: 'Rubik', sans-serif;
+
+  .footer-total {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: $blue-light;
+  }
 }
 
-// Пустое состояние
+// === Пустое состояние ===
 .empty-state {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 24px 0; color: $text-muted; font-size: 0.9rem; text-align: center; gap: 8px;
-  .empty-icon { opacity: 0.4; }
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1rem;
+  color: rgba($text-light, 0.4);
+  font-size: 0.92rem;
+  text-align: center;
+  gap: 0.8rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+
+  .empty-icon {
+    opacity: 0.35;
+    color: rgba($text-light, 0.5);
+  }
+
+  p {
+    margin: 0;
+    line-height: 1.5;
+  }
 }
 
-// Анимации
-.list-enter-active, .list-leave-active { transition: all 0.25s ease; }
-.list-enter-from { opacity: 0; transform: translateY(-8px); }
-.list-leave-to { opacity: 0; transform: scale(0.98); }
+// === Анимации списка ===
+.list-enter-active,
+.list-leave-active {
+  transition: all 0.3s ease;
+}
 
-span {
-  color: unset;
+.list-enter-from {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.list-leave-to {
+  opacity: 0;
+  transform: scale(0.97);
+}
+
+.list-move {
+  transition: transform 0.3s ease;
 }
 </style>

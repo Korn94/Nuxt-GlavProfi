@@ -225,6 +225,10 @@ span {
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
     justify-content: center;
+    
+    @media (max-width: 768px) {
+      justify-content: unset;
+    }
 
     &::-webkit-scrollbar {
       display: none;

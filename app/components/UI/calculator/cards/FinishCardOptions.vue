@@ -4,16 +4,16 @@
     <div v-for="(opt, key) in optionsConfig" :key="key" class="option-group">
       <label class="option-label">{{ opt.label }}:</label>
       <div class="radio-group">
-        <label 
-          v-for="val in opt.values" 
-          :key="val.value" 
+        <label
+          v-for="val in opt.values"
+          :key="val.value"
           class="radio-item"
           :class="{ 'is-selected': currentOptions[key] === val.value }"
         >
-          <input 
-            type="radio" 
-            :name="key" 
-            :value="val.value" 
+          <input
+            type="radio"
+            :name="`${instanceId}-${key}`"
+            :value="val.value"
             :checked="currentOptions[key] === val.value"
             @change="onChange(key, val.value)"
             class="radio-input"
@@ -51,57 +51,96 @@ function cleanLabel(label: string): string {
 </script>
 
 <style lang="scss" scoped>
-@use "@/assets/styles/calculator-vars.scss" as *;
+@use "@/assets/styles/variables" as *;
 
+// === Панель опций (тёмная тема) ===
 .options-panel {
-  background: rgba($primary, 0.03);
-  padding: 12px 16px;
-  border-radius: 8px;
+  background: rgba(0, 195, 245, 0.04);
+  padding: 1rem 1.2rem;
+  border-radius: 10px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 1rem;
+  border: 1px solid rgba(0, 195, 245, 0.08);
 }
 
+// === Лейбл группы опций ===
 .option-label {
   font-size: 0.85rem;
   font-weight: 500;
-  color: $text-secondary;
-  margin-bottom: 6px;
+  color: rgba($text-light, 0.6);
+  margin-bottom: 0.4rem;
+  font-family: 'Rubik', sans-serif;
+  display: block;
 }
 
+// === Группа радио-кнопок ===
 .radio-group {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 0.5rem;
 }
 
+// === Радио-кнопка (пилюля) ===
 .radio-item {
   position: relative;
   display: inline-flex;
   align-items: center;
-  padding: 6px 12px;
-  background: $bg-white;
-  border: 1px solid $border-color;
-  border-radius: 20px;
+  padding: 0.45rem 1rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.25s ease;
   font-size: 0.85rem;
-  
-  &:hover { border-color: $primary; }
+  font-family: 'Rubik', sans-serif;
+  color: rgba($text-light, 0.75);
+
+  &:hover {
+    border-color: rgba(0, 195, 245, 0.4);
+    background: rgba(0, 195, 245, 0.06);
+    color: $text-light;
+  }
+
   &.is-selected {
-    background: $primary;
-    color: white;
-    border-color: $primary;
+    background: $blue-gradient;
+    color: $background-dark;
+    border-color: transparent;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(0, 195, 245, 0.25);
+  }
+
+  // Focus-visible для accessibility
+  &:has(.radio-input:focus-visible) {
+    outline: 2px solid $blue;
+    outline-offset: 2px;
   }
 }
 
+// === Скрытый нативный radio ===
 .radio-input {
-  position: absolute; opacity: 0; width: 0; height: 0;
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
 }
 
-.radio-text { white-space: nowrap; }
+// === Текст опции ===
+.radio-text {
+  white-space: nowrap;
+  line-height: 1.3;
+}
 
-span {
-  color: unset;
+// === Адаптив ===
+@media (max-width: 480px) {
+  .radio-group {
+    gap: 0.4rem;
+  }
+
+  .radio-item {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+  }
 }
 </style>

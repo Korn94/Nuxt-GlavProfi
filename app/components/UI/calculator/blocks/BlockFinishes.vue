@@ -2,7 +2,10 @@
 <template>
   <div class="block-finishes">
     <header class="block-header">
-      <h3 class="block-title">🎨 Чистовые покрытия</h3>
+      <h3 class="block-title">
+        <Icon name="mdi:palette-outline" size="22" class="block-title__icon" />
+        Чистовые покрытия
+      </h3>
       <p class="block-desc">Нажмите на покрытие из списка, чтобы сразу добавить его в смету.</p>
     </header>
 
@@ -53,7 +56,7 @@ import type {
   CalculatorSection, 
   WorkUnit 
 } from '~/types/calculator'
-import { FINISH_GROUPS } from '~/utils/finish-groups' // ✅ Импорт полной конфигурации
+import { FINISH_GROUPS } from '~/utils/finish-groups'
 import WorkSearchSelect from '~/components/ui/calculator/shared/WorkSearchSelect.vue'
 import FinishCard from '~/components/ui/calculator/cards/FinishCard.vue'
 
@@ -81,7 +84,6 @@ const emit = defineEmits<{
 // 2. Адаптер для WorkSearchSelect
 // -----------------------------------------------------------------------------
 
-/** Интерфейс опции селекта, совместимый с NormalizedWorkItem */
 interface GroupSelectItem {
   id: number
   groupId: string
@@ -94,7 +96,7 @@ interface GroupSelectItem {
 }
 
 /** 
- * ✅ Обновлено: динамически рассчитываем базовую цену за м².
+ * Динамически рассчитываем базовую цену за м².
  * Суммируем цены всех работ из baseItemIds конфига.
  */
 const groupSelectItems = computed<GroupSelectItem[]>(() => 
@@ -112,7 +114,7 @@ const groupSelectItems = computed<GroupSelectItem[]>(() =>
       groupId: g.id,
       name: `${g.icon || '🔹'} ${g.name}`,
       icon: g.icon,
-      pricePerUnit: Math.round(basePrice), // ✅ Теперь здесь реальная цена за м²
+      pricePerUnit: Math.round(basePrice),
       normalizedUnit: 'm2' as WorkUnit,
       subCategoryId: 0,
       section: g.section
@@ -139,40 +141,111 @@ function getGroupConfig(id: string): FinishGroupConfig | undefined {
 </script>
 
 <style lang="scss" scoped>
-@use "@/assets/styles/calculator-vars.scss" as *;
+@use "@/assets/styles/variables" as *;
 
+// === Контейнер блока (тёмная карточка) ===
 .block-finishes {
-  background: $bg-white;
-  border: 1px solid $border-color;
-  border-radius: 12px;
-  padding: $spacing-md;
-  margin-bottom: $spacing-md;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 1.8rem;
+  margin-bottom: 1.5rem;
+  /* position: relative; */
+  /* z-index: 1; */
 }
 
-.block-header { margin-bottom: $spacing-md; }
-.block-title { margin: 0 0 4px; font-size: 1.1rem; font-weight: 600; color: $text-primary; }
-.block-desc { margin: 0; font-size: 0.85rem; color: $text-secondary; line-height: 1.4; }
+// === Заголовок блока ===
+.block-header {
+  margin-bottom: 1.5rem;
+}
 
-.add-row { margin-bottom: $spacing-md; }
-.select-wrapper { width: 100%; }
+.block-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 0 0.4rem;
+  font-family: 'Rubik', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: $text-light;
+  line-height: 1.3;
 
-// Список инстансов
-.finishes-list { display: flex; flex-direction: column; gap: 16px; margin-bottom: $spacing-md; }
+  &__icon {
+    color: $blue-light;
+    flex-shrink: 0;
+  }
+}
 
-// Пустое состояние
+.block-desc {
+  margin: 0;
+  font-size: 0.88rem;
+  color: rgba($text-light, 0.6);
+  line-height: 1.5;
+}
+
+// === Строка поиска ===
+.add-row {
+  margin-bottom: 1.5rem;
+}
+
+.select-wrapper {
+  width: 100%;
+}
+
+// === Список инстансов ===
+.finishes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+// === Пустое состояние ===
 .empty-state {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 32px 0; color: $text-muted; font-size: 0.9rem; text-align: center; gap: 8px;
-  .empty-icon { opacity: 0.4; }
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1rem;
+  color: rgba($text-light, 0.4);
+  font-size: 0.92rem;
+  text-align: center;
+  gap: 0.8rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+
+  .empty-icon {
+    opacity: 0.35;
+    color: rgba($text-light, 0.5);
+  }
+
+  p {
+    margin: 0;
+    line-height: 1.5;
+  }
 }
 
-// Анимации списка
-.list-enter-active { transition: all 0.3s ease-out; }
-.list-leave-active { transition: all 0.2s ease-in; }
-.list-enter-from { opacity: 0; transform: translateY(-12px); }
-.list-leave-to { opacity: 0; transform: scale(0.98); }
+// === Анимации списка ===
+.list-enter-active {
+  transition: all 0.3s ease-out;
+}
 
-span {
-  color: unset;
+.list-leave-active {
+  transition: all 0.2s ease-in;
+}
+
+.list-enter-from {
+  opacity: 0;
+  transform: translateY(-12px);
+}
+
+.list-leave-to {
+  opacity: 0;
+  transform: scale(0.98);
+}
+
+.list-move {
+  transition: transform 0.3s ease;
 }
 </style>

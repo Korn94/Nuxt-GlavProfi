@@ -51,6 +51,15 @@
       </template>
     </PageHero>
 
+    <!-- ==================== ХЛЕБНЫЕ КРОШКИ ==================== -->
+    <Breadcrumbs
+      :items="[
+        { label: 'Главная', to: '/' },
+        { label: 'Ремонт помещений', to: '/remont-pomescheniy' },
+        { label: 'Клиники' }
+      ]"
+    />
+
     <!-- ==================== БЛОК 2: STICKY NAV ==================== -->
     <StickyNav :items="navItems" :scroll-offset="110" />
 
@@ -102,15 +111,6 @@
       />
     </section>
 
-    <!-- ==================== БЛОК 7: FAQ ==================== -->
-    <section id="faq" class="page-section">
-      <FAQBlock
-        title="Ответы на <span>частые вопросы</span>"
-        :items="faqItems"
-        id-prefix="kliniki-faq"
-      />
-    </section>
-
     <!-- ==================== БЛОК 8: CTA ==================== -->
     <section id="cta" class="page-section">
       <ApplicationCTA
@@ -131,6 +131,15 @@
           />
         </template>
       </ApplicationCTA>
+    </section>
+
+    <!-- ==================== БЛОК 7: FAQ ==================== -->
+    <section id="faq" class="page-section">
+      <FAQBlock
+        title="Ответы на <span>частые вопросы</span>"
+        :items="faqItems"
+        id-prefix="kliniki-faq"
+      />
     </section>
   </div>
 </template>
@@ -164,8 +173,8 @@ const navItems: StickyNavItem[] = [
   { id: 'calculator', label: 'Калькулятор сметы', icon: 'mdi:calculator' },
   { id: 'risks', label: 'Риски', icon: 'mdi:alert-circle-outline' },
   { id: 'projects', label: 'Проекты', icon: 'mdi:briefcase-outline' },
-  { id: 'faq', label: 'Вопросы', icon: 'mdi:help-circle-outline' },
   { id: 'cta', label: 'Оставить заявку', icon: 'mdi:send-outline' },
+  { id: 'faq', label: 'Вопросы', icon: 'mdi:help-circle-outline' },
 ]
 
 // === Варианты ремонта (специфичные для клиник) ===

@@ -2,7 +2,7 @@
 <template>
   <div class="dimensions-input">
     <div class="dimensions__grid">
-      
+
       <!-- 1. Площадь пола (Обязательно) -->
       <div class="form-group">
         <label for="calc-floor-area" class="form-label">
@@ -52,9 +52,9 @@
       <div class="form-group">
         <div class="label-row">
           <label class="form-label" for="calc-perimeter">Периметр стен</label>
-          <button 
-            v-if="!isManualPerimeter" 
-            type="button" 
+          <button
+            v-if="!isManualPerimeter"
+            type="button"
             class="auto-badge"
             @click="enableManualPerimeter"
             title="Редактировать вручную"
@@ -62,7 +62,7 @@
             авто
           </button>
         </div>
-        
+
         <div class="input-wrapper">
           <input
             id="calc-perimeter"
@@ -77,7 +77,7 @@
             placeholder="~28.3"
           >
           <span class="input-suffix">м.п.</span>
-          
+
           <button
             v-if="isManualPerimeter"
             type="button"
@@ -88,19 +88,19 @@
             <Icon name="material-symbols:calculate" size="18" />
           </button>
         </div>
-        
+
         <span v-if="!isManualPerimeter" class="form-helper">
           Рассчитано: √Площадь × 4
         </span>
       </div>
 
-      <!-- 4. Площадь стен (NEW) -->
+      <!-- 4. Площадь стен -->
       <div class="form-group">
         <div class="label-row">
           <label class="form-label" for="calc-wall-area">Площадь стен</label>
-          <button 
-            v-if="!isWallAreaManual" 
-            type="button" 
+          <button
+            v-if="!isWallAreaManual"
+            type="button"
             class="auto-badge"
             @click="emit('toggle-wall-manual')"
             title="Редактировать вручную"
@@ -108,7 +108,7 @@
             авто
           </button>
         </div>
-        
+
         <div class="input-wrapper">
           <input
             id="calc-wall-area"
@@ -123,7 +123,7 @@
             placeholder="~135"
           >
           <span class="input-suffix">м²</span>
-          
+
           <button
             v-if="isWallAreaManual"
             type="button"
@@ -134,7 +134,7 @@
             <Icon name="material-symbols:calculate" size="18" />
           </button>
         </div>
-        
+
         <span v-if="!isWallAreaManual && calculatedWallArea > 0" class="form-helper">
           Рассчитано: {{ calculatedWallAreaText }}
         </span>
@@ -227,11 +227,11 @@ function onHeightInput(e: Event) {
 
 function onPerimeterInput(e: Event) {
   const val = parseFloat((e.target as HTMLInputElement).value)
-  
+
   if (!isManualPerimeter.value && !isNaN(val) && val > 0) {
     enableManualPerimeter()
   }
-  
+
   emit('update:perimeter', isNaN(val) ? null : val)
 }
 
@@ -249,36 +249,40 @@ function disableManualPerimeter() {
 
 function onWallAreaInput(e: Event) {
   const val = parseFloat((e.target as HTMLInputElement).value)
-  
+
   // Если пользователь начал вводить данные в заблокированное поле → разблокируем
   if (!props.isWallAreaManual && !isNaN(val) && val >= 0) {
     emit('toggle-wall-manual')
   }
-  
+
   emit('update:wall-area', isNaN(val) ? null : val)
 }
 </script>
 
 <style lang="scss" scoped>
-@use "@/assets/styles/calculator-vars.scss" as *;
+@use "@/assets/styles/variables" as *;
 
+// === Контейнер параметров (тёмная карточка внутри калькулятора) ===
 .dimensions-input {
-  background: $bg-light;
-  padding: $spacing-md;
-  border-radius: 8px;
-  border: 1px solid $border-color;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  position: relative;
+  z-index: 1;
 }
 
 .dimensions__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: $spacing-md;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.2rem;
 }
 
+// === Группа поля ===
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0.4rem;
 }
 
 .label-row {
@@ -287,108 +291,163 @@ function onWallAreaInput(e: Event) {
   justify-content: space-between;
 }
 
+// === Лейбл ===
 .form-label {
-  font-size: 0.85rem;
+  font-size: 0.88rem;
   font-weight: 500;
-  color: $text-primary;
+  color: rgba($text-light, 0.9);
+  font-family: 'Rubik', sans-serif;
 
-  .required { color: $danger; }
-  .hint-text { 
-    font-weight: 400; 
-    color: $text-secondary; 
-    font-size: 0.75rem; 
+  .required {
+    color: #ff6b6b;
+  }
+
+  .hint-text {
+    font-weight: 400;
+    color: rgba($text-light, 0.5);
+    font-size: 0.78rem;
+    margin-left: 0.3rem;
   }
 }
 
+// === Бейдж "авто" ===
 .auto-badge {
-  background: $success;
-  color: white;
-  border: none;
-  border-radius: 12px;
-  padding: 2px 8px;
-  font-size: 0.7rem;
+  background: rgba(0, 161, 42, 0.2);
+  color: #4ade80;
+  border: 1px solid rgba(0, 161, 42, 0.3);
+  border-radius: 50px;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.72rem;
   font-weight: 600;
+  font-family: 'Rubik', sans-serif;
   cursor: pointer;
-  transition: opacity 0.2s;
-  
-  &:hover { opacity: 0.8; }
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+
+  &:hover {
+    background: rgba(0, 161, 42, 0.35);
+    border-color: rgba(0, 161, 42, 0.5);
+  }
 }
 
+// === Обёртка инпута ===
 .input-wrapper {
   position: relative;
   display: flex;
   align-items: center;
-  
+
   .form-input {
     width: 100%;
-    padding: 8px 32px 8px 12px;
-    border: 1px solid $border-color;
-    border-radius: 6px;
+    padding: 0.7rem 2.8rem 0.7rem 1rem;
+    border: 1.5px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
     font-size: 1rem;
-    transition: all 0.2s;
-    background: $bg-white;
-    
+    font-family: 'Rubik', sans-serif;
+    font-weight: 500;
+    transition: all 0.25s ease;
+    background: rgba(255, 255, 255, 0.04);
+    color: $text-light;
+
+    &::placeholder {
+      color: rgba($text-light, 0.35);
+    }
+
     &:focus {
       outline: none;
-      border-color: $primary;
-      box-shadow: 0 0 0 3px rgba($primary, 0.1);
+      border-color: $blue;
+      background: rgba(0, 195, 245, 0.06);
+      box-shadow: 0 0 0 3px rgba(0, 195, 245, 0.12);
     }
-    
-    &.is-error { border-color: $danger; background: rgba($danger, 0.05); }
-    
+
+    &.is-error {
+      border-color: rgba(#ff6b6b, 0.6);
+      background: rgba(#ff6b6b, 0.06);
+
+      &:focus {
+        border-color: #ff6b6b;
+        box-shadow: 0 0 0 3px rgba(#ff6b6b, 0.12);
+      }
+    }
+
     &.is-readonly {
-      background: darken($bg-light, 5%);
-      color: $text-secondary;
+      color: rgba($text-light, 0.55);
       cursor: default;
-      border-color: transparent;
+      border-color: rgba(255, 255, 255, 0.06);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    // Убираем стрелки number-инпута
+    -moz-appearance: textfield;
+    &::-webkit-outer-spin-button,
+    &::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
     }
   }
-  
+
   .input-suffix {
     position: absolute;
-    right: 10px;
-    color: $text-secondary;
+    right: 12px;
+    color: rgba($text-light, 0.45);
     font-size: 0.85rem;
+    font-weight: 500;
     pointer-events: none;
+    font-family: 'Rubik', sans-serif;
   }
 
   .toggle-manual {
     position: absolute;
-    right: 10px;
-    background: none;
+    right: 8px;
+    background: rgba(0, 195, 245, 0.1);
     border: none;
-    color: $primary;
+    color: $blue-light;
     cursor: pointer;
-    padding: 4px;
+    padding: 0.3rem;
     display: flex;
     align-items: center;
-    
-    &:hover { 
-      background: rgba($primary, 0.1); 
-      border-radius: 4px; 
+    justify-content: center;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: rgba(0, 195, 245, 0.2);
+      color: #fff;
     }
   }
 }
 
+// === Подсказка под полем ===
 .form-helper {
   font-size: 0.75rem;
-  color: $text-secondary;
-  margin-top: 2px;
+  color: rgba($text-light, 0.45);
+  margin-top: 0.15rem;
   font-style: italic;
+  line-height: 1.4;
 }
 
+// === Ошибка валидации ===
 .form-error {
-  font-size: 0.75rem;
-  color: $danger;
+  font-size: 0.78rem;
+  color: #ff8c8c;
+  margin-top: 0.1rem;
 }
 
-@media (max-width: $breakpoint-md) {
+// === Адаптив ===
+@media (max-width: 768px) {
+  .dimensions-input {
+    padding: 1.2rem;
+  }
+
   .dimensions__grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
   }
 }
 
-span {
-  color: unset;
+@media (max-width: 480px) {
+  .dimensions__grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

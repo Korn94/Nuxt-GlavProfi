@@ -50,54 +50,100 @@ function selectTab(id: CalculatorSection) {
 </script>
 
 <style lang="scss" scoped>
-@use "@/assets/styles/calculator-vars.scss" as *;
+@use "@/assets/styles/variables" as *;
 
+// === Контейнер табов (тёмная подложка) ===
 .section-tabs {
   display: flex;
-  background: $bg-light;
+  background: rgba(255, 255, 255, 0.04);
   padding: 4px;
-  border-radius: 10px;
+  border-radius: 12px;
   gap: 4px;
-  margin-bottom: $spacing-md;
+  margin-bottom: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  position: relative;
+  z-index: 1;
 }
 
+// === Кнопка таба ===
 .tab-btn {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 12px;
+  gap: 0.5rem;
+  padding: 0.85rem 1rem;
   border: none;
   background: transparent;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
+  font-family: 'Rubik', sans-serif;
   font-weight: 500;
-  color: $text-secondary;
-  transition: all 0.2s;
   font-size: 0.95rem;
+  color: rgba($text-light, 0.6);
+  transition: all 0.25s ease;
 
+  // Hover для неактивных табов
   &:hover:not(.is-active) {
-    background: rgba($primary, 0.05);
-    color: $text-primary;
+    background: rgba(0, 195, 245, 0.08);
+    color: rgba($text-light, 0.9);
   }
 
+  // Активный таб
   &.is-active {
-    background: $bg-white;
-    color: $primary;
-    box-shadow: 0 2px 8px rgba($primary, 0.1);
+    background: $blue-gradient;
+    color: $background-dark;
+    box-shadow: 0 4px 16px rgba(0, 195, 245, 0.3);
     
     .tab-icon {
       transform: scale(1.1);
+      color: $background-dark;
+    }
+
+    .tab-label {
+      font-weight: 600;
     }
   }
 
   .tab-icon {
-    transition: transform 0.2s;
+    transition: transform 0.25s ease, color 0.25s ease;
+    flex-shrink: 0;
+  }
+
+  .tab-label {
+    white-space: nowrap;
+    transition: font-weight 0.25s ease;
   }
 }
 
-span {
-  color: unset;
+// === Адаптив ===
+@media (max-width: 640px) {
+  .section-tabs {
+    padding: 3px;
+    gap: 3px;
+  }
+
+  .tab-btn {
+    padding: 0.7rem 0.5rem;
+    font-size: 0.85rem;
+    gap: 0.35rem;
+
+    .tab-label {
+      // На очень маленьких экранах можно скрыть текст и оставить только иконки
+      // Но пока оставим текст, т.к. вкладки всего 3
+    }
+  }
+}
+
+@media (max-width: 380px) {
+  .tab-btn {
+    .tab-label {
+      display: none; // Экстремально узкие экраны — только иконки
+    }
+
+    .tab-icon {
+      font-size: 1.3rem;
+    }
+  }
 }
 </style>

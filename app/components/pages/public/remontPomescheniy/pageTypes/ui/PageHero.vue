@@ -51,7 +51,7 @@ span {
 
 .page-hero {
   position: relative;
-  min-height: 96vh;
+  min-height: 95vh;
   display: flex;
   align-items: center;
   overflow: hidden;

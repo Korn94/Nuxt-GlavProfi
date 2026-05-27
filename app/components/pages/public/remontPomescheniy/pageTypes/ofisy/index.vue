@@ -2,12 +2,12 @@
  <template>
   <div class="page-ofisy">
     <!-- ==================== БЛОК 1: HERO ==================== -->
-    <PagesPublicRemontPomescheniyPageTypesUiPageHero
+    <PageHero
       title="Ремонт офисов в Рязани с <span>фиксированной сметой</span> и сроком"
       subtitle="Сдаём офис, в который можно заехать и работать: с готовой планировкой, инженерией и отделкой. Работаем по вашему проекту или составляем ТЗ с нуля. Смета и срок фиксируются в договоре."
     >
       <template #background>
-        <PagesPublicRemontPomescheniyPageTypesUiBeforeAfterSlider
+        <BeforeAfterSlider
           before-image="/main/1.jpg"
           after-image="/main/1-1.jpg"
           before-alt="Офис до ремонта"
@@ -26,7 +26,7 @@
       </template>
 
       <template #form>
-        <PagesPublicRemontPomescheniyPageTypesUiMiniEstimateForm
+        <MiniEstimateForm
           room-type="ofisy"
           :default-area="100"
           @submit="onMiniFormSubmit"
@@ -47,19 +47,28 @@
           Штатные бригады — один прораб отвечает за весь объект
         </span>
       </template>
-    </PagesPublicRemontPomescheniyPageTypesUiPageHero>
+    </PageHero>
+
+    <!-- ==================== ХЛЕБНЫЕ КРОШКИ ==================== -->
+    <Breadcrumbs
+      :items="[
+        { label: 'Главная', to: '/' },
+        { label: 'Ремонт помещений', to: '/remont-pomescheniy' },
+        { label: 'Офисы' }
+      ]"
+    />
 
     <!-- ==================== БЛОК 2: STICKY NAV ==================== -->
-    <PagesPublicRemontPomescheniyPageTypesUiStickyNav :items="navItems" :scroll-offset="110" />
+    <StickyNav :items="navItems" :scroll-offset="110" />
 
     <!-- ==================== БЛОК 3: ВАРИАНТЫ РЕМОНТА ==================== -->
     <section id="repair-types" class="page-section">
-      <PagesPublicRemontPomescheniyPageTypesUiRepairTypes
+      <RepairTypes
         title="Варианты ремонта офиса <span>и от чего зависит цена</span>"
         :variants="repairVariants"
       />
 
-      <PagesPublicRemontPomescheniyPageTypesUiPriceFactors
+      <PriceFactors
         title="От чего зависит <span>цена за м²</span>"
         :factors="priceFactors"
         footer-note="Ориентир по цене: <strong>от 3 000 ₽/м²</strong> для косметического ремонта, <strong>от 14 000 ₽/м²</strong> для капитального. Без стоимости материалов. Точную смету инженер подготовит после выезда на объект — это бесплатно и ни к чему не обязывает."
@@ -83,7 +92,7 @@
 
     <!-- ==================== БЛОК 5: РИСКИ ==================== -->
     <section id="risks" class="page-section">
-      <PagesPublicRemontPomescheniyPageTypesUiRisksSection
+      <RisksSection
         title="Что упускают при планировании ремонта офиса — <span>и платят дважды</span>"
         subtitle="За 12 лет мы приняли десятки офисов после других подрядчиков. Ошибки повторяются — и почти всегда их можно было избежать на этапе проекта. Вот что мы проверяем в первую очередь, чтобы смета не выросла после сдачи."
         :groups="riskGroups"
@@ -93,7 +102,7 @@
 
     <!-- ==================== БЛОК 6: ПРОЕКТЫ ==================== -->
     <section id="projects" class="page-section">
-      <PagesPublicRemontPomescheniyPageTypesUiProjectsShowcase
+      <ProjectsShowcase
         title="Наши реализованные проекты <span>для бизнеса в Рязани</span>"
         :slugs="projectSlugs"
       />
@@ -101,7 +110,7 @@
     
     <!-- ==================== БЛОК 8: CTA ==================== -->
     <section id="cta" class="page-section">
-      <PagesPublicRemontPomescheniyPageTypesUiApplicationCTA
+      <ApplicationCTA
       title="Получите смету и аудит рисков <span>за 24 часа</span>"
         subtitle="Загрузите план или опишите задачу. Инженер найдёт слабые места и подготовит детальный расчёт. Консультация бесплатна."
         phone="+7 (910) 909-69-47"
@@ -113,7 +122,7 @@
       
       <!-- ==================== БЛОК 7: FAQ ==================== -->
       <section id="faq" class="page-section">
-        <PagesPublicRemontPomescheniyPageTypesUiFAQBlock
+        <FAQBlock
           title="Ответы на <span>частые вопросы</span>"
           :items="faqItems"
         />
@@ -122,6 +131,21 @@
 </template>
 
 <script setup lang="ts">
+// === UI-компоненты pageTypes ===
+import PageHero from '../ui/PageHero.vue'
+import StickyNav from '../ui/StickyNav.vue'
+import BeforeAfterSlider from '../ui/BeforeAfterSlider.vue'
+import MiniEstimateForm from '../ui/MiniEstimateForm.vue'
+import RepairTypes from '../ui/RepairTypes.vue'
+import PriceFactors from '../ui/PriceFactors.vue'
+import RisksSection from '../ui/RisksSection.vue'
+import ProjectsShowcase from '../ui/ProjectsShowcase.vue'
+import FAQBlock from '../ui/FAQBlock.vue'
+import ApplicationCTA from '../ui/ApplicationCTA.vue'
+import Breadcrumbs from '../ui/Breadcrumbs.vue'
+
+
+// === Типы данных ===
 import type { RepairVariant } from '../ui/RepairTypes.vue'
 import type { PriceFactor } from '../ui/PriceFactors.vue'
 import type { RiskGroup } from '../ui/RisksSection.vue'
@@ -134,8 +158,8 @@ const navItems: StickyNavItem[] = [
   { id: 'calculator', label: 'Калькулятор сметы', icon: 'mdi:calculator' },
   { id: 'risks', label: 'Риски', icon: 'mdi:alert-circle-outline' },
   { id: 'projects', label: 'Проекты', icon: 'mdi:briefcase-outline' },
-  { id: 'faq', label: 'Вопросы', icon: 'mdi:help-circle-outline' },
   { id: 'cta', label: 'Оставить заявку', icon: 'mdi:send-outline' },
+  { id: 'faq', label: 'Вопросы', icon: 'mdi:help-circle-outline' },
 ]
 
 // === Варианты ремонта ===

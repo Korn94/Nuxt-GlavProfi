@@ -94,17 +94,30 @@ span {
   color: unset;
 }
 
+// === Карточка риска ===
 .risk-card {
   background: rgba(255, 255, 255, 0.03);
   backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: $border-radius;
   padding: 2rem;
+  transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
+  height: 100%;
+
+  // Базовый layout: flex (fallback для всех браузеров)
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
-  height: 100%;
+
+  // ✅ Subgrid для современных браузеров:
+  // внутренние строки карточки синхронизируются с соседними
+  @supports (grid-template-rows: subgrid) {
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-row: span 3; // шапка + цепочка + футер
+    gap: 1.5rem;
+    height: auto; // в subgrid высота управляется сеткой
+  }
 
   &:hover {
     transform: translateY(-4px);
@@ -119,6 +132,8 @@ span {
     gap: 1rem;
     padding-bottom: 1.2rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    // Без min-height — subgrid автоматически делает высоту равной
+    // максимальной в ряду, а flex-layout подстраивается под содержимое
   }
 
   &__icon {
@@ -168,12 +183,16 @@ span {
     line-height: 1.3;
   }
 
-  // === Цепочка блоков ===
+  // === Цепочка блоков (ошибка → последствие → решение) ===
   &__chain {
     display: flex;
     flex-direction: column;
     gap: 0;
-    flex: 1;
+    flex: 1; // Fallback: занимает оставшееся место в flex-контейнере
+
+    @supports (grid-template-rows: subgrid) {
+      flex: initial; // В subgrid не нужен flex
+    }
   }
 
   // === Блок (ошибка / последствие / решение) ===
@@ -292,6 +311,14 @@ span {
     border-top: 1px solid rgba(255, 255, 255, 0.08);
     font-size: 0.9rem;
     color: rgba($text-light, 0.7);
+
+    // Fallback: прижимаем к низу через flex
+    margin-top: auto;
+    flex-shrink: 0;
+
+    @supports (grid-template-rows: subgrid) {
+      margin-top: 0; // В subgrid не нужно
+    }
 
     :deep(a) {
       color: $blue;

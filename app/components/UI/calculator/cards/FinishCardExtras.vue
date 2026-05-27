@@ -4,7 +4,7 @@
     <div class="extras-header">
       <h5 class="section-title">Дополнительные работы</h5>
       <button type="button" class="btn-add-extra" @click="showSelector = !showSelector">
-        <Icon name="material-symbols:add" size="18" /> 
+        <Icon :name="showSelector ? 'material-symbols:close' : 'material-symbols:add'" size="18" />
         {{ showSelector ? 'Скрыть' : 'Добавить' }}
       </button>
     </div>
@@ -37,16 +37,20 @@
       <li v-for="extra in addedExtras" :key="extra.itemId" class="work-item extra-item">
         <span class="work-name">{{ extra.work.name }}</span>
         <div class="extra-controls">
-          <button type="button" class="qty-btn" @click="updateQty(extra.itemId, -1)">−</button>
-          <input 
-            type="number" 
-            :value="extra.qty" 
-            @input="onQtyInput(extra.itemId, $event)" 
-            class="qty-input" 
-            min="1" 
+          <button type="button" class="qty-btn" @click="updateQty(extra.itemId, -1)">
+            <Icon name="material-symbols:remove" size="14" />
+          </button>
+          <input
+            type="number"
+            :value="extra.qty"
+            @input="onQtyInput(extra.itemId, $event)"
+            class="qty-input"
+            min="1"
             step="1"
           >
-          <button type="button" class="qty-btn" @click="updateQty(extra.itemId, 1)">+</button>
+          <button type="button" class="qty-btn" @click="updateQty(extra.itemId, 1)">
+            <Icon name="material-symbols:add" size="14" />
+          </button>
         </div>
         <span class="work-total">
           {{ formatPrice(extra.work.pricePerUnit * extra.qty) }} ₽
@@ -93,7 +97,7 @@ const showSelector = ref(false)
 const availableExtras = computed(() => {
   if (!props.config?.extraItemIds?.length) return []
   const addedIds = new Set(props.extras.map(e => e.itemId))
-  return props.allWorks.filter(w => 
+  return props.allWorks.filter(w =>
     props.config!.extraItemIds.includes(w.id) && !addedIds.has(w.id)
   )
 })
@@ -145,145 +149,270 @@ function getUnitLabel(unit: WorkUnit): string {
 </script>
 
 <style lang="scss" scoped>
-@use "@/assets/styles/calculator-vars.scss" as *;
+@use "@/assets/styles/variables" as *;
 
-.extras-section { margin-top: 16px; }
+// === Секция доп. работ ===
+.extras-section {
+  margin-top: 1rem;
+}
 
 .extras-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 0.8rem;
 }
 
 .section-title {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   font-weight: 600;
-  color: $text-primary;
+  color: rgba($text-light, 0.55);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.08em;
+  font-family: 'Rubik', sans-serif;
 }
 
+// === Кнопка "Добавить / Скрыть" ===
 .btn-add-extra {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 0.3rem;
   background: transparent;
-  border: 1px dashed $primary;
-  color: $primary;
-  padding: 4px 10px;
-  border-radius: 6px;
+  border: 1px dashed rgba(0, 195, 245, 0.4);
+  color: $blue-light;
+  padding: 0.3rem 0.8rem;
+  border-radius: 50px;
   cursor: pointer;
   font-size: 0.8rem;
-  transition: all 0.2s;
+  font-family: 'Rubik', sans-serif;
+  font-weight: 500;
+  transition: all 0.25s ease;
 
-  &:hover { background: rgba($primary, 0.05); }
+  &:hover {
+    background: rgba(0, 195, 245, 0.08);
+    border-color: $blue;
+  }
 }
 
-// Выпадающий список
+// === Выпадающий список доступных допов ===
 .extra-selector-dropdown {
-  background: $bg-light;
-  border: 1px solid $border-color;
-  border-radius: 8px;
-  padding: 4px;
-  margin-bottom: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 0.3rem;
+  margin-bottom: 1rem;
   overflow: hidden;
 }
 
 .selector-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0.25rem;
 }
 
 .extra-option-btn {
   width: 100%;
   display: flex;
   justify-content: space-between;
-  padding: 8px 10px;
+  align-items: center;
+  padding: 0.6rem 0.8rem;
   background: transparent;
   border: none;
   cursor: pointer;
   text-align: left;
-  border-radius: 6px;
-  transition: background 0.15s;
+  border-radius: 8px;
+  transition: background 0.15s ease;
 
-  &:hover { background: $bg-white; }
+  &:hover {
+    background: rgba(0, 195, 245, 0.08);
+  }
 
-  .extra-name { font-size: 0.85rem; color: $text-primary; line-height: 1.3; }
-  .extra-price { font-size: 0.8rem; color: $primary; font-weight: 600; white-space: nowrap; margin-left: 8px; }
+  .extra-name {
+    font-size: 0.88rem;
+    color: rgba($text-light, 0.9);
+    line-height: 1.35;
+    font-family: 'Rubik', sans-serif;
+  }
+
+  .extra-price {
+    font-size: 0.82rem;
+    color: $blue-light;
+    font-weight: 600;
+    white-space: nowrap;
+    margin-left: 0.6rem;
+    font-family: 'Rubik', sans-serif;
+  }
 }
 
-.empty-selector, .no-extras-hint {
-  padding: 12px;
+.empty-selector,
+.no-extras-hint {
+  padding: 1rem;
   text-align: center;
-  color: $text-muted;
+  color: rgba($text-light, 0.4);
   font-size: 0.85rem;
   font-style: italic;
 }
 
-// Список добавленных
+// === Список добавленных допов ===
 .works-list {
   list-style: none;
   margin: 0;
   padding: 0;
-  border: 1px solid $border-light;
-  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
   overflow: hidden;
 }
 
 .extra-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border-bottom: 1px solid $border-light;
-  font-size: 0.85rem;
-  background: $bg-white;
+  gap: 0.7rem;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.88rem;
+  background: rgba(255, 255, 255, 0.02);
+  transition: background 0.2s ease;
 
-  &:last-child { border-bottom: none; }
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.04);
+  }
 }
 
-.work-name { flex: 1; font-weight: 500; color: $text-primary; }
+.work-name {
+  flex: 1;
+  font-weight: 500;
+  color: rgba($text-light, 0.9);
+  font-family: 'Rubik', sans-serif;
+  min-width: 0;
+  line-height: 1.35;
+}
 
+// === Контролы количества ===
 .extra-controls {
   display: flex;
   align-items: center;
-  gap: 4px;
-  
+  gap: 0.3rem;
+  flex-shrink: 0;
+
   .qty-btn {
-    width: 24px; height: 24px;
-    display: flex; align-items: center; justify-content: center;
-    border: 1px solid $border-color; background: $bg-white;
-    border-radius: 4px; cursor: pointer; color: $primary;
-    &:hover { background: rgba($primary, 0.1); }
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 6px;
+    cursor: pointer;
+    color: $blue-light;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: rgba(0, 195, 245, 0.12);
+      border-color: rgba(0, 195, 245, 0.3);
+    }
   }
-  
+
   .qty-input {
-    width: 36px; height: 24px;
-    text-align: center; border: 1px solid $border-color;
-    border-radius: 4px; font-size: 0.85rem;
-    -moz-appearance: textfield; appearance: textfield;
-    &::-webkit-inner-spin-button, &::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    width: 40px;
+    height: 26px;
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: 'Rubik', sans-serif;
+    color: $text-light;
+    background: rgba(255, 255, 255, 0.04);
+    transition: all 0.2s ease;
+
+    -moz-appearance: textfield;
+    appearance: textfield;
+
+    &::-webkit-inner-spin-button,
+    &::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    &:focus {
+      outline: none;
+      border-color: $blue;
+      background: rgba(0, 195, 245, 0.06);
+    }
   }
 }
 
-.work-total { font-weight: 600; color: $primary; min-width: 60px; text-align: right; }
+.work-total {
+  font-weight: 700;
+  color: $blue-light;
+  min-width: 65px;
+  text-align: right;
+  font-family: 'Rubik', sans-serif;
+  flex-shrink: 0;
+}
 
 .remove-extra-btn {
-  display: flex; align-items: center; justify-content: center;
-  width: 24px; height: 24px;
-  background: transparent; border: none; color: $danger;
-  cursor: pointer; border-radius: 4px; opacity: 0.6;
-  &:hover { opacity: 1; background: rgba($danger, 0.08); }
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: transparent;
+  border: none;
+  color: rgba(#ff6b6b, 0.6);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+
+  &:hover {
+    color: #ff6b6b;
+    background: rgba(#ff6b6b, 0.12);
+  }
 }
 
-// Анимация
-.slide-enter-active, .slide-leave-active { transition: all 0.25s ease; max-height: 300px; overflow: hidden; }
-.slide-enter-from, .slide-leave-to { max-height: 0; opacity: 0; }
+// === Анимация раскрытия ===
+.slide-enter-active,
+.slide-leave-active {
+  transition: all 0.3s ease;
+  max-height: 400px;
+  overflow: hidden;
+}
 
-span {
-  color: unset;
+.slide-enter-from,
+.slide-leave-to {
+  max-height: 0;
+  opacity: 0;
+}
+
+// === Адаптив ===
+@media (max-width: 640px) {
+  .extra-item {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .work-name {
+    flex-basis: 100%;
+  }
+
+  .extra-controls {
+    order: 2;
+  }
+
+  .work-total {
+    order: 3;
+    margin-left: auto;
+  }
+
+  .remove-extra-btn {
+    order: 4;
+  }
 }
 </style>
