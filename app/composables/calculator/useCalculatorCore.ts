@@ -137,7 +137,7 @@ export function useCalculatorCore(
       grandTotal += total
     }
 
-    console.log('📊 Смета пересчитана. Итого:', grandTotal, '₽')
+    // console.log('📊 Смета пересчитана. Итого:', grandTotal, '₽')
 
     return {
       lines,

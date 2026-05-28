@@ -111,9 +111,9 @@
                   <span class="form-consent__box">
                     <Icon v-if="form.consent" name="mdi:check" size="14" />
                   </span>
-                  <span class="form-consent__text">
+                  <p class="form-consent__text">
                     Согласен на обработку персональных данных
-                  </span>
+                  </p>
                 </label>
                 <span v-if="errors.consent" class="form-error">{{ errors.consent }}</span>
 
@@ -939,7 +939,7 @@ span {
 .success-text {
   font-size: 0.95rem;
   line-height: 1.6;
-  color: rgba($text-light, 0.75);
+  color: $text-light;
   margin: 0;
   max-width: 360px;
 }

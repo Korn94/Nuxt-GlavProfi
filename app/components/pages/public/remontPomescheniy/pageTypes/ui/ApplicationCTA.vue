@@ -232,20 +232,20 @@
                     </div>
                   </a>
 
-                  <!-- WhatsApp -->
+                  <!-- MAX -->
                   <a
-                    v-if="whatsapp"
-                    :href="whatsappLink"
+                    v-if="max"
+                    :href="maxLink"
                     target="_blank"
                     rel="noopener"
                     class="alternative-card__item"
                   >
-                    <div class="alternative-card__icon alternative-card__icon--whatsapp">
-                      <Icon name="mdi:whatsapp" size="22" />
+                    <div class="alternative-card__icon alternative-card__icon--max">
+                      <img src="https://maxicons.ru/icons/MAX.svg" alt="Иконка MAX" width="42" height="42">
                     </div>
                     <div class="alternative-card__info">
-                      <span class="alternative-card__label">WhatsApp</span>
-                      <span class="alternative-card__value">{{ whatsapp }}</span>
+                      <span class="alternative-card__label">MAX</span>
+                      <span class="alternative-card__value">{{ maxLabel }}</span>  <!-- ✅ Было: {{ max }} -->
                     </div>
                   </a>
                 </div>
@@ -302,7 +302,8 @@ const props = withDefaults(
     submitText?: string
     phone?: string
     telegram?: string
-    whatsapp?: string
+    max?: string
+    maxLabel?: string
     submitUrl?: string
     showFileUpload?: boolean
     maxFileSizeMb?: number
@@ -316,6 +317,7 @@ const props = withDefaults(
     title: 'Получите смету и аудит рисков за 24 часа',
     subtitle: 'Загрузите план или опишите задачу. Инженер найдёт слабые места и подготовит детальный расчёт. Консультация бесплатна.',
     submitText: 'Получить расчёт',
+    maxLabel: 'ГлавПрофи',
     submitUrl: '/api/send-message',
     showFileUpload: true,
     maxFileSizeMb: 10,
@@ -352,10 +354,56 @@ const telegramLink = computed(() => {
   return `https://t.me/${handle}`
 })
 
-const whatsappLink = computed(() => {
-  if (!props.whatsapp) return '#'
-  const phone = props.whatsapp.replace(/[^0-9]/g, '')
-  return `https://wa.me/${phone}`
+const maxLink = computed(() => {
+  if (!props.max) return '#'
+  const value = props.max.trim()
+
+  // 1. Если передана полная ссылка — используем как есть
+  if (value.startsWith('http://') || value.startsWith('https://')) {
+    return value
+  }
+
+  // 2. Если username с @ — конструируем ссылку на профиль
+  if (value.startsWith('@')) {
+    return `https://max.ru/${value.replace('@', '')}`
+  }
+
+  // 3. Иначе считаем, что передан хэш (f9LHodD0c...) — формат MAX-профиля
+  return `https://max.ru/u/${value}`
+})
+
+// ✅ Отображаемое имя для MAX
+const maxLabel = computed(() => {
+  // Если явно передан — используем его
+  if (props.maxLabel && props.maxLabel !== 'ГлавПрофи') {
+    return props.maxLabel
+  }
+
+  // Пытаемся извлечь читабельное имя из самого max
+  if (!props.max) return 'ГлавПрофи'
+  const value = props.max.trim()
+
+  // Если username с @ — убираем @
+  if (value.startsWith('@')) {
+    return value.slice(1)
+  }
+
+  // Если ссылка содержит username в конце (не /u/хэш) — извлекаем его
+  if (value.startsWith('http')) {
+    try {
+      const url = new URL(value)
+      const path = url.pathname
+      // /username → username
+      if (path && !path.startsWith('/u/')) {
+        return path.replace(/^\//, '')
+      }
+    } catch {
+      // Игнорируем
+    }
+  }
+
+  // Если это хэш или непонятный формат — дефолт
+  return 'ГлавПрофи'
 })
 
 // === Обновление поля (для кастомных слотов) ===
@@ -1093,8 +1141,13 @@ span {
       background: linear-gradient(135deg, #2AABEE, #229ED9);
     }
 
-    &--whatsapp {
-      background: linear-gradient(135deg, #25D366, #128C7E);
+    &--max {
+      // background: linear-gradient(135deg, #0077FF, #0055CC);
+      
+      img {
+        display: block;
+        // filter: brightness(0) invert(1); // Делаем SVG белым на тёмном фоне
+      }
     }
   }
 

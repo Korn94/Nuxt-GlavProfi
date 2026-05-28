@@ -122,7 +122,7 @@ const resolvedBaseWorks = computed(() => {
     if (finalWork) result.push(finalWork)
   }
 
-  console.log('🔍 Разрешение базовых работ для', props.config.name, ':', result.map(w => w.id))
+  // console.log('🔍 Разрешение базовых работ для', props.config.name, ':', result.map(w => w.id))
   return result
 })
 </script>

@@ -5,6 +5,10 @@
       <h3 class="block-title">
         <Icon name="mdi:hammer-wrench" size="22" class="block-title__icon" />
         Демонтаж и подготовка
+        <span class="section-badge">
+          <Icon :name="sectionMeta.icon" size="16" />
+          {{ sectionMeta.label }}
+        </span>
       </h3>
       <p class="block-desc">Нажмите на работу из списка, чтобы сразу добавить её в смету.</p>
     </header>
@@ -71,7 +75,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { NormalizedWorkItem, WorkUnit } from '~/types/calculator'
+import type { CalculatorSection, NormalizedWorkItem, WorkUnit } from '~/types/calculator'
 import WorkSearchSelect from '~/components/ui/calculator/shared/WorkSearchSelect.vue'
 
 // -----------------------------------------------------------------------------
@@ -80,8 +84,18 @@ import WorkSearchSelect from '~/components/ui/calculator/shared/WorkSearchSelect
 const props = defineProps<{
   availableItems: NormalizedWorkItem[]
   selectedWorks: Array<{ itemId: number; quantity: number }>
-  allWorks?: NormalizedWorkItem[] // Полный список всех работ для поиска цен
+  allWorks?: NormalizedWorkItem[]
+  section: CalculatorSection // ← новый пропс
 }>()
+
+// Маппинг секции → русское название + иконка
+const SECTION_META: Record<CalculatorSection, { label: string; icon: string }> = {
+  walls:   { label: 'стены',    icon: 'mdi:wall' },
+  floor:   { label: 'пол',      icon: 'material-symbols:floor' },
+  ceiling: { label: 'потолок',  icon: 'material-symbols:roofing' },
+}
+
+const sectionMeta = computed(() => SECTION_META[props.section] || SECTION_META.walls)
 
 const emit = defineEmits<{
   'add': [itemId: number]
@@ -94,7 +108,7 @@ const emit = defineEmits<{
 // -----------------------------------------------------------------------------
 function handleAdd(itemId: number) {
   emit('add', itemId)
-  console.log('✅ Добавлена работа демонтажа:', itemId)
+  // console.log('✅ Добавлена работа демонтажа:', itemId)
 }
 
 // -----------------------------------------------------------------------------
@@ -390,5 +404,33 @@ function getUnitLabel(unit: WorkUnit): string {
 
 .list-move {
   transition: transform 0.3s ease;
+}
+
+// === Бейдж текущей секции в заголовке ===
+.section-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: 0.5rem;
+  padding: 0.2rem 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: $blue-light;
+  background: rgba(0, 195, 245, 0.12);
+  border: 1px solid rgba(0, 195, 245, 0.25);
+  border-radius: 50px;
+  text-transform: lowercase;
+  font-family: 'Rubik', sans-serif;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+  transition: all 0.25s ease;
+}
+
+// Плавная смена при переключении секции
+.block-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem;
 }
 </style>

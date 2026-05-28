@@ -197,7 +197,7 @@ watch(() => props.modelFloorArea, (newArea) => {
   if (!isManualPerimeter.value && newArea > 0) {
     const autoP = Math.round(4 * Math.sqrt(newArea) * 10) / 10
     emit('update:perimeter', autoP)
-    console.log('📏 Авто-периметр обновлён:', autoP, 'м.п.')
+    // console.log('📏 Авто-периметр обновлён:', autoP, 'м.п.')
   }
 })
 
@@ -237,14 +237,14 @@ function onPerimeterInput(e: Event) {
 
 function enableManualPerimeter() {
   isManualPerimeter.value = true
-  console.log('📝 Периметр переведён в ручной режим')
+  // console.log('📝 Периметр переведён в ручной режим')
 }
 
 function disableManualPerimeter() {
   isManualPerimeter.value = false
   const autoP = Math.round(4 * Math.sqrt(Math.max(0, props.modelFloorArea)) * 10) / 10
   emit('update:perimeter', autoP > 0 ? autoP : null)
-  console.log('🔄 Периметр возвращён к авто-расчёту:', autoP, 'м.п.')
+  // console.log('🔄 Периметр возвращён к авто-расчёту:', autoP, 'м.п.')
 }
 
 function onWallAreaInput(e: Event) {
@@ -378,6 +378,7 @@ function onWallAreaInput(e: Event) {
     }
 
     // Убираем стрелки number-инпута
+    appearance: textfield;
     -moz-appearance: textfield;
     &::-webkit-outer-spin-button,
     &::-webkit-inner-spin-button {

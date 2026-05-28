@@ -176,11 +176,25 @@ span {
 
   &__title {
     font-family: 'Rubik', sans-serif;
-    font-size: 1.25rem;
+    font-size: 1.1rem;
     font-weight: 600;
     color: $text-light;
     margin: 0;
     line-height: 1.3;
+
+    // ✅ Перенос длинных слов
+    overflow-wrap: break-word;    // Современное свойство (заменяет word-wrap)
+    word-break: break-word;       // Fallback для Safari/iOS
+    hyphens: auto;                // Красивые переносы по правилам языка
+    -webkit-hyphens: auto;        // Safari
+    -ms-hyphens: auto;            // Старый Edge
+
+    // Ограничиваем переносы 3 строками (чтобы шапка не стала огромной)
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
   // === Цепочка блоков (ошибка → последствие → решение) ===

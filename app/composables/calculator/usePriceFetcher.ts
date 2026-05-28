@@ -145,11 +145,11 @@ export function usePriceFetcher() {
       sec.piece.sort((a, b) => a.pricePerUnit - b.pricePerUnit)
     }
 
-    console.log('✅ Прайс-лист нормализован. Доступно позиций:', {
-      floor: result.floor.standard.length + result.floor.piece.length,
-      walls: result.walls.standard.length + result.walls.piece.length,
-      ceiling: result.ceiling.standard.length + result.ceiling.piece.length
-    })
+    // console.log('✅ Прайс-лист нормализован. Доступно позиций:', {
+    //   floor: result.floor.standard.length + result.floor.piece.length,
+    //   walls: result.walls.standard.length + result.walls.piece.length,
+    //   ceiling: result.ceiling.standard.length + result.ceiling.piece.length
+    // })
 
     return result
   })

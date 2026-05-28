@@ -2,47 +2,41 @@
 <template>
   <div class="block-summary">
     <div class="summary-content">
-
       <!-- === Итоговая сумма === -->
       <div class="total-section">
         <span class="label">Итоговая стоимость работ:</span>
         <span class="price">{{ formatPrice(total) }} ₽</span>
-
         <div v-if="pricePerM2 > 0" class="per-m2-badge">
           ≈ {{ formatPrice(pricePerM2) }} ₽/м²
         </div>
       </div>
-
       <!-- === Кнопка открытия модалки === -->
       <div class="actions">
         <button
           type="button"
           class="btn-submit"
-          :disabled="total === 0"
+          :disabled="!isClientReady || total <= 0"
           @click="isModalOpen = true"
         >
           <Icon name="mdi:send" size="20" />
           Получить точную смету
         </button>
       </div>
-
       <!-- === Уведомление после успешной отправки === -->
       <Transition name="fade">
         <div v-if="showSuccessBanner" class="success-banner">
           <Icon name="mdi:check-circle" size="22" class="success-banner__icon" />
           <div class="success-banner__text">
             <strong>Заявка отправлена!</strong>
-            <span>Инженер свяжется с вами в течение 24 часов.</span>
+            <p>Инженер свяжется с вами в течение 24 часов.</p>
           </div>
         </div>
       </Transition>
-
       <p class="disclaimer">
         <Icon name="mdi:information-outline" size="14" class="disclaimer__icon" />
         Расчёт является предварительным. Точная стоимость определяется после замера.
       </p>
     </div>
-
     <!-- === Модальное окно === -->
     <LeadModal
       v-model:is-open="isModalOpen"
@@ -57,7 +51,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import type { CalculationResult, CalculatorState, WorkUnit } from '~/types/calculator'
 import LeadModal from '../modals/LeadModal.vue'
 
@@ -82,11 +76,16 @@ const props = withDefaults(
 // -----------------------------------------------------------------------------
 const isModalOpen = ref(false)
 const showSuccessBanner = ref(false)
+const isClientReady = ref(false) // ✅ Для предотвращения hydration mismatch
 
 // -----------------------------------------------------------------------------
 // 3. Вычисления
 // -----------------------------------------------------------------------------
-const total = computed(() => props.result.summary.grandTotal)
+const total = computed(() => {
+  // ✅ Защита от undefined на сервере
+  const value = props.result?.summary?.grandTotal
+  return typeof value === 'number' ? value : 0
+})
 
 const pricePerM2 = computed(() => {
   if (props.area > 0 && total.value > 0) {
@@ -107,11 +106,18 @@ function formatPrice(price: number): string {
 // -----------------------------------------------------------------------------
 function onSuccess() {
   showSuccessBanner.value = true
-  // Скрываем баннер через 8 секунд
   setTimeout(() => {
     showSuccessBanner.value = false
   }, 8000)
 }
+
+// -----------------------------------------------------------------------------
+// 6. Жизненный цикл
+// -----------------------------------------------------------------------------
+onMounted(() => {
+  // ✅ Отложенная активация для синхронизации с серверным рендером
+  isClientReady.value = true
+})
 </script>
 
 <style lang="scss" scoped>

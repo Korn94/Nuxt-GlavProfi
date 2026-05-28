@@ -129,7 +129,7 @@ function selectOption(item: NormalizedWorkItem) {
   emit('select', item.id)
   isOpen.value = false
   searchQuery.value = ''
-  console.log(`✅ Выбрана работа: "${item.name}" (ID: ${item.id})`)
+  // console.log(`✅ Выбрана работа: "${item.name}" (ID: ${item.id})`)
 }
 
 function clearSearch() {

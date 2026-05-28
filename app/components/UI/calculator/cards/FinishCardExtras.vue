@@ -115,7 +115,7 @@ const addedExtras = computed(() => {
 // -----------------------------------------------------------------------------
 function handleAdd(itemId: number) {
   emit('add', itemId)
-  console.log(`➕ Добавлен доп к покрытию: ${itemId}`)
+  // console.log(`➕ Добавлен доп к покрытию: ${itemId}`)
 }
 
 function handleRemove(itemId: number) {

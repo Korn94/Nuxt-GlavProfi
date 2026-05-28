@@ -5,6 +5,10 @@
       <h3 class="block-title">
         <Icon name="mdi:palette-outline" size="22" class="block-title__icon" />
         Чистовые покрытия
+        <span class="section-badge">
+          <Icon :name="sectionMeta.icon" size="16" />
+          {{ sectionMeta.label }}
+        </span>
       </h3>
       <p class="block-desc">Нажмите на покрытие из списка, чтобы сразу добавить его в смету.</p>
     </header>
@@ -68,7 +72,16 @@ const props = defineProps<{
   availableGroups: FinishGroupConfig[]
   surfaceInstances: SurfaceInstance[]
   allWorks: NormalizedWorkItem[]
+  section: CalculatorSection
 }>()
+
+const SECTION_META: Record<CalculatorSection, { label: string; icon: string }> = {
+  walls:   { label: 'стены',    icon: 'mdi:wall' },
+  floor:   { label: 'пол',      icon: 'material-symbols:floor' },
+  ceiling: { label: 'потолок',  icon: 'material-symbols:roofing' },
+}
+
+const sectionMeta = computed(() => SECTION_META[props.section] || SECTION_META.walls)
 
 const emit = defineEmits<{
   'add': [groupId: string]
@@ -131,7 +144,7 @@ function handleSelectGroup(numericId: number) {
   const found = groupSelectItems.value.find(i => i.id === numericId)
   if (found?.groupId) {
     emit('add', found.groupId)
-    console.log('✅ Добавлено новое покрытие:', found.groupId)
+    // console.log('✅ Добавлено новое покрытие:', found.groupId)
   }
 }
 
@@ -249,5 +262,33 @@ function getGroupConfig(id: string): FinishGroupConfig | undefined {
 
 .list-move {
   transition: transform 0.3s ease;
+}
+
+// === Бейдж текущей секции в заголовке ===
+.section-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: 0.5rem;
+  padding: 0.2rem 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: $blue-light;
+  background: rgba(0, 195, 245, 0.12);
+  border: 1px solid rgba(0, 195, 245, 0.25);
+  border-radius: 50px;
+  text-transform: lowercase;
+  font-family: 'Rubik', sans-serif;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+  transition: all 0.25s ease;
+}
+
+// Плавная смена при переключении секции
+.block-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem;
 }
 </style>

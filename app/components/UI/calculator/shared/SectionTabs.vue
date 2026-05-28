@@ -45,7 +45,7 @@ function selectTab(id: CalculatorSection) {
   if (props.modelValue === id) return
   
   emit('update:modelValue', id)
-  console.log(`🔄 Переключение секции: ${id}`)
+  // console.log(`🔄 Переключение секции: ${id}`)
 }
 </script>
 
@@ -128,10 +128,10 @@ function selectTab(id: CalculatorSection) {
     font-size: 0.85rem;
     gap: 0.35rem;
 
-    .tab-label {
+    // .tab-label {
       // На очень маленьких экранах можно скрыть текст и оставить только иконки
       // Но пока оставим текст, т.к. вкладки всего 3
-    }
+    // }
   }
 }
 

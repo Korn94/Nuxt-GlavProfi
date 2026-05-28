@@ -36,6 +36,7 @@
         :available-items="demolitionItems"
         :selected-works="state.demolitionWorks"
         :all-works="allWorksFlat"
+        :section="state.section"
         @add="addDemolitionWork"
         @remove="removeDemolitionWork"
         @update-qty="updateDemolitionQty"
@@ -46,6 +47,7 @@
         :available-groups="availableGroups"
         :surface-instances="state.surfaceInstances"
         :all-works="allWorksFlat"
+        :section="state.section"
         @add="addSurfaceInstance"
         @remove="removeSurfaceInstance"
         @update-area="({ instanceId, area }) => updateInstanceArea(instanceId, area)"
@@ -61,6 +63,7 @@
         :available-items="allPieceWorks"
         :selected-works="state.pieceWorks"
         :all-works="allWorksFlat"
+        :section="state.section"
         @add="addPieceWork"
         @remove="removePieceWork"
         @update-qty="updatePieceQty"
@@ -164,7 +167,7 @@ function addInstanceExtra(instanceId: string, itemId: number) {
   const inst = state.surfaceInstances.find(i => i.instanceId === instanceId)
   if (inst && !inst.extras.some(e => e.itemId === itemId)) {
     inst.extras.push({ itemId, qty: 1 })
-    console.log(`➕ Доп. работа добавлена к инстансу ${instanceId}: ${itemId}`)
+    // console.log(`➕ Доп. работа добавлена к инстансу ${instanceId}: ${itemId}`)
   }
 }
 

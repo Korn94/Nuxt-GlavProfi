@@ -115,6 +115,7 @@
         subtitle="Загрузите план или опишите задачу. Инженер найдёт слабые места и подготовит детальный расчёт. Консультация бесплатна."
         phone="+7 (910) 909-69-47"
         telegram="@glavprofii"
+        max="https://max.ru/u/f9LHodD0cOLfbBSpAeCwHBcJ83SJtKVj9mVKY7K8OLd6OwYB0gH6g3XE_Cs"
         source-label="Ремонт офисов в Рязани — CTA"
         subject-title="Заявка на смету ремонта офиса"
         />
