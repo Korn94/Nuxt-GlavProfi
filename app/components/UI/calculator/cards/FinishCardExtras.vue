@@ -52,9 +52,9 @@
             <Icon name="material-symbols:add" size="14" />
           </button>
         </div>
-        <span class="work-total">
+        <p class="work-total">
           {{ formatPrice(extra.work.pricePerUnit * extra.qty) }} ₽
-        </span>
+        </p>
         <button type="button" class="remove-extra-btn" @click="handleRemove(extra.itemId)" title="Удалить доп">
           <Icon name="material-symbols:close" size="16" />
         </button>

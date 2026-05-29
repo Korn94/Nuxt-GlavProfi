@@ -5,7 +5,7 @@
 // -----------------------------------------------------------------------------
 
 /** Зоны расчёта */
-export type CalculatorSection = 'floor' | 'walls' | 'ceiling'
+export type CalculatorSection = 'floor' | 'walls' | 'ceiling' | 'partitions'
 
 /** Нормализованные единицы измерения */
 export type WorkUnit = 'm2' | 'linear' | 'piece'

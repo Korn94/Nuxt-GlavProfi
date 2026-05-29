@@ -130,8 +130,8 @@ onMounted(() => {
   border-radius: 16px;
   padding: 2.5rem 2rem;
   margin-top: 2rem;
-  position: relative;
-  z-index: 1;
+  /* position: relative; */
+  /* z-index: 1; */
   overflow: clip;
 
   &::before {

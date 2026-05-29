@@ -120,7 +120,7 @@ span {
   }
 
   &:hover {
-    transform: translateY(-4px);
+    // transform: translateY(-4px);
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
     border-color: rgba(0, 195, 245, 0.3);
   }
@@ -191,8 +191,8 @@ span {
 
     // Ограничиваем переносы 3 строками (чтобы шапка не стала огромной)
     display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
+    // -webkit-line-clamp: 3;
+    // line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }

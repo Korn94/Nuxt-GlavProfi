@@ -84,9 +84,9 @@ function onToggleExclude(itemId: number) {
   emit('toggle-exclusion', { instanceId: props.instance.instanceId, itemId })
 }
 
-/** 
+/**
  * 🧮 Маппинг базовых работ с учётом опций.
- * Опции заменяют только работы с совпадающим subCategoryId.
+ * Опции заменяют базовые работы, которые помечены как "заменяемые".
  */
 const resolvedBaseWorks = computed(() => {
   if (!props.config || !props.config.baseItemIds?.length) return []
@@ -104,25 +104,49 @@ const resolvedBaseWorks = computed(() => {
     }
   }
 
-  // 2. Формируем итоговый список
+  // 2. Определяем, какие базовые работы можно заменять
+  // По умолчанию: все базовые работы, кроме вспомогательных (грунтовка, подготовка)
+  const replaceableBaseIds = props.config.baseItemIds.filter(baseId => {
+    const baseWork = props.allWorks.find(w => w.id === baseId)
+    if (!baseWork) return false
+    // Грунтовки и подготовительные работы не заменяем
+    const nameLower = baseWork.name.toLowerCase()
+    return !nameLower.includes('грунтов') && !nameLower.includes('подготов')
+  })
+
+  // 3. Формируем итоговый список
   const result: NormalizedWorkItem[] = []
-  
+  let replacementUsed = false
+
   for (const baseId of props.config.baseItemIds) {
     const baseWork = props.allWorks.find(w => w.id === baseId)
     if (!baseWork) continue
 
-    // Ищем замену: опция должна иметь тот же subCategoryId, что и базовая работа
-    const replacementId = [...selectedOptionIds].find(optId => {
-      const optWork = props.allWorks.find(w => w.id === optId)
-      return optWork?.subCategoryId === baseWork.subCategoryId
-    })
+    // Проверяем, можно ли заменить эту базовую работу
+    const canReplace = replaceableBaseIds.includes(baseId) && !replacementUsed
 
-    const finalId = replacementId || baseWork.id
-    const finalWork = props.allWorks.find(w => w.id === finalId)
-    if (finalWork) result.push(finalWork)
+    if (canReplace && selectedOptionIds.size > 0) {
+      // Ищем замену среди выбранных опций
+      // Критерий: опция должна относиться к той же секции
+      const replacementId = [...selectedOptionIds].find(optId => {
+        const optWork = props.allWorks.find(w => w.id === optId)
+        return optWork?.section === baseWork.section
+      })
+
+      if (replacementId) {
+        const replacementWork = props.allWorks.find(w => w.id === replacementId)
+        if (replacementWork) {
+          result.push(replacementWork)
+          replacementUsed = true // Используем замену только один раз
+          continue
+        }
+      }
+    }
+
+    // Если замена не найдена или не нужна, добавляем базовую работу
+    result.push(baseWork)
   }
 
-  // console.log('🔍 Разрешение базовых работ для', props.config.name, ':', result.map(w => w.id))
   return result
 })
 </script>

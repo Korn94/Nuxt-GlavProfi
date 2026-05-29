@@ -31,24 +31,34 @@ export function useCalculatorCore(
     if (!config) return []
 
     const lines: CalculationLine[] = []
-    
-    // 1. Определяем ID основной работы с учётом опций
-    const getEffectiveItemId = (baseId: number): number => {
-      if (!config.options) return baseId
-      
+
+    // 1. Собираем все выбранные itemId из активных опций
+    const selectedOptionIds = new Set<number>()
+    if (config.options) {
       for (const [optKey, optVal] of Object.entries(instance.options)) {
-        const optConfig = config.options?.[optKey]
+        const optConfig = config.options[optKey]
         if (optConfig) {
           const match = optConfig.values.find(v => v.value === optVal)
-          if (match?.itemId) return match.itemId
+          if (match?.itemId) selectedOptionIds.add(match.itemId)
         }
       }
-      return baseId
     }
 
-    // 2. Формируем список работ из конфига
+    // 2. Функция поиска замены: опция должна иметь тот же subCategoryId
+    const getEffectiveItemId = (baseId: number): number => {
+      const baseWork = getWorkById(baseId)
+      if (!baseWork || selectedOptionIds.size === 0) return baseId
+
+      const replacementId = [...selectedOptionIds].find(optId => {
+        const optWork = getWorkById(optId)
+        return optWork?.subCategoryId === baseWork.subCategoryId
+      })
+
+      return replacementId || baseId
+    }
+
+    // 3. Формируем список работ из конфига
     const workIds = [...config.baseItemIds]
-    
     for (const workId of workIds) {
       if (instance.excludedItemIds.includes(workId)) continue
 
@@ -59,19 +69,14 @@ export function useCalculatorCore(
       // ✅ Динамический выбор площади в зависимости от секции работы
       let quantity = 0
       if (work.section === 'walls') {
-        // Для стен используем площадь стен (с фоллбэком на площадь пола)
         quantity = state.dimensions.wallArea ?? state.dimensions.floorArea
-      } else if (work.section === 'floor' || work.section === 'ceiling') {
-        // Для пола и потолка всегда площадь пола
+      } else if (work.section === 'floor' || work.section === 'ceiling' || work.section === 'partitions') {
         quantity = state.dimensions.floorArea
       } else {
-        // Фоллбэк для нестандартных случаев
         quantity = instance.area || state.dimensions.floorArea
       }
 
-      // Защита от отрицательных или нулевых значений
       quantity = Math.max(0, quantity)
-
       const total = work.pricePerUnit * quantity
 
       lines.push({
