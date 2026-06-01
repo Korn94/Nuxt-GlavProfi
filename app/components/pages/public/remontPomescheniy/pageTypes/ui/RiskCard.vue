@@ -59,7 +59,7 @@
       <div class="risk-card__block risk-card__block--solution">
         <div class="risk-card__block-header">
           <Icon name="mdi:check-circle" size="18" class="risk-card__block-icon" />
-          <span class="risk-card__block-label">Наше решение</span>
+          <span class="risk-card__block-label">Решение</span>
         </div>
         <div class="risk-card__block-text">
           <slot name="solution">

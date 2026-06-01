@@ -5,9 +5,7 @@
     class="sticky-nav-wrapper"
     :style="wrapperStyle"
   >
-    <!-- Sentinel: невидимый маркер для определения момента "прилипания" -->
     <div class="sticky-nav__sentinel" data-sticky-nav-sentinel aria-hidden="true" />
-
     <nav
       ref="navRef"
       :class="[
@@ -18,31 +16,66 @@
       aria-label="Навигация по разделам страницы"
     >
       <div class="sticky-nav__container">
-        <ul ref="listRef" class="sticky-nav__list">
-          <li
-            v-for="item in items"
-            :key="item.id"
-            :ref="(el) => setItemRef(item.id, el as HTMLElement | null)"
-            class="sticky-nav__item"
+        <!-- Подпись-маркер "На странице:" -->
+        <span v-if="label && !isSticky" class="sticky-nav__label">
+          <Icon name="mdi:format-list-bulleted" size="14" class="sticky-nav__label-icon" />
+          {{ label }}
+        </span>
+        
+        <!-- Обёртка для списка + кнопок скролла -->
+        <div class="sticky-nav__list-wrapper">
+          <!-- Стрелка ВЛЕВО -->
+          <button
+            v-if="canScrollLeft && !isSticky"
+            type="button"
+            class="sticky-nav__scroll-btn sticky-nav__scroll-btn--left"
+            aria-label="Прокрутить навигацию влево"
+            @click="scrollList('left')"
           >
-            <a
-              :href="`#${item.id}`"
-              :class="[
-                'sticky-nav__link',
-                { 'sticky-nav__link--active': activeId === item.id }
-              ]"
-              @click.prevent="scrollTo(item.id)"
+            <Icon name="mdi:chevron-left" size="22" />
+          </button>
+          
+          <ul 
+            ref="listRef" 
+            class="sticky-nav__list"
+            :class="{ 'sticky-nav__list--dragging': isDragging }"
+            @scroll="handleListScroll"
+            @mousedown="handleDragStart"
+            @mousemove="handleDragMove"
+            @mouseup="handleDragEnd"
+            @mouseleave="handleDragEnd"
+          >
+            <li
+              v-for="(item, index) in items"
+              :key="item.id"
+              :ref="(el) => setItemRef(item.id, el as HTMLElement | null)"
+              class="sticky-nav__item"
             >
-              <Icon
-                v-if="item.icon"
-                :name="item.icon"
-                size="16"
-                class="sticky-nav__icon"
-              />
-              <span>{{ item.label }}</span>
-            </a>
-          </li>
-        </ul>
+              <a
+                :href="`#${item.id}`"
+                :class="[
+                  'sticky-nav__link',
+                  { 'sticky-nav__link--active': activeId === item.id }
+                ]"
+                @click.prevent="handleLinkClick(item.id, $event)"
+              >
+                <span class="sticky-nav__roman">{{ toRoman(index + 1) }}</span>
+                <span>{{ item.label }}</span>
+              </a>
+            </li>
+          </ul>
+          
+          <!-- Стрелка ВПРАВО -->
+          <button
+            v-if="canScrollRight && !isSticky"
+            type="button"
+            class="sticky-nav__scroll-btn sticky-nav__scroll-btn--right"
+            aria-label="Прокрутить навигацию вправо"
+            @click="scrollList('right')"
+          >
+            <Icon name="mdi:chevron-right" size="22" />
+          </button>
+        </div>
       </div>
     </nav>
   </div>
@@ -62,6 +95,7 @@ const props = withDefaults(
   defineProps<{
     items: StickyNavItem[]
     scrollOffset?: number
+    label?: string
   }>(),
   {
     scrollOffset: 120,
@@ -72,6 +106,91 @@ const wrapperRef = ref<HTMLElement | null>(null)
 const navRef = ref<HTMLElement | null>(null)
 const listRef = ref<HTMLUListElement | null>(null)
 const itemRefs = new Map<string, HTMLElement>()
+
+// === Отслеживание скролла списка ===
+const canScrollLeft = ref(false)
+const canScrollRight = ref(false)
+
+const checkScrollPosition = () => {
+  if (!listRef.value) return
+  
+  const { scrollLeft, scrollWidth, clientWidth } = listRef.value
+  const tolerance = 5
+  
+  canScrollLeft.value = scrollLeft > tolerance
+  canScrollRight.value = scrollWidth > clientWidth + scrollLeft + tolerance
+}
+
+const handleListScroll = () => {
+  checkScrollPosition()
+}
+
+// === Программная прокрутка списка ===
+const scrollList = (direction: 'left' | 'right') => {
+  if (!listRef.value) return
+  
+  const scrollAmount = listRef.value.clientWidth * 0.8
+  const targetScroll = direction === 'left'
+    ? listRef.value.scrollLeft - scrollAmount
+    : listRef.value.scrollLeft + scrollAmount
+  
+  listRef.value.scrollTo({
+    left: Math.max(0, targetScroll),
+    behavior: 'smooth',
+  })
+}
+
+// === Drag-to-scroll (перетаскивание мышкой) ===
+const isDragging = ref(false)
+const dragStartX = ref(0)
+const dragScrollLeft = ref(0)
+const hasDragged = ref(false)
+
+const handleDragStart = (e: MouseEvent) => {
+  // Только левая кнопка мыши
+  if (e.button !== 0) return
+  
+  isDragging.value = true
+  hasDragged.value = false
+  dragStartX.value = e.pageX - (listRef.value?.offsetLeft || 0)
+  dragScrollLeft.value = listRef.value?.scrollLeft || 0
+  
+  // Предотвращаем выделение текста
+  e.preventDefault()
+}
+
+const handleDragMove = (e: MouseEvent) => {
+  if (!isDragging.value || !listRef.value) return
+  
+  e.preventDefault()
+  
+  const x = e.pageX - listRef.value.offsetLeft
+  const walk = (x - dragStartX.value) * 1.5 // Множитель для ускорения
+  
+  // Если сдвинули больше чем на 5px — считаем это drag'ом
+  if (Math.abs(walk) > 5) {
+    hasDragged.value = true
+  }
+  
+  listRef.value.scrollLeft = dragScrollLeft.value - walk
+}
+
+const handleDragEnd = () => {
+  isDragging.value = false
+}
+
+// === Обработчик клика по ссылке ===
+const handleLinkClick = (id: string, e: MouseEvent) => {
+  // Если был drag — не переходим по ссылке
+  if (hasDragged.value) {
+    e.preventDefault()
+    hasDragged.value = false
+    return
+  }
+  
+  // Иначе — обычный скролл к секции
+  scrollTo(id)
+}
 
 const setItemRef = (id: string, el: HTMLElement | null) => {
   if (el) {
@@ -88,28 +207,38 @@ const { activeId, isSticky, scrollTo } = useStickyNav({
   scrollOffset: props.scrollOffset,
 })
 
-// === 1. Фиксация высоты wrapper ===
+const toRoman = (num: number): string => {
+  const romanNumerals: [number, string][] = [
+    [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']
+  ]
+  let result = ''
+  let n = num
+  for (const [value, symbol] of romanNumerals) {
+    while (n >= value) {
+      result += symbol
+      n -= value
+    }
+  }
+  return result
+}
+
 const wrapperStyle = computed(() => {
   if (!isSticky.value || !navRef.value) return {}
   return { minHeight: `${navHeight.value}px` }
 })
 
 const navHeight = ref(0)
-
 const measureNavHeight = () => {
   if (navRef.value) {
     navHeight.value = navRef.value.getBoundingClientRect().height
   }
 }
 
-// === 2. Авто-центрирование активного пункта ===
 const centerActiveItem = async () => {
   const currentActiveId = activeId.value
   if (!currentActiveId) return
 
   await nextTick()
-
-  // Проверяем, не изменился ли activeId, пока мы ждали nextTick
   if (activeId.value !== currentActiveId) return
 
   const activeEl = itemRefs.get(currentActiveId)
@@ -131,16 +260,27 @@ watch(activeId, () => {
   centerActiveItem()
 })
 
+watch(isSticky, () => {
+  if (!isSticky.value) {
+    nextTick(checkScrollPosition)
+  }
+})
+
 onMounted(() => {
   measureNavHeight()
-  window.addEventListener('resize', measureNavHeight)
-
+  window.addEventListener('resize', () => {
+    measureNavHeight()
+    checkScrollPosition()
+  })
+  
   nextTick(() => {
-    setTimeout(centerActiveItem, 400)
+    setTimeout(() => {
+      centerActiveItem()
+      checkScrollPosition()
+    }, 400)
   })
 })
 
-// === Очистка ===
 onBeforeUnmount(() => {
   window.removeEventListener('resize', measureNavHeight)
 })
@@ -158,7 +298,6 @@ span {
   width: 100%;
 }
 
-// Sentinel: 1px высота, не мешает лэйауту
 .sticky-nav__sentinel {
   position: absolute;
   top: 0;
@@ -172,15 +311,14 @@ span {
 .sticky-nav {
   width: 100%;
   background: $background-dark;
-  // border-bottom: 1px solid $border-color;
   transition: box-shadow 0.3s ease, background 0.3s ease;
   z-index: 90;
 
-  // === "Прилипшее" состояние ===
   &--stuck {
     position: fixed;
     top: 60px;
     left: 0;
+    width: 100%;
     background: $background-dark;
     border-bottom: 1px solid $text-dark;
     backdrop-filter: blur(12px);
@@ -191,16 +329,9 @@ span {
       top: 0;
     }
 
-    // Компенсируем "прыжок" контента при fixed
-    // & + * {
-      // Не нужен padding-top здесь, т.к. wrapper сохраняет место
-    // }
-  }
-
-  // Когда меню fixed — wrapper сохраняет его высоту, чтобы контент не прыгал
-  &--stuck::after {
-    content: '';
-    display: block;
+    @media (min-width: 768px) {
+      justify-content: center;
+    }
   }
 
   &__container {
@@ -213,10 +344,16 @@ span {
     }
   }
 
-  // === Список: горизонтальный скролл на мобильном ===
+  &__list-wrapper {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+  }
+
   &__list {
     display: flex;
-    gap: 0.25rem;
     margin: 0;
     padding: 0;
     list-style: none;
@@ -224,8 +361,11 @@ span {
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
-    justify-content: center;
-    
+    justify-content: flex-start;
+    flex: 1;
+    min-width: 0;
+    cursor: grab; // ✅ Курсор "рука" для drag
+
     @media (max-width: 768px) {
       justify-content: unset;
     }
@@ -234,88 +374,209 @@ span {
       display: none;
     }
 
-    // Маски-градиенты по краям (подсказка, что можно скроллить)
-    mask-image: linear-gradient(
-      to right,
-      transparent 0,
-      black 8px,
-      black calc(100% - 8px),
-      transparent 100%
-    );
+    // ✅ Курсор "сжатая рука" при drag
+    &--dragging {
+      cursor: grabbing;
+      scroll-behavior: auto; // Отключаем плавный скролл во время drag
+      
+      // Предотвращаем выделение текста
+      * {
+        user-select: none;
+        -webkit-user-select: none;
+      }
+    }
   }
 
   &__item {
     flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+
+    &:not(:last-child)::after {
+      content: '/';
+      color: rgba($text-light, 0.25);
+      font-size: 0.88rem;
+      margin: 0 0.15rem;
+      pointer-events: none;
+    }
   }
 
-  // === Ссылка-кнопка ===
   &__link {
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
-    padding: 0.9rem 1.1rem;
-    color: $text-light;
+    padding: 0.85rem 0.5rem;
+    color: rgba($text-light, 0.65);
     font-family: 'Rubik', sans-serif;
-    font-size: 0.92rem;
-    font-weight: 500;
+    font-size: 0.88rem;
+    font-weight: 400;
     text-decoration: none;
     white-space: nowrap;
     border-bottom: 2px solid transparent;
-    transition: color 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+    transition: color 0.2s ease, border-color 0.25s ease;
     position: relative;
 
     &:hover {
-      // color: $text-dark;
-      background: rgba(0, 195, 245, 0.1);
+      color: $blue-light;
     }
 
-    // === Активный пункт ===
     &--active {
-      color: $blue;
+      color: rgba($text-light, 0.95);
       border-bottom-color: $blue;
-      font-weight: 600;
+      font-weight: 500;
 
-      .sticky-nav__icon {
+      .sticky-nav__roman {
         color: $blue;
       }
 
       &:hover {
-        color: $blue;
-        background: rgba(0, 195, 245, 0.06);
+        color: rgba($text-light, 0.95);
       }
     }
   }
 
-  &__icon {
-    color: $text-gray;
-    flex-shrink: 0;
-    transition: color 0.25s ease;
+  &__roman {
+    font-family: 'Rubik', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: rgba($text-light, 0.45);
+    letter-spacing: 0.05em;
+    transition: color 0.2s ease;
+  }
+
+  &__scroll-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 50%;
+    background: rgba($background-dark, 0.85);
+    color: $blue-light;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    box-shadow: 
+      0 2px 8px rgba(0, 0, 0, 0.3),
+      0 0 0 1px rgba(0, 195, 245, 0.2);
+    transition: all 0.25s ease;
+    animation: fadeInBtn 0.3s ease;
+
+    &:hover {
+      background: rgba(0, 195, 245, 0.15);
+      color: $blue;
+      box-shadow: 
+        0 4px 12px rgba(0, 0, 0, 0.4),
+        0 0 0 1px rgba(0, 195, 245, 0.5);
+      // transform: translateY(-50%) scale(1.1);
+    }
+
+    &:active {
+      transform: translateY(-50%) scale(0.95);
+    }
+
+    &--left {
+      left: -4px;
+      &::before {
+        content: '';
+        position: absolute;
+        right: 100%;
+        top: 0;
+        bottom: 0;
+        width: 24px;
+        background: linear-gradient(
+          90deg,
+          transparent 0%,
+          rgba($background-dark, 0.7) 60%,
+          rgba($background-dark, 0.95) 100%
+        );
+        pointer-events: none;
+      }
+    }
+
+    &--right {
+      right: -4px;
+      &::before {
+        content: '';
+        position: absolute;
+        left: 100%;
+        top: 0;
+        bottom: 0;
+        width: 24px;
+        background: linear-gradient(
+          270deg,
+          transparent 0%,
+          rgba($background-dark, 0.7) 60%,
+          rgba($background-dark, 0.95) 100%
+        );
+        pointer-events: none;
+      }
+    }
+
+    @media (max-width: 768px) {
+      display: none;
+    }
   }
 }
 
-// === Компенсация "прыжка" контента при fixed ===
-// Wrapper всегда занимает место меню
-// .sticky-nav-wrapper {
-  // Высота = фактическая высота меню (подстраивается автоматически)
-// }
+.sticky-nav__container {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 
-// Адаптив
+  @media (min-width: 768px) {
+    justify-content: center;
+  }
+}
+
+.sticky-nav__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: 'Rubik', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba($text-light, 0.45);
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding-right: 1rem;
+  border-right: 1px solid rgba($text-light, 0.12);
+
+  &-icon {
+    color: rgba($text-light, 0.4);
+    flex-shrink: 0;
+  }
+}
+
+@keyframes fadeInBtn {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+}
+
 @media (max-width: 768px) {
   .sticky-nav {
     &__link {
-      padding: 0.75rem 0.9rem;
+      padding: 0.75rem 0.4rem;
       font-size: 0.85rem;
-    }
-
-    &__icon {
-      display: none; // Иконки на мобильном скрываем, чтобы влезло больше пунктов
     }
   }
 }
 
 @media (max-width: 480px) {
   .sticky-nav__link {
-    padding: 0.7rem 0.75rem;
+    padding: 0.7rem 0.3rem;
     font-size: 0.8rem;
   }
 }

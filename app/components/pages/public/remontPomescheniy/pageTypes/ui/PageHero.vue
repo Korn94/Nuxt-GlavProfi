@@ -91,12 +91,7 @@ span {
   &__overlay {
     position: absolute;
     inset: 0;
-    background: linear-gradient(
-      135deg,
-      rgba(24, 25, 27, 0.92) 0%,
-      rgba(24, 25, 27, 0.75) 60%,
-      rgba(24, 25, 27, 0.55) 100%
-    );
+    background: rgba(24, 25, 27, 0.7);
     z-index: 1;
   }
 

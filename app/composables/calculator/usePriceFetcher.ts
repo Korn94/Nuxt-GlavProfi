@@ -376,16 +376,16 @@ export function usePriceFetcher() {
     }
 
     // Лог статистики (только в dev-режиме, чтобы не засорять консоль на проде)
-    if (import.meta.dev) {
-      console.log('✅ Прайс-лист нормализован:', {
-        пол: `${result.floor.standard.length} м² + ${result.floor.piece.length} шт/м.п.`,
-        стены: `${result.walls.standard.length} м² + ${result.walls.piece.length} шт/м.п.`,
-        потолок: `${result.ceiling.standard.length} м² + ${result.ceiling.piece.length} шт/м.п.`,
-        перегородки: `${result.partitions.standard.length} м² + ${result.partitions.piece.length} шт/м.п.`,
-        всего_обработано: totalProcessed,
-        пропущено: totalSkipped
-      })
-    }
+    // if (import.meta.dev) {
+    //   console.log('✅ Прайс-лист нормализован:', {
+    //     пол: `${result.floor.standard.length} м² + ${result.floor.piece.length} шт/м.п.`,
+    //     стены: `${result.walls.standard.length} м² + ${result.walls.piece.length} шт/м.п.`,
+    //     потолок: `${result.ceiling.standard.length} м² + ${result.ceiling.piece.length} шт/м.п.`,
+    //     перегородки: `${result.partitions.standard.length} м² + ${result.partitions.piece.length} шт/м.п.`,
+    //     всего_обработано: totalProcessed,
+    //     пропущено: totalSkipped
+    //   })
+    // }
 
     return result
   })

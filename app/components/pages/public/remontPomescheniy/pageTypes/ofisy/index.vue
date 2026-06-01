@@ -20,7 +20,7 @@
       </template>
 
       <template #price>
-        <span class="price-main">от 3 000 ₽/м²</span>
+        <span class="price-main">от 11 000 ₽/м²</span>
         <span class="price-example">100 м²: ~1.1–1.6 млн ₽</span>
         <span class="price-note">В стоимость входят работы без материалов</span>
       </template>
@@ -49,17 +49,24 @@
       </template>
     </PageHero>
 
-    <!-- ==================== ХЛЕБНЫЕ КРОШКИ ==================== -->
-    <Breadcrumbs
-      :items="[
-        { label: 'Главная', to: '/' },
-        { label: 'Ремонт помещений', to: '/remont-pomescheniy' },
-        { label: 'Офисы' }
-      ]"
-    />
+    <!-- ==================== БЛОК: ХЛЕБНЫЕ КРОШКИ + НАВИГАЦИЯ ==================== -->
+    <NavBreadcrumbsRow>
+      <template #breadcrumbs>
+        <Breadcrumbs
+          :items="[
+            { label: 'Главная', to: '/' },
+            { label: 'Ремонт помещений', to: '/remont-pomescheniy' },
+            { label: 'Офисы' }
+          ]"
+        />
+      </template>
+      <template #nav>
+        <StickyNav :items="navItems" :scroll-offset="110" label="На странице" />
+      </template>
+    </NavBreadcrumbsRow>
 
     <!-- ==================== БЛОК 2: STICKY NAV ==================== -->
-    <StickyNav :items="navItems" :scroll-offset="110" />
+    <!-- <StickyNav :items="navItems" :scroll-offset="110" /> -->
 
     <!-- ==================== БЛОК 3: ВАРИАНТЫ РЕМОНТА ==================== -->
     <section id="repair-types" class="page-section">
@@ -144,6 +151,7 @@ import ProjectsShowcase from '../ui/ProjectsShowcase.vue'
 import FAQBlock from '../ui/FAQBlock.vue'
 import ApplicationCTA from '../ui/ApplicationCTA.vue'
 import Breadcrumbs from '../ui/Breadcrumbs.vue'
+import NavBreadcrumbsRow from '../ui/NavBreadcrumbsRow.vue'
 
 
 // === Типы данных ===
@@ -188,7 +196,7 @@ const repairVariants: RepairVariant[] = [
       'Черновые и чистовые работы',
     ],
     duration: 'от 1,5 месяцев',
-    price: 'от 14 000 ₽/м²',
+    price: 'от 11 000 ₽/м²',
     icon: 'mdi:hammer-wrench',
     featured: true,
     badge: 'Для новых помещений',

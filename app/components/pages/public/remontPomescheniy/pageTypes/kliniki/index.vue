@@ -20,8 +20,8 @@
       </template>
 
       <template #price>
-        <span class="price-main">от 8 500 ₽/м²</span>
-        <span class="price-example">100 м²: ~1.4–2.2 млн ₽</span>
+        <span class="price-main">от 18 000 ₽/м²</span>
+        <span class="price-example">100 м²: ~1.8–2.8 млн ₽</span>
         <span class="price-note">В стоимость входят работы без материалов</span>
       </template>
 
@@ -51,17 +51,21 @@
       </template>
     </PageHero>
 
-    <!-- ==================== ХЛЕБНЫЕ КРОШКИ ==================== -->
-    <Breadcrumbs
-      :items="[
-        { label: 'Главная', to: '/' },
-        { label: 'Ремонт помещений', to: '/remont-pomescheniy' },
-        { label: 'Клиники' }
-      ]"
-    />
-
-    <!-- ==================== БЛОК 2: STICKY NAV ==================== -->
-    <StickyNav :items="navItems" :scroll-offset="110" />
+    <!-- ==================== БЛОК: ХЛЕБНЫЕ КРОШКИ + НАВИГАЦИЯ ==================== -->
+    <NavBreadcrumbsRow>
+      <template #breadcrumbs>
+        <Breadcrumbs
+          :items="[
+            { label: 'Главная', to: '/' },
+            { label: 'Ремонт помещений', to: '/remont-pomescheniy' },
+            { label: 'Клиники' }
+          ]"
+        />
+      </template>
+      <template #nav>
+        <StickyNav :items="navItems" :scroll-offset="110" label="На странице" />
+      </template>
+    </NavBreadcrumbsRow>
 
     <!-- ==================== БЛОК 3: ВАРИАНТЫ РЕМОНТА ==================== -->
     <section id="repair-types" class="page-section">
@@ -96,7 +100,7 @@
     <section id="risks" class="page-section">
       <RisksSection
         title="Что упускают при ремонте клиник — <span>и получают отказ в лицензии</span>"
-        subtitle="За 12 лет мы приняли десятки клиник после других подрядчиков. Ошибки одни и те же — и почти все они приводят либо к отказу в лицензировании, либо к переделке уже после открытия. Вот что мы проверяем в первую очередь, чтобы Роспотребнадзор и Росздравнадзор приняли объект с первого раза."
+        subtitle="Ремонт клиники — это не офис и не квартира. Цена ошибки здесь измеряется не в рублях переделки, а в предписаниях Роспотребнадзора, приостановке деятельности и отказе в лицензии. Ниже — типовые просчёты в проектах клиник и то, как их избежать ещё до начала работ."
         :groups="riskGroups"
         footer-note="Риск, о котором не предупредили на старте, в клиниках стоит в разы дороже, чем в офисах — на кону не только деньги, но и лицензия.<br />Поэтому мы проводим аудит объекта и проекта до подписания договора — и фиксируем всё, что может «выстрелить» при проверке."
         id-prefix="kliniki-risk"
@@ -157,6 +161,8 @@ import RisksSection from '../ui/RisksSection.vue'
 import ProjectsShowcase from '../ui/ProjectsShowcase.vue'
 import FAQBlock from '../ui/FAQBlock.vue'
 import ApplicationCTA from '../ui/ApplicationCTA.vue'
+import Breadcrumbs from '../ui/Breadcrumbs.vue'
+import NavBreadcrumbsRow from '../ui/NavBreadcrumbsRow.vue'
 
 // === Локальный компонент страницы клиник ===
 import KlinikiCtaForm from './CtaForm.vue'

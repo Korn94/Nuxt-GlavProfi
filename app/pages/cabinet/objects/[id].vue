@@ -132,6 +132,12 @@
                 {{ formatCurrency(budgetVsBalance) }}
               </strong>
             </div>
+            <div class="budget-row">
+              <span>Остато по смете (Смета − приходы)</span>
+              <strong :class="remainingPayment <= 0 ? 'text-pos' : 'text-neg'">
+                {{ formatCurrency(budgetMinusIncome) }}
+              </strong>
+            </div>
             <div class="budget-row budget-row--last">
               <span>Остаток оплаты от заказчика</span>
               <strong :class="remainingPayment >= 0 ? 'text-pos' : 'text-neg'">
@@ -236,6 +242,10 @@ const completedBudget = computed(() =>
 
 const budgetVsBalance = computed(() =>
   totalBudget.value - (object.value.finances?.totalBalance || 0)
+)
+
+const budgetMinusIncome = computed(() =>
+  totalBudget.value - (object.value.finances?.totalIncome || 0)
 )
 
 const remainingPayment = computed(() =>
