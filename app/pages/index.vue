@@ -20,7 +20,6 @@
     <UiAnimationsBlockAnimator>
       <PagesPublicHomePageCall />
     </UiAnimationsBlockAnimator>
-    <!-- <PagesHomePagePrice /> -->
     <UiAnimationsBlockAnimator>
       <PagesPublicHomePageMiniPrice />
     </UiAnimationsBlockAnimator>

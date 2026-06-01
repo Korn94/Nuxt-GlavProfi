@@ -1,20 +1,13 @@
 <!-- app\pages\prices\[category].vue -->
 <template>
   <div class="wrap">
-    <!-- <h1>Цены на ремонт помещений - <span>2025</span></h1> -->
-    <!-- <UiWidgetsOffer 
-      title="Не тратьте время на изучение прайс-листа!"
-      description="Отправьте запрос — мы сами всё посчитаем быстро и бесплатно"
-      buttonText="Заказать расчет"
-    /> -->
-
-    <PagesPublicPrices 
-      :categories="categories" 
-      :active-category="route.params.category" 
-      @update:active-category="setCategory" 
+    <PagesPublicPrices
+      :categories="categories"
+      :active-category="currentSlug"
+      @update:active-category="setCategory"
     />
 
-    <UiWidgetsOffer 
+    <UiWidgetsOffer
       title="Делимся своими оптовыми скидками на материал"
       description="Наши клиенты получают лучшие цены на строительные материалы для своего объекта. Так же помогаем в организации закупок и логистики"
       buttonText="Связаться"
@@ -22,11 +15,21 @@
   </div>
 </template>
 
-<script setup>
-import { useRoute } from 'vue-router'
-import { useRouter } from 'vue-router'
+<script setup lang="ts">
+import { useRoute, useRouter } from 'vue-router'
 import { computed } from 'vue'
-import { useAsyncData, createError, useHead } from '#app'
+import { useAsyncData, createError } from 'nuxt/app'
+import { usePriceSeo } from '~/composables/usePriceSeo'
+import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
+
+// === Интерфейс для страницы прайса ===
+interface PricePage {
+  id: number
+  title: string
+  slug: string
+  metaDescription?: string
+  image?: string
+}
 
 const route = useRoute()
 const router = useRouter()
@@ -35,162 +38,53 @@ definePageMeta({
   middleware: 'auth'
 })
 
-// Загрузка данных о страницах цен (для навигации)
-const { data: pagesData, error: pagesError } = await useAsyncData('price-pages', () =>
-  $fetch('/api/price/pages')
+// ✅ currentSlug всегда string
+const currentSlug = computed<string>(() => {
+  const param = route.params.category
+  return (Array.isArray(param) ? param[0] : param) || ''
+})
+
+// ✅ ИСПРАВЛЕНИЕ: Добавили дженерик <PricePage[]> к useAsyncData
+const { data: pagesData, error: pagesError } = await useAsyncData<PricePage[]>(
+  'price-pages',
+  () => $fetch<PricePage[]>('/api/price/pages')
 )
 
-// Проверка ошибки загрузки списка категорий
 if (pagesError?.value) {
-  throw createError({ 
-    statusCode: 500, 
-    message: 'Ошибка загрузки списка категорий' 
-  })
+  throw createError({ statusCode: 500, message: 'Ошибка загрузки списка категорий' })
 }
 
-// --- НОВОЕ: Жестко заданный маппинг URL -> Title ---
-const categoryTitles = {
-  'otdelochnye-raboty': 'Цены на отделочные работы 2026 — Рязань и область',
-  'plumbing': 'Цены на работы по сантехнике 2026 — Рязань и область',
-  'electricity': 'Цены на электромонтаж 2026 — Рязань и область',
-}
-
-// Получаем title для текущей категории
-const pageTitle = computed(() => {
-  return categoryTitles[route.params.category] || 'Цены на ремонт помещений - 2026 | ГлавПрофи'
-})
-// --- КОНЕЦ НОВОГО КОДА ---
-
-// Извлечение категорий из данных (для навигации)
-const categories = computed(() => {
-  return pagesData.value?.map(page => ({
+// ✅ Теперь pagesData.value имеет тип PricePage[] | null | undefined
+// .map работает корректно
+const categories = computed(() =>
+  pagesData.value?.map(page => ({
     id: page.id,
     name: page.title,
     slug: page.slug
   })) || []
-})
+)
 
-// Найдите текущую категорию по slug (для данных прайса)
-const currentCategory = computed(() => {
-  return pagesData.value?.find(page => page.slug === route.params.category) || null
-})
+// ✅ .find работает корректно
+const currentCategory = computed(() =>
+  pagesData.value?.find(page => page.slug === currentSlug.value) || null
+)
 
-// Проверка существования текущей категории
 if (!currentCategory.value) {
   throw createError({ statusCode: 404, message: 'Страница не найдена' })
 }
 
-// Обработчик смены категории
-const setCategory = (categoryId) => {
+const setCategory = (categoryId: string) => {
   router.push({ params: { category: categoryId } })
 }
 
-// --- НОВОЕ: Используем pageTitle в useHead ---
-useHead({
-  title: pageTitle.value,
-  meta: [
-    { name: 'description', content: currentCategory.value?.metaDescription || 'Актуальные цены 2026 на ремонт помещений.' },
-    { property: 'og:title', content: pageTitle.value },
-    { property: 'og:description', content: currentCategory.value?.metaDescription || 'Актуальные цены 2026 на ремонт помещений.' },
-    { property: 'og:image', content: currentCategory.value?.image || 'https://glavprofi.ru/images/og-image.jpg' },
-    { name: 'keywords', content: 'ремонт, отделка, коммерческие помещения, Рязань, ' + 
-      (currentCategory.value?.title ? currentCategory.value.title.toLowerCase() : '') }
-  ],
-  script: [
-    {
-      type: 'application/ld+json',
-      key: 'price-schema',
-      innerHTML: () => {
-        if (!pagesData.value) return ''
-        const page = pagesData.value.find(p => p.slug === route.params.category)
-        if (!page) return ''
-
-        const services = []
-        for (const category of page.categories || []) {
-          for (const subcategory of category.subcategories || []) {
-            for (const item of subcategory.items || []) {
-              // ✅ Основная работа с priceSpecification
-              services.push({
-                '@type': 'Offer',
-                'itemOffered': { 
-                  '@type': 'Service', 
-                  'name': item.name,
-                  'description': `Единица измерения: ${item.unit}`
-                },
-                'priceSpecification': {
-                  '@type': 'UnitPriceSpecification',
-                  'price': parseFloat(item.price) || 0,
-                  'priceCurrency': 'RUB',
-                  'unitText': item.unit // ✅ Теперь unitText на своём месте!
-                },
-                'availability': 'https://schema.org/InStock'
-              })
-
-              // ✅ Детали работ
-              for (const detail of item.details || []) {
-                services.push({
-                  '@type': 'Offer',
-                  'itemOffered': { 
-                    '@type': 'Service', 
-                    'name': detail.name,
-                    'description': `Единица измерения: ${detail.unit}`
-                  },
-                  'priceSpecification': {
-                    '@type': 'UnitPriceSpecification',
-                    'price': parseFloat(detail.price) || 0,
-                    'priceCurrency': 'RUB',
-                    'unitText': detail.unit
-                  },
-                  'availability': 'https://schema.org/InStock'
-                })
-              }
-
-              // ✅ Доп. работы
-              for (const dopwork of item.dopworks || []) {
-                services.push({
-                  '@type': 'Offer',
-                  'itemOffered': { 
-                    '@type': 'Service', 
-                    'name': dopwork.dopwork,
-                    'description': `Единица измерения: ${dopwork.unit}`
-                  },
-                  'priceSpecification': {
-                    '@type': 'UnitPriceSpecification',
-                    'price': parseFloat(dopwork.price) || 0,
-                    'priceCurrency': 'RUB',
-                    'unitText': dopwork.unit
-                  },
-                  'availability': 'https://schema.org/InStock'
-                })
-              }
-            }
-          }
-        }
-
-        return JSON.stringify({
-          '@context': 'https://schema.org',
-          '@type': 'Service',
-          'serviceType': 'Ремонтные работы',
-          'name': pageTitle.value,
-          'description': currentCategory.value?.metaDescription || 'Актуальные цены 2026 на ремонт помещений. Составим смету бесплатно.',
-          'provider': { '@type': 'Organization', 'name': 'ГлавПрофи' },
-          'areaServed': 'Россия, Рязань',
-          'hasOfferCatalog': {
-            '@type': 'OfferCatalog',
-            'name': `Прайс-лист на ${currentCategory.value?.title || 'ремонт'}`,
-            'itemListElement': services
-          }
-        })
-      }
-    }
-  ]
-})
+// Вызываем SEO-композабл (он сам загрузит данные и применит useHead)
+usePriceSeo(currentSlug.value)
 </script>
 
 <style lang="scss" scoped>
 .wrap {
   margin: 8em 5px 0;
-  
+
   @media (max-width: 840px) {
     margin: 2em 5px 0;
   }
@@ -199,7 +93,7 @@ useHead({
     margin-bottom: 3em;
     text-align: center;
   }
-  
+
   button {
     padding: 10px 20px;
     min-width: 150px;
@@ -210,7 +104,7 @@ useHead({
     border-radius: 5px;
     cursor: pointer;
     transition: background 0.3s ease;
-    
+
     &:hover {
       background: #00a3d3;
     }

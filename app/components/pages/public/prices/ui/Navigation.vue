@@ -58,6 +58,10 @@ const setCategory = (categoryId) => {
 
 // Пропсы и эмит
 const props = defineProps({
+  categories: {
+    type: Array,
+    required: true
+  },
   activeCategory: {
     type: String,
     required: true
