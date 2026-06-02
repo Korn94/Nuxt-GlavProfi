@@ -35,8 +35,8 @@
         <div v-if="!dataStore.isLoading && !dataStore.errorMessage">
           <!-- Результаты поиска / список категорий -->
           <div v-if="filteredWorks.length">
-            <!-- Меню навигации по работам (только админ) -->
-            <div class="work-navigation" v-if="dataStore.isAdmin">
+            <!-- Меню навигации по работам (ТОЛЬКО в режиме админа) -->
+            <div class="work-navigation" v-if="isAdminMode">
               <div class="work-navigation-inner">
                 <button
                   :class="{ active: uiStore.activeWork === 'all' }"
@@ -70,12 +70,12 @@
             </div>
           </div>
 
-          <!-- Список категорий -->
+          <!-- Список категорий — передаём isAdminMode вместо dataStore.isAdmin -->
           <PagesPublicPricesPriceCategory
             v-for="category in filteredWorks"
             :key="category.id"
             :category="category"
-            :is-admin="dataStore.isAdmin"
+            :is-admin="isAdminMode"
             :search-query="uiStore.searchQuery"
           />
 
@@ -87,6 +87,23 @@
         </div>
       </div>
     </div>
+
+    <!-- 🆕 FLOATING TOGGLE BUTTON (видна ТОЛЬКО настоящим админам) -->
+    <button
+      v-if="dataStore.isAdmin"
+      class="admin-toggle-fab"
+      :class="{ 'is-active': isAdminMode }"
+      :title="isAdminMode ? 'Скрыть кнопки редактирования' : 'Показать кнопки редактирования'"
+      @click="uiStore.toggleAdminView"
+    >
+      <Icon
+        :name="isAdminMode ? 'mdi:eye-off-outline' : 'mdi:eye-outline'"
+        size="24"
+      />
+      <span class="admin-toggle-fab__label">
+        {{ isAdminMode ? 'Просмотр' : 'Редактирование' }}
+      </span>
+    </button>
   </div>
 </template>
 
@@ -122,6 +139,20 @@ const editStore = usePriceEditStore()
 // 🧭 ROUTER
 // ========================================
 const router = useRouter()
+
+// ========================================
+// 🆕 ИТОГОВЫЙ ФЛАГ РЕЖИМА АДМИНА
+// ========================================
+/**
+ * Режим админа активен ТОЛЬКО когда:
+ * 1. Пользователь реально имеет роль admin/manager (dataStore.isAdmin)
+ * 2. Пользователь включил отображение админских кнопок (uiStore.isAdminView)
+ *
+ * Это позволяет админу быстро переключаться между "как видит клиент" и "режим редактирования".
+ */
+const isAdminMode = computed<boolean>(() =>
+  dataStore.isAdmin && uiStore.isAdminView
+)
 
 // ========================================
 // 📋 ЛОКАЛЬНЫЕ ВЫЧИСЛЕНИЯ
@@ -161,16 +192,15 @@ const allWorks = computed(() => {
 /**
  * Фильтрация работ по поиску и активной категории.
  *
- * Логика сохранена, но теперь использует данные из DataStore
- * и UI-состояние из UIStore.
+ * 🆕 ВАЖНО: фильтр по activeWork срабатывает ТОЛЬКО в режиме админа,
+ * иначе обычный пользователь не увидит часть прайса из-за случайного состояния.
  */
 const filteredWorks = computed<PriceCategory[]>(() => {
   const query = uiStore.searchQuery.trim().toLowerCase()
-
   let filtered: PriceCategory[] = dataStore.works ?? []
 
-  // Фильтр по активной категории (для админа)
-  if (uiStore.activeWork !== 'all') {
+  // Фильтр по активной категории (работает ТОЛЬКО в режиме админа)
+  if (isAdminMode.value && uiStore.activeWork !== 'all') {
     filtered = filtered.filter(category => category.id === uiStore.activeWork)
   }
 
@@ -179,7 +209,6 @@ const filteredWorks = computed<PriceCategory[]>(() => {
 
   // Поиск с автооткрытием найденных подкатегорий
   const openSubcategoriesTemp: Record<number, boolean> = {}
-
   const result = filtered
     .map(category => {
       const filteredSubcategories = category.subcategories
@@ -187,12 +216,10 @@ const filteredWorks = computed<PriceCategory[]>(() => {
           const filteredItems = subcategory.items.filter(item =>
             item.name.toLowerCase().includes(query),
           )
-
           // Автооткрытие подкатегорий с найденными работами
           if (filteredItems.length > 0) {
             openSubcategoriesTemp[subcategory.id] = true
           }
-
           return {
             ...subcategory,
             items: filteredItems,
@@ -212,7 +239,6 @@ const filteredWorks = computed<PriceCategory[]>(() => {
 
   // Применяем автооткрытие к UI-стору
   uiStore.openSubcategories = { ...openSubcategoriesTemp }
-
   return result
 })
 
@@ -229,6 +255,10 @@ const setCategory = async (categorySlug: string) => {
 </script>
 
 <style lang="scss" scoped>
+span {
+  color: unset;
+}
+
 .container {
   max-width: 1200px;
   margin: auto;
@@ -250,7 +280,9 @@ h1 {
   }
 }
 
-/* Навигация по работам */
+/* ======================================== */
+/* Навигация по работам (админ)             */
+/* ======================================== */
 .work-navigation {
   width: 100%;
   overflow-x: auto;
@@ -296,7 +328,9 @@ h1 {
   }
 }
 
-/* Таблица цен */
+/* ======================================== */
+/* Таблица цен                              */
+/* ======================================== */
 .price-list {
   border: 1px solid $border-color;
   border-radius: 5px;
@@ -361,7 +395,6 @@ h1 {
       background: $blue;
       color: white;
     }
-
     &:last-of-type {
       background: #ddd;
       color: #333;
@@ -375,5 +408,65 @@ h1 {
 
 .price-page-wrapper {
   width: 100%;
+}
+
+/* ======================================== */
+/* 🆕 FLOATING TOGGLE BUTTON                */
+/* ======================================== */
+.admin-toggle-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1000;
+
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+
+  background: #fff;
+  color: $text-dark;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+
+  font-size: 0.85rem;
+  font-weight: 600;
+
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+  }
+
+  /* Активное состояние — режим редактирования */
+  &.is-active {
+    background: linear-gradient(135deg, #00c3f5, #00a3d3);
+    color: #fff;
+    box-shadow: 0 6px 20px rgba(0, 195, 245, 0.4);
+
+    &:hover {
+      box-shadow: 0 8px 25px rgba(0, 195, 245, 0.5);
+    }
+  }
+
+  /* На десктопе — показываем текст */
+  &__label {
+    white-space: nowrap;
+  }
+
+  /* На мобильных — круглая кнопка без текста */
+  @media (max-width: 600px) {
+    padding: 14px;
+    border-radius: 50%;
+    bottom: 16px;
+    right: 16px;
+
+    .admin-toggle-fab__label {
+      display: none;
+    }
+  }
 }
 </style>

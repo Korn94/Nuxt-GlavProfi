@@ -14,7 +14,6 @@
  * Итог: страница [category].vue превращается в "тонкий" компонент
  * без знаний о внутренностях Pinia или lifecycle-хуках.
  */
-
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { useAsyncData, createError } from 'nuxt/app'
@@ -22,14 +21,13 @@ import { useAuthStore } from 'stores/auth'
 import { usePriceUIStore } from 'stores/price/usePriceUIStore'
 import { usePriceDataStore } from 'stores/price/usePriceDataStore'
 import { usePriceEditStore } from 'stores/price/usePriceEditStore'
-import { useCurrentUser } from '~/composables/useCurrentUser' // ← ДОБАВИТЬ
+import { useCurrentUser } from '~/composables/useCurrentUser'
 import type { ApiPriceListResponse, PricePage } from 'stores/price/types'
 
 export function usePriceStores() {
   const route = useRoute()
   const router = useRouter()
   const authStore = useAuthStore()
-
   const uiStore = usePriceUIStore()
   const dataStore = usePriceDataStore()
   const editStore = usePriceEditStore()
@@ -46,21 +44,36 @@ export function usePriceStores() {
   let isComponentMounted = true
 
   // ========================================
-  // 🧑 ПОЛУЧЕНИЕ ТЕКУЩЕГО ПОЛЬЗОВАТЕЛЯ (ГЛОБАЛЬНЫЙ КЭШ)
+  // 🧑 ПОЛУЧЕНИЕ ТЕКУЩЕГО ПОЛЬЗОВАТЕЛЯ
   // ========================================
-  // ✅ Этот запрос выполнится ОДИН раз за всю сессию.
-  // При переходе между категориями прайса Nuxt вернёт кэшированный результат.
   const { data: currentUserData } = useCurrentUser()
 
   // ========================================
-  // 📥 ЗАГРУЗКА ДАННЫХ ПРАЙСА (useAsyncData + transform)
+  // 🔐 ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ: определение роли
+  // ========================================
+  /**
+   * 🆕 Берёт роль с приоритетом:
+   * 1. authStore.user.role (гидратируется синхронно из куки — доступно сразу!)
+   * 2. currentUserData.value.user.role (если /api/me уже завершился)
+   *
+   * Это решает проблему гонки состояний при SSR.
+   */
+  const getUserRole = (): string | undefined => {
+    return authStore.user?.role ?? currentUserData.value?.user?.role
+  }
+
+  const isRoleAdmin = (role?: string): boolean => {
+    return role === 'admin' || role === 'manager'
+  }
+
+  // ========================================
+  // 📥 ЗАГРУЗКА ДАННЫХ ПРАЙСА
   // ========================================
   const {
     data: pricePayload,
     refresh: refreshData,
     error: priceError,
   } = useAsyncData(
-    // ✅ Статический ключ на основе route.params (не computed!)
     `price-${String(route.params.category)}`,
     async () => {
       const slug = String(route.params.category)
@@ -73,8 +86,13 @@ export function usePriceStores() {
         headers.Authorization = `Bearer ${authStore.token}`
       }
 
-      const role = currentUserData.value?.user?.role
-      const isAdminUser = role === 'admin' || role === 'manager'
+      // 🆕 Используем умный геттер роли (authStore → useCurrentUser)
+      const role = getUserRole()
+      const isAdminUser = isRoleAdmin(role)
+
+      console.log(
+        `🔐 useAsyncData [price-${slug}]: роль="${role}", isAdminUser=${isAdminUser}, токен=${authStore.token ? '✅' : '❌'}`
+      )
 
       const priceData = await $fetch<ApiPriceListResponse>(
         `/api/price/list/${slug}`,
@@ -95,10 +113,63 @@ export function usePriceStores() {
     },
   )
 
-  // ❌ УДАЛИТЬ ВЕСЬ ЭТОТ БЛОК:
-  // watch(pricePayload, newData => { ... })
-  // ↑ Он дублировал transform и вызывал лишние setData
+  // ========================================
+  // 🔄 АВТООБНОВЛЕНИЕ ПРИ ЗАВЕРШЕНИИ АВТОРИЗАЦИИ
+  // ========================================
+  /**
+   * 🆕 КРИТИЧЕСКИ ВАЖНО!
+   *
+   * Когда authStore.init() завершится (загрузит user из /api/auth/check),
+   * мы пересчитываем isAdmin и обновляем dataStore.
+   *
+   * Это нужно потому что при первом SSR-рендере:
+   * - authStore.user.role берётся из куки (быстро, но без полной проверки)
+   * - useCurrentUser делает запрос к /api/me (медленнее)
+   * - init() в authStore делает /api/auth/check (самый надёжный источник)
+   *
+   * Любой из этих источников может "дозагрузить" правильную роль,
+   * и мы должны это отразить в UI.
+   */
+  watch(
+    () => authStore.user?.role,
+    (newRole, oldRole) => {
+      if (newRole && newRole !== oldRole) {
+        const isAdminUser = isRoleAdmin(newRole)
+        console.log(
+          `🔄 authStore.user.role обновился: "${oldRole}" → "${newRole}", isAdmin=${isAdminUser}`
+        )
 
+        // Обновляем флаг в dataStore напрямую
+        dataStore.setData({
+          priceData: pricePayload.value?.priceData ?? null,
+          isAdminUser,
+        })
+      }
+    },
+    { immediate: false } // Не запускаем сразу — ждём реального изменения
+  )
+
+  // Дополнительный watch на currentUserData (для полноты картины)
+  watch(
+    () => currentUserData.value?.user?.role,
+    (newRole) => {
+      // Только если authStore ещё не дал роль, и useCurrentUser принёс новую
+      if (newRole && !authStore.user?.role) {
+        const isAdminUser = isRoleAdmin(newRole)
+        console.log(
+          `🔄 currentUserData.role обновился: "${newRole}", isAdmin=${isAdminUser}`
+        )
+        dataStore.setData({
+          priceData: pricePayload.value?.priceData ?? null,
+          isAdminUser,
+        })
+      }
+    }
+  )
+
+  // ========================================
+  // 🎯 ОБРАБОТКА ОШИБОК
+  // ========================================
   watch(
     priceError,
     (err) => {
@@ -127,6 +198,9 @@ export function usePriceStores() {
     router.push({ params: { category: categorySlug } })
   }
 
+  // ========================================
+  // 🛡️ ЗАЩИТА ОТ ПОТЕРИ ДАННЫХ
+  // ========================================
   onBeforeRouteLeave((to, from) => {
     if (editStore.hasUnsavedChanges) {
       const answer = window.confirm(
@@ -151,11 +225,8 @@ export function usePriceStores() {
   onUnmounted(() => {
     isComponentMounted = false
     console.log('[usePriceStores] Размонтирование — сброс всех Pinia-сторов')
-
     uiStore.resetUIState()
-    // ❌ УБРАЛИ dataStore.setData(null)
     editStore.clearAllEditStates()
-
     if (import.meta.client) {
       window.removeEventListener('beforeunload', handleBeforeUnload)
     }
