@@ -23,6 +23,14 @@ export default defineApi(async (event) => {
     })
   }
 
+  // ✅ ИСПРАВЛЕНИЕ: Валидация slug (только буквы, цифры, дефисы)
+  if (!/^[a-z0-9-]+$/.test(slug)) {
+    throw createError({
+      statusCode: 404,
+      statusMessage: 'Некорректный формат slug'
+    })
+  }
+
   console.log(`📋 Запрос дерева прайс-листа для slug: ${slug}`)
 
   // 🔹 1. Получаем страницу по slug

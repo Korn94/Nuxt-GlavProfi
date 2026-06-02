@@ -1,17 +1,21 @@
+<!-- app/components/pages/public/prices/PriceWorkItem.vue -->
 <template>
   <dl class="work-item" itemscope itemtype="https://schema.org/Service">
-    <!-- Название услуги (dt) -->
+    <!-- ======================================== -->
+    <!-- 📌 НАЗВАНИЕ РАБОТЫ (dt)                  -->
+    <!-- ======================================== -->
     <dt class="work-title-wrapper" itemprop="name">
       <!-- Иконка копирования -->
       <Icon
         :name="item.isCopied ? 'solar:copy-bold-duotone' : 'solar:copy-linear'"
         class="pointer ico"
-        @click="onHandleCopyClick"
+        @click="data.copyToClipboard(item)"
       />
 
-      <!-- Название (кликабельное) -->
-      <span class="work-title pointer" @click="onToggleSubItems">
-        <span v-if="editingItemId !== item.id">
+      <!-- Название (кликабельное для toggle вложенных) -->
+      <span class="work-title pointer" @click="ui.toggleSubItems(item.id)">
+        <!-- Режим просмотра: с подсветкой поиска -->
+        <span v-if="edit.editingItemId.value !== item.id">
           <span
             v-for="(part, index) in splitText(item.name)"
             :key="index"
@@ -20,18 +24,21 @@
             {{ part.text }}
           </span>
         </span>
+        <!-- Режим редактирования -->
         <input
           v-else
-          v-model="editingItemData.name"
+          v-model="edit.editingItemData.value.name"
           class="edit-input"
           style="width: 80%"
         />
       </span>
     </dt>
 
-    <!-- Цена и единица (dd) -->
+    <!-- ======================================== -->
+    <!-- 💰 ЦЕНА И ЕДИНИЦА (dd)                   -->
+    <!-- ======================================== -->
     <dd class="work-meta" itemprop="offers" itemscope itemtype="https://schema.org/Offer">
-      <span v-if="editingItemId !== item.id">
+      <span v-if="edit.editingItemId.value !== item.id">
         <span class="work-price" itemprop="price" :content="String(item.price)">
           {{ Math.round(Number(item.price)) }} ₽ /
         </span>
@@ -39,52 +46,70 @@
         <span class="work-unit">{{ item.unit }}</span>
       </span>
 
-      <!-- Поля редактирования -->
+      <!-- Режим редактирования цены -->
       <template v-else>
-        <input v-model="editingItemData.unit" class="edit-input edit-unit" style="width: 50px" />
-        <input v-model.number="editingItemData.price" class="edit-input edit-price" style="width: 70px" />
+        <input
+          v-model="edit.editingItemData.value.unit"
+          class="edit-input edit-unit"
+          style="width: 50px"
+        />
+        <input
+          v-model.number="edit.editingItemData.value.price"
+          class="edit-input edit-price"
+          style="width: 70px"
+        />
       </template>
     </dd>
 
-    <!-- Кнопки сохранения (при редактировании) -->
-    <div v-if="editingItemId === item.id" class="edit-buttons">
-      <button @click="onSaveEditSubItem">Сохранить</button>
-      <button @click="onCancel('editWork')">Отмена</button>
+    <!-- ======================================== -->
+    <!-- 💾 КНОПКИ СОХРАНЕНИЯ (при редактировании) -->
+    <!-- ======================================== -->
+    <div v-if="edit.editingItemId.value === item.id" class="edit-buttons">
+      <button @click="edit.saveEditItem">Сохранить</button>
+      <button @click="edit.cancelEditItem">Отмена</button>
     </div>
 
-    <!-- Кнопки админа -->
+    <!-- ======================================== -->
+    <!-- 🛠️ КНОПКИ АДМИНА                         -->
+    <!-- ======================================== -->
     <div class="work-actions" v-if="isAdmin">
-      <Icon name="bx:edit" size="16" @click.stop="onStartEditingSubItem" />
-      <Icon name="mdi:delete-forever" size="16" @click.stop="onDeleteSubItem" />
+      <Icon name="bx:edit" size="16" @click.stop="edit.startEditItem(item)" />
+      <Icon name="mdi:delete-forever" size="16" @click.stop="edit.deleteItem(item.id)" />
     </div>
 
-    <!-- Форма добавления детали -->
+    <!-- ======================================== -->
+    <!-- ➕ ФОРМА ДОБАВЛЕНИЯ ДЕТАЛИ                -->
+    <!-- ======================================== -->
     <div v-if="isAdmin" class="add-detail-button">
-      <button @click="onShowDetailForm">+ Добавить деталь</button>
-      <div v-if="showDetailFormFor === item.id" class="form">
-        <input v-model="newDetail.name" placeholder="Название" />
-        <PagesPublicPricesUiSelectOrInput v-model="newDetail.unit" />
-        <input v-model.number="newDetail.price" placeholder="Цена" />
-        <button @click="onAddNewDetail">Сохранить</button>
-        <button @click="onCancel('detail')">Отмена</button>
+      <button @click="edit.showAddDetail(item.id)">+ Добавить деталь</button>
+      <div v-if="edit.showAddDetailForm.value === item.id" class="form">
+        <input v-model="edit.newDetail.value.name" placeholder="Название" />
+        <PagesPublicPricesUiSelectOrInput v-model="edit.newDetail.value.unit" />
+        <input v-model.number="edit.newDetail.value.price" placeholder="Цена" />
+        <button @click="edit.addDetail">Сохранить</button>
+        <button @click="edit.cancelAddDetail">Отмена</button>
       </div>
     </div>
 
-    <!-- Форма добавления доп. работы -->
+    <!-- ======================================== -->
+    <!-- ➕ ФОРМА ДОБАВЛЕНИЯ ДОП. РАБОТЫ           -->
+    <!-- ======================================== -->
     <div v-if="isAdmin" class="add-dopwork-button">
-      <button @click="onShowDopworkForm">+ Добавить доп. работу</button>
-      <div v-if="showDopworkFormFor === item.id" class="form">
-        <input v-model="newDopwork.label" placeholder="Метка" />
-        <input v-model="newDopwork.dopwork" placeholder="Название работы" />
-        <PagesPublicPricesUiSelectOrInput v-model="newDopwork.unit" />
-        <input v-model.number="newDopwork.price" placeholder="Цена" />
-        <button @click="onAddNewDopwork">Сохранить</button>
-        <button @click="onCancel('dopwork')">Отмена</button>
+      <button @click="edit.showAddDopwork(item.id)">+ Добавить доп. работу</button>
+      <div v-if="edit.showAddDopworkForm.value === item.id" class="form">
+        <input v-model="edit.newDopwork.value.label" placeholder="Метка" />
+        <input v-model="edit.newDopwork.value.dopwork" placeholder="Название работы" />
+        <PagesPublicPricesUiSelectOrInput v-model="edit.newDopwork.value.unit" />
+        <input v-model.number="edit.newDopwork.value.price" placeholder="Цена" />
+        <button @click="edit.addDopwork">Сохранить</button>
+        <button @click="edit.cancelAddDopwork">Отмена</button>
       </div>
     </div>
 
-    <!-- === ВЛОЖЕННЫЕ ЭЛЕМЕНТЫ === -->
-    <dd class="work-nested" v-show="isSubItemsOpen">
+    <!-- ======================================== -->
+    <!-- 🔽 ВЛОЖЕННЫЕ ЭЛЕМЕНТЫ                    -->
+    <!-- ======================================== -->
+    <dd class="work-nested" :class="{ 'is-open': isSubItemsOpen }">
       <!-- ДЕТАЛИ РАБОТ -->
       <dl v-if="item.details && item.details.length > 0" class="sub-items">
         <dl
@@ -98,20 +123,20 @@
             <Icon
               :name="detail.isCopied ? 'solar:copy-line-duotone' : 'solar:copy-broken'"
               class="pointer ico"
-              @click="onHandleCopyClickDetail(detail)"
+              @click="data.copyToClipboard(detail)"
             />
             <span class="work-title">
-              <span v-if="editingDetailId !== detail.id">{{ detail.name }}</span>
+              <span v-if="edit.editingDetailId.value !== detail.id">{{ detail.name }}</span>
               <input
                 v-else
-                v-model="editingDetailData.name"
+                v-model="edit.editingDetailData.value.name"
                 class="edit-input"
                 style="width: 80%"
               />
             </span>
           </dt>
           <dd class="work-meta" itemprop="offers" itemscope itemtype="https://schema.org/Offer">
-            <span v-if="editingDetailId !== detail.id">
+            <span v-if="edit.editingDetailId.value !== detail.id">
               <span class="work-price" itemprop="price" :content="String(detail.price)">
                 {{ Math.round(Number(detail.price)) }} ₽
               </span>
@@ -119,17 +144,33 @@
               <span class="work-unit">{{ detail.unit || item.unit }}</span>
             </span>
             <template v-else>
-              <input v-model="editingDetailData.unit" class="edit-input" style="width: 50px" />
-              <input v-model.number="editingDetailData.price" class="edit-input" style="width: 70px" />
+              <input
+                v-model="edit.editingDetailData.value.unit"
+                class="edit-input"
+                style="width: 50px"
+              />
+              <input
+                v-model.number="edit.editingDetailData.value.price"
+                class="edit-input"
+                style="width: 70px"
+              />
             </template>
           </dd>
-          <div v-if="editingDetailId === detail.id" class="edit-buttons">
-            <button @click="onSaveEditDetail">Сохранить</button>
-            <button @click="onCancel('editDetail')">Отмена</button>
+          <div v-if="edit.editingDetailId.value === detail.id" class="edit-buttons">
+            <button @click="edit.saveEditDetail">Сохранить</button>
+            <button @click="edit.cancelEditDetail">Отмена</button>
           </div>
           <div class="work-actions" v-if="isAdmin">
-            <Icon name="bx:edit" size="16" @click.stop="onStartEditingDetail(detail)" />
-            <Icon name="mdi:delete-forever" size="16" @click.stop="onDeleteDetail(detail.id)" />
+            <Icon
+              name="bx:edit"
+              size="16"
+              @click.stop="edit.startEditDetail(detail)"
+            />
+            <Icon
+              name="mdi:delete-forever"
+              size="16"
+              @click.stop="edit.deleteDetail(detail.id)"
+            />
           </div>
         </dl>
       </dl>
@@ -148,20 +189,28 @@
             <Icon
               :name="dopwork.isCopied ? 'solar:copy-line-duotone' : 'solar:copy-broken'"
               class="pointer ico"
-              @click="onHandleCopyClickDopwork(dopwork)"
+              @click="data.copyToClipboard(dopwork)"
             />
             <span class="work-title">
-              <span v-if="editingDopworkId !== dopwork.id">
+              <span v-if="edit.editingDopworkId.value !== dopwork.id">
                 {{ dopwork.label }} {{ dopwork.dopwork }}
               </span>
               <template v-else>
-                <input v-model="editingDopworkData.label" class="edit-input" style="width: 40%" />
-                <input v-model="editingDopworkData.dopwork" class="edit-input" style="width: 40%" />
+                <input
+                  v-model="edit.editingDopworkData.value.label"
+                  class="edit-input"
+                  style="width: 40%"
+                />
+                <input
+                  v-model="edit.editingDopworkData.value.dopwork"
+                  class="edit-input"
+                  style="width: 40%"
+                />
               </template>
             </span>
           </dt>
           <dd class="work-meta" itemprop="offers" itemscope itemtype="https://schema.org/Offer">
-            <span v-if="editingDopworkId !== dopwork.id">
+            <span v-if="edit.editingDopworkId.value !== dopwork.id">
               <span class="work-price" itemprop="price" :content="String(dopwork.price)">
                 {{ Math.round(Number(dopwork.price)) }} ₽
               </span>
@@ -169,17 +218,33 @@
               <span class="work-unit">{{ dopwork.unit || item.unit }}</span>
             </span>
             <template v-else>
-              <input v-model="editingDopworkData.unit" class="edit-input" style="width: 50px" />
-              <input v-model.number="editingDopworkData.price" class="edit-input" style="width: 70px" />
+              <input
+                v-model="edit.editingDopworkData.value.unit"
+                class="edit-input"
+                style="width: 50px"
+              />
+              <input
+                v-model.number="edit.editingDopworkData.value.price"
+                class="edit-input"
+                style="width: 70px"
+              />
             </template>
           </dd>
-          <div v-if="editingDopworkId === dopwork.id" class="edit-buttons">
-            <button @click="onSaveEditDopwork">Сохранить</button>
-            <button @click="onCancel('editDopwork')">Отмена</button>
+          <div v-if="edit.editingDopworkId.value === dopwork.id" class="edit-buttons">
+            <button @click="edit.saveEditDopwork">Сохранить</button>
+            <button @click="edit.cancelEditDopwork">Отмена</button>
           </div>
           <div class="work-actions" v-if="isAdmin">
-            <Icon name="bx:edit" size="16" @click.stop="onStartEditingDopwork(dopwork)" />
-            <Icon name="mdi:delete-forever" size="16" @click.stop="onDeleteDopwork(dopwork.id)" />
+            <Icon
+              name="bx:edit"
+              size="16"
+              @click.stop="edit.startEditDopwork(dopwork)"
+            />
+            <Icon
+              name="mdi:delete-forever"
+              size="16"
+              @click.stop="edit.deleteDopwork(dopwork.id)"
+            />
           </div>
         </dl>
       </dl>
@@ -188,55 +253,48 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import type { PriceWorkItem, PriceDetailItem, PriceDopworkItem } from './composables/usePriceData'
+import { computed } from 'vue'
+import { usePriceData, usePriceEdit, usePriceUI, type PriceWorkItem } from './composables'
+
+// ========================================
+// 📥 ПРОПСЫ (минимальный набор)
+// ========================================
 
 const props = defineProps<{
   item: PriceWorkItem
   isAdmin: boolean
   searchQuery: string
-
-  // Состояния редактирования
-  editingItemId: number | null
-  editingItemData: Partial<PriceWorkItem>
-  editingDetailId: number | null
-  editingDetailData: Partial<PriceDetailItem>
-  editingDopworkId: number | null
-  editingDopworkData: Partial<PriceDopworkItem>
-
-  // Состояния UI
-  openSubItems: Record<number, boolean>
-  showDetailFormFor: number | null
-  showDopworkFormFor: number | null
-  newDetail: any
-  newDopwork: any
 }>()
 
-const emit = defineEmits<{
-  (e: 'toggleSubItems', itemId: number): void
-  (e: 'startEditingSubItem', item: PriceWorkItem): void
-  (e: 'saveEditSubItem'): void
-  (e: 'deleteSubItem', item: PriceWorkItem): void
-  (e: 'handleCopyClick', item: PriceWorkItem | PriceDetailItem | PriceDopworkItem): void
-  (e: 'showDetailForm', itemId: number): void
-  (e: 'showDopworkForm', itemId: number): void
-  (e: 'addNewDetail', itemId: number): void
-  (e: 'addNewDopwork', itemId: number): void
-  (e: 'startEditingDetail', detail: PriceDetailItem): void
-  (e: 'saveEditDetail'): void
-  (e: 'deleteDetail', detailId: number): void
-  (e: 'startEditingDopwork', dopwork: PriceDopworkItem): void
-  (e: 'saveEditDopwork'): void
-  (e: 'deleteDopwork', dopworkId: number): void
-  (e: 'cancel', type: string): void
-}>()
+// ========================================
+// 🪝 ИНЖЕКТ КОНТЕКСТОВ
+// ========================================
 
-// Вычисляемое свойство: открыты ли вложенные элементы
-const isSubItemsOpen = computed(() => !!props.openSubItems[props.item.id])
+const data = usePriceData()
+const edit = usePriceEdit()
+const ui = usePriceUI()
 
-// Подсветка текста при поиске
+// ========================================
+// 🧮 ВЫЧИСЛЯЕМЫЕ СВОЙСТВА
+// ========================================
+
+/**
+ * Открыты ли вложенные элементы работы (детали + доп. работы).
+ */
+const isSubItemsOpen = computed(() => !!ui.openSubItems.value[props.item.id])
+
+// ========================================
+// 🔍 ПОДСВЕТКА ПОИСКА
+// ========================================
+
+/**
+ * Разбивает текст на части с пометкой совпадений с поисковым запросом.
+ * Используется для визуальной подсветки найденных фрагментов.
+ */
 const splitText = (text: string) => {
-  if (!text || !props.searchQuery.trim()) return [{ text, isMatch: false }]
+  if (!text || !props.searchQuery.trim()) {
+    return [{ text, isMatch: false }]
+  }
 
   const query = props.searchQuery.trim().toLowerCase()
   const parts: Array<{ text: string; isMatch: boolean }> = []
@@ -253,84 +311,14 @@ const splitText = (text: string) => {
       parts.push({ text: text.slice(lastIndex, index), isMatch: false })
     }
 
-    parts.push({ text: text.slice(index, index + query.length), isMatch: true })
+    parts.push({
+      text: text.slice(index, index + query.length),
+      isMatch: true
+    })
     lastIndex = index + query.length
   }
 
   return parts
-}
-
-// Обработчики событий
-const onToggleSubItems = () => {
-  emit('toggleSubItems', props.item.id)
-}
-
-const onStartEditingSubItem = () => {
-  emit('startEditingSubItem', props.item)
-}
-
-const onSaveEditSubItem = () => {
-  emit('saveEditSubItem')
-}
-
-const onDeleteSubItem = () => {
-  emit('deleteSubItem', props.item)
-}
-
-const onHandleCopyClick = () => {
-  emit('handleCopyClick', props.item)
-}
-
-const onHandleCopyClickDetail = (detail: PriceDetailItem) => {
-  emit('handleCopyClick', detail)
-}
-
-const onHandleCopyClickDopwork = (dopwork: PriceDopworkItem) => {
-  emit('handleCopyClick', dopwork)
-}
-
-const onShowDetailForm = () => {
-  emit('showDetailForm', props.item.id)
-}
-
-const onShowDopworkForm = () => {
-  emit('showDopworkForm', props.item.id)
-}
-
-const onAddNewDetail = () => {
-  emit('addNewDetail', props.item.id)
-}
-
-const onAddNewDopwork = () => {
-  emit('addNewDopwork', props.item.id)
-}
-
-const onStartEditingDetail = (detail: PriceDetailItem) => {
-  emit('startEditingDetail', detail)
-}
-
-const onSaveEditDetail = () => {
-  emit('saveEditDetail')
-}
-
-const onDeleteDetail = (detailId: number) => {
-  emit('deleteDetail', detailId)
-}
-
-const onStartEditingDopwork = (dopwork: PriceDopworkItem) => {
-  emit('startEditingDopwork', dopwork)
-}
-
-const onSaveEditDopwork = () => {
-  emit('saveEditDopwork')
-}
-
-const onDeleteDopwork = (dopworkId: number) => {
-  emit('deleteDopwork', dopworkId)
-}
-
-const onCancel = (type: string) => {
-  emit('cancel', type)
 }
 </script>
 
@@ -473,6 +461,19 @@ span {
     margin-top: 1em;
     border-radius: 5px;
     margin-left: 0;
+    
+    /* ИСПРАВЛЕНО: анимация раскрытия через CSS-класс вместо v-show */
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+
+    &.is-open {
+      max-height: 5000px;
+      opacity: 1;
+      padding-top: 1em;
+      padding-bottom: 1em;
+    }
 
     .dop-work-title {
       text-align: center;

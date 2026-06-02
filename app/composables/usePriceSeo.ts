@@ -6,6 +6,7 @@ interface PricePage {
   id: number
   title: string
   slug: string
+  metaTitle?: string
   metaDescription?: string
   image?: string
 }
@@ -16,7 +17,7 @@ interface PriceItem {
   unit: string
   price: number | string
   details?: Array<{ id: number; name: string; unit: string; price: number | string }>
-  dopworks?: Array<{ id: number; label?: string; dopwork: string; unit: string; price: number | string }>
+  dopworks?: Array<{ id: number; label?: string | null; dopwork: string; unit: string; price: number | string }>
 }
 
 interface PriceCategory {
@@ -30,6 +31,8 @@ interface PriceCategory {
 }
 
 interface PriceData {
+  title?: string
+  metaDescription?: string
   categories?: PriceCategory[]
 }
 
@@ -49,14 +52,26 @@ export function usePriceSeo(currentSlug: string) {
     pagesData.value?.find(p => p.slug === currentSlug) || null
   )
 
+  // ✅ Заголовки по умолчанию (fallback, если metaTitle не задан в БД)
+  const categoryTitles: Record<string, string> = {
+    'otdelochnye-raboty': 'Цены на отделочные работы 2026 — Рязань и область',
+    'plumbing': 'Цены на работы по сантехнике 2026 — Рязань и область',
+    'electricity': 'Цены на электромонтаж 2026 — Рязань и область',
+  }
+
+  // ✅ Приоритет: metaTitle из БД → словарь → дефолт
   const pageTitle = computed(() => {
-    const categoryTitles: Record<string, string> = {
-      'otdelochnye-raboty': 'Цены на отделочные работы 2026 — Рязань и область',
-      'plumbing': 'Цены на работы по сантехнике 2026 — Рязань и область',
-      'electricity': 'Цены на электромонтаж 2026 — Рязань и область',
-    }
-    return categoryTitles[currentSlug] || 'Цены на ремонт помещений - 2026 | ГлавПрофи'
+    return currentPage.value?.metaTitle
+      || categoryTitles[currentSlug]
+      || 'Цены на ремонт помещений - 2026 | ГлавПрофи'
   })
+
+  // ✅ Описание: metaDescription из БД → metaDescription из API прайса → дефолт
+  const pageDescription = computed(() =>
+    currentPage.value?.metaDescription
+    || priceData.value?.metaDescription
+    || 'Актуальные цены 2026 на ремонт помещений.'
+  )
 
   // Генерация JSON-LD из ПОЛНЫХ данных прайса
   const jsonLdSchema = computed(() => {
@@ -68,7 +83,7 @@ export function usePriceSeo(currentSlug: string) {
       '@type': 'Service',
       'serviceType': 'Ремонтные работы',
       'name': pageTitle.value,
-      'description': page?.metaDescription || 'Актуальные цены 2026 на ремонт помещений.',
+      'description': pageDescription.value,
       'provider': { '@type': 'Organization', 'name': 'ГлавПрофи' },
       'areaServed': 'Россия, Рязань',
     }
@@ -118,13 +133,18 @@ export function usePriceSeo(currentSlug: string) {
             })
           }
 
-          // Доп. работы
+          // ✅ Доп. работы (плоский массив). Объединяем label + dopwork в одно название,
+          // как это сделано в UI-компоненте PriceWorkItem.vue
           for (const dopwork of item.dopworks || []) {
+            const fullName = [dopwork.label, dopwork.dopwork]
+              .filter(Boolean)
+              .join(' ')
+
             services.push({
               '@type': 'Offer',
               'itemOffered': {
                 '@type': 'Service',
-                'name': dopwork.dopwork,
+                'name': fullName || dopwork.dopwork,
                 'description': `Единица измерения: ${dopwork.unit}`
               },
               'priceSpecification': {
@@ -154,9 +174,9 @@ export function usePriceSeo(currentSlug: string) {
   useHead({
     title: pageTitle.value,
     meta: [
-      { name: 'description', content: currentPage.value?.metaDescription || 'Актуальные цены 2026 на ремонт помещений.' },
+      { name: 'description', content: pageDescription.value },
       { property: 'og:title', content: pageTitle.value },
-      { property: 'og:description', content: currentPage.value?.metaDescription || 'Актуальные цены 2026 на ремонт помещений.' },
+      { property: 'og:description', content: pageDescription.value },
       { property: 'og:image', content: currentPage.value?.image || 'https://glavprofi.ru/images/og-image.jpg' },
       {
         name: 'keywords',
@@ -167,7 +187,8 @@ export function usePriceSeo(currentSlug: string) {
     script: [{
       type: 'application/ld+json',
       key: 'price-schema',
-      innerHTML: jsonLdSchema
+      // ✅ ИСПРАВЛЕНО: используем .value, иначе в <script> попадёт [object Object]
+      innerHTML: jsonLdSchema.value
     }]
   })
 

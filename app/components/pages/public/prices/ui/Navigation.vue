@@ -1,20 +1,21 @@
 <!-- app\components\pages\public\prices\ui\Navigation.vue -->
 <template>
   <div class="navigation-wrapper">
-    <!-- Placeholder -->
+    <!-- Placeholder для сохранения высоты при fixed-позиционировании -->
     <div v-if="isFixed" class="placeholder"></div>
+    
     <div 
       class="navigation" 
       :class="{ 'fixed': isFixed }"
-      ref="nav"
+      ref="navRef"
     >
       <div class="inner">
-        <!-- Отображаем динамические категории -->
+        <!-- Используем категории из пропсов (НЕ делаем отдельный запрос) -->
         <button
-          v-for="category in categories"
+          v-for="category in props.categories"
           :key="category.id"
-          :class="{ active: activeCategory === category.slug }"
-          @click="setCategory(category.slug)"
+          :class="{ active: props.activeCategory === category.slug }"
+          @click="emit('update:active-category', category.slug)"
         >
           {{ category.name }}
         </button>
@@ -23,80 +24,71 @@
   </div>
 </template>
 
-<script setup>
-import { ref, onMounted, onUnmounted, watchEffect } from 'vue'
-import { useRoute } from 'vue-router'
+<script setup lang="ts">
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 
-const route = useRoute()
-const categories = ref([])
-const activeCategory = ref('floor') // Дефолтное значение
+// ========================================
+// 📥 ПРОПСЫ
+// ========================================
+
+const props = defineProps<{
+  categories: Array<{ id: number; name: string; slug: string }>
+  activeCategory: string
+}>()
+
+const emit = defineEmits<{
+  (e: 'update:active-category', value: string): void
+}>()
+
+// ========================================
+// 📊 ЛОКАЛЬНОЕ СОСТОЯНИЕ
+// ========================================
+
+const navRef = ref<HTMLElement | null>(null)
 const isFixed = ref(false)
-const nav = ref(null)
 
-// Обработчик скролла
-let scrollHandler = () => {}
+// Сохраняем начальную позицию для расчёта fixed
+let initialOffsetTop = 0
+let headerHeight = 0
 
-// Получение данных с сервера
-const loadPages = async () => {
-  try {
-    const data = await $fetch('/api/price/pages')
-    categories.value = data.map(page => ({
-      id: page.id,
-      name: page.title,
-      slug: page.slug
-    }))
-  } catch (error) {
-    console.error('Ошибка загрузки страниц:', error)
-  }
+// ========================================
+// 🎯 ОБРАБОТЧИК СКРОЛЛА
+// ========================================
+
+const handleScroll = () => {
+  if (!navRef.value) return
+  
+  const currentScrollY = window.scrollY
+  isFixed.value = currentScrollY >= initialOffsetTop - headerHeight - 10
 }
 
-// Установка активной категории
-const setCategory = (categoryId) => {
-  activeCategory.value = categoryId
-  emit('update:active-category', categoryId)
-}
+// ========================================
+// 🔄 LIFECYCLE HOOKS
+// ========================================
 
-// Пропсы и эмит
-const props = defineProps({
-  categories: {
-    type: Array,
-    required: true
-  },
-  activeCategory: {
-    type: String,
-    required: true
-  }
-})
-const emit = defineEmits(['update:active-category'])
-
-// Реактивное обновление activeCategory при изменении маршрута
-watchEffect(() => {
-  if (route.params.category) {
-    activeCategory.value = route.params.category
-  }
-})
-
-// Регистрация обработчика скролла и других хуков до асинхронных вызовов
+// ✅ ИСПРАВЛЕНО: onUnmounted вынесен на верхний уровень (не внутри onMounted)
+// Это гарантирует, что listener всегда будет удалён при размонтировании компонента
 onMounted(() => {
-  if (nav.value) {
-    const headerHeight = document.querySelector('header')?.offsetHeight || 0
-    const initialOffsetTop = nav.value.getBoundingClientRect().top + window.scrollY
-
-    scrollHandler = () => {
-      isFixed.value = window.scrollY >= initialOffsetTop - headerHeight - 10
-    }
-
-    window.addEventListener('scroll', scrollHandler)
-    scrollHandler()
-
-    // Регистрация onUnmounted внутри onMounted — безопасно!
-    onUnmounted(() => {
-      window.removeEventListener('scroll', scrollHandler)
-    })
+  if (navRef.value) {
+    // Вычисляем начальную позицию навигации
+    const rect = navRef.value.getBoundingClientRect()
+    initialOffsetTop = rect.top + window.scrollY
+    
+    // Получаем высоту хедера (если есть)
+    const header = document.querySelector('header')
+    headerHeight = header ? header.offsetHeight : 0
+    
+    // Регистрируем scroll listener
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    
+    // Сразу проверяем текущее положение
+    handleScroll()
   }
+})
 
-  // Загрузка данных после регистрации хуков
-  loadPages()
+onUnmounted(() => {
+  // ✅ Всегда удаляем listener при размонтировании
+  window.removeEventListener('scroll', handleScroll)
 })
 </script>
 
@@ -106,7 +98,6 @@ onMounted(() => {
 }
 
 .placeholder {
-  // height: 60px; // высота вашего меню
   width: 100%;
   display: block;
 }
@@ -115,12 +106,10 @@ onMounted(() => {
   width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  // padding-bottom: .2em;
   margin-bottom: 5px;
   white-space: nowrap;
   position: relative;
   z-index: 1;
-  // text-align: center;
   background: transparent;
   transition: all 0.3s ease;
 
@@ -129,12 +118,12 @@ onMounted(() => {
     top: 60px; // Высота хедера
     left: 0;
     right: 0;
-    // border-top: 1px solid #555555;
     background: $background-light;
     padding: 5px;
     z-index: 1;
     transform: translateY(0);
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    
     .inner {
       justify-content: center;
       width: 100%;
@@ -160,18 +149,15 @@ onMounted(() => {
 
   .inner {
     display: flex;
-    // gap: 10px;
     padding: 0;
     transition: all 0.3s ease;
     width: 100%;
     gap: 5px;
     
     @media (max-width: 450px) {
-      // width: max-content;
       padding: 0px;
       background: $background-light;
     }
-    
 
     button {
       flex: 1;
@@ -184,10 +170,6 @@ onMounted(() => {
       font-size: .8em;
       transition: all 0.3s ease;
       border: 1px solid $border-color;
-
-      // &:last-child {
-      //   border: unset;
-      // }
 
       &.active {
         background: $blue;

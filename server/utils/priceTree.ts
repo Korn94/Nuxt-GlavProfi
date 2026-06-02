@@ -16,16 +16,19 @@ type Item = typeof priceItems.$inferSelect
 type Detail = typeof priceItemDetails.$inferSelect
 type Dopwork = typeof priceAdditionalItems.$inferSelect
 
-// Группированные доп. работы (по label)
-export interface DopworkGroup {
-  label: string | null
-  works: Dopwork[]
-}
+// ========================================
+// 🌳 ФИНАЛЬНАЯ СТРУКТУРА ДЕРЕВА
+// ========================================
 
-// Финальная структура дерева
+/**
+ * Работа с вложенными деталями и доп. работами.
+ * 
+ * ВАЖНО: dopworks возвращаются ПЛОСКИМ массивом (без группировки по label).
+ * Группировка по label делается на клиенте в UI-слое, если нужна.
+ */
 export interface PriceTreeItem extends Item {
   details: Detail[]
-  dopworks: DopworkGroup[]
+  dopworks: Dopwork[]  // ← ПЛОСКИЙ МАССИВ (было DopworkGroup[])
 }
 
 export interface PriceTreeSubCategory extends SubCategory {
@@ -40,7 +43,10 @@ export interface PriceTreePage extends Page {
   categories: PriceTreeCategory[]
 }
 
-// Параметры функции
+// ========================================
+// 📥 ПАРАМЕТРЫ ФУНКЦИИ
+// ========================================
+
 interface TreeParams {
   pages: Page[]
   categories: Category[]
@@ -50,9 +56,15 @@ interface TreeParams {
   dopworks: Dopwork[]
 }
 
+// ========================================
+// 🏗️ СБОРКА ДЕРЕВА
+// ========================================
+
 /**
  * Собирает плоские массивы из БД в иерархическое дерево прайс-листа.
  * Сортировка уже выполнена на уровне SQL, здесь только вложенность.
+ * 
+ * @returns Массив страниц с вложенными категориями → подкатегориями → работами
  */
 export function buildPriceTree({ 
   pages, 
@@ -63,7 +75,9 @@ export function buildPriceTree({
   dopworks 
 }: TreeParams): PriceTreePage[] {
   try {
-    // Группируем детали по itemId
+    // ========================================
+    // 1. Группируем детали по itemId
+    // ========================================
     const detailsByItem = new Map<number, Detail[]>()
     for (const detail of details) {
       if (!detailsByItem.has(detail.itemId)) {
@@ -72,23 +86,20 @@ export function buildPriceTree({
       detailsByItem.get(detail.itemId)!.push(detail)
     }
 
-    // Группируем доп. работы по itemId и label
-    const dopworksByItem = new Map<number, DopworkGroup[]>()
+    // ========================================
+    // 2. Группируем доп. работы по itemId (ПЛОСКИЙ МАССИВ)
+    // ========================================
+    const dopworksByItem = new Map<number, Dopwork[]>()
     for (const dop of dopworks) {
       if (!dopworksByItem.has(dop.itemId)) {
         dopworksByItem.set(dop.itemId, [])
       }
-      const groups = dopworksByItem.get(dop.itemId)!
-      const existingGroup = groups.find(g => g.label === dop.label)
-      
-      if (existingGroup) {
-        existingGroup.works.push(dop)
-      } else {
-        groups.push({ label: dop.label, works: [dop] })
-      }
+      dopworksByItem.get(dop.itemId)!.push(dop)
     }
 
-    // Группируем работы по subCategoryId
+    // ========================================
+    // 3. Группируем работы по subCategoryId
+    // ========================================
     const itemsBySubCategory = new Map<number, PriceTreeItem[]>()
     for (const item of items) {
       if (!itemsBySubCategory.has(item.subCategoryId)) {
@@ -101,7 +112,9 @@ export function buildPriceTree({
       })
     }
 
-    // Группируем подкатегории по categoryId
+    // ========================================
+    // 4. Группируем подкатегории по categoryId
+    // ========================================
     const subcategoriesByCategory = new Map<number, PriceTreeSubCategory[]>()
     for (const sub of subcategories) {
       if (!subcategoriesByCategory.has(sub.categoryId)) {
@@ -113,7 +126,9 @@ export function buildPriceTree({
       })
     }
 
-    // Группируем категории по pageId
+    // ========================================
+    // 5. Группируем категории по pageId
+    // ========================================
     const categoriesByPage = new Map<number, PriceTreeCategory[]>()
     for (const category of categories) {
       if (!categoriesByPage.has(category.pageId)) {
@@ -125,7 +140,9 @@ export function buildPriceTree({
       })
     }
 
-    // Собираем финальное дерево
+    // ========================================
+    // 6. Собираем финальное дерево
+    // ========================================
     return pages.map(page => ({
       ...page,
       categories: categoriesByPage.get(page.id) || []

@@ -16,46 +16,81 @@
 </template>
 
 <script setup lang="ts">
-import { useRoute, useRouter } from 'vue-router'
-import { computed } from 'vue'
-import { useAsyncData, createError } from 'nuxt/app'
+import { computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
+import { createError, useAsyncData } from 'nuxt/app'
 import { usePriceSeo } from '~/composables/usePriceSeo'
-import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
+import {
+  providePriceUI,
+  providePriceData,
+  providePriceEdit,
+  type PricePage
+} from '~/components/pages/public/prices/composables'
 
-// === Интерфейс для страницы прайса ===
-interface PricePage {
-  id: number
-  title: string
-  slug: string
-  metaDescription?: string
-  image?: string
-}
+// ========================================
+// 🎯 ИНИЦИАЛИЗАЦИЯ ПРОВАЙДЕРОВ
+// ========================================
+// 
+// Порядок больше не критичен, так как providePriceEdit
+// инжектит usePriceData() только в обработчиках событий.
+//
+// ========================================
+
+// 1️⃣ UI-состояние
+providePriceUI()
+
+// 2️⃣ Данные прайса (БЕЗ await!)
+providePriceData()
+
+// 3️⃣ Состояние редактирования
+const editContext = providePriceEdit()
+
+// ========================================
+// ⚠️ ПРЕДУПРЕЖДЕНИЕ О НЕСОХРАНЁННЫХ ИЗМЕНЕНИЯХ
+// ========================================
+onBeforeRouteLeave((to, from, next) => {
+  if (editContext.hasUnsavedChanges.value) {
+    const answer = window.confirm(
+      'У вас есть несохранённые изменения. Вы уверены, что хотите покинуть страницу?'
+    )
+    next(answer)
+  } else {
+    next()
+  }
+})
+
+// ========================================
+// 🧭 ROUTER & ROUTE
+// ========================================
 
 const route = useRoute()
 const router = useRouter()
 
-definePageMeta({
-  middleware: 'auth'
-})
+// ========================================
+// 📋 ДАННЫЕ СТРАНИЦЫ
+// ========================================
 
-// ✅ currentSlug всегда string
+// Текущий slug из параметров роута
 const currentSlug = computed<string>(() => {
   const param = route.params.category
   return (Array.isArray(param) ? param[0] : param) || ''
 })
 
-// ✅ ИСПРАВЛЕНИЕ: Добавили дженерик <PricePage[]> к useAsyncData
+// Загружаем список страниц прайса для навигации
 const { data: pagesData, error: pagesError } = await useAsyncData<PricePage[]>(
   'price-pages',
   () => $fetch<PricePage[]>('/api/price/pages')
 )
 
-if (pagesError?.value) {
-  throw createError({ statusCode: 500, message: 'Ошибка загрузки списка категорий' })
+// Обработка ошибки загрузки страниц
+if (pagesError.value) {
+  throw createError({
+    statusCode: 500,
+    message: 'Ошибка загрузки списка категорий'
+  })
 }
 
-// ✅ Теперь pagesData.value имеет тип PricePage[] | null | undefined
-// .map работает корректно
+// Список категорий для навигации (верхний таб-бар)
 const categories = computed(() =>
   pagesData.value?.map(page => ({
     id: page.id,
@@ -64,21 +99,58 @@ const categories = computed(() =>
   })) || []
 )
 
-// ✅ .find работает корректно
+// Текущая страница (для 404 если slug не найден)
 const currentCategory = computed(() =>
   pagesData.value?.find(page => page.slug === currentSlug.value) || null
 )
 
+// Если slug невалидный — 404
 if (!currentCategory.value) {
-  throw createError({ statusCode: 404, message: 'Страница не найдена' })
+  throw createError({
+    statusCode: 404,
+    message: 'Страница не найдена'
+  })
 }
 
-const setCategory = (categoryId: string) => {
-  router.push({ params: { category: categoryId } })
+// ========================================
+// 🧭 ОБРАБОТКА НАВИГАЦИИ
+// ========================================
+
+/**
+ * Переключение между категориями прайса (через роутер).
+ */
+const setCategory = (categorySlug: string) => {
+  router.push({ params: { category: categorySlug } })
 }
 
-// Вызываем SEO-композабл (он сам загрузит данные и применит useHead)
+// ========================================
+// 🔍 SEO (useHead + JSON-LD)
+// ========================================
+
+// Вызываем SEO-композабл — он сам загрузит данные и применит useHead
 usePriceSeo(currentSlug.value)
+
+// ========================================
+// 🛡️ ДОПОЛНИТЕЛЬНАЯ ЗАЩИТА (опционально)
+// ========================================
+
+// Предупреждение при закрытии вкладки/перезагрузке страницы
+if (import.meta.client) {
+  const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+    if (editContext.hasUnsavedChanges.value) {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+  }
+
+  onMounted(() => {
+    window.addEventListener('beforeunload', handleBeforeUnload)
+  })
+
+  onUnmounted(() => {
+    window.removeEventListener('beforeunload', handleBeforeUnload)
+  })
+}
 </script>
 
 <style lang="scss" scoped>

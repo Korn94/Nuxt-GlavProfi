@@ -1,162 +1,154 @@
 <!-- app\components\pages\public\prices\index.vue -->
 <template>
-  <div class="container" :key="activeCategory">
-    <!-- Заголовок -->
-    <h1>Актуальные цены на <span>{{ activeCategoryTitle }}</span> - 2026 год</h1>
+  <div class="price-page-wrapper">
+    <div class="container" :key="activeCategory">
+      <!-- Заголовок -->
+      <h1>Актуальные цены на <span>{{ activeCategoryTitle }}</span> - 2026 год</h1>
 
-    <!-- Навигация -->
-    <PagesPublicPricesUiNavigation
-      :categories="props.categories"
-      :active-category="activeCategory"
-      @update:active-category="setCategory"
-    />
+      <!-- Навигация -->
+      <PagesPublicPricesUiNavigation
+        :categories="props.categories"
+        :active-category="activeCategory"
+        @update:active-category="setCategory"
+      />
 
-    <!-- Таблица -->
-    <div class="price-list">
-      <!-- Поиск -->
-      <PagesPublicPricesUiSearchBar v-model="searchQuery" @clear="clearSearch" />
+      <!-- Таблица -->
+      <div class="price-list">
+        <!-- Поиск -->
+        <PagesPublicPricesUiSearchBar
+          v-model="ui.searchQuery.value"
+          @clear="ui.clearSearch"
+        />
 
-      <!-- Индикатор загрузки -->
-      <div v-if="isLoading" class="loading-indicator">
-        <Icon name="eos-icons:bubble-loading" size="34px" />
-        <span>Загрузка данных...</span>
-      </div>
+        <!-- Индикатор загрузки -->
+        <div v-if="data.isLoading.value" class="loading-indicator">
+          <Icon name="eos-icons:bubble-loading" size="34px" />
+          <span>Загрузка данных...</span>
+        </div>
 
-      <!-- Ошибка -->
-      <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
+        <!-- Ошибка -->
+        <div v-if="data.errorMessage.value" class="error-message">
+          {{ data.errorMessage.value }}
+        </div>
 
-      <!-- Контент прайса -->
-      <div v-if="!isLoading && !errorMessage">
-        <!-- Результаты поиска / список категорий -->
-        <div v-if="filteredWorks.length">
-          <!-- Меню навигации по работам (только админ) -->
-          <div class="work-navigation" v-if="isAdmin">
-            <div class="work-navigation-inner">
-              <button :class="{ active: activeWork === 'all' }" @click="setActiveWork('all')">
-                Все работы
-              </button>
-              <button
-                v-for="category in allWorks"
-                :key="category.id"
-                :class="{ active: activeWork === category.id }"
-                @click="setActiveWork(category.id)"
-              >
-                {{ category.title }}
-              </button>
-              <div v-if="isAdmin" class="add-category-button">
-                <button @click="actions.showCategoryForm.value = true">+ Добавить категорию</button>
-                <div v-if="actions.showCategoryForm.value" class="form">
-                  <input v-model="actions.newCategory.value.name" placeholder="Название категории" />
-                  <button @click="actions.addNewCategory(activeCategory)">Сохранить</button>
-                  <button @click="actions.handleCancel('category')">Отмена</button>
+        <!-- Контент прайса -->
+        <div v-if="!data.isLoading.value && !data.errorMessage.value">
+          <!-- Результаты поиска / список категорий -->
+          <div v-if="filteredWorks.length">
+            <!-- Меню навигации по работам (только админ) -->
+            <div class="work-navigation" v-if="data.isAdmin.value">
+              <div class="work-navigation-inner">
+                <button
+                  :class="{ active: ui.activeWork.value === 'all' }"
+                  @click="ui.activeWork.value = 'all'"
+                >
+                  Все работы
+                </button>
+                <button
+                  v-for="category in allWorks"
+                  :key="category.id"
+                  :class="{ active: ui.activeWork.value === category.id }"
+                  @click="ui.activeWork.value = category.id"
+                >
+                  {{ category.title }}
+                </button>
+                <div class="add-category-button">
+                  <button @click="edit.showAddCategory(currentPageId)">
+                    + Добавить категорию
+                  </button>
+
+                  <!-- Форма добавления категории -->
+                  <div v-if="edit.showAddCategoryForm.value" class="form">
+                    <input
+                      v-model="edit.newCategory.value.name"
+                      placeholder="Название категории"
+                    />
+                    <button @click="edit.addCategory">Сохранить</button>
+                    <button @click="edit.cancelAddCategory">Отмена</button>
+                  </div>
                 </div>
               </div>
             </div>
+
+            <!-- Список категорий -->
+            <PagesPublicPricesPriceCategory
+              v-for="category in filteredWorks"
+              :key="category.id"
+              :category="category"
+              :is-admin="data.isAdmin.value"
+              :search-query="ui.searchQuery.value"
+            />
           </div>
 
-          <!-- Список категорий -->
-          <PagesPublicPricesPriceCategory
-            v-for="category in filteredWorks"
-            :key="category.id"
-            :category="category"
-            :is-admin="isAdmin"
-            :search-query="searchQuery"
-            :editing-category-id="actions.editingCategoryId.value"
-            :editing-category-data="actions.editingCategoryData.value"
-            :editing-sub-category-id="actions.editingSubCategoryId.value"
-            :editing-sub-category-data="actions.editingSubCategoryData.value"
-            :editing-item-id="actions.editingItemId.value"
-            :editing-item-data="actions.editingItemData.value"
-            :editing-detail-id="actions.editingDetailId.value"
-            :editing-detail-data="actions.editingDetailData.value"
-            :editing-dopwork-id="actions.editingDopworkId.value"
-            :editing-dopwork-data="actions.editingDopworkData.value"
-            :open-subcategories="openSubcategories"
-            :open-sub-items="openSubItems"
-            :open-sub-item-forms="actions.openSubItemForms.value"
-            :new-sub-item="actions.newSubItem.value"
-            :show-detail-form-for="actions.showDetailFormFor.value"
-            :show-dopwork-form-for="actions.showDopworkFormFor.value"
-            :show-work-form-for="actions.showWorkFormFor.value"
-            :new-work-for-subcategory="actions.newWorkForSubcategory.value"
-            :new-detail="actions.newDetail.value"
-            :new-dopwork="actions.newDopwork.value"
-            @toggle-subcategory="toggleSubcategory"
-            @start-editing-category="actions.startEditingCategory"
-            @save-edit-category="actions.saveEditCategory"
-            @delete-category="actions.deleteCategory"
-            @open-sub-item-form="handleOpenSubItemForm"
-            @add-new-sub-item="actions.addNewSubItem"
-            @start-editing-sub-category="actions.startEditingSubCategory"
-            @save-edit-sub-category="actions.saveEditSubCategory"
-            @delete-sub-category="actions.deleteSubCategory"
-            @toggle-sub-items="toggleSubItems"
-            @start-editing-sub-item="actions.startEditingSubItem"
-            @save-edit-sub-item="actions.saveEditSubItem"
-            @delete-sub-item="actions.deleteSubItem"
-            @handle-copy-click="actions.handleCopyClick"
-            @show-detail-form="handleShowDetailForm"
-            @show-dopwork-form="handleShowDopworkForm"
-            @show-work-form="handleShowWorkForm"
-            @add-new-work="actions.addNewWork"
-            @start-editing-detail="actions.startEditingDetail"
-            @save-edit-detail="actions.saveEditDetail"
-            @delete-detail="actions.deleteDetail"
-            @start-editing-dopwork="actions.startEditingDopwork"
-            @save-edit-dopwork="actions.saveEditDopwork"
-            @delete-dopwork="actions.deleteDopwork"
-            @cancel="actions.handleCancel"
-          />
-        </div>
-
-        <!-- Ничего не найдено -->
-        <div v-else class="no-results">
-          Ничего не найдено по запросу "{{ searchQuery }}"
+          <!-- Ничего не найдено -->
+          <div v-else class="no-results">
+            Ничего не найдено по запросу "{{ ui.searchQuery.value }}"
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <UiNotificationsContainer />
+    <!-- <UiNotificationsContainer /> -->
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { usePriceData } from './composables/usePriceData'
-import { usePriceActions } from './composables/usePriceActions'
-import type { PriceCategory, PriceWorkItem } from './composables/usePriceData'
+import {
+  usePriceData,
+  usePriceEdit,
+  usePriceUI,
+  type PriceCategory
+} from './composables'
 
-const props = defineProps<{
+// ========================================
+// 📥 ПРОПСЫ (для навигации со страницы)
+// ========================================
+
+const props = withDefaults(defineProps<{
   categories: Array<{ id: number; name: string; slug: string }>
   activeCategory: string
-}>()
+}>(), {
+  categories: () => [],
+  activeCategory: ''
+})
 
 const emit = defineEmits<{
   (e: 'update:active-category', value: string): void
 }>()
 
+// ========================================
+// 🪝 ИНЖЕКТ КОНТЕКСТОВ
+// ========================================
+
+const data = usePriceData()
+const edit = usePriceEdit()
+const ui = usePriceUI()
+
+// ========================================
+// 🧭 ROUTER
+// ========================================
+
 const route = useRoute()
 const router = useRouter()
 
-// === Подключение композаблов ===
-const { works, isAdmin, isLoading, errorMessage, refresh } = await usePriceData()
-const actions = usePriceActions(works, refresh)
+// ========================================
+// 📋 ЛОКАЛЬНЫЕ ВЫЧИСЛЕНИЯ
+// ========================================
 
-// === Локальные состояния ===
-const searchQuery = ref('')
+/**
+ * ID текущей страницы (для добавления категории).
+ * Берём из props.categories по текущему slug.
+ */
+const currentPageId = computed(() => {
+  const page = props.categories.find(p => p.slug === activeCategory.value)
+  return page?.id ?? 0
+})
 
-// ✅ ИСПРАВЛЕНИЕ 1, 2, 4: Явно приводим route.params.category к string
-// route.params может возвращать string | string[], поэтому обрабатываем массив
-const categoryParam = route.params.category
-const initialCategory = (Array.isArray(categoryParam) ? categoryParam[0] : categoryParam) || 'floor'
-const activeCategory = ref<string>(props.activeCategory || initialCategory)
-
-const activeWork = ref<string | number>('all')
-const openSubcategories = ref<Record<number, boolean>>({})
-const openSubItems = ref<Record<number, boolean>>({})
-
-// === Словарь склонений для H1 ===
+/**
+ * Словарь склонений для H1.
+ */
 const categoryTitlesForH1: Record<string, string> = {
   'otdelochnye-raboty': 'отделочные работы',
   'plumbing': 'сантехнические работы',
@@ -167,26 +159,43 @@ const activeCategoryTitle = computed(() =>
   categoryTitlesForH1[activeCategory.value] || 'ремонтные работы'
 )
 
-// === Все категории для меню ===
-const allWorks = computed(() =>
-  works.value.map(category => ({
+/**
+ * Текущий активный slug (локальный ref для реактивности).
+ */
+const activeCategory = computed(() => props.activeCategory)
+
+/**
+ * Все категории для меню админа.
+ */
+const allWorks = computed(() => {
+  const works = data.works.value ?? []
+  return works.map(category => ({
     id: category.id,
-    title: category.title,
+    title: category.name,
   }))
-)
+})
 
-// === Фильтрация работ ===
-// ✅ ИСПРАВЛЕНИЕ 3: Явно указываем тип возврата и используем type guard в filter
+/**
+ * Фильтрация работ по поиску и активной категории.
+ * 
+ * ВАЖНО: логика сохранена, но теперь использует данные из usePriceData()
+ * и UI-состояние из usePriceUI().
+ */
 const filteredWorks = computed<PriceCategory[]>(() => {
-  const query = searchQuery.value.trim().toLowerCase()
-  let filtered = works.value
+  const query = ui.searchQuery.value.trim().toLowerCase()
+  
+  // ✅ ИСПРАВЛЕНИЕ: Явно указываем тип и добавляем fallback на пустой массив
+  let filtered: PriceCategory[] = data.works.value ?? []
 
-  if (activeWork.value !== 'all') {
-    filtered = filtered.filter(category => category.id === activeWork.value)
+  // Фильтр по активной категории (для админа)
+  if (ui.activeWork.value !== 'all') {
+    filtered = filtered.filter(category => category.id === ui.activeWork.value)
   }
 
+  // Если нет поиска — возвращаем как есть
   if (!query) return filtered
 
+  // Поиск с автооткрытием найденных подкатегорий
   const openSubcategoriesTemp: Record<number, boolean> = {}
 
   const result = filtered
@@ -197,6 +206,7 @@ const filteredWorks = computed<PriceCategory[]>(() => {
             item.name.toLowerCase().includes(query)
           )
 
+          // Автооткрытие подкатегорий с найденными работами
           if (filteredItems.length > 0) {
             openSubcategoriesTemp[subcategory.id] = true
           }
@@ -216,95 +226,38 @@ const filteredWorks = computed<PriceCategory[]>(() => {
       }
       return null
     })
-    .filter((c): c is PriceCategory => c !== null) // ← Type guard убирает null из типа
+    .filter((c): c is PriceCategory => c !== null)
 
-  openSubcategories.value = { ...openSubcategoriesTemp }
+  // Применяем автооткрытие к UI-контексту
+  ui.openSubcategories.value = { ...openSubcategoriesTemp }
+
   return result
 })
 
-// === Обработчики событий ===
-const clearSearch = () => {
-  searchQuery.value = ''
+// ========================================
+// 🎯 ОБРАБОТЧИКИ
+// ========================================
+
+/**
+ * Переключение категории (через роутер).
+ */
+const setCategory = async (categorySlug: string) => {
+  await router.push({ params: { category: categorySlug } })
+  emit('update:active-category', categorySlug)
 }
 
-const setActiveWork = (categoryId: string | number) => {
-  activeWork.value = categoryId
-}
+// ========================================
+// 🔄 СИНХРОНИЗАЦИЯ С PROPS
+// ========================================
 
-const setCategory = async (categoryId: string) => {
-  await router.push({ params: { category: categoryId } })
-  emit('update:active-category', categoryId)
-}
-
-const toggleSubcategory = (id: number) => {
-  openSubcategories.value[id] = !openSubcategories.value[id]
-  if (searchQuery.value.trim()) {
-    openSubcategories.value[id] = true
-  }
-}
-
-const toggleSubItems = (id: number) => {
-  // Ищем работу во всей структуре
-  const findItem = (items: PriceCategory[]): PriceWorkItem | null => {
-    for (const category of items) {
-      for (const subcategory of category.subcategories || []) {
-        for (const item of subcategory.items || []) {
-          if (item.id === id) return item
-          if (item.details?.some(d => d.id === id)) return item
-          if (item.dopworks?.some(d => d.id === id)) return item
-        }
-      }
-    }
-    return null
-  }
-
-  const item = findItem(works.value)
-  
-  // Проверяем наличие вложенного контента
-  const hasNestedContent = (item: PriceWorkItem | null): boolean => {
-    if (!item) return false
-    return (item.details && item.details.length > 0) ||
-           (item.dopworks && item.dopworks.length > 0)
-  }
-
-  if (!item || !hasNestedContent(item)) {
-    return  // Ничего не делаем, если нет контента
-  }
-
-  // Переключаем состояние
-  if (openSubItems.value[id]) {
-    delete openSubItems.value[id]
-  } else {
-    openSubItems.value[id] = true
-  }
-}
-
-const handleOpenSubItemForm = (categoryId: number) => {
-  actions.openSubItemForms.value[categoryId] = true
-}
-
-const handleShowDetailForm = (itemId: number) => {
-  actions.showDetailFormFor.value = itemId
-}
-
-const handleShowDopworkForm = (itemId: number) => {
-  actions.showDopworkFormFor.value = itemId
-}
-
-const handleShowWorkForm = (subcategoryId: number) => {
-  actions.showWorkFormFor.value = subcategoryId
-  actions.newWorkForSubcategory.value[subcategoryId] = {
-    name: '',
-    unit: 'м²',
-    price: '',
-    subCategoryId: subcategoryId
-  }
-}
-
-// === Синхронизация с props ===
+/**
+ * Если родительский компонент изменил activeCategory —
+ * синхронизируем локальное состояние (на всякий случай).
+ */
 watch(() => props.activeCategory, (newVal) => {
   if (newVal && newVal !== activeCategory.value) {
-    activeCategory.value = newVal
+    // Ничего не делаем — activeCategory это computed от props
+    // Но можно вызвать сброс UI, если нужно
   }
 })
 </script>
@@ -445,5 +398,9 @@ h1 {
 
 .add-category-button {
   margin-left: 10px;
+}
+
+.price-page-wrapper {
+  width: 100%;
 }
 </style>

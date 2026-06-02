@@ -1,9 +1,9 @@
 <!-- app/components/pages/public/prices/PriceSubcategory.vue -->
- <template>
+<template>
   <div class="subcategory-block">
     <!-- Заголовок подкатегории -->
     <div class="subcategory-header">
-      <h3 @click="emit('toggleSubcategory', subcategory.id)">
+      <h3 @click="ui.toggleSubcategory(subcategory.id)">
         {{ subcategory.name }}
         <Icon
           :name="isOpen ? 'mdi:keyboard-arrow-up' : 'mdi:keyboard-arrow-down'"
@@ -14,59 +14,56 @@
           name="bx:edit"
           size="16"
           style="cursor: pointer; margin-right: 10px;"
-          @click.stop="onStartEditingSubCategory"
+          @click.stop="edit.startEditSubcategory(subcategory)"
         />
         <Icon
           name="mdi:delete-forever"
           size="16"
           style="cursor: pointer;"
-          @click.stop="onDeleteSubCategory"
+          @click.stop="edit.deleteSubcategory(subcategory.id)"
         />
       </div>
     </div>
 
     <!-- Форма редактирования подкатегории -->
-    <div v-if="editingSubCategoryId === subcategory.id" class="form">
-      <input v-model="editingSubCategoryData.name" placeholder="Название подкатегории" />
-      <button @click="onSaveEditSubCategory">Сохранить</button>
-      <button @click="onCancel('subcategory')">Отмена</button>
+    <div v-if="edit.editingSubcategoryId.value === subcategory.id" class="form">
+      <input
+        v-model="edit.editingSubcategoryData.value.name"
+        placeholder="Название подкатегории"
+      />
+      <button @click="edit.saveEditSubcategory">Сохранить</button>
+      <button @click="edit.cancelEditSubcategory">Отмена</button>
     </div>
 
-    <!-- Список работ (v-show для SEO) -->
-    <dl v-show="isOpen" class="works-list" :class="{ 'is-open': isOpen }">
+    <!-- Список работ (ИСПРАВЛЕНО: убран v-show, только CSS-класс is-open) -->
+    <dl class="works-list" :class="{ 'is-open': isOpen }">
       <PagesPublicPricesPriceWorkItem
         v-for="item in subcategory.items"
         :key="item.id"
         :item="item"
         :is-admin="isAdmin"
         :search-query="searchQuery"
-        v-bind="workItemBindings"
-        @toggle-sub-items="onToggleSubItems"
-        @start-editing-sub-item="onStartEditingSubItem"
-        @save-edit-sub-item="onSaveEditSubItem"
-        @delete-sub-item="onDeleteSubItem"
-        @handle-copy-click="onHandleCopyClick"
-        @show-detail-form="onShowDetailForm"
-        @show-dopwork-form="onShowDopworkForm"
-        @show-work-form="onShowWorkForm"
-        @start-editing-detail="onStartEditingDetail"
-        @save-edit-detail="onSaveEditDetail"
-        @delete-detail="onDeleteDetail"
-        @start-editing-dopwork="onStartEditingDopwork"
-        @save-edit-dopwork="onSaveEditDopwork"
-        @delete-dopwork="onDeleteDopwork"
-        @cancel="onCancel"
       />
 
       <!-- Кнопка добавления новой работы (только админ) -->
       <div v-if="isAdmin" class="add-work-button">
-        <button @click="onShowWorkForm">+ Добавить работу</button>
-        <div v-if="showWorkFormFor === subcategory.id" class="form add-form">
-          <input v-model="newWorkForSubcategory[subcategory.id].name" placeholder="Название" />
-          <PagesPublicPricesUiSelectOrInput v-model="newWorkForSubcategory[subcategory.id].unit" />
-          <input v-model.number="newWorkForSubcategory[subcategory.id].price" placeholder="Цена" />
-          <button @click="onAddNewWork">Сохранить</button>
-          <button @click="onCancel('work')">Отмена</button>
+        <button @click="edit.showAddItem(subcategory.id)">+ Добавить работу</button>
+        
+        <!-- Форма добавления работы -->
+        <div v-if="edit.showAddItemForm.value === subcategory.id" class="form add-form">
+          <input
+            v-model="edit.newItem.value.name"
+            placeholder="Название"
+          />
+          <PagesPublicPricesUiSelectOrInput
+            v-model="edit.newItem.value.unit"
+          />
+          <input
+            v-model.number="edit.newItem.value.price"
+            placeholder="Цена"
+          />
+          <button @click="edit.addItem">Сохранить</button>
+          <button @click="edit.cancelAddItem">Отмена</button>
         </div>
       </div>
     </dl>
@@ -74,151 +71,35 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import type { PriceSubcategory, PriceWorkItem, PriceDetailItem, PriceDopworkItem } from './composables/usePriceData'
+import { computed } from 'vue'
+import { usePriceEdit, usePriceUI, type PriceSubcategory } from './composables'
+
+// ========================================
+// 📥 ПРОПСЫ (минимальный набор)
+// ========================================
 
 const props = defineProps<{
   subcategory: PriceSubcategory
   isAdmin: boolean
   searchQuery: string
-  
-  // Состояния редактирования
-  editingSubCategoryId: number | null
-  editingSubCategoryData: { name?: string }
-  editingItemId: number | null
-  editingItemData: Partial<PriceWorkItem>
-  editingDetailId: number | null
-  editingDetailData: Partial<PriceDetailItem>
-  editingDopworkId: number | null
-  editingDopworkData: Partial<PriceDopworkItem>
-  
-  // Состояния UI
-  openSubcategories: Record<number, boolean>
-  openSubItems: Record<number, boolean>
-  showDetailFormFor: number | null
-  showDopworkFormFor: number | null
-  showWorkFormFor: number | null
-  newWorkForSubcategory: Record<number, any>
-  newDetail: any
-  newDopwork: any
 }>()
 
-const emit = defineEmits<{
-  (e: 'toggleSubcategory', subcategoryId: number): void
-  (e: 'startEditingSubCategory', subcategory: PriceSubcategory): void
-  (e: 'saveEditSubCategory', subcategoryId: number): void
-  (e: 'deleteSubCategory', subcategoryId: number): void
-  (e: 'toggleSubItems', itemId: number): void
-  (e: 'startEditingSubItem', item: PriceWorkItem): void
-  (e: 'saveEditSubItem'): void
-  (e: 'deleteSubItem', item: PriceWorkItem): void
-  (e: 'handleCopyClick', item: PriceWorkItem | PriceDetailItem | PriceDopworkItem): void
-  (e: 'showDetailForm', itemId: number): void
-  (e: 'showDopworkForm', itemId: number): void
-  (e: 'showWorkForm', subcategoryId: number): void
-  (e: 'addNewWork', subcategoryId: number): void
-  (e: 'startEditingDetail', detail: PriceDetailItem): void
-  (e: 'saveEditDetail'): void
-  (e: 'deleteDetail', detailId: number): void
-  (e: 'startEditingDopwork', dopwork: PriceDopworkItem): void
-  (e: 'saveEditDopwork'): void
-  (e: 'deleteDopwork', dopworkId: number): void
-  (e: 'cancel', type: string): void
-}>()
+// ========================================
+// 🪝 ИНЖЕКТ КОНТЕКСТОВ
+// ========================================
 
-// Вычисляемые свойства
-const isOpen = computed(() => !!props.openSubcategories[props.subcategory.id])
+const edit = usePriceEdit()
+const ui = usePriceUI()
 
-// Биндинги для передачи в PriceWorkItem
-const workItemBindings = computed(() => ({
-  editingItemId: props.editingItemId,
-  editingItemData: props.editingItemData,
-  editingDetailId: props.editingDetailId,
-  editingDetailData: props.editingDetailData,
-  editingDopworkId: props.editingDopworkId,
-  editingDopworkData: props.editingDopworkData,
-  openSubItems: props.openSubItems,
-  showDetailFormFor: props.showDetailFormFor,
-  showDopworkFormFor: props.showDopworkFormFor,
-  newDetail: props.newDetail,
-  newDopwork: props.newDopwork,
-}))
+// ========================================
+// 🧮 ВЫЧИСЛЯЕМЫЕ СВОЙСТВА
+// ========================================
 
-const onStartEditingSubCategory = () => {
-  emit('startEditingSubCategory', props.subcategory)
-}
-
-const onSaveEditSubCategory = () => {
-  emit('saveEditSubCategory', props.subcategory.id)
-}
-
-const onDeleteSubCategory = () => {
-  emit('deleteSubCategory', props.subcategory.id)
-}
-
-const onToggleSubItems = (itemId: number) => {
-  emit('toggleSubItems', itemId)
-}
-
-const onStartEditingSubItem = (item: PriceWorkItem) => {
-  emit('startEditingSubItem', item)
-}
-
-const onSaveEditSubItem = () => {
-  emit('saveEditSubItem')
-}
-
-const onDeleteSubItem = (item: PriceWorkItem) => {
-  emit('deleteSubItem', item)
-}
-
-const onHandleCopyClick = (item: PriceWorkItem | PriceDetailItem | PriceDopworkItem) => {
-  emit('handleCopyClick', item)
-}
-
-const onShowDetailForm = (itemId: number) => {
-  emit('showDetailForm', itemId)
-}
-
-const onShowDopworkForm = (itemId: number) => {
-  emit('showDopworkForm', itemId)
-}
-
-const onShowWorkForm = () => {
-  emit('showWorkForm', props.subcategory.id)
-}
-
-const onAddNewWork = () => {
-  emit('addNewWork', props.subcategory.id)
-}
-
-const onStartEditingDetail = (detail: PriceDetailItem) => {
-  emit('startEditingDetail', detail)
-}
-
-const onSaveEditDetail = () => {
-  emit('saveEditDetail')
-}
-
-const onDeleteDetail = (detailId: number) => {
-  emit('deleteDetail', detailId)
-}
-
-const onStartEditingDopwork = (dopwork: PriceDopworkItem) => {
-  emit('startEditingDopwork', dopwork)
-}
-
-const onSaveEditDopwork = () => {
-  emit('saveEditDopwork')
-}
-
-const onDeleteDopwork = (dopworkId: number) => {
-  emit('deleteDopwork', dopworkId)
-}
-
-const onCancel = (type: string) => {
-  emit('cancel', type)
-}
+/**
+ * Открыта ли подкатегория.
+ * Берём значение из UI-контекста.
+ */
+const isOpen = computed(() => !!ui.openSubcategories.value[props.subcategory.id])
 </script>
 
 <style lang="scss" scoped>
@@ -278,7 +159,8 @@ const onCancel = (type: string) => {
   }
 }
 
-/* SEO: Визуальное скрытие списка работ */
+/* SEO: Анимация раскрытия списка работ */
+/* ИСПРАВЛЕНО: убран v-show, теперь только CSS-класс is-open управляет видимостью */
 .works-list {
   max-height: 0;
   overflow: hidden;
