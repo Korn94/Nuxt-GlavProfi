@@ -1,34 +1,42 @@
 <!-- components/ui/notifications/Container.vue -->
 <template>
-  <Teleport to="body">
-    <TransitionGroup name="notif" tag="div" class="notif-container">
-      <div v-for="n in notificationStore.notifications" :key="n.id" :class="['notif', `notif--${n.type}`]">
-        <!-- Левая полоса + иконка -->
-        <div class="notif__aside">
-          <Icon :name="getIcon(n.type)" size="18" />
-        </div>
-
-        <!-- Контент -->
-        <div class="notif__body">
-          <p class="notif__title">{{ n.title }}</p>
-          <p class="notif__message">{{ n.message }}</p>
-
-          <!-- Кнопки действий -->
-          <div v-if="n.actions?.length" class="notif__actions">
-            <button v-for="(action, i) in n.actions" :key="i" class="notif__action" :class="action.class"
-              @click="notificationStore.handleAction(n.id, action)">
-              {{ action.text }}
-            </button>
-          </div>
-        </div>
-
-        <!-- Закрыть -->
-        <button class="notif__close" @click="notificationStore.close(n.id)">
-          <Icon name="mdi:close" size="16" />
-        </button>
+  <!-- Teleport убран: position: fixed + z-index: 9999 уже обеспечивают корректное позиционирование -->
+  <TransitionGroup name="notif" tag="div" class="notif-container">
+    <div
+      v-for="n in notificationStore.notifications"
+      :key="n.id"
+      :class="['notif', `notif--${n.type}`]"
+    >
+      <!-- Левая полоса + иконка -->
+      <div class="notif__aside">
+        <Icon :name="getIcon(n.type)" size="18" />
       </div>
-    </TransitionGroup>
-  </Teleport>
+
+      <!-- Контент -->
+      <div class="notif__body">
+        <p class="notif__title">{{ n.title }}</p>
+        <p class="notif__message">{{ n.message }}</p>
+
+        <!-- Кнопки действий -->
+        <div v-if="n.actions?.length" class="notif__actions">
+          <button
+            v-for="(action, i) in n.actions"
+            :key="i"
+            class="notif__action"
+            :class="action.class"
+            @click="notificationStore.handleAction(n.id, action)"
+          >
+            {{ action.text }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Закрыть -->
+      <button class="notif__close" @click="notificationStore.close(n.id)">
+        <Icon name="mdi:close" size="16" />
+      </button>
+    </div>
+  </TransitionGroup>
 </template>
 
 <script setup lang="ts">

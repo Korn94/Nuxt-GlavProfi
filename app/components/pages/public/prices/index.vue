@@ -16,102 +16,95 @@
       <div class="price-list">
         <!-- Поиск -->
         <PagesPublicPricesUiSearchBar
-          v-model="ui.searchQuery.value"
-          @clear="ui.clearSearch"
+          v-model="uiStore.searchQuery"
+          @clear="uiStore.clearSearch"
         />
 
         <!-- Индикатор загрузки -->
-        <div v-if="data.isLoading.value" class="loading-indicator">
+        <div v-if="dataStore.isLoading" class="loading-indicator">
           <Icon name="eos-icons:bubble-loading" size="34px" />
           <span>Загрузка данных...</span>
         </div>
 
         <!-- Ошибка -->
-        <div v-if="data.errorMessage.value" class="error-message">
-          {{ data.errorMessage.value }}
+        <div v-if="dataStore.errorMessage" class="error-message">
+          {{ dataStore.errorMessage }}
         </div>
 
         <!-- Контент прайса -->
-        <div v-if="!data.isLoading.value && !data.errorMessage.value">
+        <div v-if="!dataStore.isLoading && !dataStore.errorMessage">
           <!-- Результаты поиска / список категорий -->
           <div v-if="filteredWorks.length">
             <!-- Меню навигации по работам (только админ) -->
-            <div class="work-navigation" v-if="data.isAdmin.value">
+            <div class="work-navigation" v-if="dataStore.isAdmin">
               <div class="work-navigation-inner">
                 <button
-                  :class="{ active: ui.activeWork.value === 'all' }"
-                  @click="ui.activeWork.value = 'all'"
+                  :class="{ active: uiStore.activeWork === 'all' }"
+                  @click="uiStore.activeWork = 'all'"
                 >
                   Все работы
                 </button>
                 <button
                   v-for="category in allWorks"
                   :key="category.id"
-                  :class="{ active: ui.activeWork.value === category.id }"
-                  @click="ui.activeWork.value = category.id"
+                  :class="{ active: uiStore.activeWork === category.id }"
+                  @click="uiStore.activeWork = category.id"
                 >
                   {{ category.title }}
                 </button>
                 <div class="add-category-button">
-                  <button @click="edit.showAddCategory(currentPageId)">
+                  <button @click="editStore.showAddCategory(currentPageId)">
                     + Добавить категорию
                   </button>
-
                   <!-- Форма добавления категории -->
-                  <div v-if="edit.showAddCategoryForm.value" class="form">
+                  <div v-if="editStore.showAddCategoryForm" class="form">
                     <input
-                      v-model="edit.newCategory.value.name"
+                      v-model="editStore.newCategory.name"
                       placeholder="Название категории"
                     />
-                    <button @click="edit.addCategory">Сохранить</button>
-                    <button @click="edit.cancelAddCategory">Отмена</button>
+                    <button @click="editStore.addCategory">Сохранить</button>
+                    <button @click="editStore.cancelAddCategory">Отмена</button>
                   </div>
                 </div>
               </div>
             </div>
-
-            <!-- Список категорий -->
-            <PagesPublicPricesPriceCategory
-              v-for="category in filteredWorks"
-              :key="category.id"
-              :category="category"
-              :is-admin="data.isAdmin.value"
-              :search-query="ui.searchQuery.value"
-            />
           </div>
 
+          <!-- Список категорий -->
+          <PagesPublicPricesPriceCategory
+            v-for="category in filteredWorks"
+            :key="category.id"
+            :category="category"
+            :is-admin="dataStore.isAdmin"
+            :search-query="uiStore.searchQuery"
+          />
+
           <!-- Ничего не найдено -->
-          <div v-else class="no-results">
-            Ничего не найдено по запросу "{{ ui.searchQuery.value }}"
+          <div v-if="!filteredWorks.length" class="no-results">
+            <Icon name="mdi:loading" class="animate-spin" size="24" />
+            <span class="ml-2">Загрузка...</span>
           </div>
         </div>
       </div>
     </div>
-
-    <!-- <UiNotificationsContainer /> -->
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import {
-  usePriceData,
-  usePriceEdit,
-  usePriceUI,
-  type PriceCategory
-} from './composables'
+import { computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { usePriceUIStore, usePriceDataStore, usePriceEditStore } from 'stores/price'
+import type { PriceCategory } from 'stores/price/types'
 
 // ========================================
 // 📥 ПРОПСЫ (для навигации со страницы)
 // ========================================
-
 const props = withDefaults(defineProps<{
   categories: Array<{ id: number; name: string; slug: string }>
   activeCategory: string
 }>(), {
   categories: () => [],
-  activeCategory: ''
+  activeCategory: '',
 })
 
 const emit = defineEmits<{
@@ -119,30 +112,26 @@ const emit = defineEmits<{
 }>()
 
 // ========================================
-// 🪝 ИНЖЕКТ КОНТЕКСТОВ
+// 🏪 PINIA STORES (вместо inject)
 // ========================================
-
-const data = usePriceData()
-const edit = usePriceEdit()
-const ui = usePriceUI()
+const uiStore = usePriceUIStore()
+const dataStore = usePriceDataStore()
+const editStore = usePriceEditStore()
 
 // ========================================
 // 🧭 ROUTER
 // ========================================
-
-const route = useRoute()
 const router = useRouter()
 
 // ========================================
 // 📋 ЛОКАЛЬНЫЕ ВЫЧИСЛЕНИЯ
 // ========================================
-
 /**
  * ID текущей страницы (для добавления категории).
  * Берём из props.categories по текущему slug.
  */
 const currentPageId = computed(() => {
-  const page = props.categories.find(p => p.slug === activeCategory.value)
+  const page = props.categories.find(p => p.slug === props.activeCategory)
   return page?.id ?? 0
 })
 
@@ -156,20 +145,14 @@ const categoryTitlesForH1: Record<string, string> = {
 }
 
 const activeCategoryTitle = computed(() =>
-  categoryTitlesForH1[activeCategory.value] || 'ремонтные работы'
+  categoryTitlesForH1[props.activeCategory] || 'ремонтные работы',
 )
-
-/**
- * Текущий активный slug (локальный ref для реактивности).
- */
-const activeCategory = computed(() => props.activeCategory)
 
 /**
  * Все категории для меню админа.
  */
 const allWorks = computed(() => {
-  const works = data.works.value ?? []
-  return works.map(category => ({
+  return dataStore.works.map(category => ({
     id: category.id,
     title: category.name,
   }))
@@ -177,19 +160,18 @@ const allWorks = computed(() => {
 
 /**
  * Фильтрация работ по поиску и активной категории.
- * 
- * ВАЖНО: логика сохранена, но теперь использует данные из usePriceData()
- * и UI-состояние из usePriceUI().
+ *
+ * Логика сохранена, но теперь использует данные из DataStore
+ * и UI-состояние из UIStore.
  */
 const filteredWorks = computed<PriceCategory[]>(() => {
-  const query = ui.searchQuery.value.trim().toLowerCase()
-  
-  // ✅ ИСПРАВЛЕНИЕ: Явно указываем тип и добавляем fallback на пустой массив
-  let filtered: PriceCategory[] = data.works.value ?? []
+  const query = uiStore.searchQuery.trim().toLowerCase()
+
+  let filtered: PriceCategory[] = dataStore.works ?? []
 
   // Фильтр по активной категории (для админа)
-  if (ui.activeWork.value !== 'all') {
-    filtered = filtered.filter(category => category.id === ui.activeWork.value)
+  if (uiStore.activeWork !== 'all') {
+    filtered = filtered.filter(category => category.id === uiStore.activeWork)
   }
 
   // Если нет поиска — возвращаем как есть
@@ -203,7 +185,7 @@ const filteredWorks = computed<PriceCategory[]>(() => {
       const filteredSubcategories = category.subcategories
         .map(subcategory => {
           const filteredItems = subcategory.items.filter(item =>
-            item.name.toLowerCase().includes(query)
+            item.name.toLowerCase().includes(query),
           )
 
           // Автооткрытие подкатегорий с найденными работами
@@ -213,7 +195,7 @@ const filteredWorks = computed<PriceCategory[]>(() => {
 
           return {
             ...subcategory,
-            items: filteredItems
+            items: filteredItems,
           }
         })
         .filter(subcategory => subcategory.items.length > 0)
@@ -221,15 +203,15 @@ const filteredWorks = computed<PriceCategory[]>(() => {
       if (filteredSubcategories.length > 0) {
         return {
           ...category,
-          subcategories: filteredSubcategories
+          subcategories: filteredSubcategories,
         }
       }
       return null
     })
     .filter((c): c is PriceCategory => c !== null)
 
-  // Применяем автооткрытие к UI-контексту
-  ui.openSubcategories.value = { ...openSubcategoriesTemp }
+  // Применяем автооткрытие к UI-стору
+  uiStore.openSubcategories = { ...openSubcategoriesTemp }
 
   return result
 })
@@ -237,7 +219,6 @@ const filteredWorks = computed<PriceCategory[]>(() => {
 // ========================================
 // 🎯 ОБРАБОТЧИКИ
 // ========================================
-
 /**
  * Переключение категории (через роутер).
  */
@@ -245,21 +226,6 @@ const setCategory = async (categorySlug: string) => {
   await router.push({ params: { category: categorySlug } })
   emit('update:active-category', categorySlug)
 }
-
-// ========================================
-// 🔄 СИНХРОНИЗАЦИЯ С PROPS
-// ========================================
-
-/**
- * Если родительский компонент изменил activeCategory —
- * синхронизируем локальное состояние (на всякий случай).
- */
-watch(() => props.activeCategory, (newVal) => {
-  if (newVal && newVal !== activeCategory.value) {
-    // Ничего не делаем — activeCategory это computed от props
-    // Но можно вызвать сброс UI, если нужно
-  }
-})
 </script>
 
 <style lang="scss" scoped>
@@ -296,12 +262,10 @@ h1 {
   &::-webkit-scrollbar {
     height: 6px;
   }
-
   &::-webkit-scrollbar-thumb {
     background: #ccc;
     border-radius: 3px;
   }
-
   scrollbar-width: thin;
   scrollbar-color: #ccc transparent;
 }
@@ -364,7 +328,16 @@ h1 {
     padding: 40px;
     color: #888;
     font-style: italic;
+
+    .animate-spin {
+      animation: spin 1s linear infinite;
+    }
   }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .form {

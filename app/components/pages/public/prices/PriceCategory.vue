@@ -1,4 +1,4 @@
-<!-- app/components/pages/public/prices/PriceCategory.vue -->
+<!-- app\components\pages\public\prices\PriceCategory.vue -->
 <template>
   <div class="category-block">
     <!-- Заголовок категории -->
@@ -6,34 +6,34 @@
       <div>
         <!-- Inline-редактирование названия категории -->
         <input
-          v-if="edit.editingCategoryId.value === category.id"
-          v-model="edit.editingCategoryData.value.name"
+          v-if="editStore.editingCategoryId === category.id"
+          v-model="editStore.editingCategoryData.name"
           style="width: 80%"
         />
         <h2 v-else>{{ category.name }}</h2>
       </div>
-      
+
       <!-- Кнопки админа -->
       <div v-if="isAdmin" class="category-actions">
         <Icon
-          v-if="edit.editingCategoryId.value !== category.id"
+          v-if="editStore.editingCategoryId !== category.id"
           name="bx:edit"
           size="16"
           style="cursor: pointer; margin-right: 10px;"
-          @click.stop="edit.startEditCategory(category)"
+          @click.stop="editStore.startEditCategory(category)"
         />
         <Icon
           v-else
           name="mdi:content-save-check-outline"
           size="16"
           style="cursor: pointer; margin-right: 10px;"
-          @click.stop="edit.saveEditCategory"
+          @click.stop="editStore.saveEditCategory"
         />
         <Icon
           name="mdi:delete-forever"
           size="16"
           style="cursor: pointer;"
-          @click.stop="edit.deleteCategory(category.id)"
+          @click.stop="editStore.deleteCategory(category.id)"
         />
       </div>
     </div>
@@ -49,30 +49,30 @@
 
     <!-- Кнопка добавления подкатегории (только админ) -->
     <div v-if="isAdmin">
-      <button @click="edit.showAddSubcategory(category.id)">
+      <button @click="editStore.showAddSubcategory(category.id)">
         + Добавить подкатегорию
       </button>
     </div>
 
     <!-- Форма добавления подкатегории -->
-    <div v-if="edit.showAddSubcategoryForm.value === category.id" class="form">
+    <div v-if="editStore.showAddSubcategoryForm === category.id" class="form">
       <input
-        v-model="edit.newSubcategory.value.name"
+        v-model="editStore.newSubcategory.name"
         placeholder="Название"
       />
-      <button @click="edit.addSubcategory">Сохранить</button>
-      <button @click="edit.cancelAddSubcategory">Отмена</button>
+      <button @click="editStore.addSubcategory">Сохранить</button>
+      <button @click="editStore.cancelAddSubcategory">Отмена</button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { usePriceEdit, type PriceCategory } from './composables'
+import { usePriceEditStore } from 'stores/price'
+import type { PriceCategory } from 'stores/price/types'
 
 // ========================================
 // 📥 ПРОПСЫ (минимальный набор)
 // ========================================
-
 const props = defineProps<{
   category: PriceCategory
   isAdmin: boolean
@@ -80,10 +80,10 @@ const props = defineProps<{
 }>()
 
 // ========================================
-// 🪝 ИНЖЕКТ КОНТЕКСТОВ
+// 🏪 PINIA STORE (вместо inject usePriceEdit)
 // ========================================
+const editStore = usePriceEditStore()
 
-const edit = usePriceEdit()
 // ui не нужен в этом компоненте — аккордеонами управляет PriceSubcategory
 </script>
 

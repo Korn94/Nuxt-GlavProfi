@@ -24,7 +24,7 @@ export default defineApi(async () => {
     db.select().from(priceAdditionalItems).orderBy(priceAdditionalItems.order)
   ])
 
-  console.log(`✅ Загружено: ${pages.length} страниц, ${categories.length} категорий, ${items.length} работ`)
+  // console.log(`✅ Загружено: ${pages.length} страниц, ${categories.length} категорий, ${items.length} работ`)
 
   // 🔹 Собираем дерево через утилиту
   return buildPriceTree({

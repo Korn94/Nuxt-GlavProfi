@@ -1,7 +1,7 @@
-// app/components/pages/public/prices/composables/types.ts
+// stores\price\types.ts
 /**
- * Общие типы для раздела прайс-листа.
- * Единый источник истины для API, Provide-провайдеров и компонентов.
+ * Общие типы для Pinia-сторов раздела прайс-листа.
+ * Единый источник истины для API, сторов и компонентов.
  */
 
 // ========================================
@@ -55,7 +55,6 @@ export interface PriceSubcategory {
 
 /**
  * Дискриминатор типа элемента прайса.
- * Используется для типобезопасной работы с разнородными элементами.
  */
 export type PriceItemType = 'item' | 'detail' | 'dopwork'
 
@@ -95,7 +94,7 @@ export interface PriceDetailItem extends PriceItemBase {
 
 /**
  * Дополнительная работа (например, "Покраска в 1 слой")
- * 
+ *
  * ВАЖНО: dopworks возвращаются ПЛОСКИМ массивом (без группировки по label).
  * Группировка по label делается на клиенте в UI-слое, если нужна.
  */
@@ -108,7 +107,6 @@ export interface PriceDopworkItem extends PriceItemBase {
 
 /**
  * Union-тип для любого элемента прайса.
- * Позволяет типобезопасно обрабатывать работы, детали и допработы в общем коде.
  */
 export type PriceItem = PriceWorkItem | PriceDetailItem | PriceDopworkItem
 
@@ -131,7 +129,6 @@ export interface ApiPriceListResponse extends PricePage {
 
 /**
  * Ответ POST-запросов на создание записей.
- * Сервер возвращает только { id } новой записи.
  */
 export interface ApiCreateResponse {
   id: number
@@ -139,7 +136,6 @@ export interface ApiCreateResponse {
 
 /**
  * Ответ PUT-запросов на обновление.
- * Сервер возвращает полную обновлённую запись.
  */
 export type ApiUpdateResponse<T> = T
 
@@ -154,25 +150,16 @@ export interface ApiDeleteResponse {
 // ✏️ ФОРМЫ: Типы данных для создания
 // ========================================
 
-/**
- * Данные для создания новой категории
- */
 export interface NewCategoryForm {
   name: string
   pageId: number | null
 }
 
-/**
- * Данные для создания подкатегории
- */
 export interface NewSubcategoryForm {
   name: string
   categoryId: number
 }
 
-/**
- * Данные для создания работы
- */
 export interface NewWorkForm {
   name: string
   unit: string
@@ -180,9 +167,6 @@ export interface NewWorkForm {
   subCategoryId: number
 }
 
-/**
- * Данные для создания детали работы
- */
 export interface NewDetailForm {
   name: string
   unit: string
@@ -190,9 +174,6 @@ export interface NewDetailForm {
   itemId: number
 }
 
-/**
- * Данные для создания доп. работы
- */
 export interface NewDopworkForm {
   label: string
   dopwork: string
@@ -206,7 +187,7 @@ export interface NewDopworkForm {
 // ========================================
 
 /**
- * Имя сущности прайса (для универсальных эндпоинтов типа /api/price/[entity]/...)
+ * Имя сущности прайса (для универсальных эндпоинтов)
  */
 export type PriceEntity =
   | 'pages'
@@ -226,7 +207,6 @@ export interface ReorderItem {
 
 /**
  * Статус оптимистичного обновления.
- * Используется для отслеживания состояния операции в UI.
  */
 export type UpdateStatus = 'idle' | 'pending' | 'success' | 'error'
 
@@ -238,4 +218,12 @@ export interface OptimisticResult<T> {
   data?: T
   error?: string
   rollback?: () => void
+}
+
+/**
+ * Payload от useAsyncData (передаётся в DataStore при загрузке)
+ */
+export interface PricePayload {
+  priceData: ApiPriceListResponse | null
+  isAdminUser: boolean
 }

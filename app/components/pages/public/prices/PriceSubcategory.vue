@@ -1,9 +1,9 @@
-<!-- app/components/pages/public/prices/PriceSubcategory.vue -->
+<!-- app\components\pages\public\prices\PriceSubcategory.vue -->
 <template>
   <div class="subcategory-block">
     <!-- Заголовок подкатегории -->
     <div class="subcategory-header">
-      <h3 @click="ui.toggleSubcategory(subcategory.id)">
+      <h3 @click="uiStore.toggleSubcategory(subcategory.id)">
         {{ subcategory.name }}
         <Icon
           :name="isOpen ? 'mdi:keyboard-arrow-up' : 'mdi:keyboard-arrow-down'"
@@ -14,25 +14,25 @@
           name="bx:edit"
           size="16"
           style="cursor: pointer; margin-right: 10px;"
-          @click.stop="edit.startEditSubcategory(subcategory)"
+          @click.stop="editStore.startEditSubcategory(subcategory)"
         />
         <Icon
           name="mdi:delete-forever"
           size="16"
           style="cursor: pointer;"
-          @click.stop="edit.deleteSubcategory(subcategory.id)"
+          @click.stop="editStore.deleteSubcategory(subcategory.id)"
         />
       </div>
     </div>
 
     <!-- Форма редактирования подкатегории -->
-    <div v-if="edit.editingSubcategoryId.value === subcategory.id" class="form">
+    <div v-if="editStore.editingSubcategoryId === subcategory.id" class="form">
       <input
-        v-model="edit.editingSubcategoryData.value.name"
+        v-model="editStore.editingSubcategoryData.name"
         placeholder="Название подкатегории"
       />
-      <button @click="edit.saveEditSubcategory">Сохранить</button>
-      <button @click="edit.cancelEditSubcategory">Отмена</button>
+      <button @click="editStore.saveEditSubcategory">Сохранить</button>
+      <button @click="editStore.cancelEditSubcategory">Отмена</button>
     </div>
 
     <!-- Список работ (ИСПРАВЛЕНО: убран v-show, только CSS-класс is-open) -->
@@ -47,23 +47,28 @@
 
       <!-- Кнопка добавления новой работы (только админ) -->
       <div v-if="isAdmin" class="add-work-button">
-        <button @click="edit.showAddItem(subcategory.id)">+ Добавить работу</button>
-        
+        <button @click="editStore.showAddItem(subcategory.id)">
+          + Добавить работу
+        </button>
+
         <!-- Форма добавления работы -->
-        <div v-if="edit.showAddItemForm.value === subcategory.id" class="form add-form">
+        <div
+          v-if="editStore.showAddItemForm === subcategory.id"
+          class="form add-form"
+        >
           <input
-            v-model="edit.newItem.value.name"
+            v-model="editStore.newItem.name"
             placeholder="Название"
           />
           <PagesPublicPricesUiSelectOrInput
-            v-model="edit.newItem.value.unit"
+            v-model="editStore.newItem.unit"
           />
           <input
-            v-model.number="edit.newItem.value.price"
+            v-model.number="editStore.newItem.price"
             placeholder="Цена"
           />
-          <button @click="edit.addItem">Сохранить</button>
-          <button @click="edit.cancelAddItem">Отмена</button>
+          <button @click="editStore.addItem">Сохранить</button>
+          <button @click="editStore.cancelAddItem">Отмена</button>
         </div>
       </div>
     </dl>
@@ -72,12 +77,12 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { usePriceEdit, usePriceUI, type PriceSubcategory } from './composables'
+import { usePriceUIStore, usePriceEditStore } from 'stores/price'
+import type { PriceSubcategory } from 'stores/price/types'
 
 // ========================================
 // 📥 ПРОПСЫ (минимальный набор)
 // ========================================
-
 const props = defineProps<{
   subcategory: PriceSubcategory
   isAdmin: boolean
@@ -85,21 +90,19 @@ const props = defineProps<{
 }>()
 
 // ========================================
-// 🪝 ИНЖЕКТ КОНТЕКСТОВ
+// 🏪 PINIA STORES (вместо inject)
 // ========================================
-
-const edit = usePriceEdit()
-const ui = usePriceUI()
+const uiStore = usePriceUIStore()
+const editStore = usePriceEditStore()
 
 // ========================================
 // 🧮 ВЫЧИСЛЯЕМЫЕ СВОЙСТВА
 // ========================================
-
 /**
  * Открыта ли подкатегория.
- * Берём значение из UI-контекста.
+ * Берём значение из UI-стора.
  */
-const isOpen = computed(() => !!ui.openSubcategories.value[props.subcategory.id])
+const isOpen = computed(() => !!uiStore.openSubcategories[props.subcategory.id])
 </script>
 
 <style lang="scss" scoped>

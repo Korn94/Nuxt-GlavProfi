@@ -1,3 +1,4 @@
+<!-- app\components\ui\widgets\Offer.vue -->
 <template>
   <section class="offer">
     <p class="title">{{ title }}</p>
@@ -5,13 +6,15 @@
     <button class="gradient-button large-button" @click="openModal">
       {{ buttonText }}
     </button>
-    <teleport to="body">
-        <UiFormsContactForm 
-          v-if="showModal" 
-          @close="closeModal" 
-          @formSubmitted="handleFormSubmitted" 
-        />
-      </teleport>
+
+    <!-- v-if на самом Teleport: когда showModal=false, Teleport не создаётся вообще.
+         Это гарантирует идентичную DOM-структуру на сервере и клиенте. -->
+    <Teleport v-if="showModal" to="body">
+      <UiFormsContactForm
+        @close="closeModal"
+        @formSubmitted="handleFormSubmitted"
+      />
+    </Teleport>
   </section>
 </template>
 
