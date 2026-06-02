@@ -1,56 +1,43 @@
-// app\composables\usePriceSeo.ts
-import { computed } from 'vue'
-import { useAsyncData, useHead } from 'nuxt/app'
+// app/composables/usePriceSeo.ts
+import { computed, type Ref } from 'vue'
+import { useHead } from 'nuxt/app'
+import type { ApiPriceListResponse, PricePage } from '~/components/pages/public/prices/composables'
 
-interface PricePage {
-  id: number
-  title: string
-  slug: string
-  metaTitle?: string
-  metaDescription?: string
-  image?: string
-}
+/**
+ * SEO-композабл для страниц прайс-листа.
+ * 
+ * Отвечает за:
+ * - Генерацию мета-тегов (title, description, og:image)
+ * - Формирование JSON-LD микроразметки (Schema.org) для поисковиков
+ * 
+ * ВАЖНО: Не делает HTTP-запросов самостоятельно.
+ * Принимает уже загруженные данные со страницы (pagesData и pricePayload),
+ * что предотвращает дублирование запросов и проблемы с SSR.
+ */
+export function usePriceSeo(
+  currentSlug: string,
+  pricePayload: Ref<{ priceData: ApiPriceListResponse | null; isAdminUser: boolean } | null | undefined>,
+  pagesData: Ref<PricePage[] | null | undefined>
+) {
+  // 🛡️ Защита: не делаем ничего, если slug пустой (например, при переходе на главную)
+  if (!currentSlug) {
+    console.warn('[usePriceSeo] currentSlug пустой, пропускаем инициализацию SEO')
+    return {
+      pageTitle: computed(() => ''),
+      currentPage: computed(() => null),
+      jsonLdSchema: computed(() => '{}')
+    }
+  }
 
-interface PriceItem {
-  id: number
-  name: string
-  unit: string
-  price: number | string
-  details?: Array<{ id: number; name: string; unit: string; price: number | string }>
-  dopworks?: Array<{ id: number; label?: string | null; dopwork: string; unit: string; price: number | string }>
-}
-
-interface PriceCategory {
-  id: number
-  name: string
-  subcategories?: Array<{
-    id: number
-    name: string
-    items?: PriceItem[]
-  }>
-}
-
-interface PriceData {
-  title?: string
-  metaDescription?: string
-  categories?: PriceCategory[]
-}
-
-export function usePriceSeo(currentSlug: string) {
-  // Загружаем ПОЛНЫЕ данные прайса для SEO
-  const { data: priceData } = useAsyncData<PriceData>(
-    `price-seo-${currentSlug}`,
-    () => $fetch<PriceData>(`/api/price/list/${currentSlug}`)
-  )
-
-  // Загружаем метаданные страницы
-  const { data: pagesData } = useAsyncData<PricePage[]>('price-pages', () =>
-    $fetch<PricePage[]>('/api/price/pages')
-  )
+  // ========================================
+  // 📊 ВЫЧИСЛЯЕМЫЕ СВОЙСТВА
+  // ========================================
 
   const currentPage = computed(() =>
     pagesData.value?.find(p => p.slug === currentSlug) || null
   )
+
+  const priceData = computed(() => pricePayload.value?.priceData ?? null)
 
   // ✅ Заголовки по умолчанию (fallback, если metaTitle не задан в БД)
   const categoryTitles: Record<string, string> = {
@@ -73,11 +60,13 @@ export function usePriceSeo(currentSlug: string) {
     || 'Актуальные цены 2026 на ремонт помещений.'
   )
 
-  // Генерация JSON-LD из ПОЛНЫХ данных прайса
+  // ========================================
+  // 🕸️ ГЕНЕРАЦИЯ JSON-LD (Schema.org)
+  // ========================================
   const jsonLdSchema = computed(() => {
     const page = currentPage.value
     const price = priceData.value
-
+    
     const baseSchema = {
       '@context': 'https://schema.org',
       '@type': 'Service',
@@ -133,8 +122,7 @@ export function usePriceSeo(currentSlug: string) {
             })
           }
 
-          // ✅ Доп. работы (плоский массив). Объединяем label + dopwork в одно название,
-          // как это сделано в UI-компоненте PriceWorkItem.vue
+          // Доп. работы (плоский массив). Объединяем label + dopwork в одно название
           for (const dopwork of item.dopworks || []) {
             const fullName = [dopwork.label, dopwork.dopwork]
               .filter(Boolean)
@@ -170,14 +158,16 @@ export function usePriceSeo(currentSlug: string) {
     })
   })
 
-  // Применяем useHead
+  // ========================================
+  // 🏷️ ПРИМЕНЕНИЕ МЕТА-ТЕГОВ
+  // ========================================
   useHead({
     title: pageTitle.value,
     meta: [
       { name: 'description', content: pageDescription.value },
       { property: 'og:title', content: pageTitle.value },
       { property: 'og:description', content: pageDescription.value },
-      { property: 'og:image', content: currentPage.value?.image || 'https://glavprofi.ru/images/og-image.jpg' },
+      { property: 'og:image', content: 'https://glavprofi.ru/images/og-image.jpg' },
       {
         name: 'keywords',
         content: 'ремонт, отделка, коммерческие помещения, Рязань, ' +
@@ -187,14 +177,9 @@ export function usePriceSeo(currentSlug: string) {
     script: [{
       type: 'application/ld+json',
       key: 'price-schema',
-      // ✅ ИСПРАВЛЕНО: используем .value, иначе в <script> попадёт [object Object]
       innerHTML: jsonLdSchema.value
     }]
   })
 
-  return {
-    pageTitle,
-    currentPage,
-    jsonLdSchema
-  }
+  return { pageTitle, currentPage, jsonLdSchema }
 }

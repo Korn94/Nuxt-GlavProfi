@@ -1,38 +1,27 @@
 // app/components/pages/public/prices/composables/providePriceData.ts
 /**
  * Провайдер данных прайс-листа.
- * 
+ *
  * Отвечает за:
- * - Загрузку и хранение реактивного дерева прайса
+ * - Хранение реактивного дерева прайса (полученного извне)
  * - CRUD операции с оптимистичными обновлениями (мгновенная реакция UI + откат при ошибке)
  * - Drag & Drop (изменение порядка элементов)
  * - Интеграцию с UI-контекстом (автооткрытие аккордеонов при добавлении)
- * 
- * ВАЖНО: Функция СИНХРОННАЯ. Все provide()/inject() вызываются до первого await.
- * useAsyncData работает асинхронно внутри, но не блокирует setup().
- * Nuxt Suspense автоматически дождётся загрузки данных.
+ *
+ * ВАЖНО: Это "чистый" State Manager. Он НЕ делает HTTP-запросов для первичной загрузки.
+ * Все данные (pricePayload, refreshData, priceError) передаются извне — со страницы [category].vue,
+ * где вызов useAsyncData находится в правильном месте для работы Nuxt Suspense.
  */
 
-import { ref, inject, provide, computed, watch } from 'vue'
-import { useRoute } from 'vue-router'
-import { useAsyncData, createError, useRequestHeaders } from 'nuxt/app'
+import { ref, inject, provide, watch, type Ref } from 'vue'
 import { useAuthStore } from '../../../../../../stores/auth'
 import { PRICE_UI_KEY, type PriceUIContext } from './providePriceUI'
 import type {
-  PriceCategory,
-  PriceSubcategory,
-  PriceWorkItem,
-  PriceDetailItem,
-  PriceDopworkItem,
-  PriceEntity,
-  NewWorkForm,
-  NewDetailForm,
-  NewDopworkForm,
-  ReorderItem,
-  ApiPriceListResponse,
-  ApiCreateResponse,
-  ApiUpdateResponse,
-  ApiDeleteResponse
+  PriceCategory, PriceSubcategory, PriceWorkItem,
+  PriceDetailItem, PriceDopworkItem, PriceEntity,
+  NewWorkForm, NewDetailForm, NewDopworkForm,
+  ReorderItem, ApiPriceListResponse, ApiCreateResponse,
+  ApiUpdateResponse, ApiDeleteResponse
 } from './types'
 
 // ========================================
@@ -47,42 +36,38 @@ export const PRICE_DATA_KEY = Symbol('priceData')
 
 export interface PriceDataContext {
   /** Реактивное дерево категорий прайса */
-  works: ReturnType<typeof ref<PriceCategory[]>>
-  
+  works: Ref<PriceCategory[]>
   /** Текущий пользователь — админ/менеджер? */
-  isAdmin: ReturnType<typeof ref<boolean>>
-  
+  isAdmin: Ref<boolean>
   /** Флаг загрузки */
-  isLoading: ReturnType<typeof ref<boolean>>
-  
+  isLoading: Ref<boolean>
   /** Сообщение об ошибке загрузки */
-  errorMessage: ReturnType<typeof ref<string>>
-  
+  errorMessage: Ref<string>
   /** Принудительная перезагрузка данных с сервера */
   refresh: () => Promise<void>
-  
+
   // === CRUD операции ===
   updateCategory: (id: number, data: Partial<PriceCategory>) => Promise<void>
   updateSubcategory: (id: number, data: Partial<PriceSubcategory>) => Promise<void>
   updateItem: (id: number, data: Partial<PriceWorkItem>) => Promise<void>
   updateDetail: (id: number, data: Partial<PriceDetailItem>) => Promise<void>
   updateDopwork: (id: number, data: Partial<PriceDopworkItem>) => Promise<void>
-  
+
   addItem: (subcategoryId: number, form: NewWorkForm) => Promise<void>
   addDetail: (itemId: number, form: NewDetailForm) => Promise<void>
   addDopwork: (itemId: number, form: NewDopworkForm) => Promise<void>
   addSubcategory: (categoryId: number, name: string) => Promise<void>
   addCategory: (pageId: number, name: string) => Promise<void>
-  
+
   removeItem: (id: number) => Promise<void>
   removeDetail: (id: number) => Promise<void>
   removeDopwork: (id: number) => Promise<void>
   removeSubcategory: (id: number) => Promise<void>
   removeCategory: (id: number) => Promise<void>
-  
+
   /** Массовое обновление порядка (drag & drop) */
   reorderItems: (entity: PriceEntity, items: ReorderItem[]) => Promise<void>
-  
+
   // === Вспомогательные ===
   /** Скопировать название элемента в буфер обмена */
   copyToClipboard: (item: PriceWorkItem | PriceDetailItem | PriceDopworkItem) => void
@@ -112,22 +97,18 @@ function parsePrice(price: string | number): number {
 
 /**
  * Получение заголовков для API-запросов (включая авторизацию).
+ *
+ * Примечание: cookie для SSR пробрасываются на уровне страницы через useAsyncData.
+ * Здесь мы добавляем только Authorization header из Pinia-стора.
  */
 function getApiHeaders(): Record<string, string> {
   const authStore = useAuthStore()
   const headers: Record<string, string> = {}
-  
-  // SSR: пробрасываем cookie на сервер
-  if (import.meta.server) {
-    const requestHeaders = useRequestHeaders(['cookie'])
-    Object.assign(headers, requestHeaders)
-  }
-  
-  // Client: используем токен из store
+
   if (authStore.token) {
     headers.Authorization = `Bearer ${authStore.token}`
   }
-  
+
   return headers
 }
 
@@ -137,102 +118,39 @@ function getApiHeaders(): Record<string, string> {
 
 /**
  * Инициализирует контекст данных прайс-листа.
- * 
- * ВАЖНО: Функция синхронная. useAsyncData вызывается без await,
- * Nuxt Suspense автоматически дождётся загрузки.
+ *
+ * @param pricePayload - Ref с уже загруженными данными из useAsyncData (со страницы)
+ * @param refreshData - Функция перезагрузки данных (из useAsyncData)
+ * @param priceError - Ref с ошибкой загрузки (из useAsyncData)
  */
-export function providePriceData(): PriceDataContext {
-  const route = useRoute()
-  const authStore = useAuthStore()
-  
+export function providePriceData(
+  pricePayload: Ref<{ priceData: ApiPriceListResponse | null; isAdminUser: boolean } | null | undefined>,
+  refreshData: () => Promise<void>,
+  priceError: Ref<any>
+): PriceDataContext {
   // Инжект UI-контекста (для автооткрытия аккордеонов)
   // ВАЖНО: providePriceUI должен быть вызван ДО providePriceData
   const uiContext = inject<PriceUIContext | null>(PRICE_UI_KEY, null)
-  
+
   // ========================================
   // 📊 РЕАКТИВНОЕ СОСТОЯНИЕ
   // ========================================
-  
+
   const works = ref<PriceCategory[]>([])
   const isAdmin = ref(false)
   const isLoading = ref(false)
   const errorMessage = ref('')
-  
+
   // ========================================
-  // 📥 ЗАГРУЗКА ДАННЫХ (асинхронно, но без await)
+  // 🔄 ОБРАБОТКА ДАННЫХ ИЗВНЕ
   // ========================================
-  
-  const slug = computed(() => {
-    const param = route.params.category
-    return (Array.isArray(param) ? param[0] : param) || ''
-  })
-  
-  // useAsyncData БЕЗ await — Nuxt Suspense сам подождёт
-  const { data: pageData, refresh: refreshData, error } = useAsyncData(
-    () => `price-${slug.value}`,
-    async () => {
-      isLoading.value = true
-      errorMessage.value = ''
-      
-      try {
-        const headers = getApiHeaders()
-        
-        // 1. Проверяем роль пользователя
-        let isAdminUser = false
-        if (authStore.token || import.meta.server) {
-          try {
-            const me = await $fetch<{ user?: { role?: string } }>('/api/me', { headers })
-            const role = me?.user?.role
-            isAdminUser = role === 'admin' || role === 'manager'
-          } catch (err) {
-            console.warn('Не удалось проверить роль пользователя:', err)
-          }
-        }
-        
-        // 2. Загружаем дерево прайса
-        const priceData = await $fetch<ApiPriceListResponse>(
-          `/api/price/list/${slug.value}`,
-          { headers }
-        )
-        
-        // ✅ ПРОВЕРКА 404 ВНУТРИ КОЛЛБЭКА
-        if (!priceData || !priceData.categories) {
-          throw createError({
-            statusCode: 404,
-            statusMessage: 'Страница прайса не найдена'
-          })
-        }
-        
-        return { priceData, isAdminUser }
-      } catch (err: any) {
-        // Пробрасываем H3-ошибки (включая 404) как есть
-        if (err?.statusCode) {
-          throw err
-        }
-        console.error('Ошибка загрузки прайса:', err)
-        errorMessage.value = 'Ошибка загрузки данных'
-        throw err
-      } finally {
-        isLoading.value = false
-      }
-    },
-    {
-      server: true,
-      lazy: false,
-      default: () => ({ priceData: null, isAdminUser: false })
-    }
-  )
-  
-  // ========================================
-  // 🔄 ОБРАБОТКА ОШИБОК И ТРАНСФОРМАЦИЯ
-  // ========================================
-  
+
   /**
    * Преобразует ответ API во внутреннюю структуру с UI-полями.
    */
   const transformPriceData = (data: ApiPriceListResponse | null): PriceCategory[] => {
     if (!data?.categories) return []
-    
+
     return data.categories.map((category): PriceCategory => ({
       ...category,
       subcategories: (category.subcategories || []).map((subcategory): PriceSubcategory => ({
@@ -256,25 +174,34 @@ export function providePriceData(): PriceDataContext {
       }))
     }))
   }
-  
-  // Первичное заполнение (если данные уже загружены на сервере)
-  if (pageData.value?.priceData) {
-    works.value = transformPriceData(pageData.value.priceData)
-    isAdmin.value = pageData.value.isAdminUser
-  }
-  
-  // Watch на изменения данных
-  watch(pageData, (newData) => {
+
+  // ✅ КЛЮЧЕВОЙ МОМЕНТ: immediate: true — watch срабатывает синхронно,
+  // заполняя works/isAdmin ДО первого рендеринга (и на сервере, и на клиенте).
+  // Это полностью устраняет ошибки гидратации Vue.
+  watch(pricePayload, (newData) => {
     if (newData?.priceData) {
       works.value = transformPriceData(newData.priceData)
       isAdmin.value = newData.isAdminUser
+    } else if (!newData || !newData.priceData) {
+      // Очищаем данные, если payload сброшен (например, при уходе со страницы)
+      works.value = []
+      isAdmin.value = false
     }
-  })
-  
+  }, { immediate: true })
+
+  // Обработка ошибок извне
+  watch(priceError, (err) => {
+    if (err) {
+      errorMessage.value = err.message || err.statusMessage || 'Ошибка загрузки данных'
+    } else {
+      errorMessage.value = ''
+    }
+  }, { immediate: true })
+
   // ========================================
   // 🎯 CRUD: ОБЩИЙ ПАТТЕРН ОПТИМИСТИЧНОГО ОБНОВЛЕНИЯ
   // ========================================
-  
+
   /**
    * Универсальная обёртка для оптимистичных обновлений.
    */
@@ -286,7 +213,7 @@ export function providePriceData(): PriceDataContext {
   ) {
     const snapshot = deepClone(works.value)
     applyOptimistic()
-    
+
     try {
       const result = await apiCall()
       console.log(`✅ ${actionName}: успешно`)
@@ -298,13 +225,13 @@ export function providePriceData(): PriceDataContext {
       throw err
     }
   }
-  
+
   // ========================================
-  // ✏️ UPDATE методы
+  // 🔍 ПОИСК ЭЛЕМЕНТОВ В ДЕРЕВЕ
   // ========================================
-  
+
   const findCategory = (id: number) => works.value.find(c => c.id === id)
-  
+
   const findSubcategory = (id: number) => {
     for (const category of works.value) {
       const sub = category.subcategories.find(s => s.id === id)
@@ -312,7 +239,7 @@ export function providePriceData(): PriceDataContext {
     }
     return null
   }
-  
+
   const findItem = (id: number): PriceWorkItem | null => {
     for (const category of works.value) {
       for (const subcategory of category.subcategories) {
@@ -322,7 +249,7 @@ export function providePriceData(): PriceDataContext {
     }
     return null
   }
-  
+
   const findDetail = (id: number): { detail: PriceDetailItem, parent: PriceWorkItem } | null => {
     for (const category of works.value) {
       for (const subcategory of category.subcategories) {
@@ -334,7 +261,7 @@ export function providePriceData(): PriceDataContext {
     }
     return null
   }
-  
+
   const findDopwork = (id: number): { dopwork: PriceDopworkItem, parent: PriceWorkItem } | null => {
     for (const category of works.value) {
       for (const subcategory of category.subcategories) {
@@ -346,7 +273,11 @@ export function providePriceData(): PriceDataContext {
     }
     return null
   }
-  
+
+  // ========================================
+  // ✏️ UPDATE методы
+  // ========================================
+
   const updateCategory = async (id: number, data: Partial<PriceCategory>) => {
     await optimisticUpdate(
       `Обновление категории #${id}`,
@@ -361,7 +292,7 @@ export function providePriceData(): PriceDataContext {
       })
     )
   }
-  
+
   const updateSubcategory = async (id: number, data: Partial<PriceSubcategory>) => {
     await optimisticUpdate(
       `Обновление подкатегории #${id}`,
@@ -376,7 +307,7 @@ export function providePriceData(): PriceDataContext {
       })
     )
   }
-  
+
   const updateItem = async (id: number, data: Partial<PriceWorkItem>) => {
     await optimisticUpdate(
       `Обновление работы #${id}`,
@@ -394,7 +325,7 @@ export function providePriceData(): PriceDataContext {
       })
     )
   }
-  
+
   const updateDetail = async (id: number, data: Partial<PriceDetailItem>) => {
     await optimisticUpdate(
       `Обновление детали #${id}`,
@@ -412,7 +343,7 @@ export function providePriceData(): PriceDataContext {
       })
     )
   }
-  
+
   const updateDopwork = async (id: number, data: Partial<PriceDopworkItem>) => {
     await optimisticUpdate(
       `Обновление доп. работы #${id}`,
@@ -430,16 +361,16 @@ export function providePriceData(): PriceDataContext {
       })
     )
   }
-  
+
   // ========================================
   // ➕ ADD методы
   // ========================================
-  
+
   let tempIdCounter = -1
-  
+
   const addCategory = async (pageId: number, name: string) => {
     const tempId = tempIdCounter--
-    
+
     await optimisticUpdate(
       `Добавление категории "${name}"`,
       () => {
@@ -458,18 +389,16 @@ export function providePriceData(): PriceDataContext {
         body: { pageId, name },
         headers: getApiHeaders()
       }),
-      () => {
-        refreshData()
-      }
+      () => { refreshData() }
     )
   }
-  
+
   const addSubcategory = async (categoryId: number, name: string) => {
     const category = findCategory(categoryId)
     if (!category) throw new Error('Категория не найдена')
-    
+
     const tempId = tempIdCounter--
-    
+
     await optimisticUpdate(
       `Добавление подкатегории "${name}"`,
       () => {
@@ -488,19 +417,17 @@ export function providePriceData(): PriceDataContext {
         body: { categoryId, name },
         headers: getApiHeaders()
       }),
-      () => {
-        refreshData()
-      }
+      () => { refreshData() }
     )
   }
-  
+
   const addItem = async (subcategoryId: number, form: NewWorkForm) => {
     const subcategory = findSubcategory(subcategoryId)
     if (!subcategory) throw new Error('Подкатегория не найдена')
-    
+
     const price = parsePrice(form.price)
     const tempId = tempIdCounter--
-    
+
     await optimisticUpdate(
       `Добавление работы "${form.name}"`,
       () => {
@@ -537,14 +464,14 @@ export function providePriceData(): PriceDataContext {
       }
     )
   }
-  
+
   const addDetail = async (itemId: number, form: NewDetailForm) => {
     const item = findItem(itemId)
     if (!item) throw new Error('Работа не найдена')
-    
+
     const price = parsePrice(form.price)
     const tempId = tempIdCounter--
-    
+
     await optimisticUpdate(
       `Добавление детали "${form.name}"`,
       () => {
@@ -579,14 +506,14 @@ export function providePriceData(): PriceDataContext {
       }
     )
   }
-  
+
   const addDopwork = async (itemId: number, form: NewDopworkForm) => {
     const item = findItem(itemId)
     if (!item) throw new Error('Работа не найдена')
-    
+
     const price = parsePrice(form.price)
     const tempId = tempIdCounter--
-    
+
     await optimisticUpdate(
       `Добавление доп. работы "${form.dopwork}"`,
       () => {
@@ -623,11 +550,11 @@ export function providePriceData(): PriceDataContext {
       }
     )
   }
-  
+
   // ========================================
   // 🗑️ REMOVE методы
   // ========================================
-  
+
   const removeCategory = async (id: number) => {
     await optimisticUpdate(
       `Удаление категории #${id}`,
@@ -641,7 +568,7 @@ export function providePriceData(): PriceDataContext {
       })
     )
   }
-  
+
   const removeSubcategory = async (id: number) => {
     await optimisticUpdate(
       `Удаление подкатегории #${id}`,
@@ -660,7 +587,7 @@ export function providePriceData(): PriceDataContext {
       })
     )
   }
-  
+
   const removeItem = async (id: number) => {
     await optimisticUpdate(
       `Удаление работы #${id}`,
@@ -681,7 +608,7 @@ export function providePriceData(): PriceDataContext {
       })
     )
   }
-  
+
   const removeDetail = async (id: number) => {
     await optimisticUpdate(
       `Удаление детали #${id}`,
@@ -704,7 +631,7 @@ export function providePriceData(): PriceDataContext {
       })
     )
   }
-  
+
   const removeDopwork = async (id: number) => {
     await optimisticUpdate(
       `Удаление доп. работы #${id}`,
@@ -727,19 +654,19 @@ export function providePriceData(): PriceDataContext {
       })
     )
   }
-  
+
   // ========================================
   // 🔀 REORDER (Drag & Drop)
   // ========================================
-  
+
   const reorderItems = async (entity: PriceEntity, items: ReorderItem[]) => {
     if (items.length === 0) return
-    
+
     await optimisticUpdate(
       `Изменение порядка: ${entity} (${items.length} шт.)`,
       () => {
         const orderMap = new Map(items.map(i => [i.id, i.order]))
-        
+
         const applyOrder = <T extends { id: number, order: number }>(arr: T[]) => {
           for (const item of arr) {
             const newOrder = orderMap.get(item.id)
@@ -749,7 +676,7 @@ export function providePriceData(): PriceDataContext {
           }
           arr.sort((a, b) => a.order - b.order)
         }
-        
+
         switch (entity) {
           case 'categories':
             applyOrder(works.value)
@@ -785,28 +712,28 @@ export function providePriceData(): PriceDataContext {
       })
     )
   }
-  
+
   // ========================================
   // 📋 КОПИРОВАНИЕ В БУФЕР
   // ========================================
-  
+
   const copyToClipboard = (item: PriceWorkItem | PriceDetailItem | PriceDopworkItem) => {
     let textToCopy = ''
-    
+
     if (item.type === 'item' || item.type === 'detail') {
       textToCopy = item.name
     } else if (item.type === 'dopwork') {
       const dopItem = item as PriceDopworkItem
       textToCopy = [dopItem.label, dopItem.dopwork].filter(Boolean).join(' ')
     }
-    
+
     if (!textToCopy) return
-    
+
     const markCopied = () => {
       item.isCopied = true
       setTimeout(() => { item.isCopied = false }, 3000)
     }
-    
+
     if (import.meta.client && navigator.clipboard?.writeText) {
       navigator.clipboard.writeText(textToCopy)
         .then(markCopied)
@@ -818,7 +745,7 @@ export function providePriceData(): PriceDataContext {
       fallbackCopy(textToCopy, item)
     }
   }
-  
+
   const fallbackCopy = (text: string, item: PriceWorkItem | PriceDetailItem | PriceDopworkItem) => {
     const textArea = document.createElement('textarea')
     textArea.value = text
@@ -836,49 +763,87 @@ export function providePriceData(): PriceDataContext {
       document.body.removeChild(textArea)
     }
   }
-  
+
   // ========================================
   // 🎁 ПУБЛИЧНЫЙ API
   // ========================================
-  
+
   const refresh = async () => {
     await refreshData()
   }
-  
+
   const context: PriceDataContext = {
     works,
     isAdmin,
     isLoading,
     errorMessage,
     refresh,
-    
+
     updateCategory,
     updateSubcategory,
     updateItem,
     updateDetail,
     updateDopwork,
-    
+
     addItem,
     addDetail,
     addDopwork,
     addSubcategory,
     addCategory,
-    
+
     removeItem,
     removeDetail,
     removeDopwork,
     removeSubcategory,
     removeCategory,
-    
+
     reorderItems,
-    
+
     copyToClipboard
   }
-  
+
   // provide() вызывается СИНХРОННО в конце функции
   provide(PRICE_DATA_KEY, context)
-  
+
   return context
+}
+
+// ========================================
+// 🛡️ MOCK-ОБЪЕКТ ДЛЯ БЕЗОПАСНОГО ИНЖЕКТА
+// ========================================
+
+/**
+ * Создаёт пустой mock-объект контекста.
+ * Используется, когда компонент пытается инжектить данные после того,
+ * как провайдер был уничтожен (например, при размонтировании страницы).
+ * Предотвращает краш Vue-компонентов при unmount.
+ */
+function createMockPriceData(): PriceDataContext {
+  const noop = async () => {}
+  return {
+    works: ref([]),
+    isAdmin: ref(false),
+    isLoading: ref(false),
+    errorMessage: ref(''),
+    refresh: noop,
+    updateCategory: noop,
+    updateSubcategory: noop,
+    updateItem: noop,
+    updateDetail: noop,
+    updateDopwork: noop,
+    addItem: noop,
+    addDetail: noop,
+    addDopwork: noop,
+    addSubcategory: noop,
+    addCategory: noop,
+    removeItem: noop,
+    removeDetail: noop,
+    removeDopwork: noop,
+    removeSubcategory: noop,
+    removeCategory: noop,
+    reorderItems: noop,
+    copyToClipboard: () => {}
+  }
 }
 
 // ========================================
@@ -887,14 +852,22 @@ export function providePriceData(): PriceDataContext {
 
 /**
  * Получает контекст данных прайса, предоставленный родителем через providePriceData.
+ *
+ * Если контекст не найден (например, компонент размонтирован или используется вне провайдера),
+ * возвращает безопасный mock-объект вместо выбрасывания ошибки.
  */
 export function usePriceData(): PriceDataContext {
-  const context = inject<PriceDataContext>(PRICE_DATA_KEY)
+  const context = inject<PriceDataContext | null>(PRICE_DATA_KEY, null)
+
   if (!context) {
-    throw new Error(
-      'usePriceData: контекст не найден. ' +
-      'Убедитесь, что providePriceData() вызван в родительском компоненте (pages/prices/[category].vue).'
-    )
+    if (import.meta.dev) {
+      console.warn(
+        '[usePriceData] Контекст не найден. ' +
+        'Возможно, компонент вне провайдера или компонент размонтирован.'
+      )
+    }
+    return createMockPriceData()
   }
+
   return context
 }

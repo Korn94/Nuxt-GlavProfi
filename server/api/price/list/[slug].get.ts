@@ -27,7 +27,7 @@ export default defineApi(async (event) => {
   if (!/^[a-z0-9-]+$/.test(slug)) {
     throw createError({
       statusCode: 404,
-      statusMessage: 'Некорректный формат slug'
+      message: 'Некорректный формат slug'
     })
   }
 

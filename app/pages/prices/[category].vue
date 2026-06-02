@@ -16,141 +16,180 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, watch } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { createError, useAsyncData } from 'nuxt/app'
+import { useAuthStore } from 'stores/auth'
 import { usePriceSeo } from '~/composables/usePriceSeo'
 import {
-  providePriceUI,
-  providePriceData,
-  providePriceEdit,
-  type PricePage
+  providePriceUI, providePriceData, providePriceEdit,
+  type PricePage, type ApiPriceListResponse
 } from '~/components/pages/public/prices/composables'
-
-// ========================================
-// 🎯 ИНИЦИАЛИЗАЦИЯ ПРОВАЙДЕРОВ
-// ========================================
-// 
-// Порядок больше не критичен, так как providePriceEdit
-// инжектит usePriceData() только в обработчиках событий.
-//
-// ========================================
-
-// 1️⃣ UI-состояние
-providePriceUI()
-
-// 2️⃣ Данные прайса (БЕЗ await!)
-providePriceData()
-
-// 3️⃣ Состояние редактирования
-const editContext = providePriceEdit()
-
-// ========================================
-// ⚠️ ПРЕДУПРЕЖДЕНИЕ О НЕСОХРАНЁННЫХ ИЗМЕНЕНИЯХ
-// ========================================
-onBeforeRouteLeave((to, from, next) => {
-  if (editContext.hasUnsavedChanges.value) {
-    const answer = window.confirm(
-      'У вас есть несохранённые изменения. Вы уверены, что хотите покинуть страницу?'
-    )
-    next(answer)
-  } else {
-    next()
-  }
-})
 
 // ========================================
 // 🧭 ROUTER & ROUTE
 // ========================================
-
 const route = useRoute()
 const router = useRouter()
-
-// ========================================
-// 📋 ДАННЫЕ СТРАНИЦЫ
-// ========================================
-
-// Текущий slug из параметров роута
+const authStore = useAuthStore()
 const currentSlug = computed<string>(() => {
   const param = route.params.category
   return (Array.isArray(param) ? param[0] : param) || ''
 })
 
-// Загружаем список страниц прайса для навигации
+// 🛡️ Блокируем запросы к файлам (sourcemap, скрипты)
+if (currentSlug.value.includes('.')) {
+  throw createError({ statusCode: 404, message: 'Страница не найдена' })
+}
+
+// ========================================
+// 🛡️ ФЛАГ: компонент ещё смонтирован?
+// ========================================
+let isComponentMounted = true
+
+// ========================================
+// 1️⃣ UI-состояние (синхронно)
+// ========================================
+providePriceUI()
+
+// ========================================
+// 2️⃣ ЗАГРУЗКА ДАННЫХ
+// ========================================
+const {
+  data: pricePayload,
+  refresh: refreshData,
+  error: priceError
+} = await useAsyncData(
+  () => `price-${currentSlug.value}`,
+  async () => {
+    // 🛡️ ЗАЩИТА: прерываем, если компонент размонтирован или slug пустой
+    if (!isComponentMounted || !currentSlug.value) {
+      return { priceData: null, isAdminUser: false }
+    }
+
+    const headers: Record<string, string> = {}
+    if (authStore.token) {
+      headers.Authorization = `Bearer ${authStore.token}`
+    }
+
+    let isAdminUser = false
+    try {
+      const me = await $fetch<{ user?: { role?: string } }>('/api/me', { headers })
+      const role = me?.user?.role
+      isAdminUser = role === 'admin' || role === 'manager'
+    } catch (err) {
+      console.warn('Не удалось проверить роль:', err)
+    }
+
+    // 🛡️ Ещё раз проверяем перед тяжёлым запросом
+    if (!isComponentMounted) {
+      return { priceData: null, isAdminUser: false }
+    }
+
+    const priceData = await $fetch<ApiPriceListResponse>(
+      `/api/price/list/${currentSlug.value}`, { headers }
+    )
+    return { priceData, isAdminUser }
+  },
+  {
+    server: true,
+    lazy: false,
+    // ❌ УБРАЛИ watch: [currentSlug] — это вызывало двойные запросы
+    default: () => ({ priceData: null, isAdminUser: false })
+  }
+)
+
+// ========================================
+// 3️⃣ ПЕРЕДАЁМ ГОТОВЫЕ ДАННЫЕ В ПРОВАЙДЕР
+// ========================================
+providePriceData(pricePayload, refreshData, priceError)
+
+// ========================================
+// 4️⃣ СОСТОЯНИЕ РЕДАКТИРОВАНИЯ
+// ========================================
+const editContext = providePriceEdit()
+
+// ========================================
+// ⚠️ ПРЕДУПРЕЖДЕНИЕ О НЕСОХРАНЁННЫХ ИЗМЕНЕНИЯХ
+// ========================================
+onBeforeRouteLeave((to, from) => {
+  if (editContext.hasUnsavedChanges.value) {
+    const answer = window.confirm('У вас есть несохранённые изменения. Покинуть страницу?')
+    return answer  // ✅ Возвращаем значение (без next())
+  }
+  return true
+})
+
+// ========================================
+// 📋 ДАННЫЕ СТРАНИЦЫ (навигация)
+// ========================================
 const { data: pagesData, error: pagesError } = await useAsyncData<PricePage[]>(
   'price-pages',
   () => $fetch<PricePage[]>('/api/price/pages')
 )
 
-// Обработка ошибки загрузки страниц
 if (pagesError.value) {
-  throw createError({
-    statusCode: 500,
-    message: 'Ошибка загрузки списка категорий'
-  })
+  throw createError({ statusCode: 500, message: 'Ошибка загрузки списка категорий' })
 }
 
-// Список категорий для навигации (верхний таб-бар)
 const categories = computed(() =>
-  pagesData.value?.map(page => ({
-    id: page.id,
-    name: page.title,
-    slug: page.slug
-  })) || []
+  (pagesData.value ?? []).map(page => ({
+    id: page.id, name: page.title, slug: page.slug
+  }))
 )
 
-// Текущая страница (для 404 если slug не найден)
 const currentCategory = computed(() =>
-  pagesData.value?.find(page => page.slug === currentSlug.value) || null
+  (pagesData.value ?? []).find(page => page.slug === currentSlug.value) || null
 )
 
-// Если slug невалидный — 404
 if (!currentCategory.value) {
-  throw createError({
-    statusCode: 404,
-    message: 'Страница не найдена'
-  })
+  throw createError({ statusCode: 404, message: 'Страница не найдена' })
 }
 
-// ========================================
-// 🧭 ОБРАБОТКА НАВИГАЦИИ
-// ========================================
-
-/**
- * Переключение между категориями прайса (через роутер).
- */
 const setCategory = (categorySlug: string) => {
   router.push({ params: { category: categorySlug } })
 }
 
 // ========================================
-// 🔍 SEO (useHead + JSON-LD)
+// 🔍 SEO
 // ========================================
-
-// Вызываем SEO-композабл — он сам загрузит данные и применит useHead
-usePriceSeo(currentSlug.value)
+usePriceSeo(currentSlug.value, pricePayload, pagesData)
 
 // ========================================
-// 🛡️ ДОПОЛНИТЕЛЬНАЯ ЗАЩИТА (опционально)
+// 🛡️ ЗАЩИТА ОТ СЛУЧАЙНОГО ЗАКРЫТИЯ
 // ========================================
-
-// Предупреждение при закрытии вкладки/перезагрузке страницы
-if (import.meta.client) {
-  const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-    if (editContext.hasUnsavedChanges.value) {
-      e.preventDefault()
-      e.returnValue = ''
-    }
+// ✅ Объявляем функцию НА УРОВНЕ setup (вне if)
+const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+  if (editContext.hasUnsavedChanges.value) {
+    e.preventDefault()
+    e.returnValue = ''
   }
-
-  onMounted(() => {
-    window.addEventListener('beforeunload', handleBeforeUnload)
-  })
-
-  onUnmounted(() => {
-    window.removeEventListener('beforeunload', handleBeforeUnload)
-  })
 }
+
+// ✅ Регистрируем listener только на клиенте
+if (import.meta.client) {
+  onMounted(() => window.addEventListener('beforeunload', handleBeforeUnload))
+}
+
+// ========================================
+// 🧹 ОЧИСТКА ПРИ РАЗМОНТИРОВАНИИ
+// ========================================
+onUnmounted(() => {
+  // 🛡️ Флаг: больше не делаем запросов
+  isComponentMounted = false
+  
+  // 🧹 Очищаем состояние редактирования
+  if (editContext.clearAllEditStates) {
+    editContext.clearAllEditStates()
+  }
+  
+  // ✅ handleBeforeUnload теперь доступен здесь!
+  if (import.meta.client) {
+    window.removeEventListener('beforeunload', handleBeforeUnload)
+  }
+  
+  // console.log('[Prices Page] Компонент размонтирован, состояние очищено')
+})
 </script>
 
 <style lang="scss" scoped>
