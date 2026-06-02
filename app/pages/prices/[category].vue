@@ -18,12 +18,6 @@
 import { computed } from 'vue'
 import { usePriceStores } from '~/composables/usePriceStores'
 import { usePriceSeo } from '~/composables/usePriceSeo'
-import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
-
-// ✅ Принудительное пересоздание компонента при смене slug
-definePageMeta({
-  key: (route) => route.params.category as string,
-})
 
 // ========================================
 // 🎯 ОДНА ТОЧКА ИНИЦИАЛИЗАЦИИ

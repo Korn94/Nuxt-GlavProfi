@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { useCookie, useRouter } from 'nuxt/app'
 import { useNotifications } from '~/composables/useNotifications'
 import { useApi } from '~/composables/useApi'
+import { clearCurrentUser } from '~/composables/useCurrentUser' // ← ДОБАВЛЕНО: сброс кэша текущего пользователя
 import type { User } from '~/types'
 import type { Role, Permissions as AppPermissions, UserPermissionsResponse } from '~/types/permissions'
 
@@ -71,7 +72,6 @@ export const useAuthStore = defineStore('auth', {
         }
 
         const api = useApi()
-        // ... (твой код с Promise.all для загрузки userRes и permsRes) ...
         const [userRes, permsRes] = await Promise.all([
           api.get<{ user: User }>('/api/auth/check'),
           api.get<UserPermissionsResponse>('/api/permissions')
@@ -93,14 +93,12 @@ export const useAuthStore = defineStore('auth', {
         // ✅ FIX: Задержка обновления флага на клиенте
         // Это предотвращает изменение DOM во время гидратации
         if (process.client) {
-          // Динамический импорт, чтобы избежать проблем с серверным рендерингом
           import('vue').then(({ nextTick }) => {
             nextTick(() => {
               this.isChecking = false
             })
           })
         } else {
-          // На сервере меняем сразу
           this.isChecking = false
         }
       }
@@ -148,6 +146,11 @@ export const useAuthStore = defineStore('auth', {
         this.user = response.user
         this.isAuthenticated = true
         this.sessionId = response.sessionId
+
+        // ✅ СБРАСЫВАЕМ КЭШ ТЕКУЩЕГО ПОЛЬЗОВАТЕЛЯ
+        // Это гарантирует, что useCurrentUser сделает новый запрос к /api/me
+        // и получит актуальные данные нового пользователя
+        clearCurrentUser()
 
         notifications.success(`Добро пожаловать, ${response.user.name}!`)
 
@@ -212,8 +215,6 @@ export const useAuthStore = defineStore('auth', {
         if (process.client) {
           try {
             const { socketService } = await import('services/socket.service')
-            // Вызываем disconnect() напрямую. Он должен быть публичным
-            // и безопасно обрабатывать ситуацию, когда сокет уже закрыт.
             socketService.disconnect()
             console.log('[AuthStore] 🔌 Сокет отключён')
           } catch (e) {
@@ -223,6 +224,11 @@ export const useAuthStore = defineStore('auth', {
 
         tokenCookie.value = null
         sessionIdCookie.value = null
+
+        // ✅ СБРАСЫВАЕМ КЭШ ТЕКУЩЕГО ПОЛЬЗОВАТЕЛЯ
+        // Это гарантирует, что useCurrentUser сделает новый запрос к /api/me
+        // и получит { user: null } для гостя
+        clearCurrentUser()
 
         this.resetState()
 

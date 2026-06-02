@@ -22,44 +22,35 @@ import { useAuthStore } from 'stores/auth'
 import { usePriceUIStore } from 'stores/price/usePriceUIStore'
 import { usePriceDataStore } from 'stores/price/usePriceDataStore'
 import { usePriceEditStore } from 'stores/price/usePriceEditStore'
+import { useCurrentUser } from '~/composables/useCurrentUser' // ← ДОБАВИТЬ
 import type { ApiPriceListResponse, PricePage } from 'stores/price/types'
 
-/**
- * Главный composable страницы прайс-листа.
- * Вызывается один раз в setup() компонента [category].vue.
- */
 export function usePriceStores() {
-  // ========================================
-  // 🧭 ROUTER & ROUTE
-  // ========================================
   const route = useRoute()
   const router = useRouter()
   const authStore = useAuthStore()
 
-  // ========================================
-  // 🏪 ИНИЦИАЛИЗАЦИЯ STORES (порядок не важен — Pinia!)
-  // ========================================
   const uiStore = usePriceUIStore()
   const dataStore = usePriceDataStore()
   const editStore = usePriceEditStore()
 
-  // ========================================
-  // 📍 SLUG ТЕКУЩЕЙ КАТЕГОРИИ
-  // ========================================
   const currentSlug = computed<string>(() => {
     const param = route.params.category
     return (Array.isArray(param) ? param[0] : param) || ''
   })
 
-  // 🛡️ Блокируем запросы к файлам (sourcemap, скрипты)
   if (currentSlug.value.includes('.')) {
     throw createError({ statusCode: 404, message: 'Страница не найдена' })
   }
 
-  // ========================================
-  // 🛡️ ФЛАГ: компонент ещё смонтирован?
-  // ========================================
   let isComponentMounted = true
+
+  // ========================================
+  // 🧑 ПОЛУЧЕНИЕ ТЕКУЩЕГО ПОЛЬЗОВАТЕЛЯ (ГЛОБАЛЬНЫЙ КЭШ)
+  // ========================================
+  // ✅ Этот запрос выполнится ОДИН раз за всю сессию.
+  // При переходе между категориями прайса Nuxt вернёт кэшированный результат.
+  const { data: currentUserData } = useCurrentUser()
 
   // ========================================
   // 📥 ЗАГРУЗКА ДАННЫХ ПРАЙСА (useAsyncData + transform)
@@ -69,10 +60,11 @@ export function usePriceStores() {
     refresh: refreshData,
     error: priceError,
   } = useAsyncData(
-    () => `price-${currentSlug.value}`,
+    // ✅ Статический ключ на основе route.params (не computed!)
+    `price-${String(route.params.category)}`,
     async () => {
-      // 🛡️ УБРАЛИ проверку isComponentMounted — она мешала перезапуску
-      if (!currentSlug.value) {
+      const slug = String(route.params.category)
+      if (!slug || slug.includes('.')) {
         return { priceData: null, isAdminUser: false }
       }
 
@@ -81,17 +73,11 @@ export function usePriceStores() {
         headers.Authorization = `Bearer ${authStore.token}`
       }
 
-      let isAdminUser = false
-      try {
-        const me = await $fetch<{ user?: { role?: string } }>('/api/me', { headers })
-        const role = me?.user?.role
-        isAdminUser = role === 'admin' || role === 'manager'
-      } catch (err) {
-        console.warn('Не удалось проверить роль:', err)
-      }
+      const role = currentUserData.value?.user?.role
+      const isAdminUser = role === 'admin' || role === 'manager'
 
       const priceData = await $fetch<ApiPriceListResponse>(
-        `/api/price/list/${currentSlug.value}`,
+        `/api/price/list/${slug}`,
         { headers },
       )
 
@@ -100,8 +86,8 @@ export function usePriceStores() {
     {
       server: true,
       lazy: false,
-      watch: [currentSlug], // ← КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: перезапуск при смене slug
       default: () => ({ priceData: null, isAdminUser: false }),
+      dedupe: 'defer',
       transform: (payload) => {
         dataStore.setData(payload)
         return payload
@@ -109,26 +95,13 @@ export function usePriceStores() {
     },
   )
 
-  // ========================================
-  // 🔄 СИНХРОНИЗАЦИЯ С DATA STORE (для клиентских обновлений)
-  // ========================================
-  // БЕЗ immediate: true, чтобы не затирать данные, загруженные через transform.
-  // Watch нужен только для клиентских обновлений (refresh(), изменение slug).
-  watch(
-    pricePayload,
-    newData => {
-      if (newData) {
-        // refreshData доступен здесь (после возврата из useAsyncData)
-        dataStore.setData(newData, refreshData)
-      } else {
-        dataStore.setData(null)
-      }
-    },
-  )
+  // ❌ УДАЛИТЬ ВЕСЬ ЭТОТ БЛОК:
+  // watch(pricePayload, newData => { ... })
+  // ↑ Он дублировал transform и вызывал лишние setData
 
   watch(
     priceError,
-    err => {
+    (err) => {
       dataStore.setError(err)
     },
     { immediate: true },
@@ -140,22 +113,20 @@ export function usePriceStores() {
   const { data: pagesData, error: pagesError } = useAsyncData<PricePage[]>(
     'price-pages',
     () => $fetch<PricePage[]>('/api/price/pages'),
+    {
+      server: true,
+      lazy: false,
+    },
   )
 
   if (pagesError.value) {
     throw createError({ statusCode: 500, message: 'Ошибка загрузки списка категорий' })
   }
 
-  // ========================================
-  // 🧭 НАВИГАЦИЯ ПО КАТЕГОРИЯМ
-  // ========================================
   const setCategory = (categorySlug: string) => {
     router.push({ params: { category: categorySlug } })
   }
 
-  // ========================================
-  // ⚠️ ПРЕДУПРЕЖДЕНИЕ О НЕСОХРАНЁННЫХ ИЗМЕНЕНИЯХ
-  // ========================================
   onBeforeRouteLeave((to, from) => {
     if (editStore.hasUnsavedChanges) {
       const answer = window.confirm(
@@ -166,9 +137,6 @@ export function usePriceStores() {
     return true
   })
 
-  // ========================================
-  // 🛡️ ЗАЩИТА ОТ СЛУЧАЙНОГО ЗАКРЫТИЯ ВКЛАДКИ
-  // ========================================
   const handleBeforeUnload = (e: BeforeUnloadEvent) => {
     if (editStore.hasUnsavedChanges) {
       e.preventDefault()
@@ -180,42 +148,25 @@ export function usePriceStores() {
     onMounted(() => window.addEventListener('beforeunload', handleBeforeUnload))
   }
 
-  // ========================================
-  // 🧹 РАЗМОНТИРОВАНИЕ: полный сброс всех сторов
-  // ========================================
   onUnmounted(() => {
-    // 🛡️ Флаг: больше не делаем запросов
     isComponentMounted = false
-
     console.log('[usePriceStores] Размонтирование — сброс всех Pinia-сторов')
 
-    // 🎨 UI Store — сброс аккордеонов, поиска, фильтров
     uiStore.resetUIState()
-
-    // 📊 Data Store — очистка дерева данных (через setData(null))
-    dataStore.setData(null)
-
-    // ✏️ Edit Store — сброс всех форм редактирования и добавления
+    // ❌ УБРАЛИ dataStore.setData(null)
     editStore.clearAllEditStates()
 
-    // 🛡️ Удаление глобального listener
     if (import.meta.client) {
       window.removeEventListener('beforeunload', handleBeforeUnload)
     }
   })
 
-  // ========================================
-  // 🎁 ПУБЛИЧНЫЙ API ДЛЯ СТРАНИЦЫ
-  // ========================================
   return {
-    // Данные
     pricePayload,
     priceError,
     refreshData,
     pagesData,
     pagesError,
-
-    // Роутинг
     currentSlug,
     setCategory,
   }

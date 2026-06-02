@@ -98,12 +98,12 @@ export const usePriceUIStore = defineStore('price-ui', () => {
   })
 
   // Watch на изменение slug — сбрасываем UI при переходе между категориями
-  watch(currentSlug, (newSlug, oldSlug) => {
-    if (newSlug !== oldSlug && oldSlug !== undefined) {
-      console.log(`🔄 Смена категории: ${oldSlug} → ${newSlug}, сбрасываем UI-состояние`)
-      resetUIState()
-    }
-  })
+  // watch(currentSlug, (newSlug, oldSlug) => {
+  //   if (newSlug !== oldSlug && oldSlug !== undefined) {
+  //     console.log(`🔄 Смена категории: ${oldSlug} → ${newSlug}, сбрасываем UI-состояние`)
+  //     resetUIState()
+  //   }
+  // })
 
   // ========================================
   // 🎁 ПУБЛИЧНЫЙ API
