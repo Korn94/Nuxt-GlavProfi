@@ -13,7 +13,7 @@
           <h2>Свяжитесь с нами</h2>
           <ul>
             <li><strong>Телефон:</strong> +7 (910) 909-69-47</li>
-            <li><strong>Email:</strong> info@glavprofi.ru</li>
+            <li><strong>Email:</strong> glavprofi@yandex.ru</li>
             <li><strong>Адрес:</strong> г. Рязань, Право-Лыбедская ул., 40</li>
             <li><strong>Режим работы:</strong> Пн–Пт: 9:00–18:00, Сб: 10:00–15:00, Вс: выходной</li>
           </ul>

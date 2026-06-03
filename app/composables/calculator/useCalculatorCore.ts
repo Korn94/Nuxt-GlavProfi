@@ -22,76 +22,92 @@ export function useCalculatorCore(
   // Вспомогательная функция: поиск работы по ID
   const getWorkById = (id: number) => allWorks.value.find(w => w.id === id)
 
-  /**
-   * 📦 Расчёт линий для конкретного инстанса покрытия
-   * ✅ Логика: для стен берётся wallArea, для пола/потолка — floorArea.
-   */
-  function calculateInstanceLines(instance: CalculatorState['surfaceInstances'][number]): CalculationLine[] {
-    const config = FINISH_GROUPS[instance.finishGroupId]
-    if (!config) return []
+/**
+ * 📦 Расчёт линий для конкретного инстанса покрытия
+ * ✅ ИСПРАВЛЕНО: теперь используется instance.area, а не глобальные размеры
+ * ✅ ДОБАВЛЕНО: учёт дополнительных работ (extras)
+ */
+function calculateInstanceLines(instance: CalculatorState['surfaceInstances'][number]): CalculationLine[] {
+  const config = FINISH_GROUPS[instance.finishGroupId]
+  if (!config) return []
 
-    const lines: CalculationLine[] = []
+  const lines: CalculationLine[] = []
 
-    // 1. Собираем все выбранные itemId из активных опций
-    const selectedOptionIds = new Set<number>()
-    if (config.options) {
-      for (const [optKey, optVal] of Object.entries(instance.options)) {
-        const optConfig = config.options[optKey]
-        if (optConfig) {
-          const match = optConfig.values.find(v => v.value === optVal)
-          if (match?.itemId) selectedOptionIds.add(match.itemId)
-        }
+  // 1. Собираем все выбранные itemId из активных опций
+  const selectedOptionIds = new Set<number>()
+  if (config.options) {
+    for (const [optKey, optVal] of Object.entries(instance.options)) {
+      const optConfig = config.options[optKey]
+      if (optConfig) {
+        const match = optConfig.values.find(v => v.value === optVal)
+        if (match?.itemId) selectedOptionIds.add(match.itemId)
       }
     }
+  }
 
-    // 2. Функция поиска замены: опция должна иметь тот же subCategoryId
-    const getEffectiveItemId = (baseId: number): number => {
-      const baseWork = getWorkById(baseId)
-      if (!baseWork || selectedOptionIds.size === 0) return baseId
+  // 2. Функция поиска замены: опция должна иметь тот же subCategoryId
+  const getEffectiveItemId = (baseId: number): number => {
+    const baseWork = getWorkById(baseId)
+    if (!baseWork || selectedOptionIds.size === 0) return baseId
 
-      const replacementId = [...selectedOptionIds].find(optId => {
-        const optWork = getWorkById(optId)
-        return optWork?.subCategoryId === baseWork.subCategoryId
-      })
+    const replacementId = [...selectedOptionIds].find(optId => {
+      const optWork = getWorkById(optId)
+      return optWork?.subCategoryId === baseWork.subCategoryId
+    })
 
-      return replacementId || baseId
-    }
+    return replacementId || baseId
+  }
 
-    // 3. Формируем список работ из конфига
-    const workIds = [...config.baseItemIds]
-    for (const workId of workIds) {
-      if (instance.excludedItemIds.includes(workId)) continue
+  // ✅ ИСПРАВЛЕНО: Используем instance.area как базовое количество
+  // Раньше здесь было: state.dimensions.wallArea ?? state.dimensions.floorArea
+  const baseQuantity = instance.area || state.dimensions.floorArea
 
-      const finalWorkId = getEffectiveItemId(workId)
-      const work = getWorkById(finalWorkId)
+  // 3. Формируем список базовых работ из конфига
+  const workIds = [...config.baseItemIds]
+  for (const workId of workIds) {
+    if (instance.excludedItemIds.includes(workId)) continue
+
+    const finalWorkId = getEffectiveItemId(workId)
+    const work = getWorkById(finalWorkId)
+    if (!work) continue
+
+    // ✅ ВСЕГДА используем instance.area для базовых работ покрытия
+    const quantity = Math.max(0, baseQuantity)
+    const total = work.pricePerUnit * quantity
+
+    lines.push({
+      id: work.id,
+      name: work.name,
+      unit: work.normalizedUnit,
+      quantity,
+      pricePerUnit: work.pricePerUnit,
+      total,
+      finishGroupId: instance.finishGroupId
+    })
+  }
+
+  // ✅ ДОБАВЛЕНО: Учитываем extras (дополнительные работы внутри карточки)
+  if (instance.extras?.length) {
+    for (const extra of instance.extras) {
+      const work = getWorkById(extra.itemId)
       if (!work) continue
-
-      // ✅ Динамический выбор площади в зависимости от секции работы
-      let quantity = 0
-      if (work.section === 'walls') {
-        quantity = state.dimensions.wallArea ?? state.dimensions.floorArea
-      } else if (work.section === 'floor' || work.section === 'ceiling' || work.section === 'partitions') {
-        quantity = state.dimensions.floorArea
-      } else {
-        quantity = instance.area || state.dimensions.floorArea
-      }
-
-      quantity = Math.max(0, quantity)
-      const total = work.pricePerUnit * quantity
-
+      
+      const total = work.pricePerUnit * extra.qty
       lines.push({
         id: work.id,
         name: work.name,
         unit: work.normalizedUnit,
-        quantity,
+        quantity: extra.qty,
         pricePerUnit: work.pricePerUnit,
         total,
-        finishGroupId: instance.finishGroupId
+        finishGroupId: instance.finishGroupId,
+        isExtra: true
       })
     }
-
-    return lines
   }
+
+  return lines
+}
 
   /**
    * 📊 Главный метод генерации сметы

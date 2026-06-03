@@ -186,7 +186,8 @@ const calculatedWallArea = computed(() => {
 
 /** Текст подсказки для площади стен */
 const calculatedWallAreaText = computed(() => {
-  const pVal = props.modelPerimeter !== null ? props.modelPerimeter.toFixed(1) : 'авто'
+  // ✅ .toFixed(2) для корректного отображения (например, 28.30)
+  const pVal = props.modelPerimeter !== null ? props.modelPerimeter.toFixed(2) : 'авто'
   return `${pVal} м.п. × ${props.modelHeight} м = ${calculatedWallArea.value} м²`
 })
 
@@ -195,9 +196,8 @@ const calculatedWallAreaText = computed(() => {
  */
 watch(() => props.modelFloorArea, (newArea) => {
   if (!isManualPerimeter.value && newArea > 0) {
-    const autoP = Math.round(4 * Math.sqrt(newArea) * 10) / 10
+    const autoP = Math.round(4 * Math.sqrt(newArea) * 100) / 100
     emit('update:perimeter', autoP)
-    // console.log('📏 Авто-периметр обновлён:', autoP, 'м.п.')
   }
 })
 
@@ -227,12 +227,11 @@ function onHeightInput(e: Event) {
 
 function onPerimeterInput(e: Event) {
   const val = parseFloat((e.target as HTMLInputElement).value)
-
   if (!isManualPerimeter.value && !isNaN(val) && val > 0) {
     enableManualPerimeter()
   }
-
-  emit('update:perimeter', isNaN(val) ? null : val)
+  // ✅ Округление ручного ввода до 2 знаков
+  emit('update:perimeter', isNaN(val) ? null : Math.round(val * 100) / 100)
 }
 
 function enableManualPerimeter() {
@@ -242,9 +241,8 @@ function enableManualPerimeter() {
 
 function disableManualPerimeter() {
   isManualPerimeter.value = false
-  const autoP = Math.round(4 * Math.sqrt(Math.max(0, props.modelFloorArea)) * 10) / 10
+  const autoP = Math.round(4 * Math.sqrt(Math.max(0, props.modelFloorArea)) * 100) / 100
   emit('update:perimeter', autoP > 0 ? autoP : null)
-  // console.log('🔄 Периметр возвращён к авто-расчёту:', autoP, 'м.п.')
 }
 
 function onWallAreaInput(e: Event) {

@@ -34,6 +34,8 @@
         :config="getGroupConfig(instance.finishGroupId)"
         :all-works="allWorks"
         :extras="instance.extras || []"
+        :dimensions="props.dimensions"
+        :section="props.section"
         @remove="(id) => emit('remove', id)"
         @update-area="emit('update-area', $event)"
         @update-option="emit('update-option', $event)"
@@ -73,6 +75,7 @@ const props = defineProps<{
   surfaceInstances: SurfaceInstance[]
   allWorks: NormalizedWorkItem[]
   section: CalculatorSection
+  dimensions: { floorArea: number; height: number; perimeter: number | null; wallArea: number | null } // ✅ ДОБАВЛЕНО
 }>()
 
 const SECTION_META: Record<CalculatorSection, { label: string; icon: string }> = {

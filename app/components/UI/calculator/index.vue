@@ -48,6 +48,7 @@
         :surface-instances="state.surfaceInstances"
         :all-works="allWorksFlat"
         :section="state.section"
+        :dimensions="state.dimensions"
         @add="addSurfaceInstance"
         @remove="removeSurfaceInstance"
         @update-area="({ instanceId, area }) => updateInstanceArea(instanceId, area)"

@@ -5,11 +5,13 @@
       :config="config"
       :instance="instance"
       :show-extras="showExtras"
+      :total-price="cardTotal"
+      :dimensions="dimensions"
+      :section="section"
       @update-area="onAreaUpdate"
       @remove="emit('remove', instance.instanceId)"
       @toggle-extras="showExtras = !showExtras"
     />
-
     <div class="card-content">
       <!-- 1. Опции (всегда видны, radio) -->
       <FinishCardOptions
@@ -19,7 +21,6 @@
         :instance-id="instance.instanceId"
         @update-option="emit('update-option', $event)"
       />
-
       <!-- 2. Базовые работы (всегда видны, с итогами) -->
       <FinishCardBaseWorks
         :works="resolvedBaseWorks"
@@ -27,7 +28,6 @@
         :excluded-ids="instance.excludedItemIds"
         @toggle-exclude="onToggleExclude"
       />
-
       <!-- 3. Доп. работы (раскрываются по клику) -->
       <Transition name="slide">
         <div v-if="showExtras" class="extras-section">
@@ -47,10 +47,11 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import type { 
-  SurfaceInstance, 
-  FinishGroupConfig, 
-  NormalizedWorkItem 
+import type {
+  SurfaceInstance,
+  FinishGroupConfig,
+  NormalizedWorkItem,
+  CalculatorSection
 } from '~/types/calculator'
 import FinishCardHeader from './FinishCardHeader.vue'
 import FinishCardOptions from './FinishCardOptions.vue'
@@ -61,6 +62,8 @@ const props = defineProps<{
   instance: SurfaceInstance
   config: FinishGroupConfig | undefined
   allWorks: NormalizedWorkItem[]
+  dimensions: { floorArea: number; height: number; perimeter: number | null; wallArea: number | null }
+  section: CalculatorSection
 }>()
 
 const emit = defineEmits<{
@@ -73,7 +76,6 @@ const emit = defineEmits<{
   'update-extra-qty': [payload: { instanceId: string; itemId: number; qty: number }]
 }>()
 
-// Состояние раскрытия допов (по умолчанию скрыты)
 const showExtras = ref(false)
 
 function onAreaUpdate(area: number) {
@@ -84,14 +86,27 @@ function onToggleExclude(itemId: number) {
   emit('toggle-exclusion', { instanceId: props.instance.instanceId, itemId })
 }
 
-/**
- * 🧮 Маппинг базовых работ с учётом опций.
- * Опции заменяют базовые работы, которые помечены как "заменяемые".
- */
+// ✅ Расчёт итоговой стоимости карточки
+const cardTotal = computed(() => {
+  let total = 0
+  // 1. Базовые работы (с учётом исключённых)
+  for (const work of resolvedBaseWorks.value) {
+    if (!props.instance.excludedItemIds?.includes(work.id)) {
+      total += work.pricePerUnit * props.instance.area
+    }
+  }
+  // 2. Дополнительные работы
+  if (props.instance.extras?.length) {
+    for (const extra of props.instance.extras) {
+      const work = props.allWorks.find(w => w.id === extra.itemId)
+      if (work) total += work.pricePerUnit * extra.qty
+    }
+  }
+  return Math.round(total)
+})
+
 const resolvedBaseWorks = computed(() => {
   if (!props.config || !props.config.baseItemIds?.length) return []
-
-  // 1. Собираем все выбранные itemId из активных опций
   const selectedOptionIds = new Set<number>()
   if (props.config.options) {
     for (const optKey in props.instance.options) {
@@ -103,50 +118,34 @@ const resolvedBaseWorks = computed(() => {
       }
     }
   }
-
-  // 2. Определяем, какие базовые работы можно заменять
-  // По умолчанию: все базовые работы, кроме вспомогательных (грунтовка, подготовка)
   const replaceableBaseIds = props.config.baseItemIds.filter(baseId => {
     const baseWork = props.allWorks.find(w => w.id === baseId)
     if (!baseWork) return false
-    // Грунтовки и подготовительные работы не заменяем
     const nameLower = baseWork.name.toLowerCase()
     return !nameLower.includes('грунтов') && !nameLower.includes('подготов')
   })
-
-  // 3. Формируем итоговый список
   const result: NormalizedWorkItem[] = []
   let replacementUsed = false
-
   for (const baseId of props.config.baseItemIds) {
     const baseWork = props.allWorks.find(w => w.id === baseId)
     if (!baseWork) continue
-
-    // Проверяем, можно ли заменить эту базовую работу
     const canReplace = replaceableBaseIds.includes(baseId) && !replacementUsed
-
     if (canReplace && selectedOptionIds.size > 0) {
-      // Ищем замену среди выбранных опций
-      // Критерий: опция должна относиться к той же секции
       const replacementId = [...selectedOptionIds].find(optId => {
         const optWork = props.allWorks.find(w => w.id === optId)
         return optWork?.section === baseWork.section
       })
-
       if (replacementId) {
         const replacementWork = props.allWorks.find(w => w.id === replacementId)
         if (replacementWork) {
           result.push(replacementWork)
-          replacementUsed = true // Используем замену только один раз
+          replacementUsed = true
           continue
         }
       }
     }
-
-    // Если замена не найдена или не нужна, добавляем базовую работу
     result.push(baseWork)
   }
-
   return result
 })
 </script>
@@ -154,43 +153,34 @@ const resolvedBaseWorks = computed(() => {
 <style lang="scss" scoped>
 @use "@/assets/styles/variables" as *;
 
-// === Карточка покрытия (тёмная тема) ===
 .finish-card {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   overflow: hidden;
   transition: border-color 0.25s ease, box-shadow 0.25s ease;
-
   &:hover {
     border-color: rgba(0, 195, 245, 0.2);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
   }
 }
-
-// === Контент карточки ===
 .card-content {
   padding: 1.2rem;
   display: flex;
   flex-direction: column;
   gap: 1.2rem;
 }
-
-// === Секция доп. работ (раскрывающаяся) ===
 .extras-section {
   margin-top: 0.5rem;
   padding-top: 1rem;
   border-top: 1px dashed rgba(255, 255, 255, 0.1);
 }
-
-// === Анимация раскрытия ===
 .slide-enter-active,
 .slide-leave-active {
   transition: all 0.3s ease;
   max-height: 800px;
   overflow: hidden;
 }
-
 .slide-enter-from,
 .slide-leave-to {
   max-height: 0;

@@ -100,9 +100,9 @@
         :name="isAdminMode ? 'mdi:eye-off-outline' : 'mdi:eye-outline'"
         size="24"
       />
-      <span class="admin-toggle-fab__label">
+      <!-- <span class="admin-toggle-fab__label">
         {{ isAdminMode ? 'Просмотр' : 'Редактирование' }}
-      </span>
+      </span> -->
     </button>
   </div>
 </template>

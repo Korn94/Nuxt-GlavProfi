@@ -109,7 +109,7 @@ onUnmounted(() => {
   margin-bottom: 5px;
   white-space: nowrap;
   position: relative;
-  z-index: 1;
+  z-index: 99;
   background: transparent;
   transition: all 0.3s ease;
 
@@ -120,7 +120,7 @@ onUnmounted(() => {
     right: 0;
     background: $background-light;
     padding: 5px;
-    z-index: 1;
+    z-index: 99;
     transform: translateY(0);
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     
