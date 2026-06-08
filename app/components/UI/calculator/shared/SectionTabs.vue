@@ -36,7 +36,7 @@ const tabs = [
   { id: 'walls', label: 'Стены', icon: 'mdi:wall' },
   { id: 'floor', label: 'Пол', icon: 'material-symbols:floor' },
   { id: 'ceiling', label: 'Потолок', icon: 'material-symbols:roofing' },
-  { id: 'partitions', label: 'Перегородки', icon: 'material-symbols:roofing' }
+  { id: 'partitions', label: 'Перегородки', icon: 'material-symbols:elevation-outline' }
 ] as const
 
 // -----------------------------------------------------------------------------

@@ -6,7 +6,10 @@
       <span class="split-summary__value">{{ formatCurrency(effectiveAllocated) }}</span>
     </div>
     <div class="split-summary__row">
-      <span class="split-summary__label">{{ daysCount > 1 ? `Итого за ${daysCount} дн.:` : 'Ставка за день:' }}</span>
+      <!-- ← ИЗМЕНЕНО: показываем "Пол ставки:" когда включено -->
+      <span class="split-summary__label">
+        {{ daysCount > 1 ? `Итого за ${daysCount} дн.:` : isHalfDay ? 'Пол ставки:' : 'Ставка за день:' }}
+      </span>
       <span class="split-summary__value">{{ formatCurrency(effectiveTarget) }}</span>
     </div>
     
@@ -32,10 +35,12 @@ const props = withDefaults(defineProps<{
   dailyRate: number
   /** Количество выбранных дней для масштабирования итогов */
   daysCount?: number
+  isHalfDay?: boolean
   statusMessage?: string
   statusType?: 'error' | 'warning'
 }>(), {
   daysCount: 1,
+  isHalfDay: false,
   statusMessage: '',
   statusType: undefined
 })
@@ -44,7 +49,10 @@ const { formatCurrency } = useDailyAssignment()
 
 // Масштабируем значения под количество выбранных дней
 const effectiveAllocated = computed(() => props.totalAllocated * props.daysCount)
-const effectiveTarget = computed(() => props.dailyRate * props.daysCount)
+const effectiveTarget = computed(() => {
+  const base = props.dailyRate * props.daysCount
+  return props.isHalfDay ? base / 2 : base
+})
 
 const diff = computed(() => effectiveTarget.value - effectiveAllocated.value)
 

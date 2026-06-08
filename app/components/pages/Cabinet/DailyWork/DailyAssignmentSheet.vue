@@ -15,6 +15,15 @@
             </div>
             <span class="sheet__date">{{ dateRangeLabel }}</span>
             <span class="sheet__rate">Ставка: {{ formatCurrency(dailyRate) }}</span>
+
+            <!-- Переключатель "Пол дня" — только для одного дня -->
+            <label v-if="showHalfDayToggle" class="half-day-toggle">
+              <input type="checkbox" v-model="isHalfDay" />
+              <span class="half-day-toggle__label">
+                <Icon name="mdi:clock-outline" size="16" />
+                Пол дня (50%)
+              </span>
+            </label>
           </div>
           <button type="button" class="sheet__close" @click="$emit('update:modelValue', false)"
             aria-label="Закрыть">✕</button>
@@ -47,24 +56,24 @@
           <div v-if="showObjectSelect" class="sheet__select-area">
             <ObjectSelect :objects="availableObjects" :selected-ids="localSplits.map(s => s.objectId)"
               :max-objects="maxSelectableObjects" @update:selected-ids="handleObjectSelect" />
-              <div v-if="!isSingleDayMode && localSplits.length >= 1" class="sheet__hint">
-                <i class="material-symbols-light">!</i>
-                <span>При выборе нескольких дней можно добавить только один объект</span>
-              </div>
+            <div v-if="!isSingleDayMode && localSplits.length >= 1" class="sheet__hint">
+              <i class="material-symbols-light">!</i>
+              <span>При выборе нескольких дней можно добавить только один объект</span>
+            </div>
           </div>
           <button v-else type="button" class="sheet__add-btn" @click="showObjectSelect = true">
             + Добавить объект
           </button>
 
-
-          <!-- Итог (подсказки через SplitSummary) -->
-          <SplitSummary 
-            v-if="localSplits.length > 1 || props.dates.length > 1"
-            :total-allocated="totalAllocated" 
-            :daily-rate="dailyRate" 
+          <!-- Итог -->
+          <SplitSummary
+            v-if="localSplits.length > 1 || props.dates.length > 1 || isHalfDay"
+            :total-allocated="totalAllocated"
+            :daily-rate="dailyRate"
             :days-count="localSelectedDates.length || props.dates.length || 1"
+            :is-half-day="isHalfDay"
             :status-message="validationMessage"
-            :status-type="totalPercent > 100 ? 'error' : totalPercent < 100 ? 'warning' : undefined"
+            :status-type="totalPercent > targetPercent ? 'error' : totalPercent < targetPercent ? 'warning' : undefined"
           />
         </div>
 
@@ -116,6 +125,7 @@ const notify = useNotifications()
 const showObjectSelect = ref(false)
 const localSplits = ref<{ objectId: number; value: number }[]>([])
 const localSelectedDates = ref<string[]>([])
+const isHalfDay = ref(false)
 
 // ── Вычисляемые ──────────────────────────────────────────────────
 
@@ -128,6 +138,9 @@ const dateRangeLabel = computed(() => {
   const last = props.dates[props.dates.length - 1]!
   return `${new Date(first).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} — ${new Date(last).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} (${props.dates.length} дн.)`
 })
+
+/** Целевой процент: 50 при включённом "Пол дня", иначе 100 */
+const targetPercent = computed(() => isHalfDay.value ? 50 : 100)
 
 const totalPercent = computed(() =>
   localSplits.value.reduce((sum, s) => sum + s.value, 0)
@@ -146,12 +159,11 @@ const availableObjects = computed(() =>
   props.activeObjects.filter(obj => !localSplits.value.some(s => s.objectId === obj.id))
 )
 
-// ✅ Валидация: можно редактировать при ≤100%, сохранять только при ===100%
-const canEdit = computed(() => totalPercent.value <= 100.01)
+const canEdit = computed(() => totalPercent.value <= targetPercent.value + 0.01)
 const canSave = computed(() =>
   localSplits.value.length > 0
   && !hasZeroSplits.value
-  && Math.abs(totalPercent.value - 100) < 0.01
+  && Math.abs(totalPercent.value - targetPercent.value) < 0.01
 )
 
 const validationMessage = computed(() => {
@@ -169,13 +181,27 @@ const validationMessage = computed(() => {
       : ''
     return `⚠ ${zeroNames}${more}: укажите сумму или удалите`
   }
-  if (totalPercent.value > 100.01) {
-    return `❌ Превышено на ${Math.round(totalPercent.value - 100)}% — уменьшите долю`
+  if (totalPercent.value > targetPercent.value + 0.01) {
+    return `❌ Превышено на ${Math.round(totalPercent.value - targetPercent.value)}% — уменьшите долю`
   }
-  if (totalPercent.value < 99.99) {
-    return `⚡ Осталось распределить: ${Math.round(100 - totalPercent.value)}%`
+  if (totalPercent.value < targetPercent.value - 0.01) {
+    return `⚡ Осталось распределить: ${Math.round(targetPercent.value - totalPercent.value)}%`
   }
-  return '' // Всё ок
+  return ''
+})
+
+/** Показывать ли переключатель "Пол дня".
+ *  Скрывается для существующих записей полного дня, чтобы нельзя было
+ *  случайно превратить отработанную полную смену в половинную. */
+const showHalfDayToggle = computed(() => {
+  if (!isSingleDayMode.value) return false
+  
+  // Новый день (без записей) — можно выбрать режим
+  if (props.assignments.length === 0) return true
+  
+  // Записи есть — показываем только если изначально был выбран "пол дня"
+  const initialTotalPct = props.assignments.reduce((sum, a) => sum + a.percentage, 0)
+  return Math.abs(initialTotalPct - 50) < 0.01
 })
 
 // ── Инициализация ──────────────────────────────────────────────────
@@ -192,11 +218,22 @@ watch(() => props.modelValue, (open) => {
       objectId: a.objectId,
       value: a.percentage
     }))
+
+    // Автоопределение "пол дня" по сумме процентов
+    const totalPct = localSplits.value.reduce((sum, s) => sum + s.value, 0)
+    isHalfDay.value = props.dates.length === 1 && Math.abs(totalPct - 50) < 0.01
   } else {
     localSplits.value = []
+    isHalfDay.value = false
   }
   showObjectSelect.value = false
 }, { immediate: true })
+
+// При переключении "Пол дня" — перераспределяем доли
+watch(isHalfDay, () => {
+  if (localSplits.value.length === 0) return
+  redistributeEqually()
+})
 
 // ── Хелперы ──────────────────────────────────────────────────
 
@@ -214,49 +251,41 @@ function toggleDate(date: string) {
   else localSelectedDates.value.splice(idx, 1)
 }
 
-// ── Обновление доли (ручное, без авто-перераспределения) ─────────
+// ── Обновление доли ─────────────────────────────────────────
 
 function updateSplit(index: number, newValue: number): void {
   const split = localSplits.value[index]
   if (!split) return
 
-  // Клэмпинг
   if (newValue < 0) newValue = 0
-  if (newValue > 100) newValue = 100
+  if (newValue > targetPercent.value) newValue = targetPercent.value
 
   const oldValue = split.value
   split.value = newValue
 
-  // Проверка суммы
   const total = localSplits.value.reduce((sum, s) => sum + s.value, 0)
 
-  if (total > 100.01) {
-    // Откат + уведомление
+  if (total > targetPercent.value + 0.01) {
     split.value = oldValue
-    notify.warning('Сумма долей не может превышать 100%')
+    notify.warning(`Сумма долей не может превышать ${targetPercent.value}%`)
     return
   }
-
-  // ✅ Значение принято — пользователь сам решит, как распределить остаток
 }
 
 // ── Добавление объекта ─────────────────────────────────────────
 
 function handleObjectSelect(selectedIds: number[]): void {
   const newIds = selectedIds.filter(id => !localSplits.value.some(s => s.objectId === id))
-  if (newIds.length === 0) { 
+  if (newIds.length === 0) {
     showObjectSelect.value = false
-    return 
+    return
   }
 
-  // 1. Добавляем новые объекты с временным значением 0
   newIds.forEach(id => {
     localSplits.value.push({ objectId: id, value: 0 })
   })
 
-  // 2. Перераспределяем 100% ПОРОВНУ между всеми объектами (старыми + новыми)
   redistributeEqually()
-  
   showObjectSelect.value = false
 }
 
@@ -264,27 +293,24 @@ function handleObjectSelect(selectedIds: number[]): void {
 
 function removeSplit(index: number): void {
   if (localSplits.value.length <= 1) return
-  
-  // Удаляем объект
+
   localSplits.value.splice(index, 1)
-  
-  // Перераспределяем 100% между оставшимися
   redistributeEqually()
 }
 
-// ── Вспомогательная: равномерное распределение 100% ─────────────
+// ── Равномерное распределение на targetPercent ─────────────
 
 function redistributeEqually(): void {
   const totalCount = localSplits.value.length
   if (totalCount === 0) return
-  
-  const equalShare = 100 / totalCount
-  
+
+  const target = targetPercent.value
+  const equalShare = target / totalCount
+
   localSplits.value.forEach((split, idx) => {
-    // Последнему объекту отдаём «хвост» от округления, чтобы сумма была ровно 100
     if (idx === totalCount - 1) {
       const allocated = localSplits.value.slice(0, idx).reduce((sum, s) => sum + Math.round(equalShare), 0)
-      split.value = 100 - allocated
+      split.value = target - allocated
     } else {
       split.value = Math.round(equalShare)
     }
@@ -300,7 +326,7 @@ function handleSave(): void {
   }
 
   if (!canSave.value) {
-    notify.error('Распределите ровно 100% перед сохранением')
+    notify.error(`Распределите ровно ${targetPercent.value}% перед сохранением`)
     return
   }
 
@@ -320,7 +346,6 @@ function handleSave(): void {
 </script>
 
 <style lang="scss" scoped>
-/* Стили без изменений — оставляем твои */
 .sheet-backdrop {
   position: fixed;
   inset: 0;
@@ -426,6 +451,48 @@ function handleSave(): void {
 
   &:hover {
     background: var(--crm-bg-elevated);
+  }
+}
+
+/* Переключатель "Пол дня" */
+.half-day-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: var(--crm-bg-elevated);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-sm);
+  cursor: pointer;
+  user-select: none;
+  transition: var(--crm-transition);
+
+  input[type="checkbox"] {
+    accent-color: var(--crm-accent);
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    margin: 0;
+  }
+
+  &:has(input:checked) {
+    background: var(--crm-accent-dim);
+    border-color: var(--crm-accent-border);
+
+    .half-day-toggle__label {
+      color: var(--crm-accent);
+    }
+  }
+
+  &__label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--crm-text-sm);
+    font-weight: 500;
+    color: var(--crm-text-secondary);
+    transition: color 0.15s ease;
   }
 }
 

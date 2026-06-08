@@ -13,7 +13,7 @@
     />
 
     <!-- ==================== БЛОК: КАЛЬКУЛЯТОР ==================== -->
-    <section id="calculator" class="page-section page-section--light">
+    <!-- <section id="calculator" class="page-section page-section--light">
       <div class="calculator-wrap">
         <header class="calculator-header">
           <h2 class="calculator-title">Калькулятор сметы онлайн</h2>
@@ -25,7 +25,7 @@
         </header>
         <UiCalculator />
       </div>
-    </section>
+    </section> -->
   </div>
 </template>
 
@@ -116,7 +116,7 @@ usePriceSeo(currentSlug.value, pricePayload, pagesData)
   padding: 5rem 2rem;
 
   @media (max-width: 768px) {
-    padding: 3.5rem 1.2rem;
+    padding: 3.5rem 0.1rem;
   }
 }
 

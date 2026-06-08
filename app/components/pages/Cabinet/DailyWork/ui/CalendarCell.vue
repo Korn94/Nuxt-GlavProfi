@@ -12,12 +12,13 @@
     :data-date="date"
     v-on="cellEvents"
   >
-    <!-- ✅ Индикатор сдвигаем выше по z-index, чтобы он был поверх выделения -->
     <div v-if="assignments.length === 0" class="daily-cell__placeholder" />
-    <div v-else class="daily-cell__indicator" :style="indicatorStyle" />
-    <!-- <span v-if="assignments.length > 1" class="daily-cell__count">
-      {{ assignments.length }}
-    </span> -->
+    <div 
+      v-else 
+      class="daily-cell__indicator" 
+      :class="{ 'daily-cell__indicator--half': isHalfDay }"
+      :style="indicatorStyle" 
+    />
   </div>
 </template>
 
@@ -31,7 +32,7 @@ const props = defineProps<{
   assignments: DailyAssignment[]
   isEditable: boolean
   isSelected: boolean
-  rangeType?: 'start' | 'middle' | 'end' // ✅ Новый проп
+  rangeType?: 'start' | 'middle' | 'end'
 }>()
 
 const emit = defineEmits<{
@@ -49,10 +50,17 @@ function getObjectColor(objectId: number): string {
   return `hsl(${hue}, 92%, 58%)`
 }
 
+/** Определяем "пол дня" по сумме процентов ≈ 50 */
+const isHalfDay = computed(() => {
+  if (props.assignments.length === 0) return false
+  const total = props.assignments.reduce((sum, a) => sum + a.percentage, 0)
+  return total > 40 && total < 60
+})
+
 const indicatorStyle = computed(() => {
   if (props.assignments.length === 0) return {}
 
-  // Сортируем назначения по objectId для консистентного отображения цветов
+  // Сортируем для консистентного отображения цветов
   const sortedAssignments = [...props.assignments].sort((a, b) => a.objectId - b.objectId)
 
   let cumulative = 0
@@ -62,6 +70,14 @@ const indicatorStyle = computed(() => {
     cumulative += a.percentage
     return `${color} ${from}% ${cumulative}%`
   })
+
+  // Для "пол дня" — заполняем только первую половину круга
+  if (isHalfDay.value) {
+    return {
+      background: `conic-gradient(${segments.join(', ')}, transparent 50% 100%)`
+    }
+  }
+
   return { background: `conic-gradient(${segments.join(', ')})` }
 })
 
@@ -88,15 +104,10 @@ const cellEvents = computed(() => ({
   user-select: none;
   -webkit-tap-highlight-color: transparent;
   z-index: 1;
-  
-  // 🔹 КРИТИЧНО: запрещаем браузеру обрабатывать тач как скролл
+
   touch-action: none;
   -webkit-touch-callout: none;
   -webkit-user-select: none;
-  user-select: none;
-  
-  // Для лучшего отклика на мобильных
-  -webkit-tap-highlight-color: transparent;
 
   &:hover:not(.daily-cell--locked) {
     background: var(--crm-bg-overlay);
@@ -112,15 +123,13 @@ const cellEvents = computed(() => ({
     opacity: 0.4;
   }
 
-  // ✅ ПРОСТОЕ ВЫДЕЛЕНИЕ ДИАПАЗОНА — без ::before
   &--range-start,
   &--range-middle,
   &--range-end {
-    background: var(--crm-accent-dim) !important; // !important перебивает :hover
+    background: var(--crm-accent-dim) !important;
     border-color: var(--crm-accent-dim);
   }
 
-  // Закругления только по краям
   &--range-start {
     border-top-left-radius: 4px;
     border-bottom-left-radius: 4px;
@@ -137,7 +146,6 @@ const cellEvents = computed(() => ({
     border-radius: 0;
   }
 
-  // ✅ Индикатор поверх фона
   &__indicator {
     position: relative;
     z-index: 2;
@@ -145,14 +153,23 @@ const cellEvents = computed(() => ({
     height: 28px;
     border-radius: 50%;
     border: 1px solid var(--crm-bg-surface);
-    box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-    
-    // 🔥 Неоновое свечение при hover
+    // box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
+    // transition: transform 0.15s ease, box-shadow 0.15s ease;
+
     .daily-cell:hover & {
       box-shadow: 0 0 8px currentColor;
       filter: saturate(1.2);
     }
+
+    // Стиль для "пол дня" — пунктирная граница и сниженная насыщенность
+    // &--half {
+    //   // border: 1.5px dashed var(--crm-text-muted) !important;
+    //     border: 1px solid var(--crm-bg-surface);
+
+    //   .daily-cell:hover & {
+    //     opacity: 1;
+    //   }
+    // }
   }
 
   &__placeholder {
@@ -164,25 +181,6 @@ const cellEvents = computed(() => ({
     background: var(--crm-text-muted);
     opacity: 0.25;
     border: 1px dashed var(--crm-text-muted);
-  }
-
-  &__count {
-    position: absolute;
-    bottom: 2px;
-    right: 2px;
-    font-size: 10px;
-    font-weight: 700;
-    color: #fff;
-    background: var(--crm-text-primary);
-    border-radius: 50%;
-    width: 14px;
-    height: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: var(--crm-shadow-sm);
-    pointer-events: none;
-    z-index: 3;
   }
 }
 </style>

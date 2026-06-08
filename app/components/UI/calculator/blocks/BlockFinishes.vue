@@ -4,7 +4,7 @@
     <header class="block-header">
       <h3 class="block-title">
         <Icon name="mdi:palette-outline" size="22" class="block-title__icon" />
-        Чистовые покрытия
+        Чистовая отделка (комплекс работ)
         <span class="section-badge">
           <Icon :name="sectionMeta.icon" size="16" />
           {{ sectionMeta.label }}
@@ -82,7 +82,7 @@ const SECTION_META: Record<CalculatorSection, { label: string; icon: string }> =
   walls:   { label: 'стены',    icon: 'mdi:wall' },
   floor:   { label: 'пол',      icon: 'material-symbols:floor' },
   ceiling: { label: 'потолок',  icon: 'material-symbols:roofing' },
-  partitions: { label: 'перегородки',  icon: 'material-symbols:roofing' },
+  partitions: { label: 'перегородки',  icon: 'material-symbols:elevation-outline' },
 }
 
 const sectionMeta = computed(() => SECTION_META[props.section] || SECTION_META.walls)

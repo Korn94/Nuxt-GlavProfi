@@ -1,23 +1,19 @@
 <!-- app/components/ui/calculator/cards/FinishCardHeader.vue -->
 <template>
   <header class="card-header">
-    <!-- === Верхняя строка: Иконка, Название, ИТОГ, Кнопки === -->
+    <!-- === Верхняя строка: Иконка, Название, Кнопки === -->
     <div class="card-header__top">
       <span class="card-icon">{{ config?.icon || '🔹' }}</span>
       <h4 class="card-title">{{ config?.name }}</h4>
       
-      <!-- ✅ Итоговая стоимость карточки -->
-      <div class="card-total">
-        <span class="card-total__value">{{ formatPrice(totalPrice) }}</span>
-        <span class="card-total__currency">₽</span>
-      </div>
-
       <!-- Кнопка удаления -->
       <button type="button" class="btn-delete" @click="emit('remove')" title="Удалить покрытие">
         <Icon name="material-symbols:delete-outline" size="20" />
       </button>
-      <!-- Стрелка раскрытия допов -->
+      
+      <!-- 🔴 Кнопка "Допы" ВРЕМЕННО СКРЫТА -->
       <button
+        v-if="false"
         type="button"
         class="btn-extras-toggle"
         @click="emit('toggle-extras')"
@@ -29,48 +25,58 @@
       </button>
     </div>
 
-    <!-- === Нижняя строка: Размеры (Длина × Ширина = Площадь) === -->
+    <!-- === Нижняя строка: Размеры + ИТОГ === -->
     <div class="card-header__bottom">
-      <span class="dims-label">Размеры:</span>
-      <div class="dims-controls">
-        <div class="dim-control">
-          <input
-            type="number"
-            :value="lengthVal"
-            @input="onLengthInput"
-            class="dim-input"
-            min="0.01"
-            step="0.01"
-            title="Длина"
-          >
-          <span class="dim-unit">м</span>
+      <!-- Размеры слева -->
+      <div class="dims-group">
+        <span class="dims-label">Размеры:</span>
+        <div class="dims-controls">
+          <div class="dim-control">
+            <input
+              type="number"
+              :value="lengthVal"
+              @input="onLengthInput"
+              class="dim-input"
+              min="0.01"
+              step="0.01"
+              title="Длина"
+            >
+            <span class="dim-unit">м</span>
+          </div>
+          <span class="dim-operator">×</span>
+          <div class="dim-control">
+            <input
+              type="number"
+              :value="widthVal"
+              @input="onWidthInput"
+              class="dim-input"
+              min="0.01"
+              step="0.01"
+              title="Ширина / Высота"
+            >
+            <span class="dim-unit">м</span>
+          </div>
+          <span class="dim-operator">=</span>
+          <div class="area-control">
+            <input
+              type="number"
+              :value="instance.area"
+              @input="onAreaInput"
+              class="area-input"
+              min="0.1"
+              step="0.1"
+              title="Площадь покрытия"
+            >
+            <span class="area-unit">м²</span>
+          </div>
         </div>
-        <span class="dim-operator">×</span>
-        <div class="dim-control">
-          <input
-            type="number"
-            :value="widthVal"
-            @input="onWidthInput"
-            class="dim-input"
-            min="0.01"
-            step="0.01"
-            title="Ширина / Высота"
-          >
-          <span class="dim-unit">м</span>
-        </div>
-        <span class="dim-operator">=</span>
-        <div class="area-control">
-          <input
-            type="number"
-            :value="instance.area"
-            @input="onAreaInput"
-            class="area-input"
-            min="0.1"
-            step="0.1"
-            title="Площадь покрытия"
-          >
-          <span class="area-unit">м²</span>
-        </div>
+      </div>
+      
+      <!-- ✅ Итоговая стоимость карточки — СПРАВА -->
+      <div class="card-total">
+        <span class="card-total__label">Итого:</span>
+        <span class="card-total__value">{{ formatPrice(totalPrice) }}</span>
+        <span class="card-total__currency">₽</span>
       </div>
     </div>
   </header>
@@ -144,13 +150,12 @@ watch(
   }
 )
 
-// ✅ ВАЖНО: Синхронизация длины/ширины, если площадь обновилась извне
+// Синхронизация длины/ширины, если площадь обновилась извне
 watch(
   () => props.instance.area,
   (newArea) => {
     if (!newArea || newArea <= 0) return
     const expectedArea = Math.round(lengthVal.value * widthVal.value * 100) / 100
-    // Если площадь изменилась и не совпадает с текущими длиной/шириной (значит, пришла извне)
     if (Math.abs(newArea - expectedArea) > 0.05) {
       if (widthVal.value > 0) {
         lengthVal.value = Math.round((newArea / widthVal.value) * 100) / 100
@@ -217,7 +222,7 @@ function formatPrice(price: number): string {
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-// === Верхняя строка (Название + Итог + Кнопки) ===
+// === Верхняя строка (Название + Кнопки) ===
 .card-header__top {
   display: flex;
   align-items: center;
@@ -243,40 +248,22 @@ function formatPrice(price: number): string {
   text-overflow: ellipsis;
 }
 
-// ✅ Итоговая стоимость карточки (Бейдж)
-.card-total {
-  display: flex;
-  align-items: baseline;
-  gap: 0.2rem;
-  padding: 0.3rem 0.8rem;
-  background: rgba(0, 195, 245, 0.08);
-  border: 1px solid rgba(0, 195, 245, 0.25);
-  border-radius: 50px;
-  white-space: nowrap;
-  flex-shrink: 0;
-  
-  &__value {
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: $blue-light;
-    font-family: 'Rubik', sans-serif;
-    letter-spacing: -0.01em;
-  }
-  
-  &__currency {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: rgba($blue-light, 0.8);
-    font-family: 'Rubik', sans-serif;
-  }
-}
-
-// === Нижняя строка (Размеры) ===
+// === Нижняя строка: Размеры слева, Итог справа ===
 .card-header__bottom {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-left: calc(1.4rem + 0.8rem); // Отступ под иконку для выравнивания
+}
+
+// === Группа размеров ===
+.dims-group {
+  display: flex;
+  align-items: center;
   gap: 0.8rem;
-  padding-left: calc(1.4rem + 0.8rem); // Отступ под иконку слева для выравнивания
+  flex: 1;
+  min-width: 0;
 }
 
 .dims-label {
@@ -285,9 +272,9 @@ function formatPrice(price: number): string {
   font-family: 'Rubik', sans-serif;
   font-weight: 500;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
-// === Группа контролов размеров (Длина × Ширина = Площадь) ===
 .dims-controls {
   display: flex;
   align-items: center;
@@ -341,7 +328,6 @@ function formatPrice(price: number): string {
   }
 }
 
-// Выделяем площадь
 .area-input {
   font-weight: 600;
   color: $blue-light;
@@ -360,7 +346,7 @@ function formatPrice(price: number): string {
   pointer-events: none;
   font-family: 'Rubik', sans-serif;
 }
-  
+
 div {
   color: $text-light;
 }
@@ -376,6 +362,45 @@ div {
   font-weight: 500;
   user-select: none;
   padding: 0 0.1rem;
+}
+
+// === ✅ Итоговая стоимость карточки (стиль как в BlockSummary) ===
+.card-total {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  padding: 0.4rem 1rem;
+  background: rgba(0, 195, 245, 0.06);
+  border: 1px solid rgba(0, 195, 245, 0.2);
+  border-radius: 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  
+  &__label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: rgba($text-light, 0.6);
+    font-family: 'Rubik', sans-serif;
+  }
+  
+  &__value {
+    font-size: 1.4rem;
+    font-weight: 800;
+    background: $blue-gradient;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-family: 'Rubik', sans-serif;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  
+  &__currency {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: rgba($blue-light, 0.8);
+    font-family: 'Rubik', sans-serif;
+  }
 }
 
 // === Кнопка удаления ===
@@ -398,7 +423,7 @@ div {
   }
 }
 
-// === Кнопка "Допы" ===
+// === Кнопка "Допы" (скрыта, но стили сохранены) ===
 .btn-extras-toggle {
   display: flex;
   align-items: center;
@@ -424,15 +449,10 @@ div {
     background: $blue-gradient;
     border-color: transparent;
     color: $background-dark;
-
-    .toggle-label {
-      font-weight: 600;
-    }
+    .toggle-label { font-weight: 600; }
   }
 
-  .toggle-label {
-    margin-left: 0.1rem;
-  }
+  .toggle-label { margin-left: 0.1rem; }
 }
 
 // === Адаптив ===
@@ -444,53 +464,35 @@ div {
 
   .card-header__top {
     gap: 0.6rem;
-    flex-wrap: wrap;
-  }
-
-  .card-title {
-    flex-basis: auto;
-  }
-  
-  .card-total {
-    order: 3; // Переносим итог на новую строку или прижимаем
-    flex-basis: 100%;
-    justify-content: flex-start;
-    margin-top: 0.2rem;
-    width: fit-content;
   }
 
   .card-header__bottom {
-    padding-left: 0; // Убираем отступ на мобильных для экономии места
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: stretch;
+    padding-left: 0;
+    gap: 0.8rem;
+  }
+
+  .dims-group {
+    flex-direction: column;
+    align-items: flex-start;
     gap: 0.5rem;
   }
 
   .dims-label {
     width: 100%;
-    margin-bottom: -0.3rem; // Компенсируем отступ в flex-wrap
   }
 
   .dims-controls {
-    flex: 1;
     width: 100%;
   }
 
-  .dim-control {
-    flex: 1;
-    min-width: 0;
-  }
+  .dim-control { flex: 1; min-width: 0; }
+  .area-control { flex: 1.2; min-width: 0; }
 
-  .area-control {
-    flex: 1.2;
-    min-width: 0;
-  }
-
-  .btn-extras-toggle {
-    .toggle-label {
-      display: none;
-    }
-
-    padding: 0.35rem 0.6rem;
+  .card-total {
+    align-self: flex-end;
+    justify-content: flex-end;
   }
 }
 </style>

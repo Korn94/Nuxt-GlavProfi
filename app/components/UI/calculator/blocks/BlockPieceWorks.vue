@@ -94,7 +94,7 @@ const SECTION_META: Record<CalculatorSection, { label: string; icon: string }> =
   walls:   { label: 'стены',    icon: 'mdi:wall' },
   floor:   { label: 'пол',      icon: 'material-symbols:floor' },
   ceiling: { label: 'потолок',  icon: 'material-symbols:roofing' },
-  partitions: { label: 'перегородки',  icon: 'material-symbols:roofing' },
+  partitions: { label: 'перегородки',  icon: 'material-symbols:elevation-outline' },
 }
 
 const sectionMeta = computed(() => SECTION_META[props.section] || SECTION_META.walls)

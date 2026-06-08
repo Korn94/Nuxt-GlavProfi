@@ -2,7 +2,7 @@
 import type { FinishGroupConfig, CalculatorSection } from '~/types/calculator'
 
 /**
- * 🗂 Конфигурация готовых покрытий.
+ * 🗂 Конфигурация готовных покрытий.
  * Связывает UI калькулятора с реальными ID работ из БД (page_id = 7, "Отделка").
  * 
  * ⚠️ ВАЖНО: Логика единиц измерения
@@ -23,7 +23,7 @@ export const FINISH_GROUPS: Record<string, FinishGroupConfig> = {
     id: 'paint_walls',
     name: 'Покраска стен',
     section: 'walls' as CalculatorSection,
-    icon: '🎨',
+    icon: '1.',
     // Грунт глубокого проникновения + Покраска (2 слоя)
     baseItemIds: [869, 873],
     // Двухцветная разметка (м.п.), Чистые помещения (м²), Обработка углов скотчем (м.п.),
@@ -45,7 +45,7 @@ export const FINISH_GROUPS: Record<string, FinishGroupConfig> = {
     id: 'wallpaper',
     name: 'Поклейка обоев',
     section: 'walls' as CalculatorSection,
-    icon: '📜',
+    icon: '2.',
     baseItemIds: [869, 879], // Грунт + Флизелиновые обои
     extraItemIds: [880, 881, 882], // Виниловые, С подбором рисунка, Удаление старых
     options: {
@@ -66,7 +66,7 @@ export const FINISH_GROUPS: Record<string, FinishGroupConfig> = {
     id: 'decorative_plaster',
     name: 'Декоративная штукатурка',
     section: 'walls' as CalculatorSection,
-    icon: '🎭',
+    icon: '3.',
     
     // ✅ Грунтовка + Короед (базовый эффект)
     baseItemIds: [869, 883],
@@ -97,7 +97,7 @@ export const FINISH_GROUPS: Record<string, FinishGroupConfig> = {
     id: 'liquid_wallpaper',
     name: 'Жидкие обои',
     section: 'walls' as CalculatorSection,
-    icon: '💧',
+    icon: '4.',
     baseItemIds: [888], // Жидкие обои (однотон)
     // Микродекор (м²), Колеровка (м²+), Восстановление (м²), Акрил (м²)
     extraItemIds: [889, 890, 891, 892]
@@ -107,7 +107,7 @@ export const FINISH_GROUPS: Record<string, FinishGroupConfig> = {
     id: 'plaster_walls',
     name: 'Штукатурка стен (выравнивание)',
     section: 'walls' as CalculatorSection,
-    icon: '🏗️',
+    icon: '5.',
     
     // Грунтовка + Гипсовая штукатурка 10-30мм (по умолчанию)
     baseItemIds: [763, 1143],
@@ -149,7 +149,7 @@ export const FINISH_GROUPS: Record<string, FinishGroupConfig> = {
     id: 'putty_walls',
     name: 'Шпаклёвка стен',
     section: 'walls' as CalculatorSection,
-    icon: '📐',
+    icon: '6.',
     
     // Грунтовка → Старт → Повторная грунтовка → Финиш → Шлифовка
     baseItemIds: [802, 806, 805, 811, 826],
@@ -194,7 +194,7 @@ export const FINISH_GROUPS: Record<string, FinishGroupConfig> = {
     id: 'tile_walls',
     name: 'Плитка на стены',
     section: 'walls' as CalculatorSection,
-    icon: '🧱',
+    icon: '7.',
     // Адгезионная грунтовка + Плитка 60×60 + Цементная затирка
     baseItemIds: [831, 843, 864],
     // Резка по шаблону (шт), Сквозная/фигурная (м.п.), Сверление (шт),
@@ -229,7 +229,7 @@ export const FINISH_GROUPS: Record<string, FinishGroupConfig> = {
     id: 'mosaic',
     name: 'Мозаика',
     section: 'walls' as CalculatorSection,
-    icon: '🔶',
+    icon: '8.',
     baseItemIds: [855], // Стеклянная мозаика на сетке
     extraItemIds: [858], // Доплата за арочные поверхности (м²+)
     options: {
@@ -249,7 +249,7 @@ export const FINISH_GROUPS: Record<string, FinishGroupConfig> = {
     id: 'wall_panels',
     name: 'Стеновые панели',
     section: 'walls' as CalculatorSection,
-    icon: '🪟',
+    icon: '9.',
     baseItemIds: [943], // ПВХ-панели
     // Доплата за влажность (м²+), Подрезка (шт)
     extraItemIds: [946, 947],
@@ -276,7 +276,7 @@ export const FINISH_GROUPS: Record<string, FinishGroupConfig> = {
     id: 'mirrors',
     name: 'Зеркала и зеркальные панели',
     section: 'walls' as CalculatorSection,
-    icon: '🪞',
+    icon: '10.',
     baseItemIds: [948], // Обычное зеркало 4-6 мм
     extraItemIds: [1169], // Тяжёлое зеркало до 50 кг (шт)
     options: {
@@ -296,7 +296,7 @@ export const FINISH_GROUPS: Record<string, FinishGroupConfig> = {
     id: 'gkl_walls',
     name: 'Обшивка стен ГКЛ',
     section: 'walls' as CalculatorSection,
-    icon: '📋',
+    icon: '11.',
     baseItemIds: [938], // На металлическом каркасе
     // Усиление (м²+), Углы (м.п.), Серпянка (м.п.)
     extraItemIds: [940, 941, 942],
@@ -319,7 +319,7 @@ export const FINISH_GROUPS: Record<string, FinishGroupConfig> = {
     id: 'screed_floor',
     name: 'Стяжка пола',
     section: 'floor' as CalculatorSection,
-    icon: '📐',
+    icon: '1.',
     baseItemIds: [718], // Стандартная стяжка по маякам (30–50 мм)
     // Плавающая (м²+), Влажные пом. (м²), Фибра (м²), Сетка (м²),
     // Прутк. арматура (м²), Анкеры (м.п.), Температурный шов (м.п.),
@@ -344,7 +344,7 @@ export const FINISH_GROUPS: Record<string, FinishGroupConfig> = {
     id: 'self_leveling_floor',
     name: 'Наливные полы',
     section: 'floor' as CalculatorSection,
-    icon: '🌊',
+    icon: '2.',
     baseItemIds: [725], // Тонкослойное выравнивание 3–5 мм
     // Быстротвердеющий (м²+), Антисептический (м²+)
     extraItemIds: [728, 729],
@@ -366,7 +366,7 @@ export const FINISH_GROUPS: Record<string, FinishGroupConfig> = {
     id: 'laminate',
     name: 'Укладка ламината',
     section: 'floor' as CalculatorSection,
-    icon: '🪵',
+    icon: '3.',
     baseItemIds: [893], // Укладка ламината (класс 32/33)
     // Диагональ (м²+), Проходимость (м²+), Подрезка (шт), ПВХ/МДФ плинтус (м.п.)
     extraItemIds: [895, 896, 897, 913, 914],
@@ -394,7 +394,7 @@ export const FINISH_GROUPS: Record<string, FinishGroupConfig> = {
     id: 'linoleum',
     name: 'Укладка линолеума',
     section: 'floor' as CalculatorSection,
-    icon: '📜',
+    icon: '4.',
     baseItemIds: [898], // Бытовой и полукоммерческий
     // Термосварка (м²+), Подрезка (шт), ПВХ плинтус (м.п.)
     extraItemIds: [900, 902, 913],
@@ -414,7 +414,7 @@ export const FINISH_GROUPS: Record<string, FinishGroupConfig> = {
     id: 'spc',
     name: 'SPC / Виниловый ламинат',
     section: 'floor' as CalculatorSection,
-    icon: '🛡️',
+    icon: '5.',
     baseItemIds: [903], // Водостойкий винил (замковый)
     // Диагональ (м²+), Подрезка (шт), ПВХ плинтус (м.п.)
     extraItemIds: [906, 907, 913],
@@ -435,7 +435,7 @@ export const FINISH_GROUPS: Record<string, FinishGroupConfig> = {
     id: 'tile_floor',
     name: 'Плитка на пол',
     section: 'floor' as CalculatorSection,
-    icon: '🧱',
+    icon: '6.',
     baseItemIds: [831, 837, 864], // Грунт + Плитка пол 60×60 + Затирка
     // Тёплый пол (м²+), Уклон (м²+), Резка (шт), Сапожок (м.п.), Ступени (м.п.),
     // Сложные поверхности (м²+), Ректификат (м²+), Безрамный (м²+), Тяжёлый (м²+)
@@ -459,7 +459,7 @@ export const FINISH_GROUPS: Record<string, FinishGroupConfig> = {
     id: 'carpet',
     name: 'Ковровые покрытия',
     section: 'floor' as CalculatorSection,
-    icon: '🧶',
+    icon: '7.',
     baseItemIds: [908], // Рулонный ковролин
     // Бесшовная стыковка (м.п.+), Диагональ (м²+), Подрезка (шт)
     extraItemIds: [910, 911, 912],
@@ -479,7 +479,7 @@ export const FINISH_GROUPS: Record<string, FinishGroupConfig> = {
     id: 'wood_floor',
     name: 'Деревянные полы',
     section: 'floor' as CalculatorSection,
-    icon: '🌲',
+    icon: '8.',
     baseItemIds: [1325], // Шпунтованная доска 40 мм
     // Лаги (м.п.), Гидроизоляция лаг (м.п.), Выравнивание (м.п.), Антисептик (м.п.),
     // Шлифовка (м²), Масло (м²), Восстановление (м²)
@@ -501,7 +501,7 @@ export const FINISH_GROUPS: Record<string, FinishGroupConfig> = {
     id: 'special_floor',
     name: 'Специальные покрытия',
     section: 'floor' as CalculatorSection,
-    icon: '🎯',
+    icon: '9.',
     baseItemIds: [1334], // Пробковое покрытие
     extraItemIds: [1339], // Обработка стыков ОСБ (м²)
     options: {
@@ -526,7 +526,7 @@ export const FINISH_GROUPS: Record<string, FinishGroupConfig> = {
     id: 'paint_ceiling',
     name: 'Покраска потолка',
     section: 'ceiling' as CalculatorSection,
-    icon: '🎨',
+    icon: '1.',
     baseItemIds: [1380, 874], // Грунт потолка + Покраска (2 слоя)
     // Обработка стыков (м²), Удаление старой побелки (м²)
     extraItemIds: [931, 932],
@@ -546,7 +546,7 @@ export const FINISH_GROUPS: Record<string, FinishGroupConfig> = {
     id: 'plaster_ceiling',
     name: 'Штукатурка потолка',
     section: 'ceiling' as CalculatorSection,
-    icon: '🏗️',
+    icon: '2.',
     baseItemIds: [1156], // Штукатурка потолка (слой 10–30 мм)
     extraItemIds: [1160, 1161], // Заделка швов между плитами (м.п.), Устранение трещин (м.п.)
     options: {
@@ -567,7 +567,7 @@ export const FINISH_GROUPS: Record<string, FinishGroupConfig> = {
     id: 'gkl_ceiling',
     name: 'Потолок из ГКЛ',
     section: 'ceiling' as CalculatorSection,
-    icon: '📐',
+    icon: '3.',
     baseItemIds: [918], // Одноуровневый ГКЛ
     // Двухуровневый (м²), Сложная геометрия (м²), Короб (м.п.),
     // Усиление (м²+), Покраска ГКЛ (м²), Обработка стыков (м²)
@@ -589,7 +589,7 @@ export const FINISH_GROUPS: Record<string, FinishGroupConfig> = {
     id: 'armstrong',
     name: 'Подвесные потолки',
     section: 'ceiling' as CalculatorSection,
-    icon: '🔲',
+    icon: '4.',
     baseItemIds: [925], // Армстронг (минплита 600×600)
     // Светильники (шт), Замена плит (шт), Съемный участок (м²+)
     extraItemIds: [926, 1414, 927],
@@ -613,7 +613,7 @@ export const FINISH_GROUPS: Record<string, FinishGroupConfig> = {
     id: 'gkl_partitions',
     name: 'Перегородки из ГКЛ',
     section: 'partitions' as CalculatorSection,
-    icon: '🚧',
+    icon: '1.',
     baseItemIds: [683], // В 1 слой с двух сторон
     // Высокая перегородка (м²+), Арочный проём (шт), Трапеция (шт),
     // Минвата (м²), Звукопоглощающий мат (м²), Двойная изоляция (м²),
@@ -641,7 +641,7 @@ export const FINISH_GROUPS: Record<string, FinishGroupConfig> = {
     id: 'block_partitions',
     name: 'Перегородки из блоков и кирпича',
     section: 'partitions' as CalculatorSection,
-    icon: '🧱',
+    icon: '2.',
     baseItemIds: [689], // Газоблок 100-150 мм
     // Доп. армирование (м²+), Высокая перегородка (м²+),
     // Тонкая перегородка (м²), Фигурный проём (шт), Закруглённый угол (м.п.)
@@ -665,7 +665,7 @@ export const FINISH_GROUPS: Record<string, FinishGroupConfig> = {
     id: 'gkl_boxes',
     name: 'Короба из ГКЛ',
     section: 'partitions' as CalculatorSection,
-    icon: '📦',
+    icon: '3.',
     baseItemIds: [1422], // Прямой короб 2 грани (до 1м в 1 слой)
     extraItemIds: [], // все варианты — через опции
     options: {

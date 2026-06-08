@@ -9,7 +9,7 @@
 
 import { defineEventHandler, getQuery, createError } from 'h3'
 import { db } from '../../../db'
-import { works, objects } from '../../../db/schema'
+import { works, objects, workers, masters } from '../../../db/schema'
 import { and, eq, gte, lte, isNotNull } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
@@ -22,6 +22,20 @@ export default defineEventHandler(async (event) => {
 
   if (!workerId || !['worker', 'master'].includes(contractorType) || !from || !to) {
     throw createError({ statusCode: 400, message: 'Отсутствуют обязательные параметры' })
+  }
+
+  // ← НОВОЕ: получаем дневную ставку работника
+  let dailyRate = 0
+  if (contractorType === 'worker') {
+    const [worker] = await db.select({ dailyRate: workers.dailyRate }).from(workers).where(eq(workers.id, workerId))
+    dailyRate = Number(worker?.dailyRate ?? 0)
+  } else {
+    const [master] = await db.select({ dailyRate: masters.dailyRate }).from(masters).where(eq(masters.id, workerId))
+    dailyRate = Number(master?.dailyRate ?? 0)
+  }
+
+  if (dailyRate === 0) {
+    return [] // Работник не на подневке
   }
 
   const result = await db
@@ -42,25 +56,24 @@ export default defineEventHandler(async (event) => {
         eq(works.contractorId, workerId),
         eq(works.contractorType, contractorType),
         eq(works.workSource, 'daily'),
-        isNotNull(works.operationDate), // 🔹 Фильтруем записи без даты
+        isNotNull(works.operationDate),
         gte(works.operationDate, new Date(from)),
         lte(works.operationDate, new Date(to + 'T23:59:59'))
       )
     )
     .orderBy(works.operationDate)
 
-  // 🔹 Вспомогательная функция для безопасного получения даты
   function getDateKey(date: Date | null): string {
     if (!date) return ''
     return date.toISOString().split('T')[0] ?? ''
   }
 
-  // Группируем по дате для расчета процентов
+  // Группируем по дате
   const groupedByDate = new Map<string, typeof result>()
   
   for (const r of result) {
     const dateKey = getDateKey(r.operationDate)
-    if (!dateKey) continue // 🔹 Пропускаем записи без валидной даты
+    if (!dateKey) continue
     
     if (!groupedByDate.has(dateKey)) {
       groupedByDate.set(dateKey, [])
@@ -71,13 +84,14 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // Рассчитываем percentage для каждой записи
+  // ← ИЗМЕНЕНО: рассчитываем процент от dailyRate, а не от суммы за день
   return result.map(r => {
     const dateKey = getDateKey(r.operationDate)
-    const recordsOnDate = groupedByDate.get(dateKey) ?? []
-    const totalAmount = recordsOnDate.reduce((sum, rec) => sum + Number(rec.amount ?? 0), 0)
-    const percentage = totalAmount > 0
-      ? Math.round((Number(r.amount ?? 0) / totalAmount) * 100)
+    const amount = Number(r.amount ?? 0)
+    
+    // Процент = (amount / dailyRate) * 100
+    const percentage = dailyRate > 0
+      ? Math.round((amount / dailyRate) * 100)
       : 100
 
     return {
@@ -87,7 +101,7 @@ export default defineEventHandler(async (event) => {
       date: dateKey,
       objectId: r.objectId,
       objectName: r.objectName || 'Неизвестный объект',
-      amount: Number(r.amount ?? 0),
+      amount,
       percentage,
       workSource: r.workSource as 'daily' | 'volume'
     }

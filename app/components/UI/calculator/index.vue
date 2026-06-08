@@ -240,7 +240,7 @@ function updateInstanceExtraQty(instanceId: string, itemId: number, qty: number)
   }
 
   @media (max-width: 768px) {
-    padding: 2rem 1.3rem;
+    padding: 2rem 0.5rem;
     border-radius: 12px;
   }
 }
@@ -288,12 +288,20 @@ function updateInstanceExtraQty(instanceId: string, itemId: number, qty: number)
   margin-bottom: 2rem;
   position: relative;
   z-index: 1;
+
+  @media (max-width: 768px) {
+    margin-bottom: 1rem;
+  }
 }
 
 .calc-tabs {
   margin-bottom: 2rem;
   position: relative;
   z-index: 1;
+  
+  @media (max-width: 768px) {
+    margin-bottom: 1rem;
+  }
 }
 
 // === Универсальные состояния: лоадер / ошибка ===
