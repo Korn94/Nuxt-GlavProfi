@@ -13,12 +13,17 @@
     v-on="cellEvents"
   >
     <div v-if="assignments.length === 0" class="daily-cell__placeholder" />
-    <div 
-      v-else 
-      class="daily-cell__indicator" 
-      :class="{ 'daily-cell__indicator--half': isHalfDay }"
-      :style="indicatorStyle" 
-    />
+    <div v-else class="daily-cell__indicator-wrapper">
+      <div
+        class="daily-cell__indicator"
+        :class="{ 'daily-cell__indicator--half': isHalfDay }"
+        :style="indicatorStyle"
+      />
+      <!-- Бейдж количества людей -->
+      <span v-if="displayMultiplier" class="daily-cell__multiplier">
+        ×{{ displayMultiplier }}
+      </span>
+    </div>
   </div>
 </template>
 
@@ -29,6 +34,7 @@ import type { DailyAssignment } from '~/types/daily-assignments'
 const props = defineProps<{
   date: string
   workerId: number
+  dailyRate: number  // ← НОВОЕ: для расчёта workerCount
   assignments: DailyAssignment[]
   isEditable: boolean
   isSelected: boolean
@@ -50,17 +56,36 @@ function getObjectColor(objectId: number): string {
   return `hsl(${hue}, 92%, 58%)`
 }
 
-/** Определяем "пол дня" по сумме процентов ≈ 50 */
+/** Суммарная сумма за день */
+const totalAmount = computed(() =>
+  props.assignments.reduce((sum, a) => sum + a.amount, 0)
+)
+
+/** Количество людей (мульти-контрагент).
+ *  Рассчитывается как totalAmount / dailyRate.
+ *  Если workerCount > 1 — показываем бейдж ×N */
+const workerCount = computed(() => {
+  if (!props.dailyRate || props.dailyRate <= 0) return 1
+  return Math.round(totalAmount.value / props.dailyRate)
+})
+
+/** Количество людей для отображения (только если > 1) */
+const displayMultiplier = computed(() =>
+  workerCount.value > 1 ? workerCount.value : null
+)
+
+/** Определяем "пол дня" по сумме процентов ≈ 50.
+ *  Работает только когда нет мульти-смены (workerCount ≤ 1) */
 const isHalfDay = computed(() => {
   if (props.assignments.length === 0) return false
-  const total = props.assignments.reduce((sum, a) => sum + a.percentage, 0)
-  return total > 40 && total < 60
+  if (workerCount.value > 1) return false // мульти имеет приоритет
+  const totalPct = props.assignments.reduce((sum, a) => sum + a.percentage, 0)
+  return totalPct > 40 && totalPct < 60
 })
 
 const indicatorStyle = computed(() => {
   if (props.assignments.length === 0) return {}
 
-  // Сортируем для консистентного отображения цветов
   const sortedAssignments = [...props.assignments].sort((a, b) => a.objectId - b.objectId)
 
   let cumulative = 0
@@ -146,13 +171,22 @@ const cellEvents = computed(() => ({
     border-radius: 0;
   }
 
-  &__indicator {
+  // ← НОВЫЙ враппер для индикатора + бейджа
+  &__indicator-wrapper {
     position: relative;
     z-index: 2;
     width: 28px;
     height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__indicator {
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
-    border: 1px solid var(--crm-bg-surface);
+    // border: 1px solid var(--crm-bg-surface);
     // box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
     // transition: transform 0.15s ease, box-shadow 0.15s ease;
 
@@ -161,15 +195,38 @@ const cellEvents = computed(() => ({
       filter: saturate(1.2);
     }
 
-    // Стиль для "пол дня" — пунктирная граница и сниженная насыщенность
     // &--half {
-    //   // border: 1.5px dashed var(--crm-text-muted) !important;
-    //     border: 1px solid var(--crm-bg-surface);
+    //   border: 1.5px dashed var(--crm-text-muted) !important;
+    //   opacity: 0.8;
 
     //   .daily-cell:hover & {
     //     opacity: 1;
     //   }
     // }
+  }
+
+  // ← НОВЫЙ бейдж количества людей
+  &__multiplier {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    background: var(--crm-accent);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    border: 1.5px solid var(--crm-bg-surface);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    pointer-events: none;
+    z-index: 3;
+    font-family: var(--crm-font-mono);
   }
 
   &__placeholder {

@@ -24,7 +24,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'Отсутствуют обязательные параметры' })
   }
 
-  // ← НОВОЕ: получаем дневную ставку работника
+  // Получаем дневную ставку работника
   let dailyRate = 0
   if (contractorType === 'worker') {
     const [worker] = await db.select({ dailyRate: workers.dailyRate }).from(workers).where(eq(workers.id, workerId))
@@ -68,7 +68,7 @@ export default defineEventHandler(async (event) => {
     return date.toISOString().split('T')[0] ?? ''
   }
 
-  // Группируем по дате
+  // Группируем по дате для расчёта процентов
   const groupedByDate = new Map<string, typeof result>()
   
   for (const r of result) {
@@ -84,15 +84,26 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // ← ИЗМЕНЕНО: рассчитываем процент от dailyRate, а не от суммы за день
+  // Рассчитываем percentage для каждой записи
   return result.map(r => {
     const dateKey = getDateKey(r.operationDate)
+    const recordsOnDate = groupedByDate.get(dateKey) ?? []
     const amount = Number(r.amount ?? 0)
     
-    // Процент = (amount / dailyRate) * 100
-    const percentage = dailyRate > 0
-      ? Math.round((amount / dailyRate) * 100)
-      : 100
+    // Суммарная сумма за день
+    const totalAmount = recordsOnDate.reduce((sum, rec) => sum + Number(rec.amount ?? 0), 0)
+    
+    let percentage: number
+    
+    if (totalAmount > dailyRate) {
+      // ← МУЛЬТИ-КОНТРАГЕНТ: сумма за день превышает ставку
+      // Считаем процент от totalAmount, чтобы сумма процентов была 100%
+      percentage = Math.round((amount / totalAmount) * 100)
+    } else {
+      // ← ОБЫЧНЫЙ КОНТРАГЕНТ: считаем процент от dailyRate
+      // Для полного дня: 100%, для пол дня: 50%
+      percentage = Math.round((amount / dailyRate) * 100)
+    }
 
     return {
       id: r.id,

@@ -16,8 +16,36 @@
             <span class="sheet__date">{{ dateRangeLabel }}</span>
             <span class="sheet__rate">Ставка: {{ formatCurrency(dailyRate) }}</span>
 
-            <!-- Переключатель "Пол дня" — только для одного дня -->
-            <label v-if="showHalfDayToggle" class="half-day-toggle">
+            <!-- Блок: Мульти-контрагент (счётчик людей) -->
+            <div v-if="isMultiWorker && isSingleDayMode" class="multi-worker-control">
+              <div class="multi-worker-control__label">
+                <Icon name="mdi:account-group-outline" size="16" />
+                <span>Количество людей</span>
+              </div>
+              <div class="multi-worker-control__stepper">
+                <button
+                  type="button"
+                  class="multi-worker-control__btn multi-worker-control__btn--dec"
+                  :disabled="workerCount <= 1"
+                  @click="workerCount--"
+                  aria-label="Уменьшить"
+                >−</button>
+                <span class="multi-worker-control__value">{{ workerCount }}</span>
+                <button
+                  type="button"
+                  class="multi-worker-control__btn multi-worker-control__btn--inc"
+                  :disabled="workerCount >= MAX_WORKERS"
+                  @click="workerCount++"
+                  aria-label="Увеличить"
+                >+</button>
+              </div>
+              <div v-if="workerCount > 1" class="multi-worker-control__total">
+                Итого за день: <strong>{{ formatCurrency(effectiveRate) }}</strong>
+              </div>
+            </div>
+
+            <!-- Блок: Пол дня (только для обычных контрагентов) -->
+            <label v-if="!isMultiWorker && showHalfDayToggle" class="half-day-toggle">
               <input type="checkbox" v-model="isHalfDay" />
               <span class="half-day-toggle__label">
                 <Icon name="mdi:clock-outline" size="16" />
@@ -46,7 +74,7 @@
           <!-- Список объектов -->
           <div class="sheet__list">
             <ObjectSplitRow v-for="(split, idx) in localSplits" :key="split.objectId" :object-id="split.objectId"
-              :object-name="getObjectName(split.objectId)" :value="split.value" :daily-rate="dailyRate"
+              :object-name="getObjectName(split.objectId)" :value="split.value" :daily-rate="effectiveRate"
               :is-removable="localSplits.length > 1" @update:value="updateSplit(idx, $event)"
               :is-single-object="localSplits.length === 1"
               @remove="removeSplit(idx)" />
@@ -67,9 +95,9 @@
 
           <!-- Итог -->
           <SplitSummary
-            v-if="localSplits.length > 1 || props.dates.length > 1 || isHalfDay"
+            v-if="localSplits.length > 1 || props.dates.length > 1 || isHalfDay || workerCount > 1"
             :total-allocated="totalAllocated"
-            :daily-rate="dailyRate"
+            :daily-rate="effectiveRate"
             :days-count="localSelectedDates.length || props.dates.length || 1"
             :is-half-day="isHalfDay"
             :status-message="validationMessage"
@@ -102,10 +130,15 @@ import ObjectSelect from './ui/ObjectSelect.vue'
 import SplitSummary from './ui/SplitSummary.vue'
 import { useNotifications } from '~/composables/useNotifications'
 
+/** ID контрагентов, которые подразумевают пул людей (например, "Разнорабочие") */
+const MULTI_WORKER_IDS = [15] as const
+const MAX_WORKERS = 10
+
 const props = defineProps<{
   modelValue: boolean
   dates: string[]
   dailyRate: number
+  contractorId?: number  // ← НОВОЕ: для определения мульти-контрагента
   assignments: DailyAssignment[]
   activeObjects: ActiveObject[]
   isSaving: boolean
@@ -126,6 +159,7 @@ const showObjectSelect = ref(false)
 const localSplits = ref<{ objectId: number; value: number }[]>([])
 const localSelectedDates = ref<string[]>([])
 const isHalfDay = ref(false)
+const workerCount = ref(1) // ← НОВОЕ
 
 // ── Вычисляемые ──────────────────────────────────────────────────
 
@@ -139,15 +173,32 @@ const dateRangeLabel = computed(() => {
   return `${new Date(first).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} — ${new Date(last).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} (${props.dates.length} дн.)`
 })
 
-/** Целевой процент: 50 при включённом "Пол дня", иначе 100 */
-const targetPercent = computed(() => isHalfDay.value ? 50 : 100)
+/** Является ли контрагент "мульти-рабочим" (пул людей) */
+const isMultiWorker = computed(() =>
+  !!props.contractorId && MULTI_WORKER_IDS.includes(props.contractorId as typeof MULTI_WORKER_IDS[number])
+)
+
+/** Эффективная ставка за день: dailyRate × workerCount (или × 0.5 для пол дня) */
+const effectiveRate = computed(() => {
+  if (isMultiWorker.value) {
+    return props.dailyRate * workerCount.value
+  }
+  return isHalfDay.value ? props.dailyRate / 2 : props.dailyRate
+})
+
+const targetPercent = computed(() => {
+  // Для мульти-контрагентов — всегда 100% от effectiveRate
+  if (isMultiWorker.value) return 100
+  // Для обычных — 50 или 100 в зависимости от "Пол дня"
+  return isHalfDay.value ? 50 : 100
+})
 
 const totalPercent = computed(() =>
   localSplits.value.reduce((sum, s) => sum + s.value, 0)
 )
 
 const totalAllocated = computed(() =>
-  localSplits.value.reduce((sum, s) => sum + (props.dailyRate * s.value) / 100, 0)
+  localSplits.value.reduce((sum, s) => sum + (effectiveRate.value * s.value) / 100, 0)
 )
 
 const hasZeroSplits = computed(() => localSplits.value.some(s => s.value <= 0))
@@ -190,16 +241,10 @@ const validationMessage = computed(() => {
   return ''
 })
 
-/** Показывать ли переключатель "Пол дня".
- *  Скрывается для существующих записей полного дня, чтобы нельзя было
- *  случайно превратить отработанную полную смену в половинную. */
+/** Показывать ли переключатель "Пол дня" (для обычных контрагентов) */
 const showHalfDayToggle = computed(() => {
   if (!isSingleDayMode.value) return false
-  
-  // Новый день (без записей) — можно выбрать режим
   if (props.assignments.length === 0) return true
-  
-  // Записи есть — показываем только если изначально был выбран "пол дня"
   const initialTotalPct = props.assignments.reduce((sum, a) => sum + a.percentage, 0)
   return Math.abs(initialTotalPct - 50) < 0.01
 })
@@ -219,18 +264,39 @@ watch(() => props.modelValue, (open) => {
       value: a.percentage
     }))
 
-    // Автоопределение "пол дня" по сумме процентов
-    const totalPct = localSplits.value.reduce((sum, s) => sum + s.value, 0)
-    isHalfDay.value = props.dates.length === 1 && Math.abs(totalPct - 50) < 0.01
+    if (props.dates.length === 1) {
+      // Рассчитываем суммарную сумму за день
+      const totalAmount = props.assignments.reduce((sum, a) => sum + a.amount, 0)
+
+      if (isMultiWorker.value) {
+        // Автоопределение количества людей
+        const detectedCount = Math.round(totalAmount / props.dailyRate)
+        workerCount.value = Math.max(1, Math.min(MAX_WORKERS, detectedCount || 1))
+        isHalfDay.value = false
+      } else {
+        // Автоопределение "пол дня"
+        const totalPct = props.assignments.reduce((sum, a) => sum + a.percentage, 0)
+        isHalfDay.value = Math.abs(totalPct - 50) < 0.01
+        workerCount.value = 1
+      }
+    }
   } else {
     localSplits.value = []
     isHalfDay.value = false
+    workerCount.value = 1
   }
   showObjectSelect.value = false
 }, { immediate: true })
 
-// При переключении "Пол дня" — перераспределяем доли
+// При переключении "Пол дня" — перераспределяем доли (для обычных)
 watch(isHalfDay, () => {
+  if (isMultiWorker.value) return
+  if (localSplits.value.length === 0) return
+  redistributeEqually()
+})
+
+// При изменении количества людей — перераспределяем
+watch(workerCount, () => {
   if (localSplits.value.length === 0) return
   redistributeEqually()
 })
@@ -330,6 +396,7 @@ function handleSave(): void {
     return
   }
 
+  // Передаём effectiveRate как dailyRate, чтобы сервер рассчитал amount от удвоенной ставки
   const payload: DailyAssignment[] = localSplits.value.map((split) => ({
     workerId: 0,
     contractorType: props.contractorType || 'worker',
@@ -337,7 +404,7 @@ function handleSave(): void {
     objectId: split.objectId,
     objectName: getObjectName(split.objectId),
     percentage: split.value,
-    amount: (props.dailyRate * split.value) / 100,
+    amount: (effectiveRate.value * split.value) / 100,
     workSource: 'daily'
   }))
 
@@ -451,6 +518,89 @@ function handleSave(): void {
 
   &:hover {
     background: var(--crm-bg-elevated);
+  }
+}
+
+/* Блок мульти-контрагента (счётчик людей) */
+.multi-worker-control {
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: var(--crm-accent-dim);
+  border: 1px solid var(--crm-accent-border);
+  border-radius: var(--crm-radius-sm);
+
+  &__label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--crm-text-sm);
+    font-weight: 500;
+    color: var(--crm-accent);
+    margin-bottom: 8px;
+  }
+
+  &__stepper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--crm-bg-surface);
+    border: 1px solid var(--crm-accent-border);
+    border-radius: var(--crm-radius-md);
+    padding: 4px;
+    width: fit-content;
+  }
+
+  &__btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--crm-accent);
+    font-size: 20px;
+    font-weight: 700;
+    cursor: pointer;
+    border-radius: var(--crm-radius-sm);
+    transition: var(--crm-transition);
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+
+    &:hover:not(:disabled) {
+      background: var(--crm-accent-hover);
+      color: #fff;
+    }
+
+    &:active:not(:disabled) {
+      transform: scale(0.9);
+    }
+
+    &:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+  }
+
+  &__value {
+    font-size: var(--crm-text-lg);
+    font-weight: 700;
+    color: var(--crm-text-primary);
+    min-width: 24px;
+    text-align: center;
+    font-family: var(--crm-font-mono);
+  }
+
+  &__total {
+    margin-top: 8px;
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-secondary);
+
+    strong {
+      color: var(--crm-accent);
+      font-family: var(--crm-font-mono);
+      font-weight: 600;
+    }
   }
 }
 
