@@ -32,23 +32,18 @@
         <span v-if="errors.phone" class="form-field__error">{{ errors.phone }}</span>
       </div>
 
-      <!-- Баланс -->
+      <!-- 🔧 Баланс — только для просмотра (рассчитывается автоматически) -->
       <div class="form-field">
         <label class="form-field__label">Баланс</label>
-        <div class="balance-input">
-          <input 
-            v-model="displayBalance" 
-            type="text" 
-            class="form-field__input"
-            :class="{ 'form-field__input--error': errors.balance }"
-            placeholder="0.00"
-            @blur="formatBalance"
-            @focus="unfocusBalance"
-            @input="syncBalance"
-          />
-          <span class="balance-input__currency">₽</span>
+        <div class="balance-readonly">
+          <span :class="['balance-readonly__value', getBalanceClass(form.balance)]">
+            {{ formatCurrency(form.balance) }}
+          </span>
+          <span class="balance-readonly__hint">
+            <Icon name="mdi:calculator" size="11" />
+            Рассчитывается автоматически
+          </span>
         </div>
-        <span v-if="errors.balance" class="form-field__error">{{ errors.balance }}</span>
       </div>
 
       <!-- ✅ Переключатель «Активен» -->
@@ -132,7 +127,6 @@ const form = ref<{
   isActive: true
 })
 
-const displayBalance = ref('0.00')
 const errors = ref<Record<string, string>>({})
 
 // ── Инициализация ───────────────────────────────────────────────────
@@ -147,7 +141,6 @@ watch(
         balance: String(contractor.balance),
         isActive: contractor.isActive ?? true
       }
-      displayBalance.value = formatCurrency(contractor.balance)
     } else {
       resetForm()
     }
@@ -159,33 +152,17 @@ watch(
 function formatCurrency(amount: string | number): string {
   const num = parseFloat(String(amount)) || 0
   return num.toLocaleString('ru-RU', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
+    style: 'currency',
+    currency: 'RUB',
+    minimumFractionDigits: 0
   })
 }
 
-function parseNumber(str: string): number {
-  if (!str) return 0
-  return parseFloat(str.replace(/[^\d,.-]/g, '').replace(',', '.'))
-}
-
-function formatBalance() {
-  const num = parseNumber(displayBalance.value)
-  if (!isNaN(num)) {
-    form.value.balance = num.toFixed(2)
-    displayBalance.value = formatCurrency(form.value.balance)
-  }
-}
-
-function unfocusBalance() {
-  displayBalance.value = form.value.balance || '0.00'
-}
-
-function syncBalance() {
-  const num = parseNumber(displayBalance.value)
-  if (!isNaN(num)) {
-    form.value.balance = num.toFixed(2)
-  }
+function getBalanceClass(balance: string | number): string {
+  const num = parseFloat(String(balance))
+  if (num > 0) return 'balance-readonly__value--positive'
+  if (num < 0) return 'balance-readonly__value--negative'
+  return 'balance-readonly__value--neutral'
 }
 
 function formatDate(dateStr: string): string {
@@ -218,7 +195,6 @@ function resetForm() {
     balance: '0.00',
     isActive: true
   }
-  displayBalance.value = '0.00'
   errors.value = {}
 }
 
@@ -236,11 +212,6 @@ function validate(): boolean {
     errors.value.phone = 'Телефон не может быть длиннее 255 символов'
   }
 
-  const balance = parseNumber(String(form.value.balance))
-  if (isNaN(balance)) {
-    errors.value.balance = 'Баланс должен быть числом'
-  }
-
   if (form.value.comment && form.value.comment.length > 1000) {
     errors.value.comment = 'Комментарий не может быть длиннее 1000 символов'
   }
@@ -252,13 +223,14 @@ function validate(): boolean {
 function handleSubmit() {
   if (!validate()) return
 
-  // Формируем данные для отправки. userId здесь нет, так как привязка идет через Users.
+  // 🔧 Исключаем balance из данных — он рассчитывается автоматически
+  const { balance, ...dataWithoutBalance } = form.value
+  
   const data: ContractorCreateInput & { isActive?: boolean } = {
-    name: form.value.name.trim(),
-    phone: form.value.phone || null,
-    comment: form.value.comment || null,
-    balance: form.value.balance,
-    isActive: form.value.isActive
+    name: dataWithoutBalance.name.trim(),
+    phone: dataWithoutBalance.phone || null,
+    comment: dataWithoutBalance.comment || null,
+    isActive: dataWithoutBalance.isActive
   }
 
   emit('update:form', data)
@@ -357,23 +329,41 @@ defineExpose({
   }
 }
 
-// ── Баланс ────────────────────────────────────────────────────────
-.balance-input {
-  position: relative;
+// 🔧 Баланс только для просмотра
+.balance-readonly {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 4px;
+  padding: 9px 12px;
+  background: var(--crm-bg-elevated);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-md);
 
-  &__currency {
-    position: absolute;
-    right: 12px;
+  &__value {
     font-size: var(--crm-text-md);
     font-weight: 700;
-    color: var(--crm-text-muted);
-    pointer-events: none;
+    font-family: var(--crm-font-mono);
+
+    &--positive {
+      color: var(--crm-success);
+    }
+
+    &--negative {
+      color: var(--crm-danger);
+    }
+
+    &--neutral {
+      color: var(--crm-text-primary);
+    }
   }
 
-  .form-field__input {
-    padding-right: 32px;
+  &__hint {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+    font-style: italic;
   }
 }
 

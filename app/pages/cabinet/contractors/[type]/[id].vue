@@ -1,5 +1,4 @@
 <!-- app/pages/cabinet/contractors/[type]/[id].vue -->
- <!-- Страница контрагента -->
 <template>
   <div class="contractor-detail">
 
@@ -67,8 +66,26 @@
 
           <div class="contractor-header__balance">
             <span class="contractor-balance__label">Баланс</span>
-            <span :class="['contractor-balance__value', getBalanceClass(contractor.balance)]">
-              {{ formatCurrency(contractor.balance) }}
+            <div class="contractor-balance__wrapper">
+              <span :class="['contractor-balance__value', getBalanceClass(contractor.balance)]">
+                {{ formatCurrency(contractor.balance) }}
+              </span>
+              <!-- 🔧 Временная кнопка пересчёта (только в режиме редактирования) -->
+              <button 
+                v-if="editMode" 
+                class="crm-btn crm-btn--sm crm-btn--ghost crm-btn--recalculate"
+                @click="handleRecalculateBalance"
+                :disabled="recalculating"
+                title="Пересчитать баланс на основе всех операций"
+              >
+                <Icon :name="recalculating ? 'mdi:loading' : 'mdi:calculator'" size="13" :class="{ spin: recalculating }" />
+                {{ recalculating ? 'Пересчёт...' : 'Пересчитать' }}
+              </button>
+            </div>
+            <!-- Подсказка о том, как считается баланс -->
+            <span class="contractor-balance__hint">
+              <Icon name="mdi:information-outline" size="11" />
+              Рассчитывается автоматически: Выплаты − Оплаченные работы
             </span>
           </div>
         </div>
@@ -152,6 +169,7 @@
     <PagesCabinetContractorsContractorOperations 
       :contractor-id="id"
       :contractor-type="type"
+      @balance-changed="loadContractor"
     />
   </div>
 </template>
@@ -161,23 +179,21 @@ import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
 import { createError, useRoute, useRouter } from 'nuxt/app'
 import { ref, computed, onMounted } from 'vue'
 import { useContractors } from '~/composables/useContractors'
+import { useApi } from '~/composables/useApi'
 import type { ContractorType, ContractorDTO } from '~/types/contractors'
 import { CONTRACTOR_TYPES } from '~/types/contractors'
 
 // ── Meta ───────────────────────────────────────────────────────────
-import { useApi } from '~/composables/useApi' // 👈 Новый composable
-
-const api = useApi() // 👈 Инициализация
-
 definePageMeta({
   layout: 'cabinet',
   middleware: ['auth', 'role'],
   allowedRoles: ['admin'],
 })
 
-// ── Router ─────────────────────────────────────────────────────────
+// ── Router & API ───────────────────────────────────────────────────
 const route = useRoute()
 const router = useRouter()
+const api = useApi()
 
 const type = computed(() => route.params.type as ContractorType)
 const id = computed(() => parseInt(route.params.id as string))
@@ -195,6 +211,7 @@ const error = ref<string | null>(null)
 const editMode = ref(false)
 const saving = ref(false)
 const deleting = ref(false)
+const recalculating = ref(false) // 🔧 Состояние для пересчёта баланса
 const formData = ref<any>(null)
 const formRef = ref<any>(null)
 
@@ -271,17 +288,66 @@ async function loadContractor() {
 }
 
 async function handleSave() {
-  if (!formRef.value || !formRef.value.validate() || !contractor.value) return
+  if (!formRef.value || !contractor.value) return
+  
+  // Валидируем форму через её метод
+  if (!formRef.value.validate()) return
 
   saving.value = true
   try {
-    const result = await update(type.value, contractor.value.id, formData.value)
+    // ✅ Получаем данные напрямую из формы (уже валидированные)
+    const { balance, ...dataWithoutBalance } = formRef.value.form
+    
+    const result = await update(type.value, contractor.value.id, dataWithoutBalance)
     contractor.value = result
     editMode.value = false
   } catch (error: any) {
     console.error('[ContractorDetail] Ошибка сохранения:', error)
   } finally {
     saving.value = false
+  }
+}
+
+// 🔧 Обработчик пересчёта баланса
+async function handleRecalculateBalance() {
+  if (!contractor.value) return
+
+  recalculating.value = true
+  try {
+    const result = await api.post<{
+      success: boolean
+      oldBalance: number
+      newBalance: number
+      diff: number
+      breakdown: {
+        totalPaidWorks: number
+        totalExpenses: number
+      }
+    }>(`/api/contractors/${type.value}/${contractor.value.id}/recalculate-balance`)
+
+    // Формируем понятное сообщение
+    const diffText = result.diff >= 0 ? `+${result.diff}` : result.diff
+    const breakdown = result.breakdown
+
+    alert(
+      `✅ Баланс пересчитан успешно!\n\n` +
+      `Старый баланс: ${formatCurrency(result.oldBalance)}\n` +
+      `Новый баланс: ${formatCurrency(result.newBalance)}\n` +
+      `Изменение: ${diffText} ₽\n\n` +
+      `Детали:\n` +
+      `• Выплаты (расходы "Работа"): ${formatCurrency(breakdown.totalExpenses)}\n` +
+      `• Оплаченные работы: ${formatCurrency(breakdown.totalPaidWorks)}\n` +
+      `• Формула: Выплаты − Оплаченные работы = Баланс`
+    )
+
+    // Обновляем контрагента в сторе и в локальном state
+    contractor.value = await fetchOne(type.value, contractor.value.id)
+
+  } catch (err: any) {
+    console.error('[ContractorDetail] Ошибка пересчёта баланса:', err)
+    alert(err?.data?.message || 'Не удалось пересчитать баланс')
+  } finally {
+    recalculating.value = false
   }
 }
 
@@ -314,7 +380,7 @@ onMounted(() => {
   min-height: 100vh;
 }
 
-// ── Заголовок ────────────────────────────────────────────���─────────
+// ── Заголовок ──────────────────────────────────────────────────────
 .contractor-detail__header {
   display: flex;
   align-items: center;
@@ -430,17 +496,25 @@ onMounted(() => {
   color: var(--crm-text-muted);
 }
 
+// 🔧 Обновлённый блок баланса
 .contractor-header__balance {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 4px;
+  gap: 6px;
   text-align: right;
 
   @media (max-width: 700px) {
     align-items: flex-start;
     text-align: left;
   }
+}
+
+.contractor-balance__wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .contractor-balance__label {
@@ -466,6 +540,27 @@ onMounted(() => {
   }
 }
 
+// 🔧 Кнопка пересчёта
+.crm-btn--recalculate {
+  font-size: var(--crm-text-xs) !important;
+  padding: 4px 8px !important;
+  border-color: var(--crm-accent-border) !important;
+  color: var(--crm-accent) !important;
+
+  &:hover:not(:disabled) {
+    background: var(--crm-accent-dim) !important;
+  }
+}
+
+.contractor-balance__hint {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--crm-text-xs);
+  color: var(--crm-text-muted);
+  font-style: italic;
+}
+
 // ── Разделитель ────────────────────────────────────────────────────
 .contractor-detail__divider {
   height: 1px;
@@ -485,7 +580,7 @@ onMounted(() => {
   margin-top: 16px;
 }
 
-// ── Информация ────────────────────────────────���────────────────────
+// ── Информация ─────────────────────────────────────────────────────
 .contractor-detail__info {
   display: flex;
   flex-direction: column;
@@ -603,7 +698,7 @@ onMounted(() => {
   }
 }
 
-// ── Кнопки ───────────��────────────────────────────────────────────
+// ── Кнопки ─────────────────────────────────────────────────────────
 .crm-btn {
   display: inline-flex;
   align-items: center;

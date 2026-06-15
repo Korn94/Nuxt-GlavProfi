@@ -39,7 +39,7 @@ export default defineEventHandler(async (event) => {
         comment: '',
         contractorId: body.workerId,
         contractorType: body.contractorType,
-        workTypes: 'Прочее',
+        workTypes: 'Подневка',
         workSource: 'daily',
         foremanId: null,
         accepted: false,

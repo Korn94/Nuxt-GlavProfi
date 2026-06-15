@@ -3,6 +3,12 @@
  * Назначение: Обновление данных пользователя + перепривязка к контрагенту
  * ⚠️ Требует роль `manager` (проверяется в мидлваре)
  * 
+ * Логика:
+ * - Отвязка от старого контрагента
+ * - Привязка к новому контрагенту
+ * - Обновление пользователя
+ * - Всё в одной транзакции — если что-то упадёт, всё откатится
+ * 
  * @body { name?, login?, role?, password?, contractorType?, contractorId? }
  * @returns { User } — обновлённые данные пользователя
  */
@@ -27,6 +33,8 @@ export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
   if (!id) throw createError({ statusCode: 400, message: 'ID пользователя обязателен' })
 
+  const userId = parseInt(id)
+
   try {
     const body = await readBody(event)
     const { name, login, role, password, contractorType, contractorId } = body
@@ -41,31 +49,41 @@ export default defineEventHandler(async (event) => {
     if (role) updates.role = role
     if (password) updates.password = await bcryptjs.hash(password, 10)
 
-    const [oldUser] = await db.select().from(users).where(eq(users.id, parseInt(id)))
+    // Получаем старого пользователя (read-only, вне транзакции)
+    const [oldUser] = await db.select().from(users).where(eq(users.id, userId))
     if (!oldUser) throw createError({ statusCode: 404, message: 'Пользователь не найден' })
 
-    // Отвязываем от старого контрагента
-    if (oldUser.contractorType && oldUser.contractorId) {
-      const OldModel = CONTRACTOR_MODELS[oldUser.contractorType as ContractorType]
-      if (OldModel) {
-        await db.update(OldModel).set({ userId: null }).where(eq(OldModel.id, oldUser.contractorId))
+    // ✅ Все изменения в одной транзакции
+    return await db.transaction(async (tx) => {
+      // 1. Отвязываем от старого контрагента
+      if (oldUser.contractorType && oldUser.contractorId) {
+        const OldModel = CONTRACTOR_MODELS[oldUser.contractorType as ContractorType]
+        if (OldModel) {
+          await tx.update(OldModel)
+            .set({ userId: null })
+            .where(eq(OldModel.id, oldUser.contractorId))
+        }
       }
-    }
 
-    // Привязываем к новому контрагенту
-    if (contractorType && contractorId) {
-      const NewModel = CONTRACTOR_MODELS[contractorType.toLowerCase() as ContractorType]
-      if (!NewModel) throw createError({ statusCode: 400, message: `Неизвестный тип: ${contractorType}` })
-      await db.update(NewModel).set({ userId: parseInt(id) }).where(eq(NewModel.id, contractorId))
-    }
+      // 2. Привязываем к новому контрагенту
+      if (contractorType && contractorId) {
+        const NewModel = CONTRACTOR_MODELS[contractorType.toLowerCase() as ContractorType]
+        if (!NewModel) throw createError({ statusCode: 400, message: `Неизвестный тип: ${contractorType}` })
+        await tx.update(NewModel)
+          .set({ userId: userId })
+          .where(eq(NewModel.id, contractorId))
+      }
 
-    updates.contractorType = contractorType || null
-    updates.contractorId = contractorId || null
+      updates.contractorType = contractorType || null
+      updates.contractorId = contractorId || null
 
-    await db.update(users).set(updates).where(eq(users.id, parseInt(id)))
-    const [updatedUser] = await db.select().from(users).where(eq(users.id, parseInt(id)))
+      // 3. Обновляем пользователя
+      await tx.update(users).set(updates).where(eq(users.id, userId))
 
-    return updatedUser
+      // 4. Получаем обновлённого пользователя
+      const [updatedUser] = await tx.select().from(users).where(eq(users.id, userId))
+      return updatedUser
+    })
   } catch (error) {
     console.error('[API/Users/Update] Ошибка:', error)
     throw createError({ statusCode: 500, message: 'Ошибка сервера при обновлении' })

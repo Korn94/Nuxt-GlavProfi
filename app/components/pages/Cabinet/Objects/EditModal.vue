@@ -4,6 +4,12 @@
     @update:visible="$emit('update:modelValue', false)">
     <div class="edit-form">
 
+      <!-- Индикатор архивного статуса -->
+      <div v-if="form.status === 'canceled'" class="archive-banner">
+        <Icon name="mdi:archive-outline" size="18" />
+        <span>Объект архивирован (содержит финансовые операции)</span>
+      </div>
+
       <!-- Название -->
       <div class="field">
         <label class="field__label">Название</label>
@@ -103,7 +109,7 @@
             </button>
           </template>
 
-          <!-- Завершён / Отменён -->
+          <!-- Завершён / Отменён / Архивирован -->
           <template v-else>
             <button class="crm-btn crm-btn--success" @click="setStatus('active')">
               <Icon name="mdi:play" size="14" /> Возобновить
@@ -155,6 +161,26 @@ const form = ref<any>({ ...props.object })
 const foremans = ref<any[]>([])
 const saving = ref(false)
 
+// ── Типы ответов от API удаления ──────────────────────────────────────
+interface DeleteResponse {
+  message: string
+  id: number
+  mode: 'soft' | 'hard'
+  operations?: {
+    comings: number
+    works: number
+    expenses: number
+    materials: number
+  }
+  deletedDocuments?: {
+    contracts: number
+    budgetItems: number
+    acts: number
+    invoices: number
+  }
+  deletedBoards?: number
+}
+
 // ── Синхронизация формы при изменении объекта ────────────────────────
 watch(() => props.object, obj => { form.value = { ...obj } }, { deep: true })
 
@@ -202,7 +228,7 @@ function confirmAction(action: 'complete' | 'cancel' | 'delete') {
   const messages = {
     complete: 'Завершить объект?',
     cancel: 'Отменить объект?',
-    delete: 'Удалить объект? Это действие нельзя отменить.',
+    delete: 'Удалить объект?\n\nЕсли у объекта есть финансовые операции (приходы, работы, расходы, материалы) — он будет архивирован со статусом "Отменён". Для полного удаления сначала удалите все операции вручную.',
   }
   if (!confirm(messages[action])) return
 
@@ -211,15 +237,77 @@ function confirmAction(action: 'complete' | 'cancel' | 'delete') {
   else deleteObject()
 }
 
+// ── Удаление объекта (с обработкой soft/hard режима) ─────────────────
 async function deleteObject() {
   try {
-    await api.delete(`/api/objects/${props.object.id}`)
+    const result = await api.delete<DeleteResponse>(`/api/objects/${props.object.id}`)
+
+    // ───────── SOFT DELETE: объект архивирован ─────────
+    if (result?.mode === 'soft') {
+      const ops = result.operations || { comings: 0, works: 0, expenses: 0, materials: 0 }
+      const docs = result.deletedDocuments || { contracts: 0, budgetItems: 0, acts: 0, invoices: 0 }
+
+      // Формируем понятное сообщение для пользователя
+      const operationsList = []
+      if (ops.comings > 0) operationsList.push(`приходов: ${ops.comings}`)
+      if (ops.works > 0) operationsList.push(`работ: ${ops.works}`)
+      if (ops.expenses > 0) operationsList.push(`расходов: ${ops.expenses}`)
+      if (ops.materials > 0) operationsList.push(`материалов: ${ops.materials}`)
+
+      const docsList = []
+      if (docs.contracts > 0) docsList.push(`договоров: ${docs.contracts}`)
+      if (docs.budgetItems > 0) docsList.push(`смет: ${docs.budgetItems}`)
+      if (docs.acts > 0) docsList.push(`актов: ${docs.acts}`)
+      if (docs.invoices > 0) docsList.push(`счетов: ${docs.invoices}`)
+
+      alert(
+        `ℹ️ Объект архивирован (статус "Отменён")\n\n` +
+        `Причина: содержит финансовые операции\n` +
+        `• ${operationsList.join(', ')}\n\n` +
+        (docsList.length > 0 ? `Удалено документов:\n• ${docsList.join(', ')}\n\n` : '') +
+        `Для полного удаления объекта сначала удалите все финансовые операции вручную.`
+      )
+
+      // Обновляем объект в UI (новый статус canceled)
+      const updatedObject = { ...props.object, status: 'canceled' }
+      emit('updated', updatedObject)
+      emit('update:modelValue', false)
+
+      // НЕ редиректим — объект остаётся в списке (но со статусом canceled)
+      return
+    }
+
+    // ───────── HARD DELETE: объект полностью удалён ─────────
+    if (result?.mode === 'hard') {
+      const docs = result.deletedDocuments || { contracts: 0, budgetItems: 0, acts: 0, invoices: 0 }
+      const docsList = []
+      if (docs.contracts > 0) docsList.push(`договоров: ${docs.contracts}`)
+      if (docs.budgetItems > 0) docsList.push(`смет: ${docs.budgetItems}`)
+      if (docs.acts > 0) docsList.push(`актов: ${docs.acts}`)
+      if (docs.invoices > 0) docsList.push(`счетов: ${docs.invoices}`)
+
+      alert(
+        `✅ Объект полностью удалён\n\n` +
+        (docsList.length > 0 ? `Удалено документов:\n• ${docsList.join(', ')}` : 'Объект не содержал связанных документов.')
+      )
+
+      emit('deleted')
+      emit('update:modelValue', false)
+
+      // Редиректим на список объектов
+      router.push('/cabinet/objects')
+      return
+    }
+
+    // Fallback: если API не вернул mode (старая версия бэкенда)
+    alert('Объект удалён')
     emit('deleted')
     emit('update:modelValue', false)
     router.push('/cabinet/objects')
-  } catch (e) {
+
+  } catch (e: any) {
     console.error('[EditModal] Ошибка удаления:', e)
-    alert('Не удалось удалить объект')
+    alert(e?.data?.message || 'Не удалось удалить объект')
   }
 }
 </script>
@@ -229,6 +317,20 @@ async function deleteObject() {
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+// ── Баннер архивного статуса ─────────────────────────────────────────
+.archive-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--crm-warning-dim, rgba(245, 166, 35, .12));
+  border: 1px solid rgba(245, 166, 35, .35);
+  border-radius: var(--crm-radius-md);
+  color: var(--crm-warning, #f5a623);
+  font-size: var(--crm-text-sm);
+  font-weight: 500;
 }
 
 .field-row {

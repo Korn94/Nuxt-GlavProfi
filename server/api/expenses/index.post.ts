@@ -10,7 +10,7 @@
 import { defineEventHandler, readBody, createError } from 'h3'
 import { db } from '../../db'
 import { expenses, masters, workers, foremans, offices, objects } from '../../db/schema'
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 
 type ExpenseType = 'Работа' | 'Налог' | 'Зарплата' | 'Реклама' | 'Кредит' | 'Топливо' | 'ГлавПрофи'
 
@@ -49,37 +49,44 @@ export default defineEventHandler(async (event) => {
   const parsedDate = operationDate ? new Date(operationDate) : new Date()
   if (isNaN(parsedDate.getTime())) throw createError({ statusCode: 400, message: 'Некорректная дата' })
 
-  // Проверка объекта (если требуется)
-  if (objectId && REQUIRES_OBJECT.includes(typedExpenseType as any)) {
-    const [obj] = await db.select().from(objects).where(eq(objects.id, parseInt(objectId)))
-    if (!obj) throw createError({ statusCode: 404, message: 'Объект не найден' })
-  }
-
-  // Проверка контрагента + обновление баланса (если требуется)
+  // Проверка контрагента
   if (contractorId && contractorType && REQUIRES_CONTRACTOR.includes(typedExpenseType as any)) {
     const ContractorModel = CONTRACTOR_MODELS[contractorType as keyof typeof CONTRACTOR_MODELS]
     if (!ContractorModel) throw createError({ statusCode: 400, message: 'Неверный тип контрагента' })
 
     const [contractor] = await db.select().from(ContractorModel).where(eq(ContractorModel.id, parseInt(contractorId)))
     if (!contractor) throw createError({ statusCode: 404, message: 'Контрагент не найден' })
-
-    // Обновляем баланс ТОЛЬКО для типа "Работа"
-    if (UPDATES_BALANCE.includes(typedExpenseType as any)) {
-      const newBalance = Number(contractor.balance) + Number(amount)
-      await db.update(ContractorModel).set({ balance: newBalance.toFixed(2) }).where(eq(ContractorModel.id, parseInt(contractorId)))
-    }
   }
 
-  const [newExpense] = await db.insert(expenses).values({
-    amount: amount.toString(),
-    comment,
-    contractorId: contractorId ? parseInt(contractorId) : null,
-    contractorType,
-    objectId: objectId ? parseInt(objectId) : null,
-    expenseType: typedExpenseType,
-    paymentDate: new Date(),
-    operationDate: parsedDate
-  }).$returningId()
+  // ✅ Обёрнуто в транзакцию
+  return await db.transaction(async (tx) => {
+    // 1. Создаём расход
+    const [newExpense] = await tx.insert(expenses).values({
+      amount: amount.toString(),
+      comment,
+      contractorId: contractorId ? parseInt(contractorId) : null,
+      contractorType,
+      objectId: objectId ? parseInt(objectId) : null,
+      expenseType: typedExpenseType,
+      paymentDate: new Date(),
+      operationDate: parsedDate
+    }).$returningId()
 
-  return newExpense
+    // 2. Обновляем баланс ТОЛЬКО для типа "Работа" (атомарно!)
+    if (
+      contractorId &&
+      contractorType &&
+      UPDATES_BALANCE.includes(typedExpenseType as any)
+    ) {
+      const ContractorModel = CONTRACTOR_MODELS[contractorType as keyof typeof CONTRACTOR_MODELS]
+      if (ContractorModel) {
+        // ✅ Атомарное обновление: SQL сам прибавит к текущему балансу
+        await tx.update(ContractorModel)
+          .set({ balance: sql`balance + ${amount}` })
+          .where(eq(ContractorModel.id, parseInt(contractorId)))
+      }
+    }
+
+    return newExpense
+  })
 })

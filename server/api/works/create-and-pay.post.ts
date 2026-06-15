@@ -3,14 +3,22 @@
  * Назначение: Создание работы + мгновенная оплата (транзакция)
  * ⚠️ Требует право `canViewSalary` (проверяется в мидлваре)
  * 
+ * Логика:
+ * 1. Создаём работу с paid: true, accepted: true
+ * 2. Создаём расход типа "Работа" (увеличивает баланс контрагента)
+ * 3. Атомарно вычитаем workerAmount из баланса (оплата работы)
+ * 4. Атомарно обновляем агрегаты объекта
+ * 
+ * Итог: баланс контрагента не меняется (расход + оплата = 0)
+ * 
  * @body { workerAmount: number, contractorId: number, contractorType: string, objectId: number, comment?, workTypes?, workSource?, foremanId?, operationDate? }
- * @returns { Work } — созданная работа (с `accepted: true`, `paid: true`)
+ * @returns { Work } — созданная работа
  */
 
 import { defineEventHandler, readBody, createError } from 'h3'
 import { db } from '../../db'
-import { works, expenses, objects } from '../../db/schema'
-import { eq } from 'drizzle-orm'
+import { works, expenses, objects, masters, workers } from '../../db/schema'
+import { eq, sql } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   // ✅ Авторизация и права уже проверены мидлваром
@@ -46,6 +54,7 @@ export default defineEventHandler(async (event) => {
     if (!newWork) throw new Error('Не удалось создать работу')
 
     // 2. Создаём расход (долг компании перед контрагентом)
+    //    → увеличивает баланс контрагента на workerAmount
     await tx.insert(expenses).values({
       amount: body.workerAmount.toString(),
       comment: body.comment || '',
@@ -57,17 +66,21 @@ export default defineEventHandler(async (event) => {
       operationDate
     })
 
-    // 3. Обновляем агрегаты объекта
-    const [object] = await tx.select().from(objects).where(eq(objects.id, body.objectId))
-    if (!object) throw createError({ statusCode: 404, message: 'Объект не найден' })
+    // 3. ✅ НОВОЕ: Атомарно вычитаем workerAmount из баланса (оплата работы)
+    //    Итоговый эффект на баланс: +amount (расход) - amount (оплата) = 0
+    if (body.contractorType === 'master' || body.contractorType === 'worker') {
+      const ContractorModel = body.contractorType === 'master' ? masters : workers
+      
+      await tx.update(ContractorModel)
+        .set({ balance: sql`balance - ${body.workerAmount}` })
+        .where(eq(ContractorModel.id, body.contractorId))
+    }
 
-    const newTotalWorks = Number(object.totalWorks) + Number(body.workerAmount)
-    const newTotalBalance = Number(object.totalIncome) - newTotalWorks
-
+    // 4. ✅ Атомарное обновление агрегатов объекта через SQL
     await tx.update(objects)
       .set({
-        totalWorks: newTotalWorks.toFixed(2),
-        totalBalance: newTotalBalance.toFixed(2)
+        totalWorks: sql`total_works + ${body.workerAmount}`,
+        totalBalance: sql`(total_income) - (total_works + ${body.workerAmount})`
       })
       .where(eq(objects.id, body.objectId))
 

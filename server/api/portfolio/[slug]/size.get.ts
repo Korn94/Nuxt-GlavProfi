@@ -1,13 +1,43 @@
-// server/api/portfolio/[slug]/size.get.ts
+/**
+ * 📍 Файл: `server/api/portfolio/[slug]/size.get.ts`
+ * 📍 Эндпоинт: `GET /api/portfolio/[slug]/size`
+ *
+ * Назначение: Подсчёт суммарного размера всех файлов кейса
+ * ⚠️ Требует роль `admin` или `manager`
+ *
+ * Логика:
+ * - Получаем все изображения кейса
+ * - Параллельно (Promise.all) асинхронно получаем размеры файлов
+ * - fs.promises.stat не блокирует event loop
+ *
+ * @param {string} slug — slug кейса (из пути)
+ * @returns { totalSize: number, fileCount: number, caseId: number }
+ */
+
 import { eventHandler, createError } from 'h3'
 import { db } from '../../../db'
 import { portfolioImages, portfolioCases } from '../../../db/schema'
 import { eq } from 'drizzle-orm'
 import { requireAuth } from '../../../utils/permissions'
-import { existsSync, statSync } from 'fs'
-import { posix } from 'path'  // 🔥 Импортируем posix вместо всего path
+import { stat } from 'node:fs/promises'
+import { posix } from 'node:path'
 
 const UPLOAD_DIR_BASE = '/var/www/glavprofi_ru_usr40/data/www/uploads'
+
+// ✅ Асинхронный хелпер: возвращает размер файла или 0 если не найден
+const getFileSize = async (physicalPath: string): Promise<number> => {
+  try {
+    const stats = await stat(physicalPath)
+    return stats.size
+  } catch (err: any) {
+    // ENOENT = файл не найден (не критичная ошибка)
+    if (err.code === 'ENOENT') {
+      return 0
+    }
+    console.warn(`[Portfolio/Size] ⚠️ Ошибка доступа к файлу: ${physicalPath}`, err)
+    return 0
+  }
+}
 
 export default eventHandler(async (event) => {
   // ───────── AUTH ─────────
@@ -41,23 +71,23 @@ export default eventHandler(async (event) => {
     return { totalSize: 0, fileCount: 0, caseId: caseData.id }
   }
 
-  // ───────── СЧИТАЕМ РАЗМЕР ФАЙЛОВ ─────────
+  // ───────── ✅ ПАРАЛЛЕЛЬНЫЙ подсчёт размеров (не блокирует event loop) ─────────
+  const sizes = await Promise.all(
+    images.map(async (img) => {
+      const relativePath = img.url.replace('/uploads/', '')
+      const physicalPath = posix.join(UPLOAD_DIR_BASE, relativePath)
+      return await getFileSize(physicalPath)
+    })
+  )
+
+  // ───────── ФОРМИРУЕМ РЕЗУЛЬТАТ ─────────
   let totalSize = 0
   let fileCount = 0
 
-  for (const img of images) {
-    try {
-      // 🔥 Используем posix.join для корректных путей на любой ОС
-      const relativePath = img.url.replace('/uploads/', '')
-      const physicalPath = posix.join(UPLOAD_DIR_BASE, relativePath)
-      
-      if (existsSync(physicalPath)) {
-        const stats = statSync(physicalPath)
-        totalSize += stats.size
-        fileCount++
-      }
-    } catch (err) {
-      console.warn(`Ошибка при получении размера: ${img.url}`, err)
+  for (const size of sizes) {
+    if (size > 0) {
+      totalSize += size
+      fileCount++
     }
   }
 

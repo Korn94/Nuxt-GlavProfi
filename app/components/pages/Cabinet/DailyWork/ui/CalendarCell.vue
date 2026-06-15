@@ -213,7 +213,7 @@ const cellEvents = computed(() => ({
     min-width: 16px;
     height: 16px;
     padding: 0 4px;
-    background: var(--crm-accent);
+    background: var(--crm-bg-surface);
     color: #fff;
     font-size: 10px;
     font-weight: 700;
@@ -222,7 +222,8 @@ const cellEvents = computed(() => ({
     align-items: center;
     justify-content: center;
     line-height: 1;
-    border: 1.5px solid var(--crm-bg-surface);
+    // border: 1.5px solid var(--crm-accent);
+    // border: 1.5px solid var(--crm-bg-surface);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
     pointer-events: none;
     z-index: 3;
