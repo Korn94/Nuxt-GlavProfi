@@ -2,11 +2,11 @@
 import { eventHandler, createError, readBody } from 'h3'
 import { db, boardsTasks } from '../../../../db'
 import { eq } from 'drizzle-orm'
-import { requireAuth } from '../../../../utils/permissions'
+import { verifyAuth } from '../../../../utils/auth'
 
 export default eventHandler(async (event) => {
   try {
-    const user = await requireAuth(event)
+    const user = await verifyAuth(event)
     
     const boardIdParam = event.context.params?.id
     if (!boardIdParam || isNaN(Number(boardIdParam))) {

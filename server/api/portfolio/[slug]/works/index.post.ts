@@ -3,10 +3,10 @@ import { eventHandler, createError, readBody } from 'h3'
 import { db } from '../../../../db'
 import { portfoCaseWorks, portfolioCases } from '../../../../db/schema'
 import { eq } from 'drizzle-orm'
-import { requireAuth } from '../../../../utils/permissions'
+import { verifyAuth } from '../../../../utils/auth'
 
 export default eventHandler(async (event) => {
-  const user = await requireAuth(event)
+  const user = await verifyAuth(event)
   if (!['admin', 'manager'].includes(user.role)) {
     throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   }
@@ -33,9 +33,9 @@ export default eventHandler(async (event) => {
   const caseId = caseExists.id
 
   const body = await readBody(event)
-  const { workType, progress } = body
+  const { workType, value } = body
 
-  if (!workType || progress === undefined) {
+  if (!workType || !value) {
     throw createError({ statusCode: 400, statusMessage: 'Missing required fields' })
   }
 
@@ -78,7 +78,7 @@ export default eventHandler(async (event) => {
     .values({
       caseId,
       workType,
-      progress,
+      value,       // ← ПРАВИЛЬНО: поле называется "value"
       order: 0
     })
     .$returningId()

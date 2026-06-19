@@ -2,7 +2,7 @@
 import { eventHandler, createError } from 'h3'
 import { db, boardsTasks, boardsComments, users } from '../../../../../db'
 import { eq, and, asc, isNull } from 'drizzle-orm'
-import { requireAuth } from '../../../../../utils/permissions'
+import { verifyAuth } from '../../../../../utils/auth'
 
 // Тип для пользователя в комментарии
 interface CommentUser {
@@ -27,7 +27,7 @@ interface CommentWithReplies {
 export default eventHandler(async (event) => {
   try {
     // Проверяем аутентификацию
-    const user = await requireAuth(event)
+    const user = await verifyAuth(event)
 
     // Получаем ID задачи из параметров
     const taskIdParam = event.context.params?.id

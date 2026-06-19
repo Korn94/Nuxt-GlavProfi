@@ -130,8 +130,16 @@ import ObjectSelect from './ui/ObjectSelect.vue'
 import SplitSummary from './ui/SplitSummary.vue'
 import { useNotifications } from '~/composables/useNotifications'
 
-/** ID контрагентов, которые подразумевают пул людей (например, "Разнорабочие") */
-const MULTI_WORKER_IDS = [15] as const
+/** 
+ * Список мульти-контрагентов (пул людей за одним контрагентом)
+ * Используем составной ключ {type, id}, чтобы избежать коллизий
+ * когда у мастера и рабочего совпадают ID
+ */
+const MULTI_WORKERS = [
+  { type: 'worker', id: 15 },  // "Разнорабочие"
+  { type: 'master', id: 5 },   // например, "Бригада плиточников"
+] as const
+
 const MAX_WORKERS = 10
 
 const props = defineProps<{
@@ -173,9 +181,13 @@ const dateRangeLabel = computed(() => {
   return `${new Date(first).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} — ${new Date(last).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} (${props.dates.length} дн.)`
 })
 
-/** Является ли контрагент "мульти-рабочим" (пул людей) */
+/** Является ли контрагент "мульти-рабочим" (проверяем И тип, И id) */
 const isMultiWorker = computed(() =>
-  !!props.contractorId && MULTI_WORKER_IDS.includes(props.contractorId as typeof MULTI_WORKER_IDS[number])
+  !!props.contractorId &&
+  !!props.contractorType &&
+  MULTI_WORKERS.some(
+    mw => mw.type === props.contractorType && mw.id === props.contractorId
+  )
 )
 
 /** Эффективная ставка за день: dailyRate × workerCount (или × 0.5 для пол дня) */

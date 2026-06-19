@@ -1,302 +1,447 @@
 // server/middleware/auth.ts
 /**
  * Централизованный middleware для проверки авторизации и прав доступа
- *
- * Архитектура:
- * - Автоматическая проверка авторизации для всех /api/* запросов
- * - Проверка прав на основе конфигурации путей (PROTECTED_PATHS)
- * - Белый список публичных endpoint'ов
- * - Поддержка проверок по роли и кастомной логики
- *
+ * 
+ * 🆕 Новая архитектура (без legacy):
+ * - Читает права из БД (permissions_role_access + permissions_user_overrides)
+ * - Использует кэширование для производительности (5 минут)
+ * - Детализированные страницы: comings, expenses, materials, works, contractors, price, portfolio
+ * - Упрощённые действия: view, create, edit, delete, special
+ * 
  * ⚠️ Права определяются ТОЛЬКО на сервере — клиент не может их обойти.
  */
 
 import { defineEventHandler, createError } from 'h3'
 import { verifyAuth } from '../utils/auth'
-import { getUserPermissions, hasRoleLevel, requirePermission } from '../utils/permissions'
-import type { Role, Permissions } from '~/types/permissions'
+import { db } from '../db'
+import { permissionsRoleAccess, permissionsUserOverrides } from '../db/schema'
+import { eq, and, or, isNull, gt, sql } from 'drizzle-orm'
 import type { users } from '../db/schema'
 
 // Тип пользователя из БД
 type DbUser = typeof users.$inferSelect
 
 // ============================================
-// 1. ТИПЫ ДЛЯ КОНФИГУРАЦИИ ПРАВ
+// 1. ИЕРАРХИЯ РОЛЕЙ (локально, без legacy импортов)
 // ============================================
-/**
- * Формат требования прав для пути
- */
-export interface PathRequirement {
-  type: 'permission' | 'role' | 'custom'
-  value: keyof Permissions | Role | ((user: DbUser) => boolean)
-  message?: string // Кастомное сообщение об ошибке
+const ROLE_LEVELS: Record<string, number> = {
+  worker: 1,
+  master: 2,
+  foreman: 3,
+  manager: 4,
+  admin: 5
 }
 
 // ============================================
-// 2. БЕЛЫЙ СПИСОК ПУБЛИЧНЫХ ENDPOINT'ОВ
+// 2. ТИПЫ ДЛЯ КОНФИГУРАЦИИ ПРАВ
 // ============================================
+
+export type PageAction = 'view' | 'create' | 'edit' | 'delete' | 'special'
+
+export interface PathRequirement {
+  type: 'page' | 'role' | 'custom'
+  value: string | ((user: DbUser) => boolean | Promise<boolean>)
+  action?: PageAction // Для type: 'page'
+  message?: string
+}
+
+// ============================================
+// 3. КЭШИРОВАНИЕ ПРАВ
+// ============================================
+
+interface CachedPermissions {
+  permissions: Record<string, any>
+  timestamp: number
+}
+
+const permissionsCache = new Map<number, CachedPermissions>()
+const CACHE_TTL = 5 * 60 * 1000 // 5 минут
+
 /**
- * Пути, доступные без авторизации.
- * ⚠️ Добавляйте сюда только те эндпоинты, которые действительно публичные.
+ * Получить права пользователя из БД с кэшированием
+ * Упрощённая система: canView, canCreate, canEdit, canDelete, canSpecial
  */
+async function getUserPermissionsFromDb(user: DbUser): Promise<Record<string, any>> {
+  const now = Date.now()
+  const cached = permissionsCache.get(user.id)
+  
+  // Возвращаем из кэша если не истёк
+  if (cached && now - cached.timestamp < CACHE_TTL) {
+    return cached.permissions
+  }
+
+  // Получаем права роли из БД
+  const roleAccess = await db
+    .select({
+      pageSlug: permissionsRoleAccess.pageSlug,
+      canView: permissionsRoleAccess.canView,
+      canCreate: permissionsRoleAccess.canCreate,
+      canEdit: permissionsRoleAccess.canEdit,
+      canDelete: permissionsRoleAccess.canDelete,
+      canSpecial: permissionsRoleAccess.canSpecial,
+    })
+    .from(permissionsRoleAccess)
+    .where(
+      and(
+        eq(permissionsRoleAccess.role, user.role as any),
+        eq(permissionsRoleAccess.isActive, true)
+      )
+    )
+
+  const permissions: Record<string, any> = {}
+  for (const access of roleAccess) {
+    permissions[access.pageSlug] = {
+      canView: access.canView,
+      canCreate: access.canCreate,
+      canEdit: access.canEdit,
+      canDelete: access.canDelete,
+      canSpecial: access.canSpecial,
+    }
+  }
+
+  // Получаем переопределения пользователя
+  const overrides = await db
+    .select({
+      pageSlug: permissionsUserOverrides.pageSlug,
+      canView: permissionsUserOverrides.canView,
+      canCreate: permissionsUserOverrides.canCreate,
+      canEdit: permissionsUserOverrides.canEdit,
+      canDelete: permissionsUserOverrides.canDelete,
+      canSpecial: permissionsUserOverrides.canSpecial,
+    })
+    .from(permissionsUserOverrides)
+    .where(
+      and(
+        eq(permissionsUserOverrides.userId, user.id),
+        eq(permissionsUserOverrides.isActive, true),
+        or(
+          isNull(permissionsUserOverrides.expiresAt),
+          gt(permissionsUserOverrides.expiresAt, sql`NOW()`)
+        )
+      )
+    )
+
+  // Применяем переопределения (null = использовать права роли)
+  for (const override of overrides) {
+    if (!permissions[override.pageSlug]) {
+      permissions[override.pageSlug] = {
+        canView: false,
+        canCreate: false,
+        canEdit: false,
+        canDelete: false,
+        canSpecial: false,
+      }
+    }
+
+    const target = permissions[override.pageSlug]
+    if (override.canView !== null) target.canView = override.canView
+    if (override.canCreate !== null) target.canCreate = override.canCreate
+    if (override.canEdit !== null) target.canEdit = override.canEdit
+    if (override.canDelete !== null) target.canDelete = override.canDelete
+    if (override.canSpecial !== null) target.canSpecial = override.canSpecial
+  }
+
+  // Сохраняем в кэш
+  permissionsCache.set(user.id, { permissions, timestamp: now })
+  
+  return permissions
+}
+
+/**
+ * Проверить право пользователя на действие для страницы
+ */
+async function checkPagePermission(
+  user: DbUser,
+  pageSlug: string,
+  action: PageAction
+): Promise<boolean> {
+  const permissions = await getUserPermissionsFromDb(user)
+  const pagePerms = permissions[pageSlug]
+  
+  if (!pagePerms) return false
+
+  switch (action) {
+    case 'view':
+      return pagePerms.canView
+    case 'create':
+      return pagePerms.canView && pagePerms.canCreate
+    case 'edit':
+      return pagePerms.canView && pagePerms.canEdit
+    case 'delete':
+      return pagePerms.canView && pagePerms.canDelete
+    case 'special':
+      return pagePerms.canView && pagePerms.canSpecial
+    default:
+      return false
+  }
+}
+
+/**
+ * Инвалидировать кэш прав пользователя (вызывать после изменения прав)
+ */
+export function invalidatePermissionsCache(userId: number) {
+  permissionsCache.delete(userId)
+}
+
+/**
+ * 🆕 Инвалидировать кэш прав для ВСЕХ пользователей с определённой ролью
+ * Вызывается после обновления прав роли через UI
+ */
+export async function invalidatePermissionsCacheByRole(role: string) {
+  const { db } = await import('../db')
+  const { users } = await import('../db/schema')
+  const { eq } = await import('drizzle-orm')
+  
+  // Получаем всех пользователей с этой ролью
+  const usersWithRole = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.role, role as any))
+  
+  // Инвалидируем кэш для каждого
+  let invalidatedCount = 0
+  for (const user of usersWithRole) {
+    if (permissionsCache.has(user.id)) {
+      permissionsCache.delete(user.id)
+      invalidatedCount++
+    }
+  }
+  
+  console.log(`[Permissions Cache] 🧹 Инвалидирован кэш для ${invalidatedCount}/${usersWithRole.length} пользователей роли ${role}`)
+  return { total: usersWithRole.length, invalidated: invalidatedCount }
+}
+
+// ============================================
+// 4. БЕЛЫЙ СПИСОК ПУБЛИЧНЫХ ENDPOINT'ОВ
+// ============================================
+
 const PUBLIC_PATHS = [
-  // 🔐 Авторизация
   '/api/auth/login',
   '/api/auth/telegram',
-  '/api/auth/check',     // ✅ Нужен для фоновой проверки токена
+  '/api/auth/check',
   '/api/auth/logout',
   '/api/permissions',
-
-  // 👤 Профиль пользователя (возвращает { user: null } для гостей)
   '/api/me',
-
-  // 🟢 Публичные данные
-  '/api/online',         // ✅ Публичный список онлайн-пользователей
-
-  // 💰 Прайс-листы (публичный просмотр цен)
-  '/api/price/list',           // Базовый путь
-  '/api/price/list/',          // Префикс для вложенных
-  '/api/price/calc/',          // ✅ Калькулятор — теперь работает!
+  // Публичные endpoints прайс-листа (для калькулятора на сайте)
+  '/api/price/list',
+  '/api/price/list/',
+  '/api/price/calc/',
   '/api/price/categories',
   '/api/price/subcategories',
   '/api/price/items',
   '/api/price/pages',
   '/api/price/details',
   '/api/price/dopworks',
-
-  // 🖼️ Портфолио (публичный просмотр)
+  // Публичная страница портфолио
   '/api/portfolio',
   '/api/portfolio/**',
-
-  // ✉️ Отправка сообщений (публичная форма обратной связи)
+  // Служебные
   '/api/send-message',
-
-  // ✅ Иконки
   '/api/_nuxt_icon',
   '/api/_nuxt_icon/**',
+  '/api/**/*.map',
+  '/**/*.map',
 ]
 
 // ============================================
-// 3. КОНФИГУРАЦИЯ ПРАВ ПО ENDPOINT'AM
+// 5. КОНФИГУРАЦИЯ ПРАВ ПО ENDPOINT'AM (НОВАЯ ДЕТАЛИЗИРОВАННАЯ СИСТЕМА)
 // ============================================
-/**
- * Карта required permissions для конкретных путей.
- *
- * Форматы значений:
- * - { type: 'permission', value: 'canEditObjects' } — требует конкретное право
- * - { type: 'role', value: 'manager' } — требует роль не ниже указанной
- * - { type: 'custom', value: (user) => boolean } — кастомная проверка
- *
- * ✅ Поддерживает wildcard '**' для группировки путей
- * ✅ Поддерживает параметры маршрута '[id]'
- *
- * 📋 Полная карта всех API endpoint'ов проекта:
- *
- * ПУБЛИЧНЫЕ (без авторизации):
- * - /api/auth/login, /api/auth/telegram, /api/auth/check, /api/auth/logout
- * - /api/me
- * - /api/online
- *
- * АВТОРИЗОВАННЫЕ (требуется вход):
- * - /api/analytics — аналитика и дашборды
- * - /api/balance — балансы объектов
- * - /api/boards — доски задач (канбан)
- * - /api/comings — приходы/поступления
- * - /api/comments — комментарии
- * - /api/contractors — контрагенты
- * - /api/expenses — расходы
- * - /api/materials — материалы
- * - /api/objects — объекты строительства
- * - /api/portfolio — портфолио
- * - /api/price — прайс-листы, калькуляции
- * - /api/salary-deductions — удержания из зарплаты
- * - /api/send-message — отправка сообщений
- * - /api/users — пользователи
- * - /api/works — работы, задания
- * - /api/attachments — вложения
- */
+
 const PROTECTED_PATHS: Record<string, PathRequirement> = {
-  // ============================================
-  // 🔐 АВТОРИЗАЦИЯ И ПРОФИЛЬ
-  // ============================================
-  '/api/auth/logout': { type: 'permission', value: 'canViewDashboard' },
+  // 🔐 Авторизация
+  '/api/auth/logout': { type: 'page', value: 'dashboard', action: 'view' },
 
-  // ============================================
-  // 👤 ПРОФИЛЬ И ДАННЫЕ ПОЛЬЗОВАТЕЛЯ
-  // ============================================
-  // '/api/me': { type: 'permission', value: 'canViewDashboard' },
+  // 📊 Дашборд
+  '/api/analytics': { type: 'page', value: 'dashboard', action: 'view' },
 
-  // ============================================
-  // 📊 АНАЛИТИКА И ДАШБОРДЫ
-  // ============================================
-  '/api/analytics': { type: 'permission', value: 'canViewDashboard' },
+  // ═══════════════════════════════════════════════════════════════
+  // 🏗️ ОБЪЕКТЫ (objects)
+  // ═══════════════════════════════════════════════════════════════
+  '/api/objects': { type: 'page', value: 'objects', action: 'view' },
+  '/api/objects/': { type: 'page', value: 'objects', action: 'create' },
+  '/api/objects/[id]': { type: 'page', value: 'objects', action: 'view' },
+  '/api/objects/[id]/full': { type: 'page', value: 'objects', action: 'view' },
+  '/api/objects/[id]/contract': { type: 'page', value: 'objects', action: 'view' },
+  '/api/objects/[id]/balance': { type: 'page', value: 'objects', action: 'view' },
+  '/api/objects/[id]/operations': { type: 'page', value: 'objects', action: 'view' },
+  '/api/objects/[id]/comings': { type: 'page', value: 'objects', action: 'view' },
+  '/api/objects/[id]/expenses': { type: 'page', value: 'objects', action: 'view' },
+  '/api/objects/contract/[id]': { type: 'page', value: 'objects', action: 'edit' },
 
-  // ============================================
-  // 💰 ФИНАНСЫ
-  // ============================================
-  // Балансы
-  '/api/balance': { type: 'permission', value: 'canViewFinance' },
+  // Смета (budget) — часть объектов
+  '/api/objects/[id]/budget': { type: 'page', value: 'objects', action: 'view' },
+  '/api/objects/budget/[id]': { type: 'page', value: 'objects', action: 'edit' },
+  '/api/objects/budget/[id]/status': { type: 'page', value: 'objects', action: 'edit' },
 
-  // Расходы
-  '/api/expenses': { type: 'permission', value: 'canViewFinance' },
-  '/api/expenses/stats': { type: 'permission', value: 'canViewFinance' },
+  // Акты (acts) — часть объектов
+  '/api/objects/[id]/acts': { type: 'page', value: 'objects', action: 'view' },
+  '/api/objects/acts/[id]': { type: 'page', value: 'objects', action: 'edit' },
 
-  // Приходы/поступления
-  '/api/comings': { type: 'permission', value: 'canViewFinance' },
+  // Счета (invoices) — часть объектов
+  '/api/objects/[id]/invoices': { type: 'page', value: 'objects', action: 'view' },
+  '/api/objects/invoices/[id]': { type: 'page', value: 'objects', action: 'edit' },
 
-  // Удержания из зарплаты
-  '/api/salary-deductions': { type: 'permission', value: 'canViewSalary' },
+  // ═══════════════════════════════════════════════════════════════
+  // 💰 ПРИХОДЫ (comings) — выделено из finance
+  // ═══════════════════════════════════════════════════════════════
+  '/api/comings': { type: 'page', value: 'comings', action: 'view' },
+  '/api/comings/[id]': { type: 'page', value: 'comings', action: 'view' },
 
-  // ============================================
-  // 👥 КОНТРАГЕНТЫ И ПОЛЬЗОВАТЕЛИ
-  // ============================================
-  // Контрагенты
-  '/api/contractors': { type: 'permission', value: 'canViewWorkers' },
+  // ═══════════════════════════════════════════════════════════════
+  // 💸 РАСХОДЫ (expenses) — выделено из finance
+  // ═══════════════════════════════════════════════════════════════
+  '/api/expenses': { type: 'page', value: 'expenses', action: 'view' },
+  '/api/expenses/[id]': { type: 'page', value: 'expenses', action: 'view' },
+  '/api/expenses/stats': { type: 'page', value: 'expenses', action: 'view' },
+  '/api/balance': { type: 'page', value: 'expenses', action: 'view' },
+  '/api/salary-deductions': { type: 'page', value: 'expenses', action: 'view' },
 
-  // Пользователи
-  '/api/users': { type: 'role', value: 'manager' },
+  // ═══════════════════════════════════════════════════════════════
+  // 📦 МАТЕРИАЛЫ (materials) — выделено из finance
+  // ═══════════════════════════════════════════════════════════════
+  '/api/materials': { type: 'page', value: 'materials', action: 'view' },
+  '/api/materials/[id]': { type: 'page', value: 'materials', action: 'view' },
+  '/api/materials/toggle-check/[id]': { type: 'page', value: 'materials', action: 'special' },
 
-  // ============================================
-  // 🏗️ ОБЪЕКТЫ СТРОИТЕЛЬСТВА
-  // ============================================
-  '/api/objects/[id]/budget': { type: 'permission', value: 'canViewFinance' },
-  '/api/objects/[id]/balance': { type: 'permission', value: 'canViewFinance' },
-  '/api/objects/[id]/comings': { type: 'permission', value: 'canViewFinance' },
-  '/api/objects/[id]/expenses': { type: 'permission', value: 'canViewFinance' },
-  '/api/objects/[id]/invoices': { type: 'permission', value: 'canViewFinance' },
-  '/api/objects/[id]/acts': { type: 'permission', value: 'canViewFinance' },
-  '/api/objects/[id]/operations': { type: 'permission', value: 'canViewFinance' },
-  '/api/objects/[id]/full': { type: 'permission', value: 'canViewObjects' },
-  '/api/objects/[id]/contract': { type: 'permission', value: 'canViewObjects' },
-  '/api/objects/budget/[id]': { type: 'permission', value: 'canViewFinance' },
-  '/api/objects/budget/[id]/status': { type: 'permission', value: 'canEditFinance' },
-  '/api/objects/contract/[id]': { type: 'permission', value: 'canEditObjects' },
-  '/api/objects/invoices/[id]': { type: 'permission', value: 'canViewFinance' },
-  '/api/objects/acts/[id]': { type: 'permission', value: 'canViewFinance' },
-  '/api/objects': { type: 'permission', value: 'canViewObjects' },
+  // ═══════════════════════════════════════════════════════════════
+  // 🔨 РАБОТЫ (works) — выделено из objects/workers
+  // ═══════════════════════════════════════════════════════════════
+  '/api/works': { type: 'page', value: 'works', action: 'view' },
+  '/api/works/[id]': { type: 'page', value: 'works', action: 'view' },
+  '/api/works/daily-work/active-objects': { type: 'page', value: 'works', action: 'view' },
+  '/api/works/daily-work/daily-assignments': { type: 'page', value: 'works', action: 'view' },
+  '/api/works/daily-work/workers-with-daily-rate': { type: 'page', value: 'works', action: 'view' },
+  '/api/works/daily-work/bulk': { type: 'page', value: 'works', action: 'create' },
+  
+  // Специфичные операции (hasSpecial)
+  '/api/works/accept/[id]': { type: 'page', value: 'works', action: 'special' },
+  '/api/works/reject/[id]': { type: 'page', value: 'works', action: 'special' },
+  '/api/works/pay-work/[id]': { type: 'page', value: 'works', action: 'special' },
+  '/api/works/create-and-pay': { type: 'page', value: 'works', action: 'special' },
 
-  // ============================================
-  // 📋 ДОСКИ ЗАДАЧ (KANBAN)
-  // ============================================
-  '/api/boards': { type: 'permission', value: 'canViewDashboard' },
-  '/api/boards/folders': { type: 'permission', value: 'canViewDashboard' },
-  '/api/boards/folders/[id]': { type: 'permission', value: 'canViewDashboard' },
-  '/api/boards/folders/[id]/boards': { type: 'permission', value: 'canViewDashboard' },
-  '/api/boards/folders/order': { type: 'permission', value: 'canEditObjects' },
-  '/api/boards/tags': { type: 'permission', value: 'canViewDashboard' },
-  '/api/boards/[id]': { type: 'permission', value: 'canViewDashboard' },
-  '/api/boards/[id]/columns': { type: 'permission', value: 'canViewDashboard' },
-  '/api/boards/[id]/columns/order': { type: 'permission', value: 'canEditObjects' },
-  '/api/boards/[id]/tasks': { type: 'permission', value: 'canViewDashboard' },
-  '/api/boards/[id]/tasks/order': { type: 'permission', value: 'canEditObjects' },
-  '/api/boards/tasks/[id]': { type: 'permission', value: 'canViewDashboard' },
-  '/api/boards/tasks/[id]/subtasks': { type: 'permission', value: 'canViewDashboard' },
-  '/api/boards/tasks/[id]/attachments': { type: 'permission', value: 'canViewDashboard' },
-  '/api/boards/tasks/[id]/comments': { type: 'permission', value: 'canViewDashboard' },
-  '/api/boards/tasks/[id]/tags': { type: 'permission', value: 'canViewDashboard' },
-  '/api/boards/subtasks/[id]': { type: 'permission', value: 'canViewDashboard' },
-  '/api/boards/subtasks/[id]/complete': { type: 'permission', value: 'canViewDashboard' },
-  '/api/boards/subtasks/[id]/reorder': { type: 'permission', value: 'canEditObjects' },
+  // ═══════════════════════════════════════════════════════════════
+  // 👥 КОНТРАГЕНТЫ (contractors) — выделено из workers
+  // ═══════════════════════════════════════════════════════════════
+  '/api/contractors/[type]': { type: 'page', value: 'contractors', action: 'view' },
+  '/api/contractors/[type]/[id]': { type: 'page', value: 'contractors', action: 'view' },
+  '/api/contractors/[type]/[id]/expenses': { type: 'page', value: 'contractors', action: 'view' },
+  '/api/contractors/[type]/[id]/incomes': { type: 'page', value: 'contractors', action: 'view' },
+  '/api/contractors/[type]/[id]/recalculate-balance': { type: 'page', value: 'contractors', action: 'special' },
 
-  // ============================================
-  // 🔨 РАБОТЫ И ЗАДАНИЯ
-  // ============================================
-  '/api/works': { type: 'permission', value: 'canViewObjects' },
-  '/api/works/[id]': { type: 'permission', value: 'canViewObjects' },
-  '/api/works/accept/[id]': { type: 'permission', value: 'canApproveWorks' },
-  '/api/works/reject/[id]': { type: 'permission', value: 'canApproveWorks' },
-  '/api/works/pay-work/[id]': { type: 'permission', value: 'canViewSalary' },
-  '/api/works/create-and-pay': { type: 'permission', value: 'canViewSalary' },
-  '/api/works/daily-work/active-objects': { type: 'permission', value: 'canViewObjects' },
-  '/api/works/daily-work/workers-with-daily-rate': { type: 'permission', value: 'canViewSalary' },
-  '/api/works/daily-work/daily-assignments': { type: 'permission', value: 'canViewObjects' },
-  '/api/works/daily-work/bulk': { type: 'permission', value: 'canEditObjects' },
+  // ═══════════════════════════════════════════════════════════════
+  // 💲 ПРАЙС-ЛИСТ (price)
+  // ═══════════════════════════════════════════════════════════════
+  '/api/price/[entity]': { type: 'page', value: 'price', action: 'create' },
+  '/api/price/[entity]/[id]': { type: 'page', value: 'price', action: 'edit' },
+  '/api/price/[entity]/reorder': { type: 'page', value: 'price', action: 'special' },
 
-  // ============================================
-  // 📦 МАТЕРИАЛЫ
-  // ============================================
-  '/api/materials': { type: 'permission', value: 'canViewObjects' },
-  '/api/materials/[id]/toggle-check': { type: 'permission', value: 'canEditObjects' },
+  // ═══════════════════════════════════════════════════════════════
+  // 📁 ПОРТФОЛИО (portfolio)
+  // ═══════════════════════════════════════════════════════════════
+  '/api/portfolio/[slug]': { type: 'page', value: 'portfolio', action: 'view' },
+  '/api/portfolio/[slug]/images': { type: 'page', value: 'portfolio', action: 'view' },
+  '/api/portfolio/[slug]/works': { type: 'page', value: 'portfolio', action: 'view' },
+  '/api/portfolio/[slug]/size': { type: 'page', value: 'portfolio', action: 'view' },
 
-  // ============================================
-  // 💵 ПРАЙС-ЛИСТЫ И КАЛЬКУЛЯЦИИ
-  // ============================================
-  // ⚠️ GET-запросы (просмотр) теперь публичные — см. PUBLIC_PATHS выше
-  // POST/PUT/DELETE запросы всё ещё требуют прав
-  '/api/price/list': { type: 'permission', value: 'canEditObjects' },
-  '/api/price/list/[slug]': { type: 'permission', value: 'canEditObjects' },
-  '/api/price/calc/[slug]': { type: 'permission', value: 'canEditObjects' },
-  '/api/price/categories': { type: 'permission', value: 'canEditObjects' },
-  '/api/price/subcategories': { type: 'permission', value: 'canEditObjects' },
-  '/api/price/items': { type: 'permission', value: 'canEditObjects' },
-  '/api/price/pages': { type: 'permission', value: 'canEditObjects' },
-  '/api/price/details': { type: 'permission', value: 'canEditObjects' },
-  '/api/price/dopworks': { type: 'permission', value: 'canEditObjects' },
+  // ═══════════════════════════════════════════════════════════════
+  // 📋 ДОСКИ ЗАДАЧ (boards) — привязаны к objects
+  // ═══════════════════════════════════════════════════════════════
+  '/api/boards': { type: 'page', value: 'dashboard', action: 'view' },
+  '/api/boards/folders': { type: 'page', value: 'dashboard', action: 'view' },
+  '/api/boards/folders/[id]': { type: 'page', value: 'dashboard', action: 'view' },
+  '/api/boards/folders/[id]/boards': { type: 'page', value: 'dashboard', action: 'view' },
+  '/api/boards/folders/order': { type: 'page', value: 'objects', action: 'edit' },
+  '/api/boards/tags': { type: 'page', value: 'dashboard', action: 'view' },
+  '/api/boards/[id]': { type: 'page', value: 'dashboard', action: 'view' },
+  '/api/boards/[id]/columns': { type: 'page', value: 'dashboard', action: 'view' },
+  '/api/boards/[id]/columns/order': { type: 'page', value: 'objects', action: 'edit' },
+  '/api/boards/[id]/tasks': { type: 'page', value: 'dashboard', action: 'view' },
+  '/api/boards/[id]/tasks/order': { type: 'page', value: 'objects', action: 'edit' },
+  '/api/boards/tasks/[id]': { type: 'page', value: 'dashboard', action: 'view' },
+  '/api/boards/tasks/[id]/subtasks': { type: 'page', value: 'dashboard', action: 'view' },
+  '/api/boards/tasks/[id]/attachments': { type: 'page', value: 'dashboard', action: 'view' },
+  '/api/boards/tasks/[id]/comments': { type: 'page', value: 'dashboard', action: 'view' },
+  '/api/boards/tasks/[id]/tags': { type: 'page', value: 'dashboard', action: 'view' },
+  '/api/boards/subtasks/[id]': { type: 'page', value: 'dashboard', action: 'view' },
+  '/api/boards/subtasks/[id]/complete': { type: 'page', value: 'dashboard', action: 'view' },
+  '/api/boards/subtasks/[id]/reorder': { type: 'page', value: 'objects', action: 'edit' },
 
-  // ============================================
-  // 🖼️ ПОРТФОЛИО
-  // ============================================
-  '/api/portfolio': { type: 'permission', value: 'canViewObjects' },
-  '/api/portfolio/[slug]': { type: 'permission', value: 'canViewObjects' },
-  '/api/portfolio/[slug]/images': { type: 'permission', value: 'canViewObjects' },
-  '/api/portfolio/[slug]/works': { type: 'permission', value: 'canViewObjects' },
-  '/api/portfolio/[slug]/size': { type: 'permission', value: 'canViewObjects' },
+  // 📎 Вложения и комментарии
+  '/api/attachments': { type: 'page', value: 'dashboard', action: 'view' },
+  '/api/comments': { type: 'page', value: 'dashboard', action: 'view' },
 
-  // ============================================
-  // 📎 ВЛОЖЕНИЯ И КОММЕНТАРИИ
-  // ============================================
-  '/api/attachments': { type: 'permission', value: 'canViewDashboard' },
-  '/api/comments': { type: 'permission', value: 'canViewDashboard' },
+  // ═══════════════════════════════════════════════════════════════
+  // 👤 ПОЛЬЗОВАТЕЛИ (users)
+  // ═══════════════════════════════════════════════════════════════
+  '/api/users': { type: 'page', value: 'users', action: 'view' },
+  '/api/users/[id]': { type: 'page', value: 'users', action: 'view' },
 
-  // ============================================
-  // 🗑️ УДАЛЕНИЕ ЗАПИСЕЙ — общее правило
-  // ============================================
-  '/api/**/delete': { type: 'permission', value: 'canDeleteRecords' },
+  // ═══════════════════════════════════════════════════════════════
+  // ⚙️ НАСТРОЙКИ ПРАВ (settings)
+  // ═══════════════════════════════════════════════════════════════
+  '/api/permissions/pages': { type: 'page', value: 'settings', action: 'view' },
+  '/api/permissions/pages/[slug]': { type: 'page', value: 'settings', action: 'edit' },
+  '/api/permissions/roles': { type: 'page', value: 'settings', action: 'view' },
+  '/api/permissions/roles/[role]': { type: 'page', value: 'settings', action: 'edit' },
+  '/api/permissions/roles/copy': { type: 'page', value: 'settings', action: 'special' },
+  '/api/permissions/roles/[role]/reset': { type: 'page', value: 'settings', action: 'special' },
+  '/api/permissions/users': { type: 'page', value: 'settings', action: 'view' },
+  '/api/permissions/users/[id]/overrides': { type: 'page', value: 'settings', action: 'edit' },
+  '/api/permissions/users/[id]/overrides/[pageSlug]': { type: 'page', value: 'settings', action: 'edit' },
+  '/api/permissions/init': { type: 'role', value: 'admin' },
 
-  // ============================================
-  // ⚙️ АДМИН-ПАНЕЛЬ — только для менеджеров и выше
-  // ============================================
+  // ═══════════════════════════════════════════════════════════════
+  // 🟢 ОНЛАЙН (online) — привязан к users.canView
+  // ═══════════════════════════════════════════════════════════════
+  '/api/online': { type: 'page', value: 'users', action: 'view' },
+
+  // ═══════════════════════════════════════════════════════════════
+  // 🛡️ АДМИН-ПАНЕЛЬ
+  // ═══════════════════════════════════════════════════════════════
   '/api/admin/**': { type: 'role', value: 'manager' },
 }
 
 // ============================================
-// 4. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// 6. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 // ============================================
 
-/**
- * Извлечь путь без query-параметров
- */
 function getPathWithoutQuery(path: string): string {
   return path.split('?')[0] || ''
 }
 
-/**
- * Проверить, соответствует ли путь шаблону
- * ✅ Безопасно экранирует спецсимволы RegExp
- * ✅ Поддерживает ** (любые сегменты) и [param] (один сегмент)
- */
 function matchPath(pattern: string, path: string): boolean {
-  // Если нет динамических элементов, используем быструю проверку префикса
   if (!pattern.includes('**') && !pattern.includes('[')) {
     return path === pattern || path.startsWith(pattern + '/') || path.startsWith(pattern)
   }
 
-  // Экранируем все спецсимволы RegExp, кроме * и [ ]
   let escaped = pattern.replace(/[-\/\\^$+?.()|{}]/g, '\\$&')
-
-  // Заменяем [param] на паттерн для одного сегмента пути (без /)
   escaped = escaped.replace(/\[[^\]]+\]/g, '[^/]+')
-
-  // Заменяем ** на .* (любые символы, включая /)
   escaped = escaped.replace(/\*\*/g, '.*')
 
   const regex = new RegExp(`^${escaped}$`)
   return regex.test(path)
 }
 
-/**
- * Получить требуемые права для пути из конфигурации
- */
+function isPublicPath(path: string): boolean {
+  for (const publicPath of PUBLIC_PATHS) {
+    if (publicPath.includes('**')) {
+      if (matchPath(publicPath, path)) return true
+      continue
+    }
+    
+    if (publicPath.includes('[')) {
+      if (matchPath(publicPath, path)) return true
+      continue
+    }
+    
+    if (path === publicPath) return true
+    if (path.startsWith(publicPath + '?')) return true
+    
+    if (publicPath.endsWith('/') && path.startsWith(publicPath)) return true
+  }
+  return false
+}
+
 function getRequirementForPath(path: string): PathRequirement | null {
   for (const [pattern, requirement] of Object.entries(PROTECTED_PATHS)) {
     if (matchPath(pattern, path)) {
@@ -307,18 +452,24 @@ function getRequirementForPath(path: string): PathRequirement | null {
 }
 
 // ============================================
-// ОСНОВНОЙ ОБРАБОТЧИК
+// ОСНОВНОЙ ОБРАБОТЧИК (С ЛОГИРОВАНИЕМ ДЛЯ ДИАГНОСТИКИ)
 // ============================================
+
 export default defineEventHandler(async (event) => {
   const path = getPathWithoutQuery(event.path)
 
-  // ✅ Пропускаем не-API запросы
+  // Логируем все /api/permissions/* запросы для диагностики
+  const isPermissionsPath = path.startsWith('/api/permissions')
+  if (isPermissionsPath) {
+    console.log(`[AuthMiddleware] 🔍 Запрос: ${path}`)
+  }
+
   if (!path.startsWith('/api/')) {
     return
   }
 
-  // ✅ Пропускаем публичные endpoint'ы
-  if (PUBLIC_PATHS.some(publicPath => path.startsWith(publicPath))) {
+  if (isPublicPath(path)) {
+    if (isPermissionsPath) console.log(`[AuthMiddleware] ⏭️  Пропущен как публичный`)
     return
   }
 
@@ -326,68 +477,92 @@ export default defineEventHandler(async (event) => {
     // ============================================
     // 1. ПРОВЕРКА АВТОРИЗАЦИИ
     // ============================================
+    if (isPermissionsPath) console.log(`[AuthMiddleware] 🔐 Проверка авторизации...`)
+    
     const user = await verifyAuth(event)
-
-    // Сохраняем пользователя в контекст для использования в хендлере
     event.context.user = user
+    
+    if (isPermissionsPath) console.log(`[AuthMiddleware] ✅ Пользователь: ID=${user.id}, роль=${user.role}`)
 
     // ============================================
-    // 2. ОПРЕДЕЛЯЕМ ТРЕБУЕМЫЕ ПРАВА
+    // 2. ПОИСК ТРЕБОВАНИЙ К ПУТИ
     // ============================================
     const requirement = getRequirementForPath(path)
 
-    // Если для пути нет требований — пропускаем (эндпоинт публичен для авторизованных)
     if (!requirement) {
+      if (isPermissionsPath) console.log(`[AuthMiddleware] ℹ️  Нет требований к пути`)
       return
     }
+
+    if (isPermissionsPath) console.log(`[AuthMiddleware] 📋 Требование: type=${requirement.type}, value=${requirement.value}, action=${requirement.action || '-'}`)
 
     // ============================================
     // 3. ПРОВЕРКА ПРАВ
     // ============================================
-    if (requirement.type === 'permission') {
-      // Проверка конкретного права
-      const permission = requirement.value as keyof Permissions
-      if (!getUserPermissions(user.role as Role)[permission]) {
+    if (requirement.type === 'page') {
+      const pageSlug = requirement.value as string
+      const action = requirement.action || 'view'
+      
+      if (isPermissionsPath) console.log(`[AuthMiddleware] 🔎 Проверка: ${pageSlug}.${action}`)
+      
+      const hasAccess = await checkPagePermission(user, pageSlug, action)
+      
+      if (isPermissionsPath) console.log(`[AuthMiddleware] ${hasAccess ? '✅ Доступ разрешён' : '❌ Доступ запрещён'}`)
+      
+      if (!hasAccess) {
         throw createError({
           statusCode: 403,
-          statusMessage: requirement.message || `Доступ запрещён. Требуется право: ${permission}`
+          message: requirement.message || `Доступ запрещён. Требуется право: ${pageSlug}.${action}`
         })
       }
     }
     else if (requirement.type === 'role') {
-      // Проверка минимального уровня роли
-      const requiredRole = requirement.value as Role
-      if (!hasRoleLevel(user.role as Role, requiredRole)) {
+      const requiredRole = requirement.value as string
+      
+      if (isPermissionsPath) console.log(`[AuthMiddleware] 🎭 Проверка роли: требуется ${requiredRole}, у пользователя ${user.role}`)
+      
+      const userLevel = ROLE_LEVELS[user.role] || 0
+      const requiredLevel = ROLE_LEVELS[requiredRole] || 0
+      
+      if (isPermissionsPath) console.log(`[AuthMiddleware] 📊 Уровни: user=${userLevel}, required=${requiredLevel}`)
+      
+      if (userLevel < requiredLevel) {
         throw createError({
           statusCode: 403,
-          statusMessage: requirement.message || `Доступ запрещён. Требуется роль не ниже: ${requiredRole}`
+          message: requirement.message || `Доступ запрещён. Требуется роль не ниже: ${requiredRole}`
         })
       }
+      
+      if (isPermissionsPath) console.log(`[AuthMiddleware] ✅ Роль подходит`)
     }
     else if (requirement.type === 'custom' && typeof requirement.value === 'function') {
-      // Кастомная проверка
-      const customCheck = requirement.value as (user: DbUser) => boolean
-      if (!customCheck(user)) {
+      const customCheck = requirement.value as (user: DbUser) => boolean | Promise<boolean>
+      const result = await customCheck(user)
+      if (!result) {
         throw createError({
           statusCode: 403,
-          statusMessage: requirement.message || 'Доступ запрещён'
+          message: requirement.message || 'Доступ запрещён'
         })
       }
     }
 
-    // ✅ Все проверки пройдены — разрешаем доступ
+  } catch (error: any) {
+    if (isPermissionsPath) {
+      console.error(`[AuthMiddleware] ❌ ОШИБКА:`, {
+        statusCode: error.statusCode,
+        message: error.message,
+        stack: error.stack?.split('\n').slice(0, 5).join('\n')
+      })
+    }
 
-  } catch (error) {
-    // Если это уже наша ошибка 401/403 — пробрасываем дальше
     if (error instanceof Error && 'statusCode' in error && (error.statusCode === 401 || error.statusCode === 403)) {
       throw error
     }
 
-    // Иначе — ошибка верификации токена или БД
-    console.error('[AuthMiddleware] Ошибка проверки авторизации:', error)
+    console.error('[AuthMiddleware] Непредвиденная ошибка:', error)
     throw createError({
       statusCode: 401,
-      statusMessage: 'Требуется авторизация'
+      message: 'Требуется авторизация'
     })
   }
 })

@@ -2,7 +2,7 @@
 import { eventHandler, createError, readMultipartFormData } from 'h3'
 import { db, boardsTasks, boardsAttachments } from '../../../../../db'
 import { eq, desc } from 'drizzle-orm'
-import { requireAuth } from '../../../../../utils/permissions'
+import { verifyAuth } from '../../../../../utils/auth'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -29,7 +29,7 @@ const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100 MB
 export default eventHandler(async (event) => {
   try {
     // Проверяем аутентификацию
-    const user = await requireAuth(event)
+    const user = await verifyAuth(event)
 
     // Получаем ID задачи из параметров
     const taskIdParam = event.context.params?.id

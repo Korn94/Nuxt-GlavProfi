@@ -2,7 +2,7 @@
 import { eventHandler, createError } from 'h3'
 import { db, boardsTasks, boardsSubtasks, boardsTasksTags, boardsTags, boardsAttachments, boardsComments } from '../../../../db'
 import { eq, and, asc, isNull } from 'drizzle-orm'
-import { requireAuth } from '../../../../utils/permissions'
+import { verifyAuth } from '../../../../utils/auth'
 
 // Тип для подзадачи с вложенными подзадачами
 interface SubtaskWithChildren {
@@ -34,7 +34,7 @@ interface CommentWithReplies {
 export default eventHandler(async (event) => {
   try {
     // Проверяем аутентификацию
-    const user = await requireAuth(event)
+    const user = await verifyAuth(event)
 
     // Получаем ID задачи из параметров
     const id = event.context.params?.id

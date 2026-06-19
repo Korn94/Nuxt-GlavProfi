@@ -24,14 +24,14 @@ import { randomUUID } from 'crypto'
 import { db } from '../../../../db'
 import { portfolioImages, portfolioCases } from '../../../../db/schema'
 import { eq } from 'drizzle-orm'
-import { requireAuth } from '../../../../utils/permissions'
+import { verifyAuth } from '../../../../utils/auth'
 import * as fs from 'node:fs'
 
 const UPLOAD_DIR_BASE = '/var/www/glavprofi_ru_usr40/data/www/uploads'
 
 export default eventHandler(async (event) => {
   // 🔐 Проверка прав
-  const user = await requireAuth(event)
+  const user = await verifyAuth(event)
   if (!['admin', 'manager'].includes(user.role)) {
     throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   }

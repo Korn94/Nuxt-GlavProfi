@@ -19,7 +19,7 @@ import { eventHandler, createError } from 'h3'
 import { db } from '../../../db'
 import { portfolioCases, portfolioImages, portfoCaseWorks } from '../../../db/schema'
 import { eq } from 'drizzle-orm'
-import { requireAuth } from '../../../utils/permissions'
+import { verifyAuth } from '../../../utils/auth'
 import { unlink, rm, access } from 'node:fs/promises'
 import { join } from 'node:path'
 
@@ -37,7 +37,7 @@ const fileExists = async (path: string): Promise<boolean> => {
 
 export default eventHandler(async (event) => {
   // 🔐 Проверка прав
-  const user = await requireAuth(event)
+  const user = await verifyAuth(event)
   if (!['admin', 'manager'].includes(user.role)) {
     throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   }

@@ -4,7 +4,7 @@
     <!-- ═══════════════════════════ HEADER ═══════════════════════════ -->
     <PageTitle title="Сотрудники" icon="mdi:account-group" :badge="filteredContractors.length">
       <template #actions>
-        <NuxtLink v-if="isAdmin" to="/cabinet/admin/users" class="btn btn--ghost btn--sm">
+        <NuxtLink to="/cabinet/admin/users" class="btn btn--ghost btn--sm">
           <Icon name="mdi:account-cog" size="14" />
           Пользователи
         </NuxtLink>

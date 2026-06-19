@@ -42,6 +42,7 @@ export const useSocketStore = defineStore('socket', () => {
   const reconnectAttempts = ref(0)
   const maxReconnectAttempts = ref(5)
   const heartbeatInterval = ref<NodeJS.Timeout | null>(null)
+  const tabId = ref<string | null>(null)
   const messageQueue = ref<Array<{
     event: string
     data: any
@@ -77,11 +78,9 @@ export const useSocketStore = defineStore('socket', () => {
       error.value = null
       reconnectAttempts.value = 0
 
-      // Регистрируем вкладку
-      const tabId = generateTabId()
-      const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/'
-      socketService.emit('tab:register', { tabId, currentPath })
-      console.log('[SocketStore] 📌 Вкладка зарегистрирована:', tabId, 'на странице', currentPath)
+      // ✅ Генерируем ID вкладки, но НЕ регистрируем — ждём session:initialized
+      tabId.value = generateTabId()
+      console.log('[SocketStore] 🆔 Вкладка подготовлена:', tabId.value, '(регистрация после получения sessionId)')
 
       // Отправляем накопленные сообщения
       sendQueuedMessages()
@@ -157,6 +156,17 @@ export const useSocketStore = defineStore('socket', () => {
       console.log('[SocketStore] 🎫 Сессия инициализирована:', data.sessionId)
       setSessionId(data.sessionId)
       userId.value = data.userId
+
+      // ✅ ТЕПЕРЬ регистрируем вкладку — sessionId уже есть в cookie!
+      if (tabId.value) {
+        const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/'
+        socketService.emit('tab:register', { 
+          tabId: tabId.value, 
+          currentPath,
+          sessionId: data.sessionId  // Передаём sessionId явно для надёжности
+        })
+        console.log('[SocketStore] 📌 Вкладка зарегистрирована:', tabId.value, 'на странице', currentPath)
+      }
     })
   }
 
@@ -302,6 +312,7 @@ export const useSocketStore = defineStore('socket', () => {
     reconnectAttempts,
     maxReconnectAttempts,
     messageQueue,
+    tabId,
 
     // Getters
     connected,

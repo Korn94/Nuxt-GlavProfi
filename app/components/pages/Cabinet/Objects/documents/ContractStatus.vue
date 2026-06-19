@@ -129,9 +129,12 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useApi } from '~/composables/useApi'  // ✅ Добавляем импорт
 
 const props = defineProps<{ object: any; isAdmin: boolean }>()
 const emit = defineEmits<{ refresh: [] }>()
+
+const api = useApi()  // ✅ Инициализируем
 
 const contract = ref(props.object.contract || null)
 const isCreateModalOpen = ref(false)
@@ -160,7 +163,6 @@ function formatDate(d: string) {
 }
 
 function openCreateModal() {
-  // ✅ slice(0, 10) всегда возвращает string, TS доволен
   form.value = {
     type: '',
     status: 'prepared',
@@ -183,28 +185,40 @@ function openEditModal() {
   isEditModalOpen.value = true
 }
 
+// ✅ ИСПРАВЛЕНО: используем api.post вместо $fetch
 async function createContract() {
   if (!form.value.type || !form.value.status) { alert('Заполните тип и статус'); return }
   try {
-    await $fetch(`/api/objects/${props.object.id}/contract`, {
-      method: 'POST',
-      body: { type: form.value.type, status: form.value.status, statusDate: form.value.statusDate || null, comment: form.value.comment || null }
+    await api.post(`/api/objects/${props.object.id}/contract`, {
+      type: form.value.type,
+      status: form.value.status,
+      statusDate: form.value.statusDate || null,
+      comment: form.value.comment || null
     })
     isCreateModalOpen.value = false
     emit('refresh')
-  } catch { alert('Не удалось создать договор') }
+  } catch (err: any) {
+    console.error('[ContractStatus] Ошибка создания:', err)
+    alert('Не удалось создать договор')
+  }
 }
 
+// ✅ ИСПРАВЛЕНО: используем api.put вместо $fetch
 async function updateContract() {
   if (!form.value.type || !form.value.status) { alert('Заполните тип и статус'); return }
   try {
-    await $fetch(`/api/objects/contract/${contract.value.id}`, {
-      method: 'PUT',
-      body: { type: form.value.type, status: form.value.status, statusDate: form.value.statusDate || null, comment: form.value.comment || null }
+    await api.put(`/api/objects/contract/${contract.value!.id}`, {
+      type: form.value.type,
+      status: form.value.status,
+      statusDate: form.value.statusDate || null,
+      comment: form.value.comment || null
     })
     isEditModalOpen.value = false
     emit('refresh')
-  } catch { alert('Не удалось обновить договор') }
+  } catch (err: any) {
+    console.error('[ContractStatus] Ошибка обновления:', err)
+    alert('Не удалось обновить договор')
+  }
 }
 </script>
 

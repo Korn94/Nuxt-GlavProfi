@@ -2,12 +2,12 @@
 import { eventHandler, createError, readBody } from 'h3'
 import { db, boardsTasks, boardsComments } from '../../../../../db'
 import { eq, desc } from 'drizzle-orm'
-import { requireAuth } from '../../../../../utils/permissions'
+import { verifyAuth } from '../../../../../utils/auth'
 
 export default eventHandler(async (event) => {
   try {
     // Проверяем аутентификацию
-    const user = await requireAuth(event)
+    const user = await verifyAuth(event)
 
     // Получаем ID задачи из параметров
     const taskIdParam = event.context.params?.id

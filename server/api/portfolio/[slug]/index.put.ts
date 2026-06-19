@@ -21,7 +21,7 @@ import { eventHandler, createError, readMultipartFormData, readBody } from 'h3'
 import { db } from '../../../db'
 import { portfolioCases, portfolioImages, portfoCaseWorks } from '../../../db/schema'
 import { eq, and, inArray } from 'drizzle-orm'
-import { requireAuth } from '../../../utils/permissions'
+import { verifyAuth } from '../../../utils/auth'
 import { transliterate } from '../../../utils/transliteration'
 import { randomUUID } from 'crypto'
 import { join, basename } from 'path'
@@ -51,7 +51,7 @@ const fileExists = async (path: string): Promise<boolean> => {
 
 export default eventHandler(async (event) => {
   // ───────── AUTH ─────────
-  const user = await requireAuth(event)
+  const user = await verifyAuth(event)
   if (!['admin', 'manager'].includes(user.role)) {
     throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   }

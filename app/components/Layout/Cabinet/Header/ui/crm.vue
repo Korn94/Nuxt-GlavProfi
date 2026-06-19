@@ -45,13 +45,13 @@
 import { ref, computed, onMounted } from 'vue'
 import { useThemeStore } from 'stores/settings/theme'
 import { usePermissions } from '~/composables/usePermissions'
-import type { Role, Permissions } from '~/types/permissions'
+import type { Role, PageSlug, PageAction } from '~/types/permissions'
 
 const emit = defineEmits<{ closeSidebar: [] }>()
 const themeStore = useThemeStore()
-const { can, hasRole, isChecking } = usePermissions()
+const { can, canView, hasRole, isReady } = usePermissions()
 
-// Флаг завершения гидратации (чтобы не менять DOM во время сравнения сервер/клиент)
+// Флаг завершения гидратации
 const isHydrated = ref(false)
 
 const isDark = computed(() => themeStore.isDark)
@@ -60,21 +60,26 @@ function toggleTheme() {
   themeStore.toggleTheme()
 }
 
-// ✅ Типизация пункта меню
+// ============================================
+// ТИПИЗАЦИЯ ПУНКТА МЕНЮ (новая система)
+// ============================================
 interface MenuItem {
   id: string
   title?: string
   path?: string
   icon?: string
-  permission?: keyof Permissions
-  roleCheck?: Role
-  check?: () => boolean
-  alwaysShow?: boolean
+  page?: PageSlug          // slug страницы для проверки прав
+  action?: PageAction      // действие (default: 'view')
+  roleCheck?: Role         // дополнительная проверка роли
+  check?: () => boolean    // кастомная проверка (если нужна сложная логика)
+  alwaysShow?: boolean     // показывать всегда (независимо от прав)
   divider?: boolean
   skeleton?: boolean
 }
 
-// ✅ Генератор скелетона (статичный, идентичен на сервере и клиенте)
+// ============================================
+// СКЕЛЕТОН (статичный для гидратации)
+// ============================================
 function getSkeletonMenu(): MenuItem[] {
   return [
     { id: 'sk-1', skeleton: true },
@@ -88,62 +93,166 @@ function getSkeletonMenu(): MenuItem[] {
   ]
 }
 
-// ✅ Конфигурация меню
+// ============================================
+// КОНФИГУРАЦИЯ МЕНЮ (новая система прав)
+// ============================================
 const menuItems: MenuItem[] = [
-  { id: 'dashboard', title: 'Главная', path: '/cabinet', icon: 'mdi:home-outline', permission: 'canViewDashboard' as const },
-  { id: 'contractors', title: 'Сотрудники', path: '/cabinet/contractors', icon: 'mdi:account-group-outline', permission: 'canManageUsers' as const },
-  { id: 'daily-work', title: 'Подневка', path: '/cabinet/daily-work', icon: 'mdi:calendar-today-outline', check: () => hasRole('foreman') || hasRole('admin') },
-  { id: 'objects', title: 'Объекты', path: '/cabinet/objects', icon: 'mdi:house-export-outline', permission: 'canViewObjects' as const },
-  { id: 'materials', title: 'Чеки', path: '/cabinet/materials', icon: 'mdi:receipt-text-outline', permission: 'canViewFinance' as const },
-  { id: 'operations', title: 'Операции', path: '/cabinet/operation', icon: 'mdi:instant-transfer', permission: 'canEditFinance' as const },
+  // Главная — dashboard.canView
+  {
+    id: 'dashboard',
+    title: 'Главная',
+    path: '/cabinet',
+    icon: 'mdi:home-outline',
+    page: 'dashboard'
+  },
+
+  // Сотрудники — contractors.canView
+  {
+    id: 'contractors',
+    title: 'Сотрудники',
+    path: '/cabinet/contractors',
+    icon: 'mdi:account-group-outline',
+    page: 'contractors'
+  },
+
+  // Подневка — только для foreman и admin, при условии что видят works
+  {
+    id: 'daily-work',
+    title: 'Подневка',
+    path: '/cabinet/daily-work',
+    icon: 'mdi:calendar-today-outline',
+    check: () => canView('works') && (hasRole('foreman') || hasRole('admin'))
+  },
+
+  // Объекты — objects.canView
+  {
+    id: 'objects',
+    title: 'Объекты',
+    path: '/cabinet/objects',
+    icon: 'mdi:house-export-outline',
+    page: 'objects'
+  },
+
+  // Чеки (материалы) — materials.canView
+  {
+    id: 'materials',
+    title: 'Чеки',
+    path: '/cabinet/materials',
+    icon: 'mdi:receipt-text-outline',
+    page: 'materials'
+  },
+
+  // Операции (comings + expenses) — показываем если есть доступ к любому из разделов
+  {
+    id: 'operations',
+    title: 'Операции',
+    path: '/cabinet/operation',
+    icon: 'mdi:instant-transfer',
+    check: () => canView('comings') || canView('expenses')
+  },
+
   { id: 'div-1', divider: true },
-  { id: 'online', title: 'Онлайн', path: '/cabinet/online', icon: 'mdi:account-multiple-check-outline', permission: 'canViewWorkers' as const },
-  { id: 'test', title: 'Тест', path: '/cabinet/testpage', icon: 'mdi:flask-outline', permission: 'canViewDashboard' as const, roleCheck: 'admin' as const },
+
+  // Онлайн — users.canView (показывает список пользователей)
+  {
+    id: 'online',
+    title: 'Онлайн',
+    path: '/cabinet/online',
+    icon: 'mdi:account-multiple-check-outline',
+    page: 'users'
+  },
+
+  // Тестовая страница — только для админов
+  {
+    id: 'test',
+    title: 'Тест',
+    path: '/cabinet/testpage',
+    icon: 'mdi:flask-outline',
+    page: 'dashboard',
+    roleCheck: 'admin'
+  },
+
   { id: 'div-2', divider: true },
-  { id: 'website', title: 'На сайт', path: '/', icon: 'mdi:web', alwaysShow: true },
-  { id: 'portfolio', title: 'Кейсы', path: '/cabinet/portfolio', icon: 'mdi:plus-circle-outline', check: () => hasRole('manager') || hasRole('admin') },
+
+  // Переход на публичный сайт — всегда показываем
+  {
+    id: 'website',
+    title: 'На сайт',
+    path: '/',
+    icon: 'mdi:web',
+    alwaysShow: true
+  },
+
+  // Кейсы (портфолио) — portfolio.canView
+  {
+    id: 'portfolio',
+    title: 'Кейсы',
+    path: '/cabinet/portfolio',
+    icon: 'mdi:plus-circle-outline',
+    page: 'portfolio'
+  },
+
   { id: 'div-3', divider: true },
-  { id: 'balance', title: 'Баланс', path: '/cabinet/balance', icon: 'mdi:currency-rub', permission: 'canViewSalary' as const },
+
+  // Настройки прав — settings.canView + settings.canEdit
+  {
+    id: 'permissions',
+    title: 'Настройки',
+    path: '/cabinet/settings/permissions',
+    icon: 'mdi:settings',
+    page: 'settings',
+    action: 'edit'
+  },
 ]
 
-// ✅ Логика фильтрации
+// ============================================
+// ЛОГИКА ФИЛЬТРАЦИИ (новая система)
+// ============================================
 const filteredMenu = computed(() => {
-  // Пока идет гидратация или проверка прав — возвращаем статичный скелетон
-  if (!isHydrated.value || isChecking) {
+  // Пока идёт гидратация или проверка прав — статичный скелетон
+  if (!isHydrated.value || !isReady.value) {
     return getSkeletonMenu()
   }
-  
+
   const result: MenuItem[] = []
   let hasPrevItem = false
-  
+
   for (const item of menuItems) {
     if (item.divider) {
       if (hasPrevItem) result.push(item)
       continue
     }
-    
+
     let isVisible = false
+
     if (item.alwaysShow) {
+      // Всегда показываем (например, "На сайт")
       isVisible = true
     } else if (item.check) {
+      // Кастомная функция проверки (для сложной логики)
       isVisible = item.check()
-    } else if (item.permission) {
-      isVisible = can(item.permission)
+    } else if (item.page) {
+      // Стандартная проверка через страницу + действие
+      const action: PageAction = item.action || 'view'
+      isVisible = can(item.page, action)
+
+      // Дополнительная проверка роли (если указана)
       if (isVisible && item.roleCheck) {
         isVisible = hasRole(item.roleCheck)
       }
     }
-    
+
     if (isVisible) {
       result.push(item)
       hasPrevItem = true
     }
   }
-  
+
   // Убираем лишние разделители в конце
   while (result.length > 0 && result[result.length - 1]?.divider) {
     result.pop()
   }
+
   return result
 })
 
@@ -152,7 +261,6 @@ function handleClick() {
 }
 
 onMounted(() => {
-  // Разрешаем реальную фильтрацию только после монтирования
   isHydrated.value = true
 })
 </script>

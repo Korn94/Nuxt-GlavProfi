@@ -18,13 +18,13 @@ import { eventHandler, createError } from 'h3'
 import { db } from '../../../../db'
 import { portfolioImages, portfolioCases } from '../../../../db/schema'
 import { eq, and } from 'drizzle-orm'
-import { requireAuth } from '../../../../utils/permissions'
+import { verifyAuth } from '../../../../utils/auth'
 import { unlink } from 'node:fs/promises'
 import { join } from 'node:path'
 
 export default eventHandler(async (event) => {
   // 🔐 Проверка прав
-  const user = await requireAuth(event)
+  const user = await verifyAuth(event)
   if (!['admin', 'manager'].includes(user.role)) {
     throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   }

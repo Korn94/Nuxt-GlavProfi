@@ -2,15 +2,15 @@
 /**
  * Назначение: Создание работы + мгновенная оплата (транзакция)
  * ⚠️ Требует право `canViewSalary` (проверяется в мидлваре)
- * 
+ *
  * Логика:
  * 1. Создаём работу с paid: true, accepted: true
- * 2. Создаём расход типа "Работа" (увеличивает баланс контрагента)
- * 3. Атомарно вычитаем workerAmount из баланса (оплата работы)
+ * 2. Создаём расход типа "Работа" + атомарно УВЕЛИЧИВАЕМ баланс
+ * 3. Атомарно ВЫЧИТАЕМ workerAmount из баланса (оплата работы)
  * 4. Атомарно обновляем агрегаты объекта
- * 
- * Итог: баланс контрагента не меняется (расход + оплата = 0)
- * 
+ *
+ * Итог: баланс контрагента не меняется (+amount - amount = 0)
+ *
  * @body { workerAmount: number, contractorId: number, contractorType: string, objectId: number, comment?, workTypes?, workSource?, foremanId?, operationDate? }
  * @returns { Work } — созданная работа
  */
@@ -23,7 +23,7 @@ import { eq, sql } from 'drizzle-orm'
 export default defineEventHandler(async (event) => {
   // ✅ Авторизация и права уже проверены мидлваром
   const body = await readBody(event)
-  
+
   if (!body.workerAmount || !body.contractorId || !body.contractorType || !body.objectId) {
     throw createError({ statusCode: 400, message: 'Недостаточно данных' })
   }
@@ -32,7 +32,7 @@ export default defineEventHandler(async (event) => {
 
   return await db.transaction(async (tx) => {
     const now = new Date()
-    
+
     // 1. Создаём работу как принятую и оплаченную
     const [newWork] = await tx.insert(works).values({
       workerAmount: body.workerAmount,
@@ -53,8 +53,7 @@ export default defineEventHandler(async (event) => {
 
     if (!newWork) throw new Error('Не удалось создать работу')
 
-    // 2. Создаём расход (долг компании перед контрагентом)
-    //    → увеличивает баланс контрагента на workerAmount
+    // 2. Создаём расход типа "Работа"
     await tx.insert(expenses).values({
       amount: body.workerAmount.toString(),
       comment: body.comment || '',
@@ -66,17 +65,30 @@ export default defineEventHandler(async (event) => {
       operationDate
     })
 
-    // 3. ✅ НОВОЕ: Атомарно вычитаем workerAmount из баланса (оплата работы)
-    //    Итоговый эффект на баланс: +amount (расход) - amount (оплата) = 0
+    // ✅ ИСПРАВЛЕНО: Два атомарных обновления баланса в одной транзакции
+    //
+    // Формула баланса:
+    //   balance = Σ(expenses типа "Работа") − Σ(works с paid=true)
+    //
+    // При create-and-pay:
+    //   + Расход увеличивает баланс на amount
+    //   − Оплаченная работа уменьшает баланс на workerAmount
+    //   = Итог: 0 (баланс не меняется)
     if (body.contractorType === 'master' || body.contractorType === 'worker') {
       const ContractorModel = body.contractorType === 'master' ? masters : workers
-      
+
+      // ✅ УВЕЛИЧИВАЕМ баланс (создание расхода типа "Работа")
+      await tx.update(ContractorModel)
+        .set({ balance: sql`balance + ${body.workerAmount}` })
+        .where(eq(ContractorModel.id, body.contractorId))
+
+      // ✅ УМЕНЬШАЕМ баланс (оплата работы с paid=true)
       await tx.update(ContractorModel)
         .set({ balance: sql`balance - ${body.workerAmount}` })
         .where(eq(ContractorModel.id, body.contractorId))
     }
 
-    // 4. ✅ Атомарное обновление агрегатов объекта через SQL
+    // 4. Атомарное обновление агрегатов объекта через SQL
     await tx.update(objects)
       .set({
         totalWorks: sql`total_works + ${body.workerAmount}`,

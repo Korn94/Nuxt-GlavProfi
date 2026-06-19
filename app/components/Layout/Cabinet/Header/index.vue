@@ -24,65 +24,55 @@
         </div>
         <div class="sidebar-logo__text">
           <span class="sidebar-logo__name">CRM Система</span>
-          <span class="sidebar-logo__sub">{{ user?.name || '...' }}</span>
+          <span class="sidebar-logo__sub">{{ displayName }}</span>
         </div>
       </div>
 
       <!-- Переключатель режимов -->
       <div class="mode-switcher">
         <!-- Кнопка CRM -->
-        <button 
-          class="mode-switcher__btn" 
+        <button
+          class="mode-switcher__btn"
           :class="{ 'mode-switcher__btn--active': menuMode === 'crm' }"
           @click="setMenuMode('crm')"
         >
           <Icon name="mdi:database" size="16" />
           <span>CRM</span>
         </button>
-        
-        <!-- 🔐 Кнопка «Доски» — только для админов (v-if/v-else для гидратации) -->
-        <template v-if="isBoardsAvailable">
-          <button 
-            class="mode-switcher__btn" 
-            :class="{ 'mode-switcher__btn--active': menuMode === 'boards' }"
-            @click="setMenuMode('boards')"
-          >
-            <Icon name="mdi:clipboard-text-multiple-outline" size="16" />
-            <span>Доски</span>
-          </button>
-        </template>
-        <template v-else>
-          <button
-            class="mode-switcher__btn"
-            :class="{
-              'mode-switcher__btn--active': menuMode === 'boards',
-              'mode-switcher__btn--disabled': !isBoardsAvailable
-            }"
-            :disabled="!isBoardsAvailable"
-            :aria-disabled="!isBoardsAvailable ? 'true' : undefined"
-            :title="!isBoardsAvailable ? 'Доступно только администраторам' : 'Переключить на доски'"
-            @click="handleBoardsClick"
-          >
-            <Icon name="mdi:clipboard-text-multiple-outline" size="16" />
-            <span>Доски</span>
-            <span v-if="!isBoardsAvailable" class="mode-switcher__lock" aria-hidden="true">
-              <Icon name="mdi:lock-outline" size="12" />
-            </span>
-          </button>
-        </template>
+
+        <!-- 🔐 Кнопка «Доски» — ЕДИНАЯ кнопка, классы вычисляются динамически -->
+        <button
+          class="mode-switcher__btn"
+          :class="{
+            'mode-switcher__btn--active': menuMode === 'boards',
+            'mode-switcher__btn--disabled': !isBoardsAvailable
+          }"
+          :disabled="!isBoardsAvailable"
+          :aria-disabled="!isBoardsAvailable ? 'true' : undefined"
+          :title="!isBoardsAvailable ? 'Нет доступа к разделу' : 'Переключить на доски'"
+          @click="handleBoardsClick"
+        >
+          <Icon name="mdi:clipboard-text-multiple-outline" size="16" />
+          <span>Доски</span>
+          <Icon
+            v-if="!isBoardsAvailable"
+            name="mdi:lock-outline"
+            size="12"
+            class="mode-switcher__lock"
+            aria-hidden="true"
+          />
+        </button>
       </div>
 
       <!-- Меню -->
       <nav class="sidebar-nav">
-        <!-- 👇 CrmMenu и BoardsMenu теперь рендерятся всегда, 
-             а фильтрация пунктов внутри них идёт через usePermissions с дефолтными правами -->
         <CrmMenu v-if="menuMode === 'crm'" @close-sidebar="closeSidebarOnMobile" />
         <BoardsMenu v-else-if="menuMode === 'boards' && isBoardsAvailable" @close-sidebar="closeSidebarOnMobile" />
-        
-        <!-- Заглушка для не-админов, если вдруг переключили на доски -->
+
+        <!-- Заглушка, если переключили на доски без прав -->
         <div v-else-if="menuMode === 'boards'" class="boards-restricted">
           <Icon name="mdi:lock-outline" size="24" />
-          <p>Раздел «Доски» доступен только администраторам</p>
+          <p>Раздел «Доски» вам недоступен</p>
         </div>
       </nav>
 
@@ -91,8 +81,8 @@
         <div class="sidebar-footer__user">
           <div class="sidebar-footer__avatar">{{ userInitials }}</div>
           <div class="sidebar-footer__info">
-            <span class="sidebar-footer__name">{{ user?.name || '...' }}</span>
-            <span class="sidebar-footer__role">{{ roleLabels[user?.role] || 'Пользователь' }}</span>
+            <span class="sidebar-footer__name">{{ displayName }}</span>
+            <span class="sidebar-footer__role">{{ displayRole }}</span>
           </div>
         </div>
         <button class="sidebar-footer__logout" @click="handleLogout" title="Выйти">
@@ -108,20 +98,42 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from 'stores/auth'
-import { useApi } from '~/composables/useApi' // 👈 Новый composable
+import { usePermissions } from '~/composables/usePermissions'
+import { useCurrentUser } from '~/composables/useCurrentUser'
 import CrmMenu from './ui/crm.vue'
 import BoardsMenu from './ui/boards.vue'
 
-const api = useApi() // 👈 Инициализация
 const router = useRouter()
 const authStore = useAuthStore()
+const { canView } = usePermissions()
 
-const user = ref<any>(null)
+// ============================================
+// SSR-SAFE ЗАГРУЗКА ПОЛЬЗОВАТЕЛЯ
+// ============================================
+// useFetch пробрасывает cookie при SSR → данные попадают в payload →
+// клиент гидратирует те же данные → НЕТ hydration mismatch
+const { data: currentUserData } = useCurrentUser()
+
+// ЕДИНСТВЕННЫЙ источник user — всегда из SSR-safe composable
+// authStore.user используется только для авторизационных решений (token, logout)
+const user = computed(() => currentUserData.value?.user || null)
+
+// Все display-значения вычисляются из user — гарантированно одинаковые на сервере и клиенте
+const displayName = computed(() => user.value?.name || '...')
+const displayRole = computed(() => roleLabels[user.value?.role || ''] || 'Пользователь')
+const userInitials = computed(() => {
+  const name = user.value?.name || ''
+  if (!name || name === '...') return '?'
+  return name.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase() || '?'
+})
+
+// ============================================
+// СОСТОЯНИЕ
+// ============================================
 const sidebarOpen = ref(false)
 const isMobile = ref(false)
 const menuMode = ref<'crm' | 'boards'>('crm')
 
-// Перевод ролей
 const roleLabels: Record<string, string> = {
   admin: 'Администратор',
   manager: 'Менеджер',
@@ -130,52 +142,38 @@ const roleLabels: Record<string, string> = {
   worker: 'Рабочий'
 }
 
-// Инициалы пользователя для аватара
-const userInitials = computed(() => {
-  const name = user.value?.name || ''
-  return name.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase() || '?'
-})
-
-// 🔐 Проверка: доступен ли раздел «Доски» (только для админов)
+// ============================================
+// ПРАВА ДОСТУПА
+// ============================================
+/**
+ * 🔐 Доступ к разделу «Доски»
+ * 
+ * SSR-SAFE: на сервере всегда true (нет данных для проверки).
+ * Клиент гидратирует ту же кнопку (без lock), а потом реактивно обновляет
+ * если прав нет — это НЕ hydration mismatch, а обычное обновление DOM.
+ */
 const isBoardsAvailable = computed(() => {
-  // Пока пользователь не загружен — разрешаем рендер (дефолтное состояние)
-  // Это предотвращает гидратационные расхождения
+  // Нет user → SSR или гость → считаем доступным (покажем контент)
   if (!user.value) return true
-  return user.value.role === 'admin'
+  return canView('objects')
 })
 
-// Загрузка данных пользователя
-async function fetchUserData() {
-  try {
-    const data = await api.get<{ user: any }>('/api/me')
-    user.value = data.user
-  } catch (err: any) {
-    console.error('[Сайдбар] Ошибка загрузки пользователя:', err)
-    // 🎯 Не делаем редирект здесь — это задача middleware/auth.ts
-    // Просто оставляем user = null, компоненты адаптируются
-  }
-}
-
-// Режим меню
+// ============================================
+// УПРАВЛЕНИЕ МЕНЮ
+// ============================================
 function setMenuMode(mode: 'crm' | 'boards') {
-  // ✅ Дополнительная защита: не переключаем на доски, если нет доступа
-  if (mode === 'boards' && !isBoardsAvailable.value) {
-    console.log('[Header] 🔐 Доступ к разделу «Доски» запрещён для роли:', user.value?.role)
-    return
-  }
+  if (mode === 'boards' && !isBoardsAvailable.value) return
   menuMode.value = mode
 }
 
-// 🔐 Обработчик клика по кнопке «Доски»
 function handleBoardsClick() {
-  if (!isBoardsAvailable.value) {
-    console.warn('[Header] ⚠️ Попытка доступа к «Доскам» без прав администратора')
-    return
-  }
+  if (!isBoardsAvailable.value) return
   setMenuMode('boards')
 }
 
-// Определение мобильного устройства
+// ============================================
+// МОБИЛЬНАЯ АДАПТАЦИЯ
+// ============================================
 function checkIsMobile() {
   if (typeof window !== 'undefined') {
     isMobile.value = window.innerWidth < 768
@@ -183,7 +181,6 @@ function checkIsMobile() {
   }
 }
 
-// Управление сайдбаром
 function toggleSidebar() {
   sidebarOpen.value = !sidebarOpen.value
 }
@@ -192,17 +189,20 @@ function closeSidebarOnMobile() {
   if (isMobile.value) sidebarOpen.value = false
 }
 
-// Выход
+// ============================================
+// ВЫХОД ИЗ СИСТЕМЫ
+// ============================================
 function handleLogout() {
   authStore.logout()
-  user.value = null
   router.push('/')
 }
 
+// ============================================
+// ЖИЗНЕННЫЙ ЦИКЛ
+// ============================================
 onMounted(() => {
   checkIsMobile()
   window.addEventListener('resize', checkIsMobile)
-  fetchUserData()
 })
 
 onUnmounted(() => {
@@ -405,7 +405,7 @@ $sidebar-width: 256px;
       border-color: var(--crm-border);
       background: var(--crm-bg-elevated);
       color: var(--crm-text-disabled);
-      
+
       &:hover {
         background: var(--crm-bg-elevated);
         color: var(--crm-text-disabled);

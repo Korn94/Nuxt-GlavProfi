@@ -25,8 +25,8 @@ const ROLE_ROUTES: Record<string, string> = {
   admin: '/cabinet/admin',
   manager: '/cabinet/admin',    // менеджеры пока видят как админы
   foreman: '/cabinet/foreman',
-  master: '/cabinet/foreman',   // мастера → интерфейс прораба
-  worker: '/cabinet/foreman',   // рабочие → минималка
+  master: '/cabinet/master',   // мастера → интерфейс прораба
+  worker: '/cabinet/worker',   // рабочие → минималка
 }
 
 onMounted(async () => {

@@ -13,7 +13,7 @@
 import { eventHandler, createError } from 'h3'
 import { db, boards, boardColumns } from '../../../../db'
 import { eq, and } from 'drizzle-orm'
-import { requireAuth } from '../../../../utils/permissions'
+import { verifyAuth } from '../../../../utils/auth'
 import type { BoardColumn } from '~/types/boards'
 
 /**
@@ -36,7 +36,7 @@ export default eventHandler(async (event): Promise<GetColumnsResponse> => {
     // ============================================
     // 1. ПРОВЕРКА АУТЕНТИФИКАЦИИ
     // ============================================
-    const user = await requireAuth(event)
+    const user = await verifyAuth(event)
     console.log(`[API] 📥 Запрос колонок: пользователь ${user.id}`)
     
     // ============================================

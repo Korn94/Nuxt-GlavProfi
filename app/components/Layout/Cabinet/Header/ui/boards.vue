@@ -9,7 +9,13 @@
           <Icon name="mdi:home-outline" size="14" />
           <span>Объекты</span>
         </div>
-        <button class="boards-section__add" @click="openCreateFolderModal('objects')" title="Создать папку объектов">
+        <!-- 🔐 Кнопка создания — только при наличии прав -->
+        <button
+          v-if="canCreate"
+          class="boards-section__add"
+          @click="openCreateFolderModal('objects')"
+          title="Создать папку объектов"
+        >
           <Icon name="mdi:plus" size="16" />
         </button>
       </div>
@@ -46,7 +52,13 @@
           <Icon name="mdi:folder-outline" size="14" />
           <span>Общие доски</span>
         </div>
-        <button class="boards-section__add" @click="openCreateFolderModal('general')" title="Создать общую папку">
+        <!-- 🔐 Кнопка создания — только при наличии прав -->
+        <button
+          v-if="canCreate"
+          class="boards-section__add"
+          @click="openCreateFolderModal('general')"
+          title="Создать общую папку"
+        >
           <Icon name="mdi:plus" size="16" />
         </button>
       </div>
@@ -74,7 +86,8 @@
     <div v-if="!foldersLoading && objectsFolders.length === 0 && generalFolders.length === 0" class="boards-zero">
       <Icon name="mdi:folder-open-outline" size="32" />
       <p>Нет папок с досками</p>
-      <button class="boards-zero__btn" @click="openCreateFolderModal('objects')">
+      <!-- 🔐 Кнопка создания — только при наличии прав -->
+      <button v-if="canCreate" class="boards-zero__btn" @click="openCreateFolderModal('objects')">
         + Создать папку
       </button>
     </div>
@@ -177,6 +190,7 @@ import { useBoardFoldersStore } from 'stores/boards/folders'
 import { useBoardsStore } from 'stores/boards'
 import { useNotificationStore } from 'stores/notifications'
 import { useApi } from '~/composables/useApi'
+import { usePermissions } from '~/composables/usePermissions'
 import type { CreateFolderForm } from '~/types/boards'
 
 const emit = defineEmits<{ closeSidebar: [] }>()
@@ -185,6 +199,10 @@ const foldersStore = useBoardFoldersStore()
 const boardsStore = useBoardsStore()
 const notificationStore = useNotificationStore()
 const router = useRouter()
+const { can } = usePermissions()
+
+// 🔐 Право на создание папок (create на objects)
+const canCreate = computed(() => can('objects', 'create'))
 
 // ── Состояние ──────────────────────────────────────────────────────
 const showCreateFolderModal = ref(false)
@@ -243,7 +261,6 @@ async function selectFolder(folderId: number) {
     await foldersStore.fetchBoardsInFolder(folderId)
     const boards = boardsStore.allBoards.filter(b => b.folderId === folderId)
 
-    // ✅ Проверяем первый элемент явно
     const firstBoard = boards[0]
     if (firstBoard) {
       boardsStore.selectBoard(firstBoard.id)
@@ -258,6 +275,12 @@ async function selectFolder(folderId: number) {
 }
 
 function openCreateFolderModal(type: 'objects' | 'general') {
+  // 🔐 Дополнительная проверка перед открытием модалки
+  if (!canCreate.value) {
+    notificationStore.warning('У вас нет прав на создание папок')
+    return
+  }
+
   folderType.value = type
   newFolder.value = {
     name: '',
@@ -280,9 +303,16 @@ function closeCreateFolderModal() {
 
 async function handleCreateFolder() {
   if (!canSubmitFolder.value) return
+
+  // 🔐 Проверка прав перед отправкой
+  if (!canCreate.value) {
+    notificationStore.error('У вас нет прав на создание папок')
+    closeCreateFolderModal()
+    return
+  }
+
   creatingFolder.value = true
   try {
-    // ✅ Используем ! — firstBoard всегда инициализирован при создании ref
     const firstBoardData = newFolder.value.firstBoard as NonNullable<typeof newFolder.value.firstBoard>
 
     const result = await foldersStore.createFolderWithBoard({

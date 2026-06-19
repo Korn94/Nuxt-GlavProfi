@@ -3,9 +3,9 @@ import { defineStore } from 'pinia'
 import { useCookie, useRouter } from 'nuxt/app'
 import { useNotifications } from '~/composables/useNotifications'
 import { useApi } from '~/composables/useApi'
-import { clearCurrentUser } from '~/composables/useCurrentUser' // ← ДОБАВЛЕНО: сброс кэша текущего пользователя
+import { clearCurrentUser } from '~/composables/useCurrentUser'
 import type { User } from '~/types'
-import type { Role, Permissions as AppPermissions, UserPermissionsResponse } from '~/types/permissions'
+import type { Role, PageSlug, PagePermissions, UserPermissionsResponse } from '~/types/permissions'
 
 interface AuthState {
   token: string | null
@@ -14,7 +14,7 @@ interface AuthState {
   isAuthenticated: boolean
   isChecking: boolean
   error: string | null
-  permissions: AppPermissions | null
+  pages: Record<PageSlug, PagePermissions> | null  // ← НОВАЯ СИСТЕМА (вместо permissions)
   roleLevel: number | null
 }
 
@@ -45,7 +45,7 @@ export const useAuthStore = defineStore('auth', {
     isAuthenticated: false,
     isChecking: true,
     error: null,
-    permissions: null,
+    pages: null,  // ← НОВАЯ СИСТЕМА (вместо permissions)
     roleLevel: null
   }),
 
@@ -63,6 +63,12 @@ export const useAuthStore = defineStore('auth', {
      */
     async init(): Promise<void> {
       try {
+        // ✅ Guard: если уже загружено — не делаем повторных запросов
+        if (this.user && this.pages && !this.isChecking) {
+          console.log('[AuthStore] ⏭️ Данные уже загружены, пропускаем init()')
+          return
+        }
+
         this.isChecking = true
         this.error = null
 
@@ -78,10 +84,15 @@ export const useAuthStore = defineStore('auth', {
         ])
 
         this.user = userRes.user
-        this.permissions = permsRes.permissions
+        this.pages = permsRes.pages
         this.roleLevel = permsRes.level
         this.isAuthenticated = true
 
+        console.log('[AuthStore] ✅ Данные загружены:', {
+          user: this.user.name,
+          role: this.user.role,
+          pagesCount: Object.keys(this.pages).length
+        })
       } catch (error) {
         console.error('[AuthStore] Ошибка проверки авторизации:', error)
         this.resetState()
@@ -90,8 +101,6 @@ export const useAuthStore = defineStore('auth', {
           navigateTo('/login')
         }
       } finally {
-        // ✅ FIX: Задержка обновления флага на клиенте
-        // Это предотвращает изменение DOM во время гидратации
         if (process.client) {
           import('vue').then(({ nextTick }) => {
             nextTick(() => {
@@ -147,9 +156,19 @@ export const useAuthStore = defineStore('auth', {
         this.isAuthenticated = true
         this.sessionId = response.sessionId
 
-        // ✅ СБРАСЫВАЕМ КЭШ ТЕКУЩЕГО ПОЛЬЗОВАТЕЛЯ
-        // Это гарантирует, что useCurrentUser сделает новый запрос к /api/me
-        // и получит актуальные данные нового пользователя
+        // ✅ После логина нужно загрузить права
+        // Делаем дополнительный запрос к /api/permissions
+        try {
+          const permsRes = await api.get<UserPermissionsResponse>('/api/permissions')
+          this.pages = permsRes.pages
+          this.roleLevel = permsRes.level
+        } catch (permError) {
+          console.warn('[AuthStore] Не удалось загрузить права после логина:', permError)
+          this.pages = null
+          this.roleLevel = null
+        }
+
+        // ✅ Сбрасываем кэш текущего пользователя
         clearCurrentUser()
 
         notifications.success(`Добро пожаловать, ${response.user.name}!`)
@@ -203,7 +222,7 @@ export const useAuthStore = defineStore('auth', {
         const tokenCookie = useCookie('auth_token')
         const sessionIdCookie = useCookie('session_id')
 
-        // Пытаемся сообщить серверу о выходе (не критично, если упадёт)
+        // Пытаемся сообщить серверу о выходе
         if (tokenCookie.value) {
           await $fetch('/api/auth/logout', {
             method: 'POST',
@@ -211,7 +230,7 @@ export const useAuthStore = defineStore('auth', {
           }).catch(() => {})
         }
 
-        // 🆕 Отключаем сокет перед сбросом состояния
+        // Отключаем сокет перед сбросом состояния
         if (process.client) {
           try {
             const { socketService } = await import('services/socket.service')
@@ -225,9 +244,7 @@ export const useAuthStore = defineStore('auth', {
         tokenCookie.value = null
         sessionIdCookie.value = null
 
-        // ✅ СБРАСЫВАЕМ КЭШ ТЕКУЩЕГО ПОЛЬЗОВАТЕЛЯ
-        // Это гарантирует, что useCurrentUser сделает новый запрос к /api/me
-        // и получит { user: null } для гостя
+        // ✅ Сбрасываем кэш текущего пользователя
         clearCurrentUser()
 
         this.resetState()
@@ -258,7 +275,7 @@ export const useAuthStore = defineStore('auth', {
       this.isAuthenticated = false
       this.isChecking = false
       this.error = null
-      this.permissions = null
+      this.pages = null       // ← НОВАЯ СИСТЕМА (было: this.permissions = null)
       this.roleLevel = null
     }
   },
@@ -279,15 +296,14 @@ export const useAuthStore = defineStore('auth', {
     
     try {
       const payload: AuthCookiePayload = JSON.parse(rawCookie)
-      // ✅ Только синхронное заполнение из куки!
       state.token = payload.token
       state.user = { 
         id: payload.userId, 
         role: payload.role,
-        name: '' // имя загрузится позже через init()
+        name: ''
       } as User
       state.isAuthenticated = true
-      state.isChecking = true // флаг, что нужно догрузить полные данные
+      state.isChecking = true
     } catch (error) {
       console.log('[AuthStore] Ошибка парсинга куки')
       state.token = null

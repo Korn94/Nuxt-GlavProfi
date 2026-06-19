@@ -788,3 +788,89 @@ export const boardsActivityLog = mysqlTable('boards_activity_log', {
   actionIndex: index('activity_action_idx').on(table.action),
   timestampIndex: index('activity_timestamp_idx').on(table.timestamp)
 }))
+
+// ============================================
+// PERMISSIONS - СИСТЕМА ПРАВ ДОСТУПА (УПРОЩЁННАЯ)
+// ============================================
+
+// 1. Справочник страниц системы
+export const permissionsPages = mysqlTable('permissions_pages', {
+  id: serial('id').primaryKey(),
+  slug: varchar('slug', { length: 50 }).unique().notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  icon: varchar('icon', { length: 50 }),
+  parentId: bigint('parent_id', { mode: 'number', unsigned: true })
+    .references((): any => permissionsPages.id, { onDelete: 'set null' }),
+  order: int('order').default(0).notNull(),
+  // Упрощённый набор: create, edit, delete, special
+  hasCreate: boolean('has_create').default(false).notNull(),
+  hasEdit: boolean('has_edit').default(false).notNull(),
+  hasDelete: boolean('has_delete').default(false).notNull(),
+  hasSpecial: boolean('has_special').default(false).notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: datetime('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull().$type<Date>()
+}, (table) => ({
+  slugIndex: index('permissions_pages_slug_idx').on(table.slug),
+  parentIndex: index('permissions_pages_parent_idx').on(table.parentId),
+  orderIndex: index('permissions_pages_order_idx').on(table.order),
+  activeIndex: index('permissions_pages_active_idx').on(table.isActive)
+}))
+
+// 2. Базовые права для ролей
+export const permissionsRoleAccess = mysqlTable('permissions_role_access', {
+  id: serial('id').primaryKey(),
+  role: varchar('role', {
+    length: 50,
+    enum: ['admin', 'manager', 'foreman', 'master', 'worker']
+  }).notNull(),
+  pageSlug: varchar('page_slug', { length: 50 })
+    .notNull()
+    .references(() => permissionsPages.slug, { onDelete: 'cascade' }),
+  canView: boolean('can_view').default(false).notNull(),
+  canCreate: boolean('can_create').default(false).notNull(),
+  canEdit: boolean('can_edit').default(false).notNull(),
+  canDelete: boolean('can_delete').default(false).notNull(),
+  canSpecial: boolean('can_special').default(false).notNull(),
+  comment: text('comment'),
+  updatedBy: bigint('updated_by', { mode: 'number', unsigned: true })
+    .references(() => users.id, { onDelete: 'set null' }),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: datetime('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull().$type<Date>()
+}, (table) => ({
+  roleIndex: index('permissions_role_access_role_idx').on(table.role),
+  pageIndex: index('permissions_role_access_page_idx').on(table.pageSlug),
+  uniqueRolePage: index('permissions_role_access_unique_idx').on(table.role, table.pageSlug),
+  activeIndex: index('permissions_role_access_active_idx').on(table.isActive)
+}))
+
+// 3. Переопределения прав для конкретных пользователей
+export const permissionsUserOverrides = mysqlTable('permissions_user_overrides', {
+  id: serial('id').primaryKey(),
+  userId: bigint('user_id', { mode: 'number', unsigned: true })
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  pageSlug: varchar('page_slug', { length: 50 })
+    .notNull()
+    .references(() => permissionsPages.slug, { onDelete: 'cascade' }),
+  canView: boolean('can_view'),
+  canCreate: boolean('can_create'),
+  canEdit: boolean('can_edit'),
+  canDelete: boolean('can_delete'),
+  canSpecial: boolean('can_special'),
+  reason: text('reason'),
+  expiresAt: datetime('expires_at', { mode: 'string' }),
+  createdBy: bigint('created_by', { mode: 'number', unsigned: true })
+    .references(() => users.id, { onDelete: 'set null' }),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: datetime('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull().$type<Date>()
+}, (table) => ({
+  userIndex: index('permissions_user_overrides_user_idx').on(table.userId),
+  pageIndex: index('permissions_user_overrides_page_idx').on(table.pageSlug),
+  uniqueUserPage: index('permissions_user_overrides_unique_idx').on(table.userId, table.pageSlug),
+  expiresIndex: index('permissions_user_overrides_expires_idx').on(table.expiresAt),
+  activeIndex: index('permissions_user_overrides_active_idx').on(table.isActive)
+}))

@@ -17,7 +17,7 @@
 import { eventHandler, createError, readMultipartFormData } from 'h3'
 import { db } from '../../db'
 import { portfolioCases, portfolioImages, portfoCaseWorks } from '../../db/schema'
-import { requireAuth } from '../../utils/permissions'
+import { verifyAuth } from '../../utils/auth'
 import { randomUUID } from 'crypto'
 import { join } from 'path'
 import { sql } from 'drizzle-orm'
@@ -38,7 +38,7 @@ const IMAGE_CONFIG = {
 
 export default eventHandler(async (event) => {
   // ───────── AUTH ─────────
-  const user = await requireAuth(event)
+  const user = await verifyAuth(event)
   if (!['admin', 'manager'].includes(user.role)) {
     throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   }

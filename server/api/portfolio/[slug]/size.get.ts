@@ -18,7 +18,7 @@ import { eventHandler, createError } from 'h3'
 import { db } from '../../../db'
 import { portfolioImages, portfolioCases } from '../../../db/schema'
 import { eq } from 'drizzle-orm'
-import { requireAuth } from '../../../utils/permissions'
+import { verifyAuth } from '../../../utils/auth'
 import { stat } from 'node:fs/promises'
 import { posix } from 'node:path'
 
@@ -41,7 +41,7 @@ const getFileSize = async (physicalPath: string): Promise<number> => {
 
 export default eventHandler(async (event) => {
   // ───────── AUTH ─────────
-  const user = await requireAuth(event)
+  const user = await verifyAuth(event)
   if (!['admin', 'manager'].includes(user.role)) {
     throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   }

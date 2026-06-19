@@ -2,7 +2,11 @@
 /**
  * Типы для системы прав доступа (ACL)
  * ⚠️ Этот файл импортируется и на клиенте, и на сервере.
- * При добавлении нового права — обновляйте только здесь.
+ *
+ * Новая система (без legacy):
+ * - Права определяются на уровне страниц (pages)
+ * - Каждое действие: canView, canCreate, canEdit, canDelete, canSpecial
+ * - UI использует authStore.pages для проверки прав
  */
 
 // ============================================
@@ -11,37 +15,7 @@
 export type Role = 'worker' | 'master' | 'foreman' | 'manager' | 'admin'
 
 // ============================================
-// ПРАВА ДОСТУПА (интерфейс)
-// ============================================
-export interface Permissions {
-  // 📊 Дашборд
-  canViewDashboard: boolean
-  // 🏗️ Объекты
-  canViewObjects: boolean
-  canCreateObjects: boolean
-  canEditObjects: boolean
-  canDeleteObjects: boolean
-  canViewAllObjects: boolean
-  // 💰 Финансы
-  canViewFinance: boolean
-  canEditFinance: boolean
-  canViewSalary: boolean
-  canEditSalary: boolean
-  // 👥 Пользователи / рабочие
-  canViewWorkers: boolean
-  canEditWorkers: boolean
-  canAssignWorkers: boolean
-  canManageUsers: boolean
-  // 📋 Работы и отчёты
-  canViewReports: boolean
-  canExportReports: boolean
-  canApproveWorks: boolean
-  // 🗑️ Удаление записей
-  canDeleteRecords: boolean
-}
-
-// ============================================
-// УРОВНИ РОЛЕЙ
+// УРОВНИ РОЛЕЙ (для иерархии)
 // ============================================
 export const ROLE_LEVELS: Record<Role, number> = {
   worker: 1,
@@ -52,11 +26,68 @@ export const ROLE_LEVELS: Record<Role, number> = {
 } as const
 
 // ============================================
-// ВСПОМОГАТЕЛЬНЫЕ ТИПЫ
+// ПРАВА НА СТРАНИЦЕ (новая система)
+// ============================================
+export interface PagePermissions {
+  canView: boolean
+  canCreate: boolean
+  canEdit: boolean
+  canDelete: boolean
+  canSpecial: boolean
+}
+
+// ============================================
+// ДЕЙСТВИЯ НА СТРАНИЦЕ
+// ============================================
+export type PageAction = 'view' | 'create' | 'edit' | 'delete' | 'special'
+
+// ============================================
+// SLUG СТРАНИЦ СИСТЕМЫ (все доступные разделы)
+// ============================================
+export type PageSlug =
+  | 'dashboard'
+  | 'objects'
+  | 'comings'
+  | 'expenses'
+  | 'materials'
+  | 'works'
+  | 'contractors'
+  | 'portfolio'
+  | 'price'
+  | 'users'
+  | 'settings'
+  | 'online'
+
+// ============================================
+// ОТВЕТ API /api/permissions
 // ============================================
 export interface UserPermissionsResponse {
   role: Role
-  permissions: Permissions
   level: number
+  pages: Record<PageSlug, PagePermissions>
 }
-// 👆 ROLE_PERMISSIONS больше не экспортируется отсюда!
+
+// ============================================
+// ВСПОМОГАТЕЛЬНЫЕ ТИПЫ
+// ============================================
+
+/**
+ * Проверить что строка является валидной ролью
+ */
+export function isValidRole(role: string): role is Role {
+  return Object.keys(ROLE_LEVELS).includes(role)
+}
+
+/**
+ * Получить уровень роли (для сравнения)
+ */
+export function getRoleLevel(role: Role | string): number {
+  return ROLE_LEVELS[role as Role] || 0
+}
+
+/**
+ * Проверить что у пользователя роль не ниже требуемой
+ */
+export function hasRequiredRole(userRole: Role | string, requiredRole: Role): boolean {
+  return getRoleLevel(userRole) >= getRoleLevel(requiredRole)
+}

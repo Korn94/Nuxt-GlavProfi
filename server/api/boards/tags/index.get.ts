@@ -3,12 +3,12 @@ import { eventHandler, createError } from 'h3'
 import { db } from '../../../db'
 import { boardsTags } from '../../../db/schema'
 import { asc } from 'drizzle-orm'
-import { requireAuth } from '../../../utils/permissions'
+import { verifyAuth } from '../../../utils/auth'
 
 export default eventHandler(async (event) => {
   try {
     // Проверяем аутентификацию
-    const user = await requireAuth(event)
+    const user = await verifyAuth(event)
 
     // Получаем все теги
     const tags = await db
