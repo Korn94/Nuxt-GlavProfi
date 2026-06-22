@@ -1,144 +1,103 @@
 // server/utils/permissions/seed.ts
 /**
-* Данные для инициализации системы прав
-* Используется при первом запуске или миграции
-*
-* Упрощённая система действий:
-* - create, edit, delete — стандартные CRUD операции
-* - special — специфичные бизнес-операции (accept/reject/pay/reorder/toggle-check и т.д.)
-*/
-import type { PageSeedData, RolePermissionsSeed } from './types'
+ * Данные для инициализации системы прав
+ * Используется при первом запуске или миграции
+ *
+ * Архитектура:
+ * - Метаданные страниц (labels, icons, supported actions) — в shared/constants/permissions
+ * - Матрица прав ролей — только здесь (бизнес-логика по умолчанию)
+ *
+ * Упрощённая система действий:
+ * - create, edit, delete — стандартные CRUD операции
+ * - special — специфичные бизнес-операции (accept/reject/pay/reorder/toggle-check)
+ */
+
+import {
+  VALID_PAGE_SLUGS,
+  PAGE_LABELS,
+  PAGE_ICONS,
+  PAGE_SUPPORTED_ACTIONS,
+  type PageSlug
+} from 'shared/constants/permissions'
+
+import type { PageSeedData, RolePermissionsSeed } from 'shared/types/permissions'
 
 // ============================================
-// СТРАНИЦЫ СИСТЕМЫ (ДЕТАЛИЗИРОВАННЫЕ)
+// ОПИСАНИЯ СТРАНИЦ (специфичные для seed)
+// В shared/constants держим только labels/icons/actions,
+// а описания — здесь, так как они нужны только при инициализации БД
 // ============================================
-export const PERMISSIONS_PAGES_SEED: PageSeedData[] = [
-  {
-    slug: 'dashboard',
-    name: 'Дашборд',
-    description: 'Главная страница с обзором',
-    icon: 'mdi:view-dashboard',
-    order: 1,
-    hasCreate: false,
-    hasEdit: false,
-    hasDelete: false,
-    hasSpecial: false
-  },
-  {
-    slug: 'objects',
-    name: 'Объекты',
-    description: 'Управление объектами строительства',
-    icon: 'mdi:office-building',
-    order: 2,
-    hasCreate: true,
-    hasEdit: true,
-    hasDelete: true,
-    hasSpecial: false
-  },
-  {
-    slug: 'comings',
-    name: 'Приходы',
-    description: 'Поступления средств на объекты',
-    icon: 'mdi:cash-plus',
-    order: 3,
-    hasCreate: true,
-    hasEdit: true,
-    hasDelete: true,
-    hasSpecial: false
-  },
-  {
-    slug: 'expenses',
-    name: 'Расходы',
-    description: 'Списания и платежи',
-    icon: 'mdi:cash-minus',
-    order: 4,
-    hasCreate: true,
-    hasEdit: true,
-    hasDelete: true,
-    hasSpecial: false
-  },
-  {
-    slug: 'materials',
-    name: 'Материалы',
-    description: 'Учёт материалов на объектах',
-    icon: 'mdi:package-variant',
-    order: 5,
-    hasCreate: true,
-    hasEdit: true,
-    hasDelete: true,
-    hasSpecial: true // toggle-check (переключение флага наличия чека)
-  },
-  {
-    slug: 'works',
-    name: 'Работы',
-    description: 'Учёт выполненных работ',
-    icon: 'mdi:hammer-wrench',
-    order: 6,
-    hasCreate: true,
-    hasEdit: true,
-    hasDelete: true,
-    hasSpecial: true // accept, reject, pay-work, create-and-pay
-  },
-  {
-    slug: 'contractors',
-    name: 'Контрагенты',
-    description: 'Мастера, рабочие, прорабы, офис',
-    icon: 'mdi:account-hard-hat',
-    order: 7,
-    hasCreate: true,
-    hasEdit: true,
-    hasDelete: true,
-    hasSpecial: true // recalculate-balance
-  },
-  {
-    slug: 'portfolio',
-    name: 'Портфолио',
-    description: 'Кейсы и проекты',
-    icon: 'mdi:briefcase-outline',
-    order: 8,
-    hasCreate: true,
-    hasEdit: true,
-    hasDelete: true,
-    hasSpecial: false
-  },
-  {
-    slug: 'price',
-    name: 'Прайс-лист',
-    description: 'Цены на работы и услуги',
-    icon: 'mdi:format-list-numbered',
-    order: 9,
-    hasCreate: true,
-    hasEdit: true,
-    hasDelete: true,
-    hasSpecial: true // reorder (пересортировка позиций)
-  },
-  {
-    slug: 'users',
-    name: 'Пользователи',
-    description: 'Управление пользователями системы',
-    icon: 'mdi:account-group',
-    order: 10,
-    hasCreate: true,
-    hasEdit: true,
-    hasDelete: true,
-    hasSpecial: false
-  },
-  {
-    slug: 'settings',
-    name: 'Настройки',
-    description: 'Настройки системы и прав доступа',
-    icon: 'mdi:cog',
-    order: 11,
-    hasCreate: false,
-    hasEdit: true,
-    hasDelete: false,
-    hasSpecial: false
-  }
-]
+
+const PAGE_DESCRIPTIONS: Record<PageSlug, string> = {
+  dashboard: 'Главная страница с обзором',
+  objects: 'Управление объектами строительства',
+  comings: 'Поступления средств на объекты',
+  expenses: 'Списания и платежи',
+  materials: 'Учёт материалов на объектах',
+  works: 'Учёт выполненных работ',
+  contractors: 'Мастера, рабочие, прорабы, офис',
+  portfolio: 'Кейсы и проекты',
+  price: 'Цены на работы и услуги',
+  users: 'Управление пользователями системы',
+  settings: 'Настройки системы и прав доступа',
+  online: 'Онлайн-статус пользователей'
+}
+
+// ============================================
+// ПОРЯДОК СТРАНИЦ В МЕНЮ
+// ============================================
+
+const PAGE_ORDER: Record<PageSlug, number> = {
+  dashboard: 1,
+  objects: 2,
+  comings: 3,
+  expenses: 4,
+  materials: 5,
+  works: 6,
+  contractors: 7,
+  portfolio: 8,
+  price: 9,
+  users: 10,
+  settings: 11,
+  online: 12
+}
+
+// ============================================
+// СТРАНИЦЫ СИСТЕМЫ (собирается из shared)
+// ============================================
+
+/**
+ * Массив страниц для seed.
+ * Автоматически собирается из shared/constants/permissions —
+ * при добавлении новой страницы в PageSlugSchema она появится здесь.
+ */
+export const PERMISSIONS_PAGES_SEED: PageSeedData[] = VALID_PAGE_SLUGS.map(slug => ({
+  slug,
+  name: PAGE_LABELS[slug],
+  description: PAGE_DESCRIPTIONS[slug],
+  icon: PAGE_ICONS[slug],
+  order: PAGE_ORDER[slug] ?? 99,
+  hasCreate: PAGE_SUPPORTED_ACTIONS[slug].includes('create'),
+  hasEdit: PAGE_SUPPORTED_ACTIONS[slug].includes('edit'),
+  hasDelete: PAGE_SUPPORTED_ACTIONS[slug].includes('delete'),
+  hasSpecial: PAGE_SUPPORTED_ACTIONS[slug].includes('special')
+}))
 
 // ============================================
 // ПРАВА ПО РОЛЯМ (ДЕФОЛТНЫЕ)
 // ============================================
+
+/**
+ * Матрица прав ролей по умолчанию.
+ * 
+ * Правила:
+ * - canView: базовое право просмотра (обязательно для остальных действий)
+ * - canCreate/Edit/Delete: CRUD операции
+ * - canSpecial: специфичные бизнес-операции
+ * 
+ * Иерархия (сверху вниз):
+ * admin → manager → foreman → master → worker
+ */
 export const ROLE_PERMISSIONS_SEED: RolePermissionsSeed = {
   admin: {
     dashboard: { canView: true },
@@ -151,8 +110,10 @@ export const ROLE_PERMISSIONS_SEED: RolePermissionsSeed = {
     portfolio: { canView: true, canCreate: true, canEdit: true, canDelete: true },
     price: { canView: true, canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
     users: { canView: true, canCreate: true, canEdit: true, canDelete: true },
-    settings: { canView: true, canEdit: true }
+    settings: { canView: true, canEdit: true },
+    online: { canView: true }
   },
+
   manager: {
     dashboard: { canView: true },
     objects: { canView: true, canCreate: true, canEdit: true, canDelete: true },
@@ -164,8 +125,10 @@ export const ROLE_PERMISSIONS_SEED: RolePermissionsSeed = {
     portfolio: { canView: true, canCreate: true, canEdit: true, canDelete: true },
     price: { canView: true, canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
     users: { canView: true, canCreate: true, canEdit: true, canDelete: true },
-    settings: { canView: false }
+    settings: { canView: false },
+    online: { canView: true }
   },
+
   foreman: {
     dashboard: { canView: true },
     objects: { canView: true, canCreate: true, canEdit: true },
@@ -177,8 +140,10 @@ export const ROLE_PERMISSIONS_SEED: RolePermissionsSeed = {
     portfolio: { canView: false },
     price: { canView: false },
     users: { canView: false },
-    settings: { canView: false }
+    settings: { canView: false },
+    online: { canView: false }
   },
+
   master: {
     dashboard: { canView: true },
     objects: { canView: true, canEdit: true },
@@ -190,8 +155,10 @@ export const ROLE_PERMISSIONS_SEED: RolePermissionsSeed = {
     portfolio: { canView: false },
     price: { canView: false },
     users: { canView: false },
-    settings: { canView: false }
+    settings: { canView: false },
+    online: { canView: false }
   },
+
   worker: {
     dashboard: { canView: true },
     objects: { canView: true },
@@ -203,6 +170,7 @@ export const ROLE_PERMISSIONS_SEED: RolePermissionsSeed = {
     portfolio: { canView: false },
     price: { canView: false },
     users: { canView: false },
-    settings: { canView: false }
+    settings: { canView: false },
+    online: { canView: false }
   }
 }

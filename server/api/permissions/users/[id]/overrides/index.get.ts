@@ -3,76 +3,88 @@
  * 📍 Эндпоинт: GET /api/permissions/users/[id]/overrides
  *
  * Назначение:
- * Получить переопределения прав для конкретного пользователя
- * Возвращает базовые права роли, переопределения и эффективные (финальные) права
+ * - Получить переопределения прав для конкретного пользователя
+ * - Возвращает базовые права роли, переопределения и эффективные (финальные) права
+ * - Используется в UI настроек прав при клике на пользователя
  *
  * ⚠️ Доступ: middleware уже проверил через PROTECTED_PATHS (settings.canView)
- * ⚠️ Переопределения для admin может смотреть только admin
+ * ⚠️ Защита: переопределения для admin может смотреть только admin
  *
- * Новая система прав:
- * - canView, canCreate, canEdit, canDelete, canSpecial
- * - Без legacy (canExport, canApprove)
+ * Особенности:
+ * - `basePermissions` — ПОЛНАЯ матрица прав (все страницы из VALID_PAGE_SLUGS,
+ *   даже те, что не настроены в БД — для них будет `false`)
+ * - `effectivePermissions` — результат применения overrides поверх base
+ * - `roleLabel`, `roleColor` — метаданные роли для UI
  *
  * @param {string} id — ID пользователя из пути
- * @returns { userId, userName, role, basePermissions, overrides, effectivePermissions }
- *
- * Пример ответа:
- * {
- *   "userId": 5,
- *   "userName": "Иван Петров",
- *   "role": "master",
- *   "basePermissions": {
- *     "dashboard": { "canView": true, "canCreate": false, "canEdit": false, "canDelete": false, "canSpecial": false },
- *     "works": { "canView": true, "canCreate": true, "canEdit": true, "canDelete": false, "canSpecial": true },
- *     ...
- *   },
- *   "overrides": [
- *     {
- *       "id": 1,
- *       "pageSlug": "finance",
- *       "canView": true,
- *       "canCreate": null,
- *       "canSpecial": null,
- *       "reason": "Временный доступ",
- *       "expiresAt": "2026-12-31T23:59:59.000Z",
- *       "createdAt": "2026-01-15T10:30:00.000Z"
- *     }
- *   ],
- *   "effectivePermissions": { ... }
- * }
+ * @returns { userId, userName, role, roleLabel, roleColor, basePermissions, overrides, effectivePermissions }
  */
+
 import { defineEventHandler, getRouterParam, createError } from 'h3'
+import { eq, and, or, isNull, gt, sql } from 'drizzle-orm'
+
 import { db } from '../../../../../db'
 import {
   users,
   permissionsRoleAccess,
   permissionsUserOverrides
 } from '../../../../../db/schema'
-import { eq, and, or, isNull, gt, sql } from 'drizzle-orm'
+
 import type { DbUser } from '../../../../../utils/permissions'
-import type { PagePermissions } from '../../../../../utils/permissions/types'
+
+import {
+  ROLE_LABELS,
+  ROLE_COLORS,
+  type Role
+} from 'shared/constants/roles'
+
+import { VALID_PAGE_SLUGS } from 'shared/constants/permissions'
+import type { PagePermissions } from 'shared/types/permissions'
+
+// ============================================
+// ТИП ОТВЕТА
+// ============================================
+
+interface OverrideRecord {
+  id: number
+  pageSlug: string
+  canView: boolean | null
+  canCreate: boolean | null
+  canEdit: boolean | null
+  canDelete: boolean | null
+  canSpecial: boolean | null
+  reason: string | null
+  expiresAt: Date | string | null
+  createdAt: Date | null
+  createdBy: number | null
+}
+
+// ============================================
+// ОБРАБОТЧИК
+// ============================================
 
 export default defineEventHandler(async (event) => {
-  // ✅ Авторизация и права уже проверены мидлваром
-  const currentUser = event.context.user as DbUser
-  if (!currentUser) {
-    throw createError({ statusCode: 401, statusMessage: 'Не удалось получить данные текущего пользователя' })
-  }
-
   // ============================================
-  // 1. ПОЛУЧЕНИЕ ID ПОЛЬЗОВАТЕЛЯ ИЗ URL
+  // 1. ВАЛИДАЦИЯ ID ПОЛЬЗОВАТЕЛЯ ИЗ URL
   // ============================================
   const idParam = getRouterParam(event, 'id')
   if (!idParam) {
-    throw createError({ statusCode: 400, statusMessage: 'ID пользователя не указан в URL' })
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'ID пользователя не указан в URL'
+    })
   }
+
   const targetUserId = parseInt(idParam, 10)
-  if (isNaN(targetUserId)) {
-    throw createError({ statusCode: 400, statusMessage: 'Некорректный формат ID' })
+  if (!Number.isFinite(targetUserId) || targetUserId <= 0) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Некорректный формат ID (должно быть положительное число)'
+    })
   }
 
   // ============================================
-  // 2. ПРОВЕРКА СУЩЕСТВОВАНИЯ ЦЕЛЕВОГО ПОЛЬЗОВАТЕЛЯ
+  // 2. ПОЛУЧЕНИЕ ЦЕЛЕВОГО ПОЛЬЗОВАТЕЛЯ
   // ============================================
   const [targetUser] = await db
     .select({
@@ -89,21 +101,28 @@ export default defineEventHandler(async (event) => {
     .limit(1)
 
   if (!targetUser) {
-    throw createError({ statusCode: 404, statusMessage: 'Пользователь не найден' })
+    throw createError({
+      statusCode: 404,
+      statusMessage: 'Пользователь не найден'
+    })
   }
 
   // ============================================
-  // 3. ЗАЩИТА ОТ ПРОСМОТРА ПРАВ АДМИНА НЕ-АДМИНОМ
+  // 3. ЗАЩИТА: ADMIN ПРАВА СМОТРИТ ТОЛЬКО ADMIN
   // ============================================
-  if (targetUser.role === 'admin' && currentUser.role !== 'admin') {
+  // Middleware проверил settings.canView, но admin-права — отдельная зона доверия
+  const currentUser = event.context.user as DbUser | undefined
+  if (targetUser.role === 'admin' && currentUser?.role !== 'admin') {
     throw createError({
       statusCode: 403,
       statusMessage: 'Только администратор может просматривать права администратора'
     })
   }
 
+  const targetRole = targetUser.role as Role
+
   // ============================================
-  // 4. ПОЛУЧЕНИЕ БАЗОВЫХ ПРАВ РОЛИ (новая система)
+  // 4. ПОЛУЧЕНИЕ БАЗОВЫХ ПРАВ РОЛИ (из БД)
   // ============================================
   const roleAccess = await db
     .select({
@@ -117,26 +136,46 @@ export default defineEventHandler(async (event) => {
     .from(permissionsRoleAccess)
     .where(
       and(
-        eq(permissionsRoleAccess.role, targetUser.role),
+        eq(permissionsRoleAccess.role, targetRole),
         eq(permissionsRoleAccess.isActive, true)
       )
     )
 
-  const basePermissions: Record<string, PagePermissions> = {}
+  // Индексируем по pageSlug
+  const roleAccessMap = new Map<string, typeof roleAccess[number]>()
   for (const access of roleAccess) {
-    basePermissions[access.pageSlug] = {
-      canView: access.canView,
-      canCreate: access.canCreate,
-      canEdit: access.canEdit,
-      canDelete: access.canDelete,
-      canSpecial: access.canSpecial
-    }
+    roleAccessMap.set(access.pageSlug, access)
   }
 
   // ============================================
-  // 5. ПОЛУЧЕНИЕ ПЕРЕОПРЕДЕЛЕНИЙ ПОЛЬЗОВАТЕЛЯ (новая система)
+  // 5. 🆕 ПОЛНАЯ МАТРИЦА БАЗОВЫХ ПРАВ (все страницы из VALID_PAGE_SLUGS)
   // ============================================
-  const overrides = await db
+  // UI всегда должен видеть все страницы, даже если для роли нет записи в БД.
+  // Отсутствующие заполняем как всё false.
+  const basePermissions: Record<string, PagePermissions> = {}
+  for (const pageSlug of VALID_PAGE_SLUGS) {
+    const access = roleAccessMap.get(pageSlug)
+    basePermissions[pageSlug] = access
+      ? {
+          canView: access.canView,
+          canCreate: access.canCreate,
+          canEdit: access.canEdit,
+          canDelete: access.canDelete,
+          canSpecial: access.canSpecial
+        }
+      : {
+          canView: false,
+          canCreate: false,
+          canEdit: false,
+          canDelete: false,
+          canSpecial: false
+        }
+  }
+
+  // ============================================
+  // 6. ПОЛУЧЕНИЕ ПЕРЕОПРЕДЕЛЕНИЙ ПОЛЬЗОВАТЕЛЯ
+  // ============================================
+  const overrides: OverrideRecord[] = await db
     .select({
       id: permissionsUserOverrides.id,
       pageSlug: permissionsUserOverrides.pageSlug,
@@ -165,50 +204,49 @@ export default defineEventHandler(async (event) => {
     .orderBy(permissionsUserOverrides.pageSlug)
 
   // ============================================
-  // 6. ВЫЧИСЛЕНИЕ ЭФФЕКТИВНЫХ ПРАВ (новая система)
+  // 7. ВЫЧИСЛЕНИЕ ЭФФЕКТИВНЫХ ПРАВ (база + overrides)
   // ============================================
-  const effectivePermissions: Record<string, PagePermissions> = { ...basePermissions }
+  // Глубокая копия basePermissions, чтобы не мутировать исходный объект
+  const effectivePermissions: Record<string, PagePermissions> = {}
+  for (const [pageSlug, perms] of Object.entries(basePermissions)) {
+    effectivePermissions[pageSlug] = { ...perms }
+  }
 
   for (const override of overrides) {
-    // Инициализируем страницу если её нет в базовых правах
-    let target = effectivePermissions[override.pageSlug]
-    if (!target) {
-      target = {
+    // Создаём запись для страницы, если её нет в базовых правах
+    // (возможно, это новая страница, для которой override создан, а роли ещё не выданы права)
+    if (!effectivePermissions[override.pageSlug]) {
+      effectivePermissions[override.pageSlug] = {
         canView: false,
         canCreate: false,
         canEdit: false,
         canDelete: false,
         canSpecial: false
       }
-      effectivePermissions[override.pageSlug] = target
     }
 
-    // Применяем только те переопределения, которые не null/undefined
-    if (override.canView !== null && override.canView !== undefined) {
-      target.canView = override.canView
-    }
-    if (override.canCreate !== null && override.canCreate !== undefined) {
-      target.canCreate = override.canCreate
-    }
-    if (override.canEdit !== null && override.canEdit !== undefined) {
-      target.canEdit = override.canEdit
-    }
-    if (override.canDelete !== null && override.canDelete !== undefined) {
-      target.canDelete = override.canDelete
-    }
-    if (override.canSpecial !== null && override.canSpecial !== undefined) {
-      target.canSpecial = override.canSpecial
-    }
+    // ✅ Non-null assertion: мы только что гарантированно создали объект выше
+    const target = effectivePermissions[override.pageSlug]!
+
+    // Применяем только те переопределения, которые не null
+    // (null означает "использовать права роли")
+    if (override.canView !== null) target.canView = override.canView
+    if (override.canCreate !== null) target.canCreate = override.canCreate
+    if (override.canEdit !== null) target.canEdit = override.canEdit
+    if (override.canDelete !== null) target.canDelete = override.canDelete
+    if (override.canSpecial !== null) target.canSpecial = override.canSpecial
   }
 
   // ============================================
-  // 7. ВОЗВРАТ РЕЗУЛЬТАТА
+  // 8. ВОЗВРАТ РЕЗУЛЬТАТА (с метаданными роли)
   // ============================================
   return {
     userId: targetUser.id,
     userName: targetUser.name,
     login: targetUser.login,
-    role: targetUser.role,
+    role: targetRole,
+    roleLabel: ROLE_LABELS[targetRole] || targetRole,
+    roleColor: ROLE_COLORS[targetRole] || '#6c757d',
     contractorType: targetUser.contractorType,
     contractorId: targetUser.contractorId,
     createdAt: targetUser.createdAt,

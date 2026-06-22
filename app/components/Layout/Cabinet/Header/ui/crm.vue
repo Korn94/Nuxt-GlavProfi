@@ -45,11 +45,12 @@
 import { ref, computed, onMounted } from 'vue'
 import { useThemeStore } from 'stores/settings/theme'
 import { usePermissions } from '~/composables/usePermissions'
-import type { Role, PageSlug, PageAction } from '~/types/permissions'
+import type { Role } from 'shared/constants/roles'
+import type { PageSlug, PageAction } from 'shared/constants/permissions'
 
 const emit = defineEmits<{ closeSidebar: [] }>()
 const themeStore = useThemeStore()
-const { can, canView, hasRole, isReady } = usePermissions()
+const { can, hasRole, isReady } = usePermissions()
 
 // Флаг завершения гидратации
 const isHydrated = ref(false)
@@ -115,13 +116,13 @@ const menuItems: MenuItem[] = [
     page: 'contractors'
   },
 
-  // Подневка — только для foreman и admin, при условии что видят works
+  // Подневка — только для foreman и admin, при условии что видят works (Вариант A)
   {
     id: 'daily-work',
     title: 'Подневка',
     path: '/cabinet/daily-work',
     icon: 'mdi:calendar-today-outline',
-    check: () => canView('works') && (hasRole('foreman') || hasRole('admin'))
+    check: () => can('works', 'view') && (hasRole('foreman') || hasRole('admin'))
   },
 
   // Объекты — objects.canView
@@ -148,7 +149,7 @@ const menuItems: MenuItem[] = [
     title: 'Операции',
     path: '/cabinet/operation',
     icon: 'mdi:instant-transfer',
-    check: () => canView('comings') || canView('expenses')
+    check: () => can('comings', 'view') || can('expenses', 'view')
   },
 
   { id: 'div-1', divider: true },

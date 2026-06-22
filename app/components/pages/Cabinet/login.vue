@@ -1,4 +1,4 @@
-<!-- app\components\pages\Cabinet\login.vue -->
+<!-- app/components/pages/Cabinet/login.vue -->
 <template>
   <div class="background">
     <img src="/main/login2.jpg" alt="Фон для входа" class="background-image" />
@@ -22,6 +22,7 @@
           :type="showPassword ? 'text' : 'password'"
           v-model="password"
           placeholder="Пароль"
+          @keyup.enter="handleLogin"
         />
       </div>
 
@@ -29,8 +30,9 @@
       <p v-if="authStore.error" class="error">{{ authStore.error }}</p>
 
       <!-- Кнопка входа -->
-      <button @click="handleLogin" :disabled="authStore.isChecking">
-        <span v-if="authStore.isChecking">Вход...</span>
+      <!-- ✅ isMounted гарантирует: SSR и hydrate рендерят одинаково -->
+      <button @click="handleLogin" :disabled="isButtonDisabled">
+        <span v-if="isMounted && authStore.isChecking">Вход...</span>
         <span v-else>Войти</span>
       </button>
 
@@ -44,25 +46,52 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { useAuthStore } from '~~/stores/auth'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { useAuthStore } from 'stores/auth'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
+
 const login = ref('')
 const password = ref('')
 const showPassword = ref(false)
 
-// Инициализируем хранилище при монтировании компонента
-authStore.init()
+/**
+ * ✅ Флаг монтирования компонента.
+ * 
+ * Нужен для предотвращения Hydration Mismatch:
+ * - SSR: isMounted = false → рендерится "Войти" (не disabled)
+ * - Клиент (hydrate): isMounted = false → совпадает с SSR
+ * - Клиент (mounted): isMounted = true → реагируем на isChecking
+ */
+const isMounted = ref(false)
+
+/**
+ * Кнопка disabled только на клиенте во время проверки.
+ * На SSR — всегда false, чтобы сервер и клиент рендерили одинаково.
+ */
+const isButtonDisabled = computed(() => {
+  if (!isMounted.value) return false
+  return authStore.isChecking
+})
+
+onMounted(() => {
+  isMounted.value = true
+})
 
 async function handleLogin() {
+  if (authStore.isChecking) return
+  
   try {
     await authStore.login({
       login: login.value,
       password: password.value
     })
+
+    const redirect = (route.query.redirect) || '/cabinet'
+    await router.push(redirect)
   } catch (error) {
     console.error('Ошибка при входе:', error)
   }
@@ -77,6 +106,7 @@ function goToHome() {
 }
 </script>
 
+<!-- Стили без изменений -->
 <style lang="scss" scoped>
 .background {
   position: fixed;

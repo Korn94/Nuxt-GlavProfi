@@ -1,66 +1,115 @@
 // middleware/role.ts
 /**
- * Middleware для проверки доступа по уровню роли
- * 
- * ✅ Использует иерархическую проверку через ROLE_LEVELS
- * allowedRoles: ['foreman'] → доступ есть у foreman, manager, admin
- * 
+ * 🛡️ Middleware для проверки доступа по уровню роли
+ *
+ * Архитектура:
+ * - Работает ПОСЛЕ `auth` middleware (который вызвал authStore.init())
+ * - Роль берётся из authStore.user.role (данные уже загружены)
+ * - Использует иерархическую проверку через ROLE_LEVELS
+ *
+ * Иерархия ролей (из shared/constants/roles):
+ *   worker(1) → master(2) → foreman(3) → manager(4) → admin(5)
+ *
  * @example
+ * // В странице:
  * definePageMeta({
- *   middleware: 'role',
- *   allowedRoles: ['foreman'] // минимальный требуемый уровень
+ *   middleware: ['auth', 'role'],
+ *   allowedRoles: ['foreman']  // доступ есть у foreman, manager, admin
+ * })
+ *
+ * @example
+ * // Несколько минимальных ролей:
+ * definePageMeta({
+ *   middleware: ['auth', 'role'],
+ *   allowedRoles: ['manager', 'foreman']  // берётся минимальный уровень
  * })
  */
 
 import { defineNuxtRouteMiddleware, useCookie, navigateTo } from '#app'
 import type { RouteLocationNormalized } from 'vue-router'
-import type { Role } from '~/types/permissions'
-import { ROLE_LEVELS } from '~/types/permissions'
+import { useAuthStore } from 'stores/auth'
+import { ROLE_LEVELS, type Role } from 'shared/constants/roles'
 
-export default defineNuxtRouteMiddleware((to: RouteLocationNormalized) => {
+export default defineNuxtRouteMiddleware(async (to: RouteLocationNormalized) => {
   const allowedRoles = to.meta?.allowedRoles as Role[] | undefined
 
-  // Если для маршрута не указаны разрешённые роли — пропускаем всех авторизованных
-  if (!allowedRoles || allowedRoles.length === 0) return
+  // Если для маршрута не указаны разрешённые роли — пропускаем всех
+  if (!allowedRoles || allowedRoles.length === 0) {
+    return
+  }
 
-  const rawCookie = useCookie('auth_token').value
-  if (!rawCookie) return navigateTo('/login')
+  const authStore = useAuthStore()
+  const hasCookie = hasValidAuthCookie()
 
-  let userRole: Role | null = null
-
-  try {
-    // Парсим JSON-куку и достаём роль
-    const parsed = JSON.parse(rawCookie)
-    userRole = parsed.role as Role || null
-  } catch {
-    // Повреждённая или старая кука → удаляем её для очистки
-    console.log('[Middleware/Role] Старая или повреждённая кука удалена')
-    useCookie('auth_token').value = null
-    // Важно: не делаем navigateTo здесь, чтобы избежать бесконечного цикла
-    // auth middleware сам перенаправит на /login
+  // ============================================
+  // 🔴 SSR: НЕ делаем редирект если есть cookie
+  // ============================================
+  // Даём клиенту шанс загрузить данные.
+  // Это предотвращает ложные редиректы на SSR.
+  if (import.meta.server) {
+    if (!hasCookie) {
+      return navigateTo({
+        path: '/login',
+        query: to.fullPath !== '/cabinet' ? { redirect: to.fullPath } : undefined
+      })
+    }
+    // Cookie есть — пропускаем (клиент проверит роль)
     return
   }
 
   // ============================================
-  // ✅ ИЕРАРХИЧЕСКАЯ ПРОВЕРКА УРОВНЯ РОЛИ
+  // 🟢 CLIENT: ждём init() если нужно
   // ============================================
-  if (!userRole) {
-    return navigateTo('/access-denied')
+  if (authStore.isChecking) {
+    try {
+      await authStore.init()
+    } catch {
+      // init() упал — токен протух
+    }
   }
 
-  // Находим минимальный требуемый уровень из списка allowedRoles
+  // ============================================
+  // ПРОВЕРКА ПОСЛЕ init()
+  // ============================================
+  const userRole = authStore.user?.role as Role | undefined
+
+  // Пользователь не авторизован
+  if (!userRole) {
+    return navigateTo({
+      path: '/login',
+      query: { redirect: to.fullPath }
+    })
+  }
+
+  // Находим минимальный требуемый уровень
   const minRequiredLevel = Math.min(
     ...allowedRoles.map(role => ROLE_LEVELS[role] ?? Infinity)
   )
 
   const userLevel = ROLE_LEVELS[userRole] ?? 0
 
-  // ✅ Доступ разрешён, если уровень пользователя >= минимального требуемого
+  // Сравниваем уровни
   if (userLevel < minRequiredLevel) {
-    console.log(`[Middleware/Role] Доступ запрещён: уровень ${userRole} (${userLevel}) < требуемого (${minRequiredLevel})`)
+    console.log(
+      `[Middleware/Role] ❌ Доступ запрещён: ${userRole}(${userLevel}) < min(${minRequiredLevel})`
+    )
     return navigateTo('/access-denied')
   }
 
-  // ✅ Все проверки пройдены
-  return
+  // ✅ Доступ разрешён
 })
+
+/**
+ * Проверяет наличие валидного токена в куке
+ */
+function hasValidAuthCookie(): boolean {
+  const raw = useCookie('auth_token').value
+  if (!raw) return false
+
+  try {
+    const parsed = JSON.parse(raw)
+    return !!(parsed.token && parsed.userId)
+  } catch {
+    return raw.length > 20
+  }
+}

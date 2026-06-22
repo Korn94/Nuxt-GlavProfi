@@ -6,6 +6,8 @@
  * - Хранит только реактивное состояние (isConnected, userId, error)
  * - Делегирует всю логику подключения в SocketService
  * - Предоставляет удобные обёртки для компонентов
+ * - 🆕 Обрабатывает уведомления об изменении прав
+ * - 🆕 Обрабатывает принудительное отключение
  */
 
 import { defineStore } from 'pinia'
@@ -13,6 +15,8 @@ import { ref, computed } from 'vue'
 import { socketService } from 'services/socket.service'
 import { setSessionId } from 'services/helpers/sessionId'
 import { useCookie } from 'nuxt/app'
+import { useNotifications } from '~/composables/useNotifications'
+import { useAuthStore } from 'stores/auth'
 
 /**
  * Генерация уникального идентификатора вкладки
@@ -34,7 +38,6 @@ export const useSocketStore = defineStore('socket', () => {
   // ============================================
   // STATE — все поля реактивны через ref()
   // ============================================
-
   const isConnected = ref(false)
   const isConnecting = ref(false)
   const userId = ref<number | null>(null)
@@ -53,7 +56,6 @@ export const useSocketStore = defineStore('socket', () => {
   // ============================================
   // GETTERS
   // ============================================
-
   const connected = computed(() => isConnected.value)
   const hasError = computed(() => !!error.value)
   const isReconnecting = computed(() =>
@@ -63,16 +65,16 @@ export const useSocketStore = defineStore('socket', () => {
   // ============================================
   // ОБРАБОТЧИКИ СОБЫТИЙ SOCKETSERVICE
   // ============================================
-
   function setupEventHandlers() {
+    const notifications = useNotifications()
+    const authStore = useAuthStore()
+
     // ✅ ПОДКЛЮЧЕНИЕ
     socketService.on('connect', () => {
       console.log('[SocketStore] ✅ Подключено к серверу')
       console.log('[SocketStore] 📡 Socket ID:', socketService.getSocketId())
-
       const transport = socketService.getTransport()
       console.log('[SocketStore] 🚚 Транспорт:', transport)
-
       isConnected.value = true
       isConnecting.value = false
       error.value = null
@@ -89,7 +91,6 @@ export const useSocketStore = defineStore('socket', () => {
     // ✅ ОШИБКА ПОДКЛЮЧЕНИЯ
     socketService.on('connect_error', (err: any) => {
       console.error('[SocketStore] ❌ Ошибка подключения:', err.message)
-
       isConnecting.value = false
       isConnected.value = false
       error.value = `Ошибка подключения: ${err.message}`
@@ -113,7 +114,6 @@ export const useSocketStore = defineStore('socket', () => {
     // ✅ ОТКЛЮЧЕНИЕ
     socketService.on('disconnect', (reason: string) => {
       console.log('[SocketStore] 🔌 Отключено:', reason)
-
       isConnected.value = false
       isConnecting.value = false
       userId.value = null
@@ -160,13 +160,94 @@ export const useSocketStore = defineStore('socket', () => {
       // ✅ ТЕПЕРЬ регистрируем вкладку — sessionId уже есть в cookie!
       if (tabId.value) {
         const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/'
-        socketService.emit('tab:register', { 
-          tabId: tabId.value, 
+        socketService.emit('tab:register', {
+          tabId: tabId.value,
           currentPath,
           sessionId: data.sessionId  // Передаём sessionId явно для надёжности
         })
         console.log('[SocketStore] 📌 Вкладка зарегистрирована:', tabId.value, 'на странице', currentPath)
       }
+    })
+
+    // ============================================
+    // 🆕 ОБРАБОТКА ИЗМЕНЕНИЯ ПРАВ
+    // ============================================
+
+    // Сервер уведомляет что права пользователя изменились
+    socketService.on('permissions:changed', async (data: {
+      reason: string
+      changedPages: string[]
+      requireRelogin: boolean
+      timestamp: string
+    }) => {
+      console.log('[SocketStore] 📣 Права изменены:', data)
+
+      // Показываем уведомление пользователю
+      notifications.warning(
+        data.reason,
+        'Права доступа обновлены'
+      )
+
+      if (data.requireRelogin) {
+        // Требуется повторный вход — разлогиниваем
+        notifications.info('Необходимо войти в систему заново', 'Сессия завершена')
+        setTimeout(() => {
+          authStore.logout()
+        }, 2000) // Даём время прочитать уведомление
+      } else {
+        // Просто перезагружаем права
+        console.log('[SocketStore] 🔄 Перезагрузка прав через /api/permissions...')
+        try {
+          await authStore.init()
+          notifications.success('Права обновлены', 'Изменения применены')
+        } catch (error) {
+          console.error('[SocketStore] Ошибка перезагрузки прав:', error)
+          notifications.error('Не удалось обновить права', 'Ошибка')
+        }
+      }
+    })
+
+    // ============================================
+    // 🆕 ПРИНУДИТЕЛЬНОЕ ОТКЛЮЧЕНИЕ
+    // ============================================
+
+    // Сервер принудительно разрывает соединение
+    socketService.on('force:disconnect', (data: {
+      reason: string
+      timestamp: string
+    }) => {
+      console.error('[SocketStore] 🔌 Принудительное отключение:', data.reason)
+
+      // Показываем уведомление
+      notifications.error(
+        data.reason,
+        'Сессия завершена администратором'
+      )
+
+      // Очищаем состояние
+      useCookie('auth_token').value = null
+      useCookie('session_id').value = null
+
+      // Разрываем соединение
+      socketService.disconnect()
+
+      // Перенаправляем на логин через 2 секунды (чтобы пользователь успел прочитать)
+      setTimeout(() => {
+        if (process.client) {
+          window.location.href = '/login'
+        }
+      }, 2000)
+    })
+
+    // ============================================
+    // 🆕 ПОДТВЕРЖДЕНИЕ ПРОВЕРКИ ПРАВ
+    // ============================================
+
+    socketService.on('permissions:check:ack', (data: {
+      timestamp: string
+      message: string
+    }) => {
+      console.log('[SocketStore] ✅ Подтверждение проверки прав:', data.message)
     })
   }
 
@@ -240,6 +321,7 @@ export const useSocketStore = defineStore('socket', () => {
 
     while (messageQueue.value.length > 0) {
       const { event, data, resolve, reject } = messageQueue.value.shift()!
+
       socketService.emit(event, data)
         .then((result: any) => resolve?.(result))
         .catch((err: any) => reject?.(err))
@@ -261,7 +343,6 @@ export const useSocketStore = defineStore('socket', () => {
     }
 
     console.log(`[SocketStore] 💓 Запуск heartbeat каждые ${intervalMs}мс`)
-
     heartbeatInterval.value = setInterval(() => {
       if (isConnected.value) {
         socketService.emit('heartbeat', { timestamp: Date.now() }).catch(() => {})

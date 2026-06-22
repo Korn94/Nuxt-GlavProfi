@@ -1,228 +1,65 @@
 // server/middleware/auth.ts
 /**
- * Централизованный middleware для проверки авторизации и прав доступа
- * 
- * 🆕 Новая архитектура (без legacy):
- * - Читает права из БД (permissions_role_access + permissions_user_overrides)
- * - Использует кэширование для производительности (5 минут)
- * - Детализированные страницы: comings, expenses, materials, works, contractors, price, portfolio
- * - Упрощённые действия: view, create, edit, delete, special
- * 
- * ⚠️ Права определяются ТОЛЬКО на сервере — клиент не может их обойти.
+ * 🛡️ Централизованный middleware для проверки авторизации и прав доступа на сервере
+ *
+ * Архитектура:
+ * - Работает для ВСЕХ запросов к /api/* (кроме PUBLIC_PATHS)
+ * - Извлекает JWT из cookie/Authorization header
+ * - Находит требование к пути в PROTECTED_PATHS (или пропускает если нет)
+ * - Делегирует проверку прав в server/utils/permissions (единый источник логики)
+ *
+ * Три типа требований:
+ * - page:  проверка права на страницу через hasUserPermission()
+ * - role:  иерархическая проверка через hasRequiredRoleLevel()
+ * - custom: произвольная функция (user) => boolean
+ *
+ * ⚠️ Защита ТОЛЬКО на сервере. Клиентские v-if — это только UX, не безопасность.
  */
 
 import { defineEventHandler, createError } from 'h3'
 import { verifyAuth } from '../utils/auth'
-import { db } from '../db'
-import { permissionsRoleAccess, permissionsUserOverrides } from '../db/schema'
-import { eq, and, or, isNull, gt, sql } from 'drizzle-orm'
-import type { users } from '../db/schema'
 
-// Тип пользователя из БД
-type DbUser = typeof users.$inferSelect
+import {
+  ROLE_LEVELS,
+  hasRequiredRoleLevel,
+  type Role
+} from 'shared/constants/roles'
 
-// ============================================
-// 1. ИЕРАРХИЯ РОЛЕЙ (локально, без legacy импортов)
-// ============================================
-const ROLE_LEVELS: Record<string, number> = {
-  worker: 1,
-  master: 2,
-  foreman: 3,
-  manager: 4,
-  admin: 5
-}
+import type { PageAction } from 'shared/constants/permissions'
+
+import {
+  hasUserPermission,
+  type DbUser
+} from '../utils/permissions'
 
 // ============================================
-// 2. ТИПЫ ДЛЯ КОНФИГУРАЦИИ ПРАВ
+// 1. ТИПЫ ДЛЯ КОНФИГУРАЦИИ ТРЕБОВАНИЙ К ПУТИ
 // ============================================
-
-export type PageAction = 'view' | 'create' | 'edit' | 'delete' | 'special'
 
 export interface PathRequirement {
   type: 'page' | 'role' | 'custom'
   value: string | ((user: DbUser) => boolean | Promise<boolean>)
-  action?: PageAction // Для type: 'page'
-  message?: string
+  action?: PageAction   // Только для type: 'page'
+  message?: string      // Кастомное сообщение об ошибке (для 403)
 }
 
 // ============================================
-// 3. КЭШИРОВАНИЕ ПРАВ
+// 2. БЕЛЫЙ СПИСОК ПУБЛИЧНЫХ ENDPOINT'ОВ
 // ============================================
-
-interface CachedPermissions {
-  permissions: Record<string, any>
-  timestamp: number
-}
-
-const permissionsCache = new Map<number, CachedPermissions>()
-const CACHE_TTL = 5 * 60 * 1000 // 5 минут
-
-/**
- * Получить права пользователя из БД с кэшированием
- * Упрощённая система: canView, canCreate, canEdit, canDelete, canSpecial
- */
-async function getUserPermissionsFromDb(user: DbUser): Promise<Record<string, any>> {
-  const now = Date.now()
-  const cached = permissionsCache.get(user.id)
-  
-  // Возвращаем из кэша если не истёк
-  if (cached && now - cached.timestamp < CACHE_TTL) {
-    return cached.permissions
-  }
-
-  // Получаем права роли из БД
-  const roleAccess = await db
-    .select({
-      pageSlug: permissionsRoleAccess.pageSlug,
-      canView: permissionsRoleAccess.canView,
-      canCreate: permissionsRoleAccess.canCreate,
-      canEdit: permissionsRoleAccess.canEdit,
-      canDelete: permissionsRoleAccess.canDelete,
-      canSpecial: permissionsRoleAccess.canSpecial,
-    })
-    .from(permissionsRoleAccess)
-    .where(
-      and(
-        eq(permissionsRoleAccess.role, user.role as any),
-        eq(permissionsRoleAccess.isActive, true)
-      )
-    )
-
-  const permissions: Record<string, any> = {}
-  for (const access of roleAccess) {
-    permissions[access.pageSlug] = {
-      canView: access.canView,
-      canCreate: access.canCreate,
-      canEdit: access.canEdit,
-      canDelete: access.canDelete,
-      canSpecial: access.canSpecial,
-    }
-  }
-
-  // Получаем переопределения пользователя
-  const overrides = await db
-    .select({
-      pageSlug: permissionsUserOverrides.pageSlug,
-      canView: permissionsUserOverrides.canView,
-      canCreate: permissionsUserOverrides.canCreate,
-      canEdit: permissionsUserOverrides.canEdit,
-      canDelete: permissionsUserOverrides.canDelete,
-      canSpecial: permissionsUserOverrides.canSpecial,
-    })
-    .from(permissionsUserOverrides)
-    .where(
-      and(
-        eq(permissionsUserOverrides.userId, user.id),
-        eq(permissionsUserOverrides.isActive, true),
-        or(
-          isNull(permissionsUserOverrides.expiresAt),
-          gt(permissionsUserOverrides.expiresAt, sql`NOW()`)
-        )
-      )
-    )
-
-  // Применяем переопределения (null = использовать права роли)
-  for (const override of overrides) {
-    if (!permissions[override.pageSlug]) {
-      permissions[override.pageSlug] = {
-        canView: false,
-        canCreate: false,
-        canEdit: false,
-        canDelete: false,
-        canSpecial: false,
-      }
-    }
-
-    const target = permissions[override.pageSlug]
-    if (override.canView !== null) target.canView = override.canView
-    if (override.canCreate !== null) target.canCreate = override.canCreate
-    if (override.canEdit !== null) target.canEdit = override.canEdit
-    if (override.canDelete !== null) target.canDelete = override.canDelete
-    if (override.canSpecial !== null) target.canSpecial = override.canSpecial
-  }
-
-  // Сохраняем в кэш
-  permissionsCache.set(user.id, { permissions, timestamp: now })
-  
-  return permissions
-}
-
-/**
- * Проверить право пользователя на действие для страницы
- */
-async function checkPagePermission(
-  user: DbUser,
-  pageSlug: string,
-  action: PageAction
-): Promise<boolean> {
-  const permissions = await getUserPermissionsFromDb(user)
-  const pagePerms = permissions[pageSlug]
-  
-  if (!pagePerms) return false
-
-  switch (action) {
-    case 'view':
-      return pagePerms.canView
-    case 'create':
-      return pagePerms.canView && pagePerms.canCreate
-    case 'edit':
-      return pagePerms.canView && pagePerms.canEdit
-    case 'delete':
-      return pagePerms.canView && pagePerms.canDelete
-    case 'special':
-      return pagePerms.canView && pagePerms.canSpecial
-    default:
-      return false
-  }
-}
-
-/**
- * Инвалидировать кэш прав пользователя (вызывать после изменения прав)
- */
-export function invalidatePermissionsCache(userId: number) {
-  permissionsCache.delete(userId)
-}
-
-/**
- * 🆕 Инвалидировать кэш прав для ВСЕХ пользователей с определённой ролью
- * Вызывается после обновления прав роли через UI
- */
-export async function invalidatePermissionsCacheByRole(role: string) {
-  const { db } = await import('../db')
-  const { users } = await import('../db/schema')
-  const { eq } = await import('drizzle-orm')
-  
-  // Получаем всех пользователей с этой ролью
-  const usersWithRole = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.role, role as any))
-  
-  // Инвалидируем кэш для каждого
-  let invalidatedCount = 0
-  for (const user of usersWithRole) {
-    if (permissionsCache.has(user.id)) {
-      permissionsCache.delete(user.id)
-      invalidatedCount++
-    }
-  }
-  
-  console.log(`[Permissions Cache] 🧹 Инвалидирован кэш для ${invalidatedCount}/${usersWithRole.length} пользователей роли ${role}`)
-  return { total: usersWithRole.length, invalidated: invalidatedCount }
-}
-
-// ============================================
-// 4. БЕЛЫЙ СПИСОК ПУБЛИЧНЫХ ENDPOINT'ОВ
-// ============================================
+// Эти пути НЕ требуют авторизации и пропускаются middleware'ом
 
 const PUBLIC_PATHS = [
+  // 🔓 Авторизация
   '/api/auth/login',
   '/api/auth/telegram',
   '/api/auth/check',
   '/api/auth/logout',
+
+  // 🔓 Получение прав (сам проверяет токен через extractJwt)
   '/api/permissions',
   '/api/me',
-  // Публичные endpoints прайс-листа (для калькулятора на сайте)
+
+  // 🔓 Публичный прайс-лист (для калькулятора на сайте)
   '/api/price/list',
   '/api/price/list/',
   '/api/price/calc/',
@@ -232,10 +69,12 @@ const PUBLIC_PATHS = [
   '/api/price/pages',
   '/api/price/details',
   '/api/price/dopworks',
-  // Публичная страница портфолио
+
+  // 🔓 Публичная страница портфолио (для сайта)
   '/api/portfolio',
   '/api/portfolio/**',
-  // Служебные
+
+  // 🔓 Служебные
   '/api/send-message',
   '/api/_nuxt_icon',
   '/api/_nuxt_icon/**',
@@ -244,14 +83,23 @@ const PUBLIC_PATHS = [
 ]
 
 // ============================================
-// 5. КОНФИГУРАЦИЯ ПРАВ ПО ENDPOINT'AM (НОВАЯ ДЕТАЛИЗИРОВАННАЯ СИСТЕМА)
+// 3. КОНФИГУРАЦИЯ ПРАВ ПО ENDPOINT'АМ
 // ============================================
+// Каждая запись — требование к конкретному URL-паттерну.
+// Поддерживаются placeholders:
+//   [id]      — один сегмент пути (например, /api/users/[id])
+//   [entity]  — один сегмент пути (например, /api/price/[entity])
+//   **        — любое количество сегментов (например, /api/admin/**)
 
 const PROTECTED_PATHS: Record<string, PathRequirement> = {
-  // 🔐 Авторизация
+  // ═══════════════════════════════════════════════════════════════
+  // 🔐 АВТОРИЗАЦИЯ
+  // ═══════════════════════════════════════════════════════════════
   '/api/auth/logout': { type: 'page', value: 'dashboard', action: 'view' },
 
-  // 📊 Дашборд
+  // ═══════════════════════════════════════════════════════════════
+  // 📊 ДАШБОРД
+  // ═══════════════════════════════════════════════════════════════
   '/api/analytics': { type: 'page', value: 'dashboard', action: 'view' },
 
   // ═══════════════════════════════════════════════════════════════
@@ -282,13 +130,13 @@ const PROTECTED_PATHS: Record<string, PathRequirement> = {
   '/api/objects/invoices/[id]': { type: 'page', value: 'objects', action: 'edit' },
 
   // ═══════════════════════════════════════════════════════════════
-  // 💰 ПРИХОДЫ (comings) — выделено из finance
+  // 💰 ПРИХОДЫ (comings)
   // ═══════════════════════════════════════════════════════════════
   '/api/comings': { type: 'page', value: 'comings', action: 'view' },
   '/api/comings/[id]': { type: 'page', value: 'comings', action: 'view' },
 
   // ═══════════════════════════════════════════════════════════════
-  // 💸 РАСХОДЫ (expenses) — выделено из finance
+  // 💸 РАСХОДЫ (expenses)
   // ═══════════════════════════════════════════════════════════════
   '/api/expenses': { type: 'page', value: 'expenses', action: 'view' },
   '/api/expenses/[id]': { type: 'page', value: 'expenses', action: 'view' },
@@ -297,14 +145,14 @@ const PROTECTED_PATHS: Record<string, PathRequirement> = {
   '/api/salary-deductions': { type: 'page', value: 'expenses', action: 'view' },
 
   // ═══════════════════════════════════════════════════════════════
-  // 📦 МАТЕРИАЛЫ (materials) — выделено из finance
+  // 📦 МАТЕРИАЛЫ (materials)
   // ═══════════════════════════════════════════════════════════════
   '/api/materials': { type: 'page', value: 'materials', action: 'view' },
   '/api/materials/[id]': { type: 'page', value: 'materials', action: 'view' },
   '/api/materials/toggle-check/[id]': { type: 'page', value: 'materials', action: 'special' },
 
   // ═══════════════════════════════════════════════════════════════
-  // 🔨 РАБОТЫ (works) — выделено из objects/workers
+  // 🔨 РАБОТЫ (works)
   // ═══════════════════════════════════════════════════════════════
   '/api/works': { type: 'page', value: 'works', action: 'view' },
   '/api/works/[id]': { type: 'page', value: 'works', action: 'view' },
@@ -312,7 +160,7 @@ const PROTECTED_PATHS: Record<string, PathRequirement> = {
   '/api/works/daily-work/daily-assignments': { type: 'page', value: 'works', action: 'view' },
   '/api/works/daily-work/workers-with-daily-rate': { type: 'page', value: 'works', action: 'view' },
   '/api/works/daily-work/bulk': { type: 'page', value: 'works', action: 'create' },
-  
+
   // Специфичные операции (hasSpecial)
   '/api/works/accept/[id]': { type: 'page', value: 'works', action: 'special' },
   '/api/works/reject/[id]': { type: 'page', value: 'works', action: 'special' },
@@ -320,7 +168,7 @@ const PROTECTED_PATHS: Record<string, PathRequirement> = {
   '/api/works/create-and-pay': { type: 'page', value: 'works', action: 'special' },
 
   // ═══════════════════════════════════════════════════════════════
-  // 👥 КОНТРАГЕНТЫ (contractors) — выделено из workers
+  // 👥 КОНТРАГЕНТЫ (contractors)
   // ═══════════════════════════════════════════════════════════════
   '/api/contractors/[type]': { type: 'page', value: 'contractors', action: 'view' },
   '/api/contractors/[type]/[id]': { type: 'page', value: 'contractors', action: 'view' },
@@ -344,7 +192,7 @@ const PROTECTED_PATHS: Record<string, PathRequirement> = {
   '/api/portfolio/[slug]/size': { type: 'page', value: 'portfolio', action: 'view' },
 
   // ═══════════════════════════════════════════════════════════════
-  // 📋 ДОСКИ ЗАДАЧ (boards) — привязаны к objects
+  // 📋 ДОСКИ ЗАДАЧ (boards) — привязаны к dashboard/objects
   // ═══════════════════════════════════════════════════════════════
   '/api/boards': { type: 'page', value: 'dashboard', action: 'view' },
   '/api/boards/folders': { type: 'page', value: 'dashboard', action: 'view' },
@@ -396,52 +244,69 @@ const PROTECTED_PATHS: Record<string, PathRequirement> = {
   '/api/online': { type: 'page', value: 'users', action: 'view' },
 
   // ═══════════════════════════════════════════════════════════════
-  // 🛡️ АДМИН-ПАНЕЛЬ
+  // 🛡️ АДМИН-ПАНЕЛЬ (для всех /api/admin/**)
   // ═══════════════════════════════════════════════════════════════
   '/api/admin/**': { type: 'role', value: 'manager' },
 }
 
 // ============================================
-// 6. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// 4. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ РОУТИНГА
 // ============================================
 
+/**
+ * Убрать query-string из пути (для сравнения с паттернами)
+ */
 function getPathWithoutQuery(path: string): string {
   return path.split('?')[0] || ''
 }
 
+/**
+ * Проверить, что путь соответствует паттерну.
+ * Поддерживает:
+ * - Точные совпадения: '/api/users' === '/api/users'
+ * - Placeholders [param]: '/api/users/[id]' совпадёт с '/api/users/123'
+ * - Wildcard **: '/api/admin/**' совпадёт с '/api/admin/anything/deep/nested'
+ * - Префиксные матчи: '/api/portfolio' совпадёт с '/api/portfolio/some-slug'
+ */
 function matchPath(pattern: string, path: string): boolean {
+  // Быстрый путь: без плейсхолдеров и wildcard
   if (!pattern.includes('**') && !pattern.includes('[')) {
     return path === pattern || path.startsWith(pattern + '/') || path.startsWith(pattern)
   }
 
+  // Медленный путь: компилируем паттерн в RegExp
   let escaped = pattern.replace(/[-\/\\^$+?.()|{}]/g, '\\$&')
-  escaped = escaped.replace(/\[[^\]]+\]/g, '[^/]+')
-  escaped = escaped.replace(/\*\*/g, '.*')
+  escaped = escaped.replace(/\[[^\]]+\]/g, '[^/]+') // [param] → [^/]+
+  escaped = escaped.replace(/\*\*/g, '.*')          // ** → .*
 
   const regex = new RegExp(`^${escaped}$`)
   return regex.test(path)
 }
 
+/**
+ * Проверить, является ли путь публичным (в белом списке)
+ */
 function isPublicPath(path: string): boolean {
   for (const publicPath of PUBLIC_PATHS) {
     if (publicPath.includes('**')) {
       if (matchPath(publicPath, path)) return true
       continue
     }
-    
     if (publicPath.includes('[')) {
       if (matchPath(publicPath, path)) return true
       continue
     }
-    
     if (path === publicPath) return true
     if (path.startsWith(publicPath + '?')) return true
-    
     if (publicPath.endsWith('/') && path.startsWith(publicPath)) return true
   }
   return false
 }
 
+/**
+ * Найти требование к пути в PROTECTED_PATHS
+ * Возвращает null, если путь не защищён
+ */
 function getRequirementForPath(path: string): PathRequirement | null {
   for (const [pattern, requirement] of Object.entries(PROTECTED_PATHS)) {
     if (matchPath(pattern, path)) {
@@ -452,117 +317,127 @@ function getRequirementForPath(path: string): PathRequirement | null {
 }
 
 // ============================================
-// ОСНОВНОЙ ОБРАБОТЧИК (С ЛОГИРОВАНИЕМ ДЛЯ ДИАГНОСТИКИ)
+// 5. ОСНОВНОЙ ОБРАБОТЧИК
 // ============================================
 
 export default defineEventHandler(async (event) => {
   const path = getPathWithoutQuery(event.path)
 
-  // Логируем все /api/permissions/* запросы для диагностики
+  // Логируем только запросы к /api/permissions/* (для диагностики системы прав)
   const isPermissionsPath = path.startsWith('/api/permissions')
-  if (isPermissionsPath) {
-    console.log(`[AuthMiddleware] 🔍 Запрос: ${path}`)
-  }
 
+  // Пропускаем не-API запросы (страницы, статика, etc.)
   if (!path.startsWith('/api/')) {
     return
   }
 
+  // Пропускаем публичные эндпоинты (логин, публичный прайс, etc.)
   if (isPublicPath(path)) {
-    if (isPermissionsPath) console.log(`[AuthMiddleware] ⏭️  Пропущен как публичный`)
+    if (isPermissionsPath) {
+      console.log(`[AuthMiddleware] ⏭️  Пропущен как публичный: ${path}`)
+    }
     return
   }
 
   try {
     // ============================================
-    // 1. ПРОВЕРКА АВТОРИЗАЦИИ
+    // 1. ПРОВЕРКА АВТОРИЗАЦИИ (извлечение JWT + верификация)
     // ============================================
-    if (isPermissionsPath) console.log(`[AuthMiddleware] 🔐 Проверка авторизации...`)
-    
+    // Делегируем в verifyAuth — он сам извлекает токен и находит user в БД
     const user = await verifyAuth(event)
     event.context.user = user
-    
-    if (isPermissionsPath) console.log(`[AuthMiddleware] ✅ Пользователь: ID=${user.id}, роль=${user.role}`)
+
+    if (isPermissionsPath) {
+      console.log(`[AuthMiddleware] 🔐 Запрос: ${path} | User: ID=${user.id}, роль=${user.role}`)
+    }
 
     // ============================================
-    // 2. ПОИСК ТРЕБОВАНИЙ К ПУТИ
+    // 2. ПОИСК ТРЕБОВАНИЯ К ПУТИ
     // ============================================
     const requirement = getRequirementForPath(path)
 
+    // Если требований нет — доступ разрешён (эндпоинт не защищён правами)
     if (!requirement) {
-      if (isPermissionsPath) console.log(`[AuthMiddleware] ℹ️  Нет требований к пути`)
+      if (isPermissionsPath) {
+        console.log(`[AuthMiddleware] ℹ️  Нет требований к пути, доступ разрешён`)
+      }
       return
     }
 
-    if (isPermissionsPath) console.log(`[AuthMiddleware] 📋 Требование: type=${requirement.type}, value=${requirement.value}, action=${requirement.action || '-'}`)
-
     // ============================================
-    // 3. ПРОВЕРКА ПРАВ
+    // 3. ПРОВЕРКА ПРАВ (делегирование в utils)
     // ============================================
     if (requirement.type === 'page') {
       const pageSlug = requirement.value as string
       const action = requirement.action || 'view'
-      
-      if (isPermissionsPath) console.log(`[AuthMiddleware] 🔎 Проверка: ${pageSlug}.${action}`)
-      
-      const hasAccess = await checkPagePermission(user, pageSlug, action)
-      
-      if (isPermissionsPath) console.log(`[AuthMiddleware] ${hasAccess ? '✅ Доступ разрешён' : '❌ Доступ запрещён'}`)
-      
+
+      // ✅ Делегируем проверку в hasUserPermission (единая функция в utils)
+      const hasAccess = await hasUserPermission(user, pageSlug, action)
+
+      if (isPermissionsPath) {
+        console.log(`[AuthMiddleware] 🔎 Проверка: ${pageSlug}.${action} → ${hasAccess ? '✅' : '❌'}`)
+      }
+
       if (!hasAccess) {
         throw createError({
           statusCode: 403,
-          message: requirement.message || `Доступ запрещён. Требуется право: ${pageSlug}.${action}`
+          statusMessage: requirement.message || `Доступ запрещён. Требуется право: ${pageSlug}.${action}`
         })
       }
     }
     else if (requirement.type === 'role') {
-      const requiredRole = requirement.value as string
-      
-      if (isPermissionsPath) console.log(`[AuthMiddleware] 🎭 Проверка роли: требуется ${requiredRole}, у пользователя ${user.role}`)
-      
-      const userLevel = ROLE_LEVELS[user.role] || 0
-      const requiredLevel = ROLE_LEVELS[requiredRole] || 0
-      
-      if (isPermissionsPath) console.log(`[AuthMiddleware] 📊 Уровни: user=${userLevel}, required=${requiredLevel}`)
-      
-      if (userLevel < requiredLevel) {
+      const requiredRole = requirement.value as Role
+
+      // ✅ Делегируем проверку в hasRequiredRoleLevel из shared
+      if (!hasRequiredRoleLevel(user.role, requiredRole)) {
+        if (isPermissionsPath) {
+          const userLevel = ROLE_LEVELS[user.role as Role] ?? 0
+          const requiredLevel = ROLE_LEVELS[requiredRole] ?? 0
+          console.log(`[AuthMiddleware] ❌ Роль: ${user.role}(${userLevel}) < ${requiredRole}(${requiredLevel})`)
+        }
         throw createError({
           statusCode: 403,
-          message: requirement.message || `Доступ запрещён. Требуется роль не ниже: ${requiredRole}`
+          statusMessage: requirement.message || `Доступ запрещён. Требуется роль не ниже: ${requiredRole}`
         })
       }
-      
-      if (isPermissionsPath) console.log(`[AuthMiddleware] ✅ Роль подходит`)
+
+      if (isPermissionsPath) {
+        console.log(`[AuthMiddleware] ✅ Роль подходит: ${user.role} ≥ ${requiredRole}`)
+      }
     }
     else if (requirement.type === 'custom' && typeof requirement.value === 'function') {
       const customCheck = requirement.value as (user: DbUser) => boolean | Promise<boolean>
       const result = await customCheck(user)
+
       if (!result) {
         throw createError({
           statusCode: 403,
-          message: requirement.message || 'Доступ запрещён'
+          statusMessage: requirement.message || 'Доступ запрещён'
         })
       }
     }
-
-  } catch (error: any) {
+  }
+  catch (error: any) {
+    // Диагностические логи только для /api/permissions/*
     if (isPermissionsPath) {
-      console.error(`[AuthMiddleware] ❌ ОШИБКА:`, {
+      console.error(`[AuthMiddleware] ❌ Ошибка:`, {
         statusCode: error.statusCode,
         message: error.message,
-        stack: error.stack?.split('\n').slice(0, 5).join('\n')
       })
     }
 
-    if (error instanceof Error && 'statusCode' in error && (error.statusCode === 401 || error.statusCode === 403)) {
-      throw error
+    // Пробрасываем наши 401/403 как есть
+    if (error instanceof Error && 'statusCode' in error) {
+      if (error.statusCode === 401 || error.statusCode === 403) {
+        throw error
+      }
     }
 
+    // Неожиданные ошибки маскируем под 401 (не раскрываем детали)
     console.error('[AuthMiddleware] Непредвиденная ошибка:', error)
     throw createError({
       statusCode: 401,
-      message: 'Требуется авторизация'
+      statusMessage: 'Требуется авторизация'
     })
   }
 })

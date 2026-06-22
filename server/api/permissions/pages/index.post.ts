@@ -3,116 +3,153 @@
  * 📍 Эндпоинт: POST /api/permissions/pages
  *
  * Назначение:
- * Создать новую страницу в справочнике системы прав
+ * - Создать новую страницу в справочнике системы прав
+ * - Используется в UI настроек прав (вкладка "Страницы") администраторами
  *
- * ⚠️ Доступ: только для роли admin
+ * ⚠️ Доступ: только для роли admin (двойная проверка — middleware + handler)
+ * - Middleware проверяет settings.canEdit
+ * - Handler дополнительно проверяет admin для критических операций создания
  *
- * Новая система:
- * - hasCreate, hasEdit, hasDelete, hasSpecial
- * - Без legacy (hasExport, hasApprove)
+ * Особенности:
+ * - Slug валидируется regex (латиница + цифры + дефис), НЕ через enum,
+ *   т.к. новые страницы могут иметь slug, которого нет в PageSlugSchema
+ * - После создания уведомляются все админы через сокет
+ * - Страница создаётся как isActive=true по умолчанию
  *
  * @body { slug, name, description?, icon?, order?, hasCreate?, hasEdit?, hasDelete?, hasSpecial? }
  * @returns { page: SystemPage }
  */
+
 import { defineEventHandler, readBody, createError } from 'h3'
+import { eq } from 'drizzle-orm'
+
 import { db } from '../../../db'
 import { permissionsPages } from '../../../db/schema'
-import { eq } from 'drizzle-orm'
-import { z } from 'zod'
+
+import {
+  validateCreatePage,
+  type CreatePageInput
+} from '../../../utils/permissions/validators'
+
 import type { DbUser } from '../../../utils/permissions'
 
+import { hasRequiredRoleLevel, type Role } from 'shared/constants/roles'
+
+import { getIO } from '../../../socket/common'
+import { getRoleRoomName } from '../../../socket/utils'
+
 // ============================================
-// ZOD СХЕМА (новая система: без hasExport/hasApprove)
+// ОБРАБОТЧИК
 // ============================================
-const CreatePageSchema = z.object({
-  slug: z.string()
-    .min(1)
-    .max(50)
-    .regex(/^[a-z0-9-]+$/, 'Slug должен содержать только латинские буквы, цифры и дефисы'),
-  name: z.string().min(1).max(255),
-  description: z.string().max(500).optional(),
-  icon: z.string().max(50).optional(),
-  order: z.number().int().min(0).default(0),
-  hasCreate: z.boolean().default(false),
-  hasEdit: z.boolean().default(false),
-  hasDelete: z.boolean().default(false),
-  hasSpecial: z.boolean().default(false),
-})
 
 export default defineEventHandler(async (event) => {
   // ============================================
-  // 1. ПРОВЕРКА ПРАВ (ТОЛЬКО АДМИН)
+  // 1. ПРОВЕРКА ПРАВ: ТОЛЬКО АДМИН
   // ============================================
-  const currentUser = event.context.user as DbUser
+  // Middleware проверил settings.canEdit, но создание страниц — критическая операция,
+  // требующая явного admin (даже если менеджеру дали settings.canEdit)
+  const currentUser = event.context.user as DbUser | undefined
+
   if (!currentUser) {
-    throw createError({ statusCode: 401, message: 'Не удалось получить данные текущего пользователя' })
+    throw createError({
+      statusCode: 401,
+      statusMessage: 'Не удалось получить данные текущего пользователя'
+    })
   }
-  if (currentUser.role !== 'admin') {
-    throw createError({ statusCode: 403, message: 'Создание страниц доступно только администратору' })
+
+  if (!hasRequiredRoleLevel(currentUser.role as Role, 'admin')) {
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Создание страниц доступно только администратору'
+    })
   }
 
   // ============================================
-  // 2. ВАЛИДАЦИЯ ТЕЛА ЗАПРОСА
+  // 2. ВАЛИДАЦИЯ ТЕЛА ЗАПРОСА (через zod из validators.ts)
   // ============================================
   const body = await readBody(event)
-  const result = CreatePageSchema.safeParse(body)
-  if (!result.success) {
-    const errors = result.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ')
-    throw createError({ statusCode: 400, message: `Ошибка валидации: ${errors}` })
-  }
-  const validated = result.data
+  const validated: CreatePageInput = validateCreatePage(body)
 
   // ============================================
   // 3. ПРОВЕРКА УНИКАЛЬНОСТИ SLUG
   // ============================================
   const [existing] = await db
-    .select()
+    .select({ slug: permissionsPages.slug })
     .from(permissionsPages)
     .where(eq(permissionsPages.slug, validated.slug))
     .limit(1)
 
   if (existing) {
-    throw createError({ statusCode: 400, message: `Страница с slug "${validated.slug}" уже существует` })
+    throw createError({
+      statusCode: 409,
+      statusMessage: `Страница с slug "${validated.slug}" уже существует`
+    })
   }
 
   // ============================================
   // 4. СОЗДАНИЕ СТРАНИЦЫ
   // ============================================
-  try {
-    await db.insert(permissionsPages).values({
-      slug: validated.slug,
-      name: validated.name,
-      description: validated.description || null,
-      icon: validated.icon || null,
-      parentId: null,
-      order: validated.order,
-      hasCreate: validated.hasCreate,
-      hasEdit: validated.hasEdit,
-      hasDelete: validated.hasDelete,
-      hasSpecial: validated.hasSpecial,
-      isActive: true,
+  // INSERT без $returningId() — MySQL не поддерживает RETURNING,
+  // поэтому получаем созданную запись через SELECT после INSERT
+  await db.insert(permissionsPages).values({
+    slug: validated.slug,
+    name: validated.name,
+    description: validated.description || null,
+    icon: validated.icon || null,
+    parentId: null,
+    order: validated.order,
+    hasCreate: validated.hasCreate,
+    hasEdit: validated.hasEdit,
+    hasDelete: validated.hasDelete,
+    hasSpecial: validated.hasSpecial,
+    isActive: true,
+  })
+
+  // ============================================
+  // 5. ПОЛУЧЕНИЕ СОЗДАННОЙ СТРАНИЦЫ ДЛЯ ОТВЕТА
+  // ============================================
+  const [created] = await db
+    .select()
+    .from(permissionsPages)
+    .where(eq(permissionsPages.slug, validated.slug))
+    .limit(1)
+
+  if (!created) {
+    // Теоретически недостижимо: только что сделали INSERT,
+    // но для типобезопасности проверяем
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Страница создана, но не удалось её получить'
     })
-
-    console.log(
-      `[Permissions] ✅ Администратор ${currentUser.name} (ID: ${currentUser.id}) ` +
-      `создал страницу "${validated.name}" (${validated.slug})`
-    )
-
-    // Возвращаем созданную страницу
-    const [created] = await db
-      .select()
-      .from(permissionsPages)
-      .where(eq(permissionsPages.slug, validated.slug))
-      .limit(1)
-
-    if (!created) {
-      throw createError({ statusCode: 500, message: 'Страница создана, но не удалось её получить' })
-    }
-
-    return { page: created }
-  } catch (error: any) {
-    console.error('[Permissions] ❌ Ошибка создания страницы:', error)
-    if (error.statusCode) throw error
-    throw createError({ statusCode: 500, message: 'Ошибка сервера при создании страницы' })
   }
+
+  // ============================================
+  // 6. ЛОГИРОВАНИЕ И УВЕДОМЛЕНИЕ АДМИНОВ ЧЕРЕЗ СОКЕТ
+  // ============================================
+  console.log(
+    `[Permissions] ✅ Администратор ${currentUser.name} (ID: ${currentUser.id}) ` +
+    `создал страницу "${validated.name}" (${validated.slug})`
+  )
+
+  // Уведомляем всех админов через сокет, чтобы они могли обновить UI настроек
+  const io = getIO()
+  if (io) {
+    io.to(getRoleRoomName('admin')).emit('permissions:page:created', {
+      page: {
+        slug: created.slug,
+        name: created.name,
+        icon: created.icon
+      },
+      createdBy: {
+        id: currentUser.id,
+        name: currentUser.name
+      },
+      timestamp: new Date().toISOString()
+    })
+  }
+
+  // ============================================
+  // 7. ВОЗВРАТ СОЗДАННОЙ СТРАНИЦЫ
+  // ============================================
+  return { page: created }
 })

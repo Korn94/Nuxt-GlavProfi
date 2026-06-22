@@ -1,126 +1,154 @@
 /**
  * 📍 Эндпоинт: POST /api/auth/telegram
- * 
+ *
  * Назначение:
- * - Аутентификация пользователя через Telegram Login Widget
- * - Проверка хеша данных через verifyTelegramHash()
- * - Генерация JWT-токена и создание серверной сессии
- * - Возврат данных пользователя для инициализации клиента
- * 
- * ⚠️ ВАЖНО: Это публичный эндпоинт (в PUBLIC_PATHS мидлвара).
- * Он НЕ требует авторизации — он её СОЗДАЁТ.
- * 
- * @body { id: string, first_name: string, hash: string, ... } — данные от Telegram
- * @returns { token: string, user: UserData, sessionId: string }
- * 
- * Примеры ответов:
- * ✅ Успех: { token: "eyJ...", user: { id: 1, ... }, sessionId: "sess_..." }
- * ❌ Ошибка: 401 { statusMessage: "Неверные данные Telegram" }
+ * - Аутентификация через Telegram Login Widget
+ * - Проверка хеша через verifyTelegramHash()
+ * - Генерация JWT и создание серверной сессии
+ * - Возврат user + permissions в одном ответе
+ *
+ * ⚠️ Публичный эндпоинт (в PUBLIC_PATHS мидлвара).
+ *
+ * @body Telegram InitData (id, first_name, hash, ...)
+ * @returns { token, user, sessionId, permissions }
  */
+
+import { eventHandler, readBody, createError, getRequestHeader, getRequestIP } from 'h3'
+import { z } from 'zod'
 
 import { db } from '../../db'
 import { users } from '../../db/schema'
 import { eq } from 'drizzle-orm'
+
 import { generateToken } from '../../utils/jwt'
-import { eventHandler, readBody, createError, getRequestHeader, getRequestIP } from 'h3'
 import { verifyTelegramHash } from '../../utils/verifyTelegramHash'
 import { getObjectsByUser } from '../../utils/objects'
 import { createSession, closeZombieSessions } from '../../utils/sessions'
+import { getUserPermissionsResponse } from '../../utils/permissions'
+
+// ============================================
+// 1. ZOD-ВАЛИДАЦИЯ ДАННЫХ TELEGRAM
+// ============================================
+
+const TelegramBodySchema = z.object({
+  id: z.union([z.string(), z.number()]).transform(v => parseInt(String(v), 10)),
+  first_name: z.string().optional(),
+  last_name: z.string().optional(),
+  username: z.string().optional(),
+  photo_url: z.string().url().optional(),
+  auth_date: z.union([z.string(), z.number()]).optional(),
+  hash: z.string().min(1, 'Hash обязателен')
+}).passthrough() // Telegram может присылать дополнительные поля
+
+// ============================================
+// 2. ОБРАБОТЧИК
+// ============================================
 
 export default eventHandler(async (event) => {
-  // ============================================
-  // 1. ЧТЕНИЕ И ВАЛИДАЦИЯ ТЕЛА ЗАПРОСА
-  // ============================================
-  const body = await readBody(event)
-  
   const botToken = process.env.TELEGRAM_BOT_TOKEN
-  
+
   if (!botToken) {
     console.error('[Auth/Telegram] ❌ TELEGRAM_BOT_TOKEN не настроен')
-    throw createError({ 
-      statusCode: 500, 
-      statusMessage: 'Сервер не настроен для Telegram-авторизации' 
-    })
-  }
-  
-  // ============================================
-  // 2. ПРОВЕРКА ПОДЛИННОСТИ ДАННЫХ ОТ TELEGRAM
-  // ============================================
-  if (!verifyTelegramHash(body, botToken)) {
-    console.log(`[Auth/Telegram] ⚠️ Неверный хеш от Telegram (user_id: ${body?.id})`)
-    throw createError({ 
-      statusCode: 401, 
-      statusMessage: 'Неверные данные Telegram' 
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Сервер не настроен для Telegram-авторизации'
     })
   }
 
   // ============================================
-  // 3. ПОИСК ПОЛЬЗОВАТЕЛЯ ПО telegramId
+  // ЧТЕНИЕ И ВАЛИДАЦИЯ ТЕЛА
   // ============================================
-  const telegramId = parseInt(body?.id, 10)
-  
+  const rawBody = await readBody(event)
+
+  const parseResult = TelegramBodySchema.safeParse(rawBody)
+  if (!parseResult.success) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Неверный формат данных Telegram'
+    })
+  }
+
+  const body = parseResult.data
+
+  // ============================================
+  // ПРОВЕРКА ПОДЛИННОСТИ ДАННЫХ TELEGRAM
+  // ============================================
+  if (!verifyTelegramHash(rawBody, botToken)) {
+    throw createError({
+      statusCode: 401,
+      statusMessage: 'Неверные данные Telegram'
+    })
+  }
+
+  // ============================================
+  // ВАЛИДАЦИЯ telegramId
+  // ============================================
+  const telegramId = body.id
   if (isNaN(telegramId)) {
-    console.log('[Auth/Telegram] ⚠️ Неверный формат telegramId')
-    throw createError({ 
-      statusCode: 400, 
-      statusMessage: 'Неверный идентификатор пользователя' 
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Неверный идентификатор пользователя'
     })
   }
 
+  // ============================================
+  // ПОИСК ПОЛЬЗОВАТЕЛЯ
+  // ============================================
   const [user] = await db
     .select()
     .from(users)
     .where(eq(users.telegramId, telegramId))
 
   if (!user) {
-    console.log(`[Auth/Telegram] ⚠️ Пользователь с telegramId ${telegramId} не найден`)
-    throw createError({ 
-      statusCode: 404, 
-      statusMessage: 'Пользователь не найден. Свяжитесь с администратором.' 
+    throw createError({
+      statusCode: 404,
+      statusMessage: 'Пользователь не найден. Свяжитесь с администратором.'
     })
   }
 
   // ============================================
-  // 4. ПОДГОТОВКА ДАННЫХ ДЛЯ ТОКЕНА
+  // ПОДГОТОВКА JWT-ТОКЕНА
   // ============================================
   const ipAddress = getRequestIP(event, { xForwardedFor: true })
   const userAgent = getRequestHeader(event, 'user-agent') || undefined
 
   const objects = await getObjectsByUser(user.id)
-  
-  const tokenPayload = { 
-    id: user.id, 
+
+  const tokenPayload = {
+    id: user.id,
     login: user.login,
     role: user.role,
     objects: objects.map(o => ({ id: o.id }))
   }
-  
+
   const token = await generateToken(tokenPayload)
 
   // ============================================
-  // 5. СОЗДАНИЕ СЕССИИ
+  // СОЗДАНИЕ СЕССИИ
   // ============================================
-  // ✅ Закрываем старые "зомби"-сессии перед созданием новой
   await closeZombieSessions(user.id)
-  
   const session = await createSession(user.id, ipAddress, userAgent)
 
   // ============================================
-  // 6. ФОРМИРОВАНИЕ ОТВЕТА
+  // 🆕 ПОЛУЧЕНИЕ ПРАВ (в одном ответе с логином)
   // ============================================
-  console.log(`[Auth/Telegram] ✅ Успешный вход через Telegram: ${user.login} (ID: ${user.id})`)
-  
-  return { 
+  const permissions = await getUserPermissionsResponse(user)
+
+  // ============================================
+  // ФОРМИРОВАНИЕ ОТВЕТА
+  // ============================================
+  return {
     token,
     user: {
       id: user.id,
-      login: user.login,      // ✅ Поле login, а не email (соответствует клиенту)
+      login: user.login,
       name: user.name || body.first_name || 'Пользователь',
       role: user.role,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       isVerified: true
     },
-    sessionId: session?.sessionId // Возвращаем ID сессии для сокета
+    sessionId: session?.sessionId,
+    permissions // ← НОВОЕ: права сразу в ответе
   }
 })

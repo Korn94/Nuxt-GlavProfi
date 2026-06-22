@@ -1,65 +1,88 @@
 // server/utils/permissions/index.ts
 /**
- * Основные функции системы прав доступа
- * Используется в API endpoints и middleware
+ * Основные функции системы прав доступа (серверная логика)
  *
  * Архитектура:
  * - Чтение прав из БД (permissions_role_access + permissions_user_overrides)
- * - Поддержка переопределений для конкретных пользователей
+ * - Поддержка переопределений для конкретных пользователей с expiresAt
+ * - Кэширование в памяти (5 мин TTL) — инвалидируется при изменениях
  * - Упрощённая система действий: view, create, edit, delete, special
+ *
+ * Импорт:
+ *   import { hasUserPermission, getAllUserPermissions } from '~/server/utils/permissions'
  *
  * ⚠️ ВАЖНО: Возвращает ТОЛЬКО новую систему (pages), без legacy (permissions)
  */
+
 import { db } from '../../db'
 import {
   permissionsPages,
   permissionsRoleAccess,
-  permissionsUserOverrides
+  permissionsUserOverrides,
+  users  // ✅ Обычный импорт (не type), так как используется в drizzle-запросах
 } from '../../db/schema'
 import { eq, and, or, isNull, gt, sql } from 'drizzle-orm'
-import type { users } from '../../db/schema'
-import type { PagePermissions, PageAction, UserPermissionsResponse } from './types'
+
+import {
+  ROLE_LEVELS,
+  hasRequiredRoleLevel,
+  type Role
+} from 'shared/constants/roles'
+
+import type { PageAction } from 'shared/constants/permissions'  // ✅ Импорт из constants
+
+import type {
+  PagePermissions,
+  UserPermissionsResponse
+} from 'shared/types/permissions'
+
+// ============================================
+// ТИПЫ
+// ============================================
+
 export type DbUser = typeof users.$inferSelect
 
 // ============================================
-// ТИПЫ И КОНСТАНТЫ
+// КЭШИРОВАНИЕ (in-memory, 5 минут TTL)
 // ============================================
 
-/**
- * Иерархия ролей (локально, без legacy импортов)
- */
-export const ROLE_HIERARCHY: Record<string, number> = {
-  worker: 1,
-  master: 2,
-  foreman: 3,
-  manager: 4,
-  admin: 5
+interface CachedPermissions {
+  permissions: UserPermissionsResponse
+  timestamp: number
 }
 
+const permissionsCache = new Map<number, CachedPermissions>()
+const CACHE_TTL = 5 * 60 * 1000 // 5 минут
+
 // ============================================
-// ОПТИМИЗИРОВАННОЕ ПОЛУЧЕНИЕ ВСЕХ ПРАВ
+// ПОЛУЧЕНИЕ ВСЕХ ПРАВ (оптимизированная версия)
 // ============================================
 
 /**
- * Получить все права пользователя для всех активных страниц (ОПТИМИЗИРОВАННАЯ ВЕРСИЯ)
- * 
+ * Получить все права пользователя для всех активных страниц
+ *
  * Выполняет только 3 запроса к БД вместо N+1:
  * 1. Все активные страницы
  * 2. Все права роли для всех страниц
  * 3. Все активные переопределения пользователя
- * 
+ *
  * Затем собирает результат в памяти.
+ *
+ * Результат кэшируется на 5 минут.
  */
 export async function getAllUserPermissions(user: DbUser): Promise<UserPermissionsResponse> {
-  console.log(`[Permissions] 🔄 Получение прав для пользователя ${user.id} (${user.role})`)
+  const now = Date.now()
+  const cached = permissionsCache.get(user.id)
 
-  // 1. Получаем все активные страницы
+  // Возвращаем из кэша, если не истёк
+  if (cached && now - cached.timestamp < CACHE_TTL) {
+    return cached.permissions
+  }
+
+  // 1. Все активные страницы (один запрос)
   const activePages = await db
     .select({
       slug: permissionsPages.slug,
-      name: permissionsPages.name,
-      icon: permissionsPages.icon,
-      order: permissionsPages.order,
       hasCreate: permissionsPages.hasCreate,
       hasEdit: permissionsPages.hasEdit,
       hasDelete: permissionsPages.hasDelete,
@@ -69,9 +92,7 @@ export async function getAllUserPermissions(user: DbUser): Promise<UserPermissio
     .where(eq(permissionsPages.isActive, true))
     .orderBy(permissionsPages.order)
 
-  console.log(`[Permissions] 📄 Активных страниц: ${activePages.length}`)
-
-  // 2. Получаем все права роли для всех страниц (один запрос)
+  // 2. Все права роли для всех страниц (один запрос)
   const roleAccessRows = await db
     .select({
       pageSlug: permissionsRoleAccess.pageSlug,
@@ -84,12 +105,12 @@ export async function getAllUserPermissions(user: DbUser): Promise<UserPermissio
     .from(permissionsRoleAccess)
     .where(
       and(
-        eq(permissionsRoleAccess.role, user.role),
+        eq(permissionsRoleAccess.role, user.role as Role),
         eq(permissionsRoleAccess.isActive, true)
       )
     )
 
-  // Индексируем права роли по pageSlug для быстрого доступа
+  // Индексируем права роли по pageSlug
   const rolePermissionsMap = new Map<string, PagePermissions>()
   for (const row of roleAccessRows) {
     rolePermissionsMap.set(row.pageSlug, {
@@ -101,9 +122,7 @@ export async function getAllUserPermissions(user: DbUser): Promise<UserPermissio
     })
   }
 
-  console.log(`[Permissions] 👥 Прав роли ${user.role}: ${rolePermissionsMap.size}`)
-
-  // 3. Получаем все активные переопределения пользователя (один запрос)
+  // 3. Все активные переопределения пользователя (один запрос)
   const overrideRows = await db
     .select({
       pageSlug: permissionsUserOverrides.pageSlug,
@@ -137,11 +156,8 @@ export async function getAllUserPermissions(user: DbUser): Promise<UserPermissio
     })
   }
 
-  console.log(`[Permissions] 🔧 Переопределений пользователя: ${overridesMap.size}`)
-
   // 4. Собираем финальные права для каждой страницы
   const pages: Record<string, PagePermissions> = {}
-
   for (const page of activePages) {
     // Базовые права роли (или всё false если не настроено)
     const rolePerms = rolePermissionsMap.get(page.slug) || {
@@ -155,7 +171,7 @@ export async function getAllUserPermissions(user: DbUser): Promise<UserPermissio
     // Переопределения пользователя (если есть)
     const override = overridesMap.get(page.slug)
 
-    // Применяем переопределения (null = использовать права роли)
+    // Применяем переопределения (null/undefined = использовать права роли)
     const effectivePerms: PagePermissions = {
       canView: override?.canView ?? rolePerms.canView,
       canCreate: override?.canCreate ?? rolePerms.canCreate,
@@ -174,15 +190,18 @@ export async function getAllUserPermissions(user: DbUser): Promise<UserPermissio
     }
   }
 
-  console.log(`[Permissions] ✅ Итого страниц с правами: ${Object.keys(pages).length}`)
+  const level = ROLE_LEVELS[user.role as Role] ?? 0
 
-  const level = ROLE_HIERARCHY[user.role] || 0
-
-  return {
+  const result: UserPermissionsResponse = {
     role: user.role,
     level,
     pages,
   }
+
+  // Сохраняем в кэш
+  permissionsCache.set(user.id, { permissions: result, timestamp: now })
+
+  return result
 }
 
 // ============================================
@@ -196,9 +215,8 @@ export async function getAllUserPermissions(user: DbUser): Promise<UserPermissio
  * 1. user_permission_overrides (если есть и не истёк)
  * 2. role_access (базовые права роли из БД)
  * 3. Всё false (если нет записей)
- * 
- * ⚠️ Используется для проверки прав в middleware (одна страница)
- * Для получения всех прав используйте getAllUserPermissions (оптимизирован)
+ *
+ * ⚠️ Для получения всех прав используйте getAllUserPermissions (оптимизирован)
  */
 export async function getUserPagePermissions(
   user: DbUser,
@@ -232,20 +250,19 @@ export async function getUserPagePermissions(
     }
   }
 
-  // 2. Получаем базовые права роли
+  // 2. Базовые права роли
   const [roleAccess] = await db
     .select()
     .from(permissionsRoleAccess)
     .where(
       and(
-        eq(permissionsRoleAccess.role, user.role),
+        eq(permissionsRoleAccess.role, user.role as Role),
         eq(permissionsRoleAccess.pageSlug, pageSlug),
         eq(permissionsRoleAccess.isActive, true)
       )
     )
     .limit(1)
 
-  // Если нет прав роли — всё запрещено (но canView может быть true для публичных страниц)
   const basePerms: PagePermissions = roleAccess ? {
     canView: roleAccess.canView,
     canCreate: roleAccess.canCreate,
@@ -260,7 +277,7 @@ export async function getUserPagePermissions(
     canSpecial: false
   }
 
-  // 3. Получаем переопределения пользователя
+  // 3. Переопределения пользователя
   const [override] = await db
     .select()
     .from(permissionsUserOverrides)
@@ -297,7 +314,7 @@ export async function getUserPagePermissions(
 }
 
 // ============================================
-// ПРОВЕРКА ПРАВ
+// ПРОВЕРКА ПРАВ (ЕДИНСТВЕННАЯ ФУНКЦИЯ)
 // ============================================
 
 /**
@@ -306,13 +323,13 @@ export async function getUserPagePermissions(
  * Логика:
  * - view — достаточно canView
  * - create/edit/delete/special — canView + соответствующий флаг
- * 
- * ⚠️ Используется для проверки прав в middleware (одна страница)
+ *
+ * Используется в middleware для проверки прав на endpoint.
  */
 export async function hasUserPermission(
   user: DbUser,
   pageSlug: string,
-  action: PageAction | 'view'
+  action: PageAction
 ): Promise<boolean> {
   const permissions = await getUserPagePermissions(user, pageSlug)
 
@@ -332,6 +349,10 @@ export async function hasUserPermission(
     default: return false
   }
 }
+
+// ============================================
+// СПИСОК ВИДИМЫХ СТРАНИЦ (для меню навигации)
+// ============================================
 
 /**
  * Получить список страниц, доступных пользователю для отображения в меню
@@ -367,39 +388,59 @@ export async function getUserVisiblePages(user: DbUser): Promise<Array<{
  * Получить полный ответ прав пользователя для API
  * Возвращает ТОЛЬКО новую систему: role, level, pages
  *
- * ⚠️ ВАЖНО: НЕ возвращает legacy поле `permissions`!
- * 
  * Используется в /api/permissions при логине и при обновлении токена
  */
 export async function getUserPermissionsResponse(user: DbUser): Promise<UserPermissionsResponse> {
-  console.log(`[getUserPermissionsResponse] 🚀 Старт для пользователя ${user.id} (${user.role})`)
-  
-  const result = await getAllUserPermissions(user)
-  
-  console.log(`[getUserPermissionsResponse] ✅ Возвращаем:`, {
-    role: result.role,
-    level: result.level,
-    pagesCount: Object.keys(result.pages).length,
-    samplePages: Object.keys(result.pages).slice(0, 5),
-  })
-  
-  return result
+  return getAllUserPermissions(user)
 }
 
 // ============================================
-// ПРОВЕРКА УРОВНЯ РОЛИ
+// ИНВАЛИДАЦИЯ КЭША
 // ============================================
 
 /**
- * Проверить что роль пользователя >= требуемой роли
- * Используется middleware для проверки type='role' в PROTECTED_PATHS
- *
- * @example
- * hasRoleLevel('foreman', 'manager') // false (3 < 4)
- * hasRoleLevel('admin', 'manager')   // true (5 >= 4)
+ * Инвалидировать кэш прав пользователя (вызывать после изменения прав)
  */
-export function hasRoleLevel(userRole: string, requiredRole: string): boolean {
-  const userLevel = ROLE_HIERARCHY[userRole] || 0
-  const requiredLevel = ROLE_HIERARCHY[requiredRole] || 0
-  return userLevel >= requiredLevel
+export function invalidatePermissionsCache(userId: number): void {
+  permissionsCache.delete(userId)
 }
+
+/**
+ * Инвалидировать кэш прав для ВСЕХ пользователей с определённой ролью
+ * Вызывается после обновления прав роли через UI
+ */
+export async function invalidatePermissionsCacheByRole(role: Role): Promise<{
+  total: number
+  invalidated: number
+}> {
+  // Получаем всех пользователей с этой ролью
+  const usersWithRole = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.role, role))
+
+  // Инвалидируем кэш для каждого
+  let invalidatedCount = 0
+  for (const user of usersWithRole) {
+    if (permissionsCache.has(user.id)) {
+      permissionsCache.delete(user.id)
+      invalidatedCount++
+    }
+  }
+
+  return { total: usersWithRole.length, invalidated: invalidatedCount }
+}
+
+// ============================================
+// ЭКСПОРТ ИЗ SHARED (для обратной совместимости)
+// ============================================
+
+/**
+ * @deprecated Используйте hasRequiredRoleLevel из shared/constants/roles
+ */
+export { hasRequiredRoleLevel } from 'shared/constants/roles'
+
+/**
+ * @deprecated Используйте ROLE_LEVELS из shared/constants/roles
+ */
+export { ROLE_LEVELS } from 'shared/constants/roles'

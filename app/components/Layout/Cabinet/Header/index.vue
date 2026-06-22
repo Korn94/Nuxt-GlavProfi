@@ -99,26 +99,23 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from 'stores/auth'
 import { usePermissions } from '~/composables/usePermissions'
-import { useCurrentUser } from '~/composables/useCurrentUser'
 import CrmMenu from './ui/crm.vue'
 import BoardsMenu from './ui/boards.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
-const { canView } = usePermissions()
+const { can } = usePermissions()
 
 // ============================================
-// SSR-SAFE ЗАГРУЗКА ПОЛЬЗОВАТЕЛЯ
+// ЕДИНСТВЕННЫЙ ИСТОЧНИК USER — authStore
 // ============================================
-// useFetch пробрасывает cookie при SSR → данные попадают в payload →
-// клиент гидратирует те же данные → НЕТ hydration mismatch
-const { data: currentUserData } = useCurrentUser()
+// Используем ТОЛЬКО authStore.user (а не useCurrentUser + useFetch)
+// Это устраняет рассинхрон между двумя endpoint'ами (/api/me и /api/auth/check)
+//
+// На сервере authStore.user = null (init() вызывается в onMounted)
+// На клиенте после гидратации — реактивно обновляется
+const user = computed(() => authStore.user)
 
-// ЕДИНСТВЕННЫЙ источник user — всегда из SSR-safe composable
-// authStore.user используется только для авторизационных решений (token, logout)
-const user = computed(() => currentUserData.value?.user || null)
-
-// Все display-значения вычисляются из user — гарантированно одинаковые на сервере и клиенте
 const displayName = computed(() => user.value?.name || '...')
 const displayRole = computed(() => roleLabels[user.value?.role || ''] || 'Пользователь')
 const userInitials = computed(() => {
@@ -147,15 +144,10 @@ const roleLabels: Record<string, string> = {
 // ============================================
 /**
  * 🔐 Доступ к разделу «Доски»
- * 
- * SSR-SAFE: на сервере всегда true (нет данных для проверки).
- * Клиент гидратирует ту же кнопку (без lock), а потом реактивно обновляет
- * если прав нет — это НЕ hydration mismatch, а обычное обновление DOM.
  */
 const isBoardsAvailable = computed(() => {
-  // Нет user → SSR или гость → считаем доступным (покажем контент)
   if (!user.value) return true
-  return canView('objects')
+  return can('objects', 'view')
 })
 
 // ============================================
@@ -292,7 +284,6 @@ $sidebar-width: 256px;
   flex-direction: column;
   overflow: hidden;
 
-  // На мобиле скрыт по умолчанию
   &--mobile {
     top: 0;
     transform: translateX(-100%);
@@ -398,7 +389,6 @@ $sidebar-width: 256px;
       }
     }
 
-    // 🔐 Стили для заблокированной кнопки
     &--disabled {
       opacity: 0.5;
       cursor: not-allowed;
@@ -413,7 +403,6 @@ $sidebar-width: 256px;
     }
   }
 
-  // 🔐 Индикатор замка
   &__lock {
     position: absolute;
     top: 2px;

@@ -7,7 +7,7 @@
  * - canView, canCreate, canEdit, canDelete, canSpecial
  * - Без legacy (canExport, canApprove)
  */
-import type { PagePermissions } from 'server/utils/permissions/types'
+import type { PagePermissions } from 'shared/types/permissions'
 import { useApi } from './useApi'
 
 // ============================================

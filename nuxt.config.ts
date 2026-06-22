@@ -276,6 +276,10 @@ export default defineNuxtConfig({
   // Дата совместимости
   compatibilityDate: '2026-03-13',
 
+  alias: {
+  'shared': '~~/shared',
+  },
+
   devtools: {
     enabled: true,
     timeline: {

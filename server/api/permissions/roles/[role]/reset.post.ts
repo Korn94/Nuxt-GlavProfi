@@ -3,51 +3,70 @@
  * 📍 Эндпоинт: POST /api/permissions/roles/[role]/reset
  *
  * Назначение:
- * Сбросить права указанной роли к дефолтным значениям из ROLE_PERMISSIONS_SEED
- * Все текущие настройки прав роли будут удалены и заменены дефолтными
+ * - Сбросить права указанной роли к дефолтным значениям из ROLE_PERMISSIONS_SEED
+ * - Используется в UI настроек прав (кнопка "Сбросить к дефолтным")
  *
- * ⚠️ Доступ: только для роли admin (проверка в middleware через settings.canSpecial)
+ * ⚠️ Доступ: только для роли admin (двойная проверка — middleware + handler)
+ * - Middleware проверяет settings.canSpecial
+ * - Handler дополнительно проверяет admin
  *
  * Логика:
- * 1. Валидация роли из URL
- * 2. Проверка что роль существует в ROLE_PERMISSIONS_SEED
- * 3. Защита: роль admin может сбрасывать только админ
- * 4. В транзакции:
- *    - Удаление всех текущих прав роли
- *    - Создание дефолтных прав из ROLE_PERMISSIONS_SEED
- * 5. Инвалидация кэша для всех пользователей этой роли
+ * 1. Валидация роли из URL (через validateRoleParam — zod enum из shared)
+ * 2. Получение дефолтных прав из ROLE_PERMISSIONS_SEED
+ * 3. В транзакции: удаление всех текущих прав + создание дефолтных
+ * 4. Инвалидация кэша прав для ВСЕХ пользователей этой роли
+ * 5. 🆕 Принудительное отключение всех сокетов этой роли
+ *    (сброс прав — критичное изменение, пользователи должны войти заново)
+ *
+ * Почему принудительное отключение?
+ * - При сбросе могут отозваться canView на критических страницах (dashboard, objects)
+ * - Пользователь не сможет нормально работать со старым кэшем
+ * - Безопаснее разорвать соединение с понятной причиной
  *
  * @param {string} role — роль из пути (admin, manager, foreman, master, worker)
- * @returns { role, resetCount, previousCount, message }
- *
- * Пример ответа:
- * {
- *   "role": "master",
- *   "resetCount": 11,
- *   "previousCount": 9,
- *   "message": "Права роли \"master\" сброшены к дефолтным значениям (11 прав)"
- * }
+ * @returns { role, roleLabel, resetCount, previousCount, invalidatedUsers, disconnectedUsers, message }
  */
-import { defineEventHandler, getRouterParam, createError } from 'h3'
+
+import { defineEventHandler, getRouterParam } from 'h3'
+import { eq, sql } from 'drizzle-orm'
+
 import { db } from '../../../../db'
 import { users, permissionsRoleAccess } from '../../../../db/schema'
-import { eq, sql } from 'drizzle-orm'
-import { isValidRole, type Role } from '../../../../utils/permissions/validators'
+
+import { validateRoleParam } from '../../../../utils/permissions/validators'
+import { invalidatePermissionsCacheByRole, type DbUser } from '../../../../utils/permissions'
 import { ROLE_PERMISSIONS_SEED } from '../../../../utils/permissions/seed'
-import { invalidatePermissionsCache } from '../../../../middleware/auth'
-import type { DbUser } from '../../../../utils/permissions'
+
+import {
+  hasRequiredRoleLevel,
+  ROLE_LABELS,
+  type Role
+} from 'shared/constants/roles'
+
+import { getIO } from '../../../../socket/common'
+import { forceDisconnectRole } from '../../../../socket'
+
+// ============================================
+// ОБРАБОТЧИК
+// ============================================
 
 export default defineEventHandler(async (event) => {
-  // ✅ Авторизация и права уже проверены мидлваром
-  const currentUser = event.context.user as DbUser
+  // ============================================
+  // 1. ПРОВЕРКА ТЕКУЩЕГО ПОЛЬЗОВАТЕЛЯ
+  // ============================================
+  const currentUser = event.context.user as DbUser | undefined
   if (!currentUser) {
-    throw createError({ statusCode: 401, statusMessage: 'Не удалось получить данные текущего пользователя' })
+    throw createError({
+      statusCode: 401,
+      statusMessage: 'Не удалось получить данные текущего пользователя'
+    })
   }
 
   // ============================================
-  // 1. ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА: ТОЛЬКО АДМИН
+  // 2. ПРОВЕРКА ПРАВ: ТОЛЬКО АДМИН
   // ============================================
-  if (currentUser.role !== 'admin') {
+  // Middleware проверил settings.canSpecial, но сброс к дефолтам — критическая операция
+  if (!hasRequiredRoleLevel(currentUser.role as Role, 'admin')) {
     throw createError({
       statusCode: 403,
       statusMessage: 'Сброс прав роли к дефолтным доступен только администратору'
@@ -55,113 +74,118 @@ export default defineEventHandler(async (event) => {
   }
 
   // ============================================
-  // 2. ПОЛУЧЕНИЕ И ВАЛИДАЦИЯ РОЛИ ИЗ URL
+  // 3. ВАЛИДАЦИЯ РОЛИ ИЗ URL
   // ============================================
   const roleParam = getRouterParam(event, 'role')
-  if (!roleParam) {
-    throw createError({ statusCode: 400, statusMessage: 'Роль не указана в URL' })
-  }
-  if (!isValidRole(roleParam)) {
-    throw createError({ statusCode: 400, statusMessage: `Некорректная роль: ${roleParam}` })
-  }
-  const targetRole: Role = roleParam
+  const targetRole: Role = validateRoleParam(roleParam)
 
   // ============================================
-  // 3. ПРОВЕРКА СУЩЕСТВОВАНИЯ ДЕФОЛТНЫХ ПРАВ
+  // 4. ПРОВЕРКА СУЩЕСТВОВАНИЯ ДЕФОЛТНЫХ ПРАВ В SEED
   // ============================================
   const defaultPermissions = ROLE_PERMISSIONS_SEED[targetRole]
   if (!defaultPermissions) {
     throw createError({
       statusCode: 404,
-      statusMessage: `Дефолтные права для роли "${targetRole}" не найдены в конфигурации`
+      statusMessage: `Дефолтные права для роли "${ROLE_LABELS[targetRole]}" не найдены в конфигурации`
     })
   }
+
   const defaultPages = Object.keys(defaultPermissions)
   if (defaultPages.length === 0) {
     throw createError({
       statusCode: 404,
-      statusMessage: `У роли "${targetRole}" нет настроенных дефолтных прав`
+      statusMessage: `У роли "${ROLE_LABELS[targetRole]}" нет настроенных дефолтных прав`
     })
   }
 
   // ============================================
-  // 4. ПОДСЧЁТ ТЕКУЩИХ ПРАВ РОЛИ
+  // 5. ПОДСЧЁТ ТЕКУЩИХ ПРАВ РОЛИ (для статистики)
   // ============================================
   const [countResult] = await db
     .select({ count: sql<number>`COUNT(*)` })
     .from(permissionsRoleAccess)
     .where(eq(permissionsRoleAccess.role, targetRole))
+
   const previousCount = Number(countResult?.count || 0)
 
   // ============================================
-  // 5. СБРОС ПРАВ В ТРАНЗАКЦИИ
+  // 6. СБРОС ПРАВ В ТРАНЗАКЦИИ
   // ============================================
-  try {
-    const resetCount = await db.transaction(async (tx) => {
-      // 5.1. Удаляем все текущие права роли
-      await tx
-        .delete(permissionsRoleAccess)
-        .where(eq(permissionsRoleAccess.role, targetRole))
+  const resetCount = await db.transaction(async (tx) => {
+    // 6.1. Удаляем все текущие права роли
+    await tx
+      .delete(permissionsRoleAccess)
+      .where(eq(permissionsRoleAccess.role, targetRole))
 
-      // 5.2. Создаём дефолтные права из ROLE_PERMISSIONS_SEED
-      // Новая система: canView, canCreate, canEdit, canDelete, canSpecial
-      const insertValues = defaultPages.map(pageSlug => {
-        const perms = defaultPermissions[pageSlug] || {}
-        return {
-          role: targetRole,
-          pageSlug,
-          canView: perms.canView || false,
-          canCreate: perms.canCreate || false,
-          canEdit: perms.canEdit || false,
-          canDelete: perms.canDelete || false,
-          canSpecial: perms.canSpecial || false,
-          comment: `Сброшено к дефолтным значениям пользователем ${currentUser.name}`,
-          updatedBy: currentUser.id,
-          isActive: true
-        }
-      })
-
-      await tx.insert(permissionsRoleAccess).values(insertValues)
-      return defaultPages.length
+    // 6.2. Создаём дефолтные права из ROLE_PERMISSIONS_SEED
+    // ВАЖНО: используем ?? false вместо || false, чтобы корректно обработать
+    // случай когда в seed явно указано canView: false (не undefined)
+    const insertValues = defaultPages.map(pageSlug => {
+      const perms = defaultPermissions[pageSlug] || {}
+      return {
+        role: targetRole,
+        pageSlug,
+        canView: perms.canView ?? false,
+        canCreate: perms.canCreate ?? false,
+        canEdit: perms.canEdit ?? false,
+        canDelete: perms.canDelete ?? false,
+        canSpecial: perms.canSpecial ?? false,
+        comment: `Сброшено к дефолтным значениям администратором ${currentUser.name}`,
+        updatedBy: currentUser.id,
+        isActive: true
+      }
     })
 
-    // ============================================
-    // 6. ИНВАЛИДАЦИЯ КЭША ДЛЯ ВСЕХ ПОЛЬЗОВАТЕЛЕЙ РОЛИ
-    // ============================================
-    const usersWithRole = await db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.role, targetRole))
+    await tx.insert(permissionsRoleAccess).values(insertValues)
+    return defaultPages.length
+  })
 
-    for (const user of usersWithRole) {
-      invalidatePermissionsCache(user.id)
-    }
+  // ============================================
+  // 7. ИНВАЛИДАЦИЯ КЭША ПРАВ (через утилиту из utils/permissions)
+  // ============================================
+  const invalidationResult = await invalidatePermissionsCacheByRole(targetRole)
 
-    // ============================================
-    // 7. ЛОГИРОВАНИЕ НА РУССКОМ
-    // ============================================
-    console.log(
-      `[Права] ✅ Администратор ${currentUser.name} (ID: ${currentUser.id}) ` +
-      `сбросил права роли "${targetRole}" к дефолтным значениям. ` +
-      `Было: ${previousCount}, стало: ${resetCount}. ` +
-      `Инвалидирован кэш для ${usersWithRole.length} пользователей`
+  // ============================================
+  // 8. ЛОГИРОВАНИЕ
+  // ============================================
+  console.log(
+    `[Права] ✅ Администратор ${currentUser.name} (ID: ${currentUser.id}) ` +
+    `сбросил права роли "${ROLE_LABELS[targetRole]}" (${targetRole}) к дефолтным значениям. ` +
+    `Было: ${previousCount}, стало: ${resetCount}. ` +
+    `Кэш инвалидирован для ${invalidationResult.invalidated}/${invalidationResult.total} пользователей`
+  )
+
+  // ============================================
+  // 9. 🆕 ПРИНУДИТЕЛЬНОЕ ОТКЛЮЧЕНИЕ ВСЕХ ПОЛЬЗОВАТЕЛЕЙ РОЛИ
+  // ============================================
+  // Сброс прав — критичное изменение (могут отозваться canView на dashboard/objects).
+  // Пользователи должны войти заново, чтобы получить актуальные права.
+  const io = getIO()
+  let disconnectedUsers = 0
+
+  if (io) {
+    disconnectedUsers = forceDisconnectRole(
+      io,
+      targetRole,
+      `Права вашей роли "${ROLE_LABELS[targetRole]}" были сброшены к дефолтным значениям. Необходимо войти в систему заново.`
     )
+  }
 
-    return {
-      role: targetRole,
-      resetCount,
-      previousCount,
-      message: `Права роли "${targetRole}" сброшены к дефолтным значениям (${resetCount} прав). Кэш обновлён для ${usersWithRole.length} пользователей.`
-    }
-  } catch (error: any) {
-    console.error(
-      `[Права] ❌ Ошибка сброса прав роли "${targetRole}":`,
-      error
-    )
-    if (error.statusCode) throw error
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'Ошибка сервера при сбросе прав роли'
-    })
+  // ============================================
+  // 10. ВОЗВРАТ РЕЗУЛЬТАТА
+  // ============================================
+  return {
+    role: targetRole,
+    roleLabel: ROLE_LABELS[targetRole],
+    resetCount,
+    previousCount,
+    invalidatedUsers: invalidationResult.invalidated,
+    disconnectedUsers,
+    message: `Права роли "${ROLE_LABELS[targetRole]}" сброшены к дефолтным значениям (${resetCount} прав). Кэш обновлён для ${invalidationResult.invalidated} пользователей, ${disconnectedUsers} отключены.`
   }
 })
+
+// ============================================
+// ЛОКАЛЬНЫЙ ИМПОРТ createError (для совместимости)
+// ============================================
+import { createError } from 'h3'

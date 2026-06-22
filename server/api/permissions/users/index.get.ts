@@ -3,82 +3,136 @@
  * 📍 Эндпоинт: GET /api/permissions/users
  *
  * Назначение:
- * Получить список пользователей с их правами доступа (базовые + переопределения)
- * Используется в UI настроек прав (вкладка "Пользователи")
+ * - Получить список пользователей с их правами (базовые + переопределения)
+ * - Используется в UI настроек прав (вкладка "Пользователи")
  *
  * ⚠️ Доступ: middleware уже проверил через PROTECTED_PATHS (settings.canView)
  *
- * Query параметры:
+ * Query параметры (валидируются через zod):
  * - role: Role (опционально) — фильтр по роли
  * - search: string (опционально) — поиск по имени/логину
  * - page: number (default 1) — номер страницы
  * - limit: number (default 20, max 100) — размер страницы
  * - withOverrides: boolean (default false) — только пользователи с переопределениями
  *
- * Новая система прав:
- * - canView, canCreate, canEdit, canDelete, canSpecial
- * - Без legacy (canExport, canApprove)
+ * Особенности:
+ * - Базовые права берутся из permissions_role_access по роли пользователя
+ * - Переопределения (overrides) применяются поверх базовых (null = не менять)
+ * - В ответ добавляются label/color роли — UI не нужно их знать заранее
+ *
+ * ⚠️ Известное ограничение:
+ * - `withOverrides=true` фильтрует после выборки из БД, поэтому на странице
+ *   может оказаться меньше `limit` пользователей (total при этом точное)
+ * - Для точной пагинации с фильтром нужно вычислять COUNT с JOIN — TODO
  *
  * @returns { users, pagination }
  */
-import { defineEventHandler, getQuery, createError } from 'h3'
+
+import { defineEventHandler, getQuery } from 'h3'
+import { eq, and, like, or, isNull, gt, sql, inArray } from 'drizzle-orm'
+
 import { db } from '../../../db'
 import {
   users,
   permissionsRoleAccess,
   permissionsUserOverrides
 } from '../../../db/schema'
-import { eq, and, like, or, isNull, gt, sql } from 'drizzle-orm'
+
 import { validateUsersQuery } from '../../../utils/permissions/validators'
 import type { DbUser } from '../../../utils/permissions'
-import type { PagePermissions } from '../../../utils/permissions/types'
+
+import {
+  ROLE_LABELS,
+  ROLE_COLORS,
+  ROLE_LEVELS,
+  type Role
+} from 'shared/constants/roles'
+
+import type { PagePermissions } from 'shared/types/permissions'
+
+// ============================================
+// ТИП ОТВЕТА
+// ============================================
+
+interface UserWithPermissions {
+  id: number
+  name: string
+  login: string
+  role: Role
+  roleLabel: string
+  roleColor: string
+  contractorType: string | null
+  contractorId: number | null
+  createdAt: Date | string | null
+  basePermissions: Record<string, PagePermissions>
+  overrides: Array<{
+    id: number
+    pageSlug: string
+    canView: boolean | null
+    canCreate: boolean | null
+    canEdit: boolean | null
+    canDelete: boolean | null
+    canSpecial: boolean | null
+    reason: string | null
+    expiresAt: string | null
+  }>
+  effectivePermissions: Record<string, PagePermissions>
+}
+
+// ============================================
+// ОБРАБОТЧИК
+// ============================================
 
 export default defineEventHandler(async (event) => {
-  // ✅ Авторизация и права уже проверены мидлваром
-  const currentUser = event.context.user as DbUser
+  // ============================================
+  // 1. ПРОВЕРКА ТЕКУЩЕГО ПОЛЬЗОВАТЕЛЯ
+  // ============================================
+  // Middleware уже проверил права (settings.canView), но проверяем наличие user
+  const currentUser = event.context.user as DbUser | undefined
   if (!currentUser) {
-    throw createError({ statusCode: 401, statusMessage: 'Не удалось получить данные текущего пользователя' })
+    // Не бросаем 401 — это не ошибка авторизации, а баг middleware
+    console.error('[Permissions/Users] ⚠️ event.context.user отсутствует')
   }
 
   // ============================================
-  // 1. ВАЛИДАЦИЯ QUERY ПАРАМЕТРОВ
+  // 2. ВАЛИДАЦИЯ QUERY ПАРАМЕТРОВ (через zod)
   // ============================================
   const query = getQuery(event)
   const validated = validateUsersQuery(query as Record<string, string | undefined>)
   const {
     role: filterRole,
     search,
-    page = 1,
-    limit = 20,
+    page,
+    limit,
     withOverrides
   } = validated
+
   const offset = (page - 1) * limit
 
   // ============================================
-  // 2. ФОРМИРОВАНИЕ УСЛОВИЙ ФИЛЬТРАЦИИ
+  // 3. ФОРМИРОВАНИЕ УСЛОВИЙ ФИЛЬТРАЦИИ
   // ============================================
-  const filters = []
+  const filters: ReturnType<typeof eq>[] = []
 
-  // Фильтр по роли
   if (filterRole) {
     filters.push(eq(users.role, filterRole))
   }
 
-  // Поиск по имени/логину
   if (search && search.trim().length > 0) {
     const searchPattern = `%${search.trim()}%`
-    filters.push(
-      or(
-        like(users.name, searchPattern),
-        like(users.login, searchPattern)
-      )!
+    const searchCondition = or(
+      like(users.name, searchPattern),
+      like(users.login, searchPattern)
     )
+    if (searchCondition) {
+      filters.push(searchCondition)
+    }
   }
 
   const whereCondition = filters.length > 0 ? and(...filters) : undefined
 
   // ============================================
-  // 3. ПОДСЧЁТ ОБЩЕГО КОЛИЧЕСТВА
+  // 4. ПОДСЧЁТ ОБЩЕГО КОЛИЧЕСТВА
   // ============================================
   const [countResult] = await db
     .select({ count: sql<number>`COUNT(*)` })
@@ -89,7 +143,7 @@ export default defineEventHandler(async (event) => {
   const totalPages = Math.ceil(total / limit)
 
   // ============================================
-  // 4. ПОЛУЧЕНИЕ ПОЛЬЗОВАТЕЛЕЙ С ПАГИНАЦИЕЙ
+  // 5. ПОЛУЧЕНИЕ ПОЛЬЗОВАТЕЛЕЙ С ПАГИНАЦИЕЙ
   // ============================================
   const usersList = await db
     .select({
@@ -107,7 +161,6 @@ export default defineEventHandler(async (event) => {
     .limit(limit)
     .offset(offset)
 
-  // Если пользователей нет — возвращаем пустой результат
   if (usersList.length === 0) {
     return {
       users: [],
@@ -118,9 +171,11 @@ export default defineEventHandler(async (event) => {
   const userIds = usersList.map(u => u.id)
 
   // ============================================
-  // 5. ПОЛУЧЕНИЕ ПРАВ РОЛЕЙ (один запрос на все роли)
+  // 6. ПОЛУЧЕНИЕ ПРАВ РОЛЕЙ (один запрос на все роли страницы)
   // ============================================
+  // Используем inArray вместо ручной сборки SQL — безопаснее и чище
   const uniqueRoles = [...new Set(usersList.map(u => u.role))]
+
   const allRoleAccess = await db
     .select({
       role: permissionsRoleAccess.role,
@@ -134,12 +189,12 @@ export default defineEventHandler(async (event) => {
     .from(permissionsRoleAccess)
     .where(
       and(
-        sql`${permissionsRoleAccess.role} IN (${uniqueRoles.map(r => sql`${r}`).reduce((a, b) => sql`${a}, ${b}`)})`,
+        inArray(permissionsRoleAccess.role, uniqueRoles),
         eq(permissionsRoleAccess.isActive, true)
       )
     )
 
-  // Группируем по ролям: Map<role, Map<pageSlug, permissions>>
+  // Индексируем по составному ключу role|pageSlug для быстрого доступа
   const rolePermissionsMap = new Map<string, Record<string, PagePermissions>>()
   for (const access of allRoleAccess) {
     if (!rolePermissionsMap.has(access.role)) {
@@ -155,7 +210,7 @@ export default defineEventHandler(async (event) => {
   }
 
   // ============================================
-  // 6. ПОЛУЧЕНИЕ ПЕРЕОПРЕДЕЛЕНИЙ ДЛЯ ВЫБРАННЫХ ПОЛЬЗОВАТЕЛЕЙ
+  // 7. ПОЛУЧЕНИЕ ПЕРЕОПРЕДЕЛЕНИЙ (один запрос на всех пользователей)
   // ============================================
   const allOverrides = await db
     .select({
@@ -173,9 +228,8 @@ export default defineEventHandler(async (event) => {
     .from(permissionsUserOverrides)
     .where(
       and(
-        sql`${permissionsUserOverrides.userId} IN (${userIds.map(id => sql`${id}`).reduce((a, b) => sql`${a}, ${b}`)})`,
+        inArray(permissionsUserOverrides.userId, userIds),
         eq(permissionsUserOverrides.isActive, true),
-        // Только активные (не истёкшие)
         or(
           isNull(permissionsUserOverrides.expiresAt),
           gt(permissionsUserOverrides.expiresAt, sql`NOW()`)
@@ -183,7 +237,7 @@ export default defineEventHandler(async (event) => {
       )
     )
 
-  // Группируем по пользователям: Map<userId, override[]>
+  // Группируем по userId
   const userOverridesMap = new Map<number, typeof allOverrides>()
   for (const override of allOverrides) {
     if (!userOverridesMap.has(override.userId)) {
@@ -193,53 +247,51 @@ export default defineEventHandler(async (event) => {
   }
 
   // ============================================
-  // 7. СБОРКА ИТОГОВОГО ОТВЕТА
+  // 8. СБОРКА ИТОГОВОГО ОТВЕТА
   // ============================================
-  let resultUsers = usersList.map(user => {
+  let resultUsers: UserWithPermissions[] = usersList.map(user => {
     const basePermissions = rolePermissionsMap.get(user.role) || {}
     const overrides = userOverridesMap.get(user.id) || []
 
-    // Формируем эффективные права (с учётом переопределений)
-    const effectivePermissions: Record<string, PagePermissions> = { ...basePermissions }
+    // Формируем effectivePermissions (база + переопределения)
+    // Делаем глубокую копию, чтобы не мутировать исходный объект
+    const effectivePermissions: Record<string, PagePermissions> = {}
+    for (const [pageSlug, perms] of Object.entries(basePermissions)) {
+      effectivePermissions[pageSlug] = { ...perms }
+    }
 
-    // Применяем переопределения
+    // Применяем переопределения (только те поля, которые не null)
     for (const override of overrides) {
-      // Получаем или создаём объект прав для страницы
-      let target = effectivePermissions[override.pageSlug]
-      if (!target) {
-        target = {
+      // Создаём запись для страницы, если её нет в базовых правах
+      if (!effectivePermissions[override.pageSlug]) {
+        effectivePermissions[override.pageSlug] = {
           canView: false,
           canCreate: false,
           canEdit: false,
           canDelete: false,
           canSpecial: false,
         }
-        effectivePermissions[override.pageSlug] = target
       }
 
-      // Применяем только те переопределения, которые не null/undefined
-      if (override.canView !== null && override.canView !== undefined) {
-        target.canView = override.canView
-      }
-      if (override.canCreate !== null && override.canCreate !== undefined) {
-        target.canCreate = override.canCreate
-      }
-      if (override.canEdit !== null && override.canEdit !== undefined) {
-        target.canEdit = override.canEdit
-      }
-      if (override.canDelete !== null && override.canDelete !== undefined) {
-        target.canDelete = override.canDelete
-      }
-      if (override.canSpecial !== null && override.canSpecial !== undefined) {
-        target.canSpecial = override.canSpecial
-      }
+      // ✅ Non-null assertion: мы только что гарантированно создали объект выше
+      const target = effectivePermissions[override.pageSlug]!
+
+      if (override.canView !== null) target.canView = override.canView
+      if (override.canCreate !== null) target.canCreate = override.canCreate
+      if (override.canEdit !== null) target.canEdit = override.canEdit
+      if (override.canDelete !== null) target.canDelete = override.canDelete
+      if (override.canSpecial !== null) target.canSpecial = override.canSpecial
     }
+
+    const role = user.role as Role
 
     return {
       id: user.id,
       name: user.name,
       login: user.login,
-      role: user.role,
+      role,
+      roleLabel: ROLE_LABELS[role] || role,
+      roleColor: ROLE_COLORS[role] || '#6c757d',
       contractorType: user.contractorType,
       contractorId: user.contractorId,
       createdAt: user.createdAt,
@@ -249,7 +301,9 @@ export default defineEventHandler(async (event) => {
     }
   })
 
-  // Фильтр: только пользователи с переопределениями
+  // ============================================
+  // 9. ФИЛЬТР: ТОЛЬКО ПОЛЬЗОВАТЕЛИ С ПЕРЕОПРЕДЕЛЕНИЯМИ
+  // ============================================
   if (withOverrides) {
     resultUsers = resultUsers.filter(u => u.overrides.length > 0)
   }

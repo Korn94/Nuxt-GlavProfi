@@ -8,10 +8,19 @@
     "preview": "nuxt preview",
     "start": "node .output/server/index.mjs",
     "postinstall": "nuxt prepare",
+
     "migrate": "npx drizzle-kit --config=drizzle.config.ts migrate",
     "migrate:generate": "npx drizzle-kit --config=drizzle.config.ts generate",
     "migrate:push": "npx drizzle-kit --config=drizzle.config.ts push",
-    "migrate:all": "npm run migrate:generate && npm run migrate"
+    "migrate:all": "npm run migrate:generate && npm run migrate",
+
+    "seed": "tsx server/db/seed.ts",
+    "seed:pages": "tsx server/db/seed.ts --pages",
+    "seed:roles": "tsx server/db/seed.ts --roles",
+    "seed:force": "FORCE_SEED=true tsx server/db/seed.ts",
+
+    "db:setup": "npm run migrate && npm run seed",
+    "db:reset-roles": "npm run seed:roles"
   },
   "dependencies": {
     "@nuxtjs/sitemap": "^7.4.3",
@@ -52,6 +61,7 @@
     "drizzle-orm": "^0.44.4",
     "mysql2": "^3.14.1",
     "sass": "^1.83.0",
+    "tsx": "^4.19.2",
     "typescript": "^5.8.3",
     "vite-tsconfig-paths": "^6.0.5",
     "vue-tsc": "^3.0.6"
