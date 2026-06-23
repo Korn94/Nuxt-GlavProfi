@@ -14,15 +14,16 @@
  *   (отсутствующие в БД заполняются как всё false)
  * - Добавляет метаданные (label, color, level) — UI не нужно их импортировать
  *
+ * Упрощённая модель прав (без canView):
+ * - Видимость раздела определяется наличием любого действия
+ * - canView упразднён — раздел появляется в меню если включено хотя бы одно действие
+ *
  * @returns { roles: RoleWithPermissions[] }
  */
-
 import { defineEventHandler } from 'h3'
 import { eq, sql } from 'drizzle-orm'
-
 import { db } from '../../../db'
 import { users, permissionsRoleAccess } from '../../../db/schema'
-
 import {
   VALID_ROLES,
   ROLE_LEVELS,
@@ -30,7 +31,6 @@ import {
   ROLE_COLORS,
   type Role
 } from 'shared/constants/roles'
-
 import { VALID_PAGE_SLUGS } from 'shared/constants/permissions'
 import type { PagePermissions } from 'shared/types/permissions'
 
@@ -59,7 +59,6 @@ export default defineEventHandler(async () => {
     .select({
       role: permissionsRoleAccess.role,
       pageSlug: permissionsRoleAccess.pageSlug,
-      canView: permissionsRoleAccess.canView,
       canCreate: permissionsRoleAccess.canCreate,
       canEdit: permissionsRoleAccess.canEdit,
       canDelete: permissionsRoleAccess.canDelete,
@@ -93,17 +92,18 @@ export default defineEventHandler(async () => {
   // ============================================
   // Для каждой роли создаём полную матрицу (все страницы × все действия),
   // заполняем значениями из БД (или false если записи нет)
+  //
+  // ⚠️ canView упразднён — не возвращаем его в ответе.
+  // Видимость раздела в меню определяется на клиенте по наличию
+  // хотя бы одного действия (canCreate || canEdit || canDelete || canSpecial).
   const roles: RoleWithPermissions[] = VALID_ROLES.map(role => {
     // Собираем права на все страницы
     const permissions: Record<string, PagePermissions> = {}
-
     for (const pageSlug of VALID_PAGE_SLUGS) {
       const key = `${role}|${pageSlug}`
       const access = accessMap.get(key)
-
       permissions[pageSlug] = access
         ? {
-            canView: access.canView,
             canCreate: access.canCreate,
             canEdit: access.canEdit,
             canDelete: access.canDelete,
@@ -111,7 +111,6 @@ export default defineEventHandler(async () => {
           }
         : {
             // Нет записи в БД — все права false
-            canView: false,
             canCreate: false,
             canEdit: false,
             canDelete: false,

@@ -1,9 +1,14 @@
 <!-- app/components/pages/cabinet/settings/permissions/Pages/PageCard.vue -->
- <template>
+<template>
   <div
     :class="['page-card', { inactive: !page.isActive }]"
   >
     <div class="page-card-main">
+      <!-- Drag handle (только для админа) -->
+      <div v-if="isAdmin" class="page-drag-handle">
+        <Icon name="mdi:drag-vertical" size="20" />
+      </div>
+
       <!-- Порядок (стрелки) — только для админа -->
       <div v-if="isAdmin" class="page-order">
         <button
@@ -39,7 +44,20 @@
         <p v-if="page.description" class="page-description">{{ page.description }}</p>
 
         <!-- Возможности страницы (используем shared компонент) -->
-        <PermissionsSharedPermCapabilities :page="page" />
+        <PagesCabinetSettingsPermissionsSharedPermCapabilities :page="page" />
+
+        <!-- 🆕 Audit: когда и кем создано -->
+        <div v-if="page.createdAt" class="page-audit">
+          <Icon name="mdi:clock-outline" size="12" />
+          <span>
+            Создано {{ formatDate(page.createdAt) }}
+          </span>
+          <template v-if="page.updatedAt && page.updatedAt !== page.createdAt">
+            ·
+            <Icon name="mdi:pencil-outline" size="12" />
+            <span>Обновлено {{ formatDate(page.updatedAt) }}</span>
+          </template>
+        </div>
       </div>
     </div>
 
@@ -68,6 +86,7 @@
         Показать
       </button>
       <button
+        v-if="!isProtectedPage"
         class="btn btn-ghost btn-sm btn-danger-text"
         @click="$emit('delete', page, true)"
         title="Полное удаление с CASCADE (опасно!)"
@@ -79,12 +98,13 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { SystemPage } from '~/composables/usePermissionsApi'
 
 // ============================================
 // ПРОПСЫ
 // ============================================
-defineProps<{
+const props = defineProps<{
   /** Данные страницы */
   page: SystemPage
   /** Индекс страницы в списке (для определения доступности стрелок) */
@@ -110,6 +130,33 @@ defineEmits<{
   /** Переместить вниз */
   (e: 'move-down', page: SystemPage): void
 }>()
+
+// ============================================
+// COMPUTED
+// ============================================
+/**
+ * Защищённые системные страницы (нельзя удалять)
+ */
+const PROTECTED_PAGES = ['dashboard', 'settings', 'users']
+
+const isProtectedPage = computed(() =>
+  PROTECTED_PAGES.includes(props.page.slug)
+)
+
+// ============================================
+// МЕТОДЫ
+// ============================================
+/**
+ * Форматирование даты для отображения
+ */
+function formatDate(dateStr: string): string {
+  const date = new Date(dateStr)
+  return date.toLocaleDateString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  })
+}
 </script>
 
 <style lang="scss" scoped>
@@ -146,6 +193,30 @@ defineEmits<{
   gap: 1rem;
   flex: 1;
   min-width: 0;
+}
+
+// ── DRAG HANDLE ─────────────────────────────────────────
+.page-drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: var(--crm-text-muted);
+  cursor: grab;
+  transition: all var(--crm-transition);
+  flex-shrink: 0;
+
+  &:hover {
+    color: var(--crm-text-secondary);
+    background: var(--crm-bg-overlay);
+    border-radius: var(--crm-radius-sm);
+  }
+
+  &:active {
+    cursor: grabbing;
+    color: var(--crm-accent);
+  }
 }
 
 .page-order {
@@ -205,6 +276,20 @@ defineEmits<{
   margin: 0.25rem 0 0.5rem;
   font-size: var(--crm-text-sm);
   color: var(--crm-text-secondary);
+}
+
+// ── AUDIT ИНФОРМАЦИЯ ────────────────────────────────────
+.page-audit {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-top: 0.5rem;
+  font-size: var(--crm-text-xs);
+  color: var(--crm-text-muted);
+
+  svg {
+    flex-shrink: 0;
+  }
 }
 
 .page-card-actions {
@@ -292,6 +377,12 @@ defineEmits<{
 
   .page-card-main {
     flex-wrap: wrap;
+  }
+
+  .page-drag-handle {
+    position: absolute;
+    top: 0.5rem;
+    left: 0.5rem;
   }
 
   .page-order {

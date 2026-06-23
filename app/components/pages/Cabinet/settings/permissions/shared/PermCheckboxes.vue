@@ -1,78 +1,65 @@
 <!-- app/components/pages/cabinet/settings/permissions/shared/PermCheckboxes.vue -->
- <template>
+<template>
   <div :class="['perm-checkboxes', { 'perm-checkboxes--compact': compact }]">
-    <!-- Просмотр (базовое право, всегда показывается) -->
-    <label class="action-checkbox action-checkbox--view">
-      <input
-        type="checkbox"
-        :checked="localPermissions.canView"
-        :disabled="disabled"
-        @change="onViewToggle"
-      />
-      <span class="checkmark"></span>
-      <Icon name="mdi:eye-outline" size="16" />
-      <span>Просмотр</span>
-    </label>
-
     <!-- Создание (только если страница поддерживает) -->
     <label v-if="page.hasCreate" class="action-checkbox action-checkbox--create">
       <input
         type="checkbox"
         :checked="localPermissions.canCreate"
-        :disabled="disabled || !localPermissions.canView"
+        :disabled="disabled"
         @change="onActionToggle('canCreate')"
       />
       <span class="checkmark"></span>
       <Icon name="mdi:plus-circle-outline" size="16" />
       <span>Создание</span>
     </label>
-
+    
     <!-- Редактирование (только если страница поддерживает) -->
     <label v-if="page.hasEdit" class="action-checkbox action-checkbox--edit">
       <input
         type="checkbox"
         :checked="localPermissions.canEdit"
-        :disabled="disabled || !localPermissions.canView"
+        :disabled="disabled"
         @change="onActionToggle('canEdit')"
       />
       <span class="checkmark"></span>
       <Icon name="mdi:pencil-outline" size="16" />
       <span>Редактирование</span>
     </label>
-
+    
     <!-- Удаление (только если страница поддерживает) -->
     <label v-if="page.hasDelete" class="action-checkbox action-checkbox--delete">
       <input
         type="checkbox"
         :checked="localPermissions.canDelete"
-        :disabled="disabled || !localPermissions.canView"
+        :disabled="disabled"
         @change="onActionToggle('canDelete')"
       />
       <span class="checkmark"></span>
       <Icon name="mdi:delete-outline" size="16" />
       <span>Удаление</span>
     </label>
-
+    
     <!-- Спец. операции (только если страница поддерживает) -->
     <label v-if="page.hasSpecial" class="action-checkbox action-checkbox--special">
       <input
         type="checkbox"
         :checked="localPermissions.canSpecial"
-        :disabled="disabled || !localPermissions.canView"
+        :disabled="disabled"
         @change="onActionToggle('canSpecial')"
       />
       <span class="checkmark"></span>
       <Icon name="mdi:lightning-bolt" size="16" />
       <span>Спец. операции</span>
     </label>
-
-    <!-- Подсказка когда просмотр выключен -->
+    
+    <!-- Подсказка когда нет действий -->
     <p
-      v-if="!localPermissions.canView && hasAnyActionCapability"
-      class="perm-checkboxes__hint"
+      v-if="!hasAnyActionCapability"
+      class="perm-checkboxes__hint perm-checkboxes__hint--info"
     >
-      <Icon name="mdi:information-outline" size="14" />
-      Включите просмотр, чтобы активировать остальные права
+      <Icon name="mdi:eye-outline" size="14" />
+      Этот раздел поддерживает только просмотр (без CRUD-действий)
     </p>
   </div>
 </template>
@@ -83,8 +70,8 @@ import { computed } from 'vue'
 // ============================================
 // ТИПЫ
 // ============================================
+
 interface PagePermissions {
-  canView: boolean
   canCreate: boolean
   canEdit: boolean
   canDelete: boolean
@@ -103,6 +90,7 @@ type PermissionAction = 'canCreate' | 'canEdit' | 'canDelete' | 'canSpecial'
 // ============================================
 // ПРОПСЫ
 // ============================================
+
 const props = withDefaults(defineProps<{
   /** Объект прав (v-model для двусторонней связи) */
   modelValue: PagePermissions
@@ -120,6 +108,7 @@ const props = withDefaults(defineProps<{
 // ============================================
 // ЭМИТТЫ
 // ============================================
+
 const emit = defineEmits<{
   'update:modelValue': [value: PagePermissions]
 }>()
@@ -134,8 +123,8 @@ const emit = defineEmits<{
 const localPermissions = computed(() => props.modelValue)
 
 /**
- * Есть ли у страницы хотя бы одно действие (кроме просмотра)
- * Используется для показа подсказки "включите просмотр"
+ * Есть ли у страницы хотя бы одно действие
+ * Используется для показа подсказки "только просмотр"
  */
 const hasAnyActionCapability = computed(() => {
   return (
@@ -151,41 +140,17 @@ const hasAnyActionCapability = computed(() => {
 // ============================================
 
 /**
- * Переключение права просмотра
- *
- * Логика:
- * - При выключении canView — сбрасываем все остальные действия
- * - При включении canView — ничего не делаем (пользователь сам выберет действия)
- */
-function onViewToggle(event: Event) {
-  const target = event.target as HTMLInputElement
-  const newCanView = target.checked
-
-  if (!newCanView) {
-    // Сбрасываем все действия если просмотр выключен
-    emit('update:modelValue', {
-      canView: false,
-      canCreate: false,
-      canEdit: false,
-      canDelete: false,
-      canSpecial: false,
-    })
-  } else {
-    // Просто включаем просмотр, остальные действия не трогаем
-    emit('update:modelValue', {
-      ...localPermissions.value,
-      canView: true,
-    })
-  }
-}
-
-/**
  * Переключение конкретного действия (create/edit/delete/special)
+ * 
+ * Логика:
+ * - Простое переключение флага
+ * - Видимость раздела в меню определяется автоматически:
+ *   раздел виден если есть хотя бы одно действие = true
  */
 function onActionToggle(action: PermissionAction) {
   const current = localPermissions.value
   const newValue = !current[action]
-
+  
   emit('update:modelValue', {
     ...current,
     [action]: newValue,
@@ -199,21 +164,21 @@ function onActionToggle(action: PermissionAction) {
   flex-wrap: wrap;
   gap: 0.5rem;
   position: relative;
-
+  
   &--compact {
     gap: 0.375rem;
-
+    
     .action-checkbox {
       padding: 0.25rem 0.5rem;
       font-size: var(--crm-text-xs);
-    }
-
-    .action-checkbox svg {
-      width: 14px;
-      height: 14px;
+      
+      svg {
+        width: 14px;
+        height: 14px;
+      }
     }
   }
-
+  
   &__hint {
     width: 100%;
     display: flex;
@@ -223,10 +188,13 @@ function onActionToggle(action: PermissionAction) {
     font-size: var(--crm-text-xs);
     color: var(--crm-text-muted);
     padding-left: 2px;
-
+    
     svg {
-      color: var(--crm-info);
       flex-shrink: 0;
+    }
+    
+    &--info {
+      color: var(--crm-info);
     }
   }
 }
@@ -245,12 +213,12 @@ function onActionToggle(action: PermissionAction) {
   cursor: pointer;
   user-select: none;
   transition: all var(--crm-transition);
-
+  
   &:hover:not(:has(input:disabled)) {
     border-color: var(--crm-border-hover);
     color: var(--crm-text-primary);
   }
-
+  
   // Скрываем нативный чекбокс
   input {
     position: absolute;
@@ -258,31 +226,31 @@ function onActionToggle(action: PermissionAction) {
     pointer-events: none;
     width: 0;
     height: 0;
-
+    
     // Состояние: checked
     &:checked ~ .checkmark {
       background: var(--crm-accent);
       border-color: var(--crm-accent);
-
+      
       &::after {
         opacity: 1;
       }
     }
-
+    
     // Состояние: disabled
     &:disabled {
       & ~ .checkmark {
         opacity: 0.4;
         cursor: not-allowed;
       }
-
+      
       & ~ * {
         opacity: 0.5;
         cursor: not-allowed;
       }
     }
   }
-
+  
   // Кастомный чекбокс
   .checkmark {
     position: relative;
@@ -292,7 +260,7 @@ function onActionToggle(action: PermissionAction) {
     border-radius: 3px;
     transition: all var(--crm-transition);
     flex-shrink: 0;
-
+    
     &::after {
       content: '';
       position: absolute;
@@ -307,31 +275,27 @@ function onActionToggle(action: PermissionAction) {
       transition: opacity var(--crm-transition);
     }
   }
-
+  
   // Подсветка иконки при checked
   &:has(input:checked) {
     svg {
       color: var(--crm-accent);
     }
   }
-
+  
   // ── ВАРИАНТЫ ПО ТИПУ ДЕЙСТВИЯ ───────────────────
-  &--view:has(input:checked) svg {
-    color: var(--crm-text-primary);
-  }
-
   &--create:has(input:checked) svg {
     color: var(--crm-success);
   }
-
+  
   &--edit:has(input:checked) svg {
     color: var(--crm-info);
   }
-
+  
   &--delete:has(input:checked) svg {
     color: var(--crm-danger);
   }
-
+  
   &--special:has(input:checked) svg {
     color: #9c27b0;
   }

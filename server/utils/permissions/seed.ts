@@ -10,8 +10,9 @@
  * Упрощённая система действий:
  * - create, edit, delete — стандартные CRUD операции
  * - special — специфичные бизнес-операции (accept/reject/pay/reorder/toggle-check)
+ *
+ * ⚠️ canView упразднён — видимость определяется наличием любого действия
  */
-
 import {
   VALID_PAGE_SLUGS,
   PAGE_LABELS,
@@ -19,7 +20,6 @@ import {
   PAGE_SUPPORTED_ACTIONS,
   type PageSlug
 } from 'shared/constants/permissions'
-
 import type { PageSeedData, RolePermissionsSeed } from 'shared/types/permissions'
 
 // ============================================
@@ -27,45 +27,44 @@ import type { PageSeedData, RolePermissionsSeed } from 'shared/types/permissions
 // В shared/constants держим только labels/icons/actions,
 // а описания — здесь, так как они нужны только при инициализации БД
 // ============================================
-
 const PAGE_DESCRIPTIONS: Record<PageSlug, string> = {
   dashboard: 'Главная страница с обзором',
   objects: 'Управление объектами строительства',
-  comings: 'Поступления средств на объекты',
-  expenses: 'Списания и платежи',
-  materials: 'Учёт материалов на объектах',
+  operations: 'Приходы и расходы по объектам',
+  materials: 'Учёт чеков и материалов на объектах',
   works: 'Учёт выполненных работ',
+  'daily-work': 'Подневка — ежедневный учёт работ',
   contractors: 'Мастера, рабочие, прорабы, офис',
-  portfolio: 'Кейсы и проекты',
-  price: 'Цены на работы и услуги',
-  users: 'Управление пользователями системы',
+  portfolio: 'Кейсы и проекты компании',
+  price: 'Цены на работы и услуги (публично + управление)',
+  users: 'Управление пользователями системы (админка)',
   settings: 'Настройки системы и прав доступа',
-  online: 'Онлайн-статус пользователей'
+  online: 'Онлайн-мониторинг статуса пользователей',
+  test: 'Тестовая страница для разработки'
 }
 
 // ============================================
 // ПОРЯДОК СТРАНИЦ В МЕНЮ
 // ============================================
-
 const PAGE_ORDER: Record<PageSlug, number> = {
   dashboard: 1,
   objects: 2,
-  comings: 3,
-  expenses: 4,
-  materials: 5,
-  works: 6,
+  operations: 3,
+  materials: 4,
+  works: 5,
+  'daily-work': 6,
   contractors: 7,
   portfolio: 8,
   price: 9,
   users: 10,
-  settings: 11,
-  online: 12
+  online: 11,
+  settings: 12,
+  test: 13
 }
 
 // ============================================
 // СТРАНИЦЫ СИСТЕМЫ (собирается из shared)
 // ============================================
-
 /**
  * Массив страниц для seed.
  * Автоматически собирается из shared/constants/permissions —
@@ -86,91 +85,84 @@ export const PERMISSIONS_PAGES_SEED: PageSeedData[] = VALID_PAGE_SLUGS.map(slug 
 // ============================================
 // ПРАВА ПО РОЛЯМ (ДЕФОЛТНЫЕ)
 // ============================================
-
 /**
  * Матрица прав ролей по умолчанию.
- * 
+ *
  * Правила:
- * - canView: базовое право просмотра (обязательно для остальных действий)
- * - canCreate/Edit/Delete: CRUD операции
- * - canSpecial: специфичные бизнес-операции
- * 
+ * - canCreate/Edit/Delete/Special — CRUD операции и спец. действия
+ * - canView упразднён — раздел виден, если есть хотя бы одно действие
+ *
  * Иерархия (сверху вниз):
  * admin → manager → foreman → master → worker
+ *
+ * Маппинг страниц к реальным разделам меню:
+ * - dashboard → Главная
+ * - contractors → Сотрудники
+ * - daily-work → Подневка
+ * - objects → Объекты
+ * - materials → Чеки
+ * - operations → Операции (приходы + расходы)
+ * - online → Онлайн (мониторинг)
+ * - test → Тест (только admin)
+ * - portfolio → Кейсы
+ * - price → Прайс-лист (управление, без меню)
+ * - users → Пользователи (админка)
+ * - settings → Настройки
  */
 export const ROLE_PERMISSIONS_SEED: RolePermissionsSeed = {
   admin: {
-    dashboard: { canView: true },
-    objects: { canView: true, canCreate: true, canEdit: true, canDelete: true },
-    comings: { canView: true, canCreate: true, canEdit: true, canDelete: true },
-    expenses: { canView: true, canCreate: true, canEdit: true, canDelete: true },
-    materials: { canView: true, canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
-    works: { canView: true, canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
-    contractors: { canView: true, canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
-    portfolio: { canView: true, canCreate: true, canEdit: true, canDelete: true },
-    price: { canView: true, canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
-    users: { canView: true, canCreate: true, canEdit: true, canDelete: true },
-    settings: { canView: true, canEdit: true },
-    online: { canView: true }
+    dashboard: {},
+    objects: { canCreate: true, canEdit: true, canDelete: true },
+    operations: { canCreate: true, canEdit: true, canDelete: true },
+    materials: { canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
+    works: { canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
+    'daily-work': { canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
+    contractors: { canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
+    portfolio: { canCreate: true, canEdit: true, canDelete: true },
+    price: { canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
+    users: { canCreate: true, canEdit: true, canDelete: true },
+    online: {},
+    settings: { canEdit: true },
+    test: {}
   },
-
   manager: {
-    dashboard: { canView: true },
-    objects: { canView: true, canCreate: true, canEdit: true, canDelete: true },
-    comings: { canView: true, canCreate: true, canEdit: true, canDelete: true },
-    expenses: { canView: true, canCreate: true, canEdit: true, canDelete: true },
-    materials: { canView: true, canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
-    works: { canView: true, canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
-    contractors: { canView: true, canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
-    portfolio: { canView: true, canCreate: true, canEdit: true, canDelete: true },
-    price: { canView: true, canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
-    users: { canView: true, canCreate: true, canEdit: true, canDelete: true },
-    settings: { canView: false },
-    online: { canView: true }
+    dashboard: {},
+    objects: { canCreate: true, canEdit: true, canDelete: true },
+    operations: { canCreate: true, canEdit: true, canDelete: true },
+    materials: { canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
+    works: { canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
+    'daily-work': { canCreate: true, canEdit: true, canSpecial: true },
+    contractors: { canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
+    portfolio: { canCreate: true, canEdit: true, canDelete: true },
+    price: { canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
+    users: { canCreate: true, canEdit: true, canDelete: true },
+    online: {}
+    // settings — нет прав, значит не виден
+    // test — нет прав, значит не виден
   },
-
   foreman: {
-    dashboard: { canView: true },
-    objects: { canView: true, canCreate: true, canEdit: true },
-    comings: { canView: true },
-    expenses: { canView: true },
-    materials: { canView: true, canCreate: true, canEdit: true, canSpecial: true },
-    works: { canView: true, canCreate: true, canEdit: true, canSpecial: true },
-    contractors: { canView: true, canEdit: true },
-    portfolio: { canView: false },
-    price: { canView: false },
-    users: { canView: false },
-    settings: { canView: false },
-    online: { canView: false }
+    dashboard: {},
+    objects: { canCreate: true, canEdit: true },
+    operations: {}, // только просмотр
+    materials: { canCreate: true, canEdit: true, canSpecial: true },
+    works: { canCreate: true, canEdit: true, canSpecial: true },
+    'daily-work': { canCreate: true, canEdit: true, canSpecial: true },
+    contractors: { canEdit: true },
+    online: {}
+    // portfolio, price, users, settings, test — нет прав
   },
-
   master: {
-    dashboard: { canView: true },
-    objects: { canView: true, canEdit: true },
-    comings: { canView: false },
-    expenses: { canView: false },
-    materials: { canView: true, canCreate: true, canEdit: true },
-    works: { canView: true, canCreate: true, canEdit: true },
-    contractors: { canView: true },
-    portfolio: { canView: false },
-    price: { canView: false },
-    users: { canView: false },
-    settings: { canView: false },
-    online: { canView: false }
+    dashboard: {},
+    objects: { canEdit: true },
+    materials: { canCreate: true, canEdit: true },
+    works: { canCreate: true, canEdit: true },
+    contractors: {} // только просмотр (видит себя)
+    // всё остальное — нет прав
   },
-
   worker: {
-    dashboard: { canView: true },
-    objects: { canView: true },
-    comings: { canView: false },
-    expenses: { canView: false },
-    materials: { canView: false },
-    works: { canView: true },
-    contractors: { canView: false },
-    portfolio: { canView: false },
-    price: { canView: false },
-    users: { canView: false },
-    settings: { canView: false },
-    online: { canView: false }
+    dashboard: {},
+    objects: {}, // только просмотр
+    works: {} // только просмотр
+    // всё остальное — нет прав
   }
 }

@@ -10,34 +10,30 @@
  * ⚠️ Доступ: middleware уже проверил через PROTECTED_PATHS (settings.canView)
  * ⚠️ Защита: переопределения для admin может смотреть только admin
  *
- * Особенности:
+ * Особенности (новая модель без canView):
  * - `basePermissions` — ПОЛНАЯ матрица прав (все страницы из VALID_PAGE_SLUGS,
  *   даже те, что не настроены в БД — для них будет `false`)
  * - `effectivePermissions` — результат применения overrides поверх base
+ * - canView упразднён — видимость определяется наличием любого действия
  * - `roleLabel`, `roleColor` — метаданные роли для UI
  *
  * @param {string} id — ID пользователя из пути
  * @returns { userId, userName, role, roleLabel, roleColor, basePermissions, overrides, effectivePermissions }
  */
-
 import { defineEventHandler, getRouterParam, createError } from 'h3'
 import { eq, and, or, isNull, gt, sql } from 'drizzle-orm'
-
 import { db } from '../../../../../db'
 import {
   users,
   permissionsRoleAccess,
   permissionsUserOverrides
 } from '../../../../../db/schema'
-
 import type { DbUser } from '../../../../../utils/permissions'
-
 import {
   ROLE_LABELS,
   ROLE_COLORS,
   type Role
 } from 'shared/constants/roles'
-
 import { VALID_PAGE_SLUGS } from 'shared/constants/permissions'
 import type { PagePermissions } from 'shared/types/permissions'
 
@@ -48,7 +44,6 @@ import type { PagePermissions } from 'shared/types/permissions'
 interface OverrideRecord {
   id: number
   pageSlug: string
-  canView: boolean | null
   canCreate: boolean | null
   canEdit: boolean | null
   canDelete: boolean | null
@@ -74,7 +69,6 @@ export default defineEventHandler(async (event) => {
       statusMessage: 'ID пользователя не указан в URL'
     })
   }
-
   const targetUserId = parseInt(idParam, 10)
   if (!Number.isFinite(targetUserId) || targetUserId <= 0) {
     throw createError({
@@ -110,7 +104,6 @@ export default defineEventHandler(async (event) => {
   // ============================================
   // 3. ЗАЩИТА: ADMIN ПРАВА СМОТРИТ ТОЛЬКО ADMIN
   // ============================================
-  // Middleware проверил settings.canView, но admin-права — отдельная зона доверия
   const currentUser = event.context.user as DbUser | undefined
   if (targetUser.role === 'admin' && currentUser?.role !== 'admin') {
     throw createError({
@@ -127,7 +120,6 @@ export default defineEventHandler(async (event) => {
   const roleAccess = await db
     .select({
       pageSlug: permissionsRoleAccess.pageSlug,
-      canView: permissionsRoleAccess.canView,
       canCreate: permissionsRoleAccess.canCreate,
       canEdit: permissionsRoleAccess.canEdit,
       canDelete: permissionsRoleAccess.canDelete,
@@ -152,19 +144,19 @@ export default defineEventHandler(async (event) => {
   // ============================================
   // UI всегда должен видеть все страницы, даже если для роли нет записи в БД.
   // Отсутствующие заполняем как всё false.
+  //
+  // ⚠️ canView упразднён — видимость определяется наличием любого действия
   const basePermissions: Record<string, PagePermissions> = {}
   for (const pageSlug of VALID_PAGE_SLUGS) {
     const access = roleAccessMap.get(pageSlug)
     basePermissions[pageSlug] = access
       ? {
-          canView: access.canView,
           canCreate: access.canCreate,
           canEdit: access.canEdit,
           canDelete: access.canDelete,
           canSpecial: access.canSpecial
         }
       : {
-          canView: false,
           canCreate: false,
           canEdit: false,
           canDelete: false,
@@ -179,7 +171,6 @@ export default defineEventHandler(async (event) => {
     .select({
       id: permissionsUserOverrides.id,
       pageSlug: permissionsUserOverrides.pageSlug,
-      canView: permissionsUserOverrides.canView,
       canCreate: permissionsUserOverrides.canCreate,
       canEdit: permissionsUserOverrides.canEdit,
       canDelete: permissionsUserOverrides.canDelete,
@@ -214,10 +205,8 @@ export default defineEventHandler(async (event) => {
 
   for (const override of overrides) {
     // Создаём запись для страницы, если её нет в базовых правах
-    // (возможно, это новая страница, для которой override создан, а роли ещё не выданы права)
     if (!effectivePermissions[override.pageSlug]) {
       effectivePermissions[override.pageSlug] = {
-        canView: false,
         canCreate: false,
         canEdit: false,
         canDelete: false,
@@ -225,12 +214,10 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // ✅ Non-null assertion: мы только что гарантированно создали объект выше
     const target = effectivePermissions[override.pageSlug]!
 
     // Применяем только те переопределения, которые не null
     // (null означает "использовать права роли")
-    if (override.canView !== null) target.canView = override.canView
     if (override.canCreate !== null) target.canCreate = override.canCreate
     if (override.canEdit !== null) target.canEdit = override.canEdit
     if (override.canDelete !== null) target.canDelete = override.canDelete

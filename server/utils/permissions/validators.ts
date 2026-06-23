@@ -9,21 +9,19 @@
  *
  * Архитектурный принцип: все переиспользуемые схемы живут в shared/,
  * здесь только специфичные для серверных API схемы.
+ *
+ * ⚠️ canView упразднён — видимость определяется наличием любого действия
  */
-
 import { z } from 'zod'
 import { createError } from 'h3'
-
 import {
   VALID_ROLES,
   type Role
 } from 'shared/constants/roles'
-
 import {
   PageSlugSchema,
   PageActionSchema
 } from 'shared/constants/permissions'
-
 import {
   PagePermissionsSchema
 } from 'shared/types/permissions'
@@ -72,6 +70,8 @@ function throwZodError(error: z.ZodError, context?: string): never {
 /**
  * Схема для обновления прав роли
  * permissions: Record<PageSlug, PagePermissions>
+ *
+ * ⚠️ canView отсутствует в PagePermissions — видимость вычисляется автоматически
  */
 export const UpdateRolePermissionsSchema = z.object({
   description: z.string().max(500).optional(),
@@ -96,10 +96,12 @@ export const CopyRolePermissionsSchema = z.object({
 /**
  * Схема для одного переопределения прав пользователя
  * pageSlug валидируется через PageSlugSchema (enum из shared)
+ *
+ * ⚠️ canView отсутствует — видимость определяется наличием действий
+ * null = использовать права роли (сброс override для этого поля)
  */
 export const UserOverrideSchema = z.object({
   pageSlug: PageSlugSchema,
-  canView: z.boolean().optional(),
   canCreate: z.boolean().optional(),
   canEdit: z.boolean().optional(),
   canDelete: z.boolean().optional(),

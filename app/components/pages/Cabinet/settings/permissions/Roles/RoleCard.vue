@@ -13,6 +13,14 @@
           {{ role.userCount }} {{ pluralizeUsers(role.userCount) }}
         </p>
       </div>
+      <!-- Индикатор уровня роли -->
+      <div class="role-level" :title="`Уровень доступа: ${role.level}/5`">
+        <span
+          v-for="i in 5"
+          :key="i"
+          :class="['level-dot', { active: i <= role.level }]"
+        ></span>
+      </div>
     </div>
 
     <!-- Описание роли -->
@@ -20,28 +28,53 @@
       {{ roleDescription }}
     </div>
 
-    <!-- Краткая сводка прав -->
+    <!-- Визуальная матрица покрытия -->
+    <div class="role-coverage">
+      <div class="coverage-bar">
+        <div
+          class="coverage-fill"
+          :style="{ width: `${coveragePercent}%` }"
+        ></div>
+      </div>
+      <span class="coverage-text">
+        {{ visibleCount }} из {{ pages.length }} разделов доступно
+      </span>
+    </div>
+
+    <!-- Краткая сводка прав (новая модель без canView) -->
     <div class="role-permissions-summary">
       <div class="summary-row">
-        <span class="summary-label">Доступно разделов:</span>
-        <span class="summary-value">
-          {{ viewableCount }} / {{ pages.length }}
+        <span class="summary-label">
+          <Icon name="mdi:plus-circle" size="14" />
+          Может создавать:
         </span>
-      </div>
-      <div class="summary-row">
-        <span class="summary-label">Может создавать:</span>
         <span class="summary-value">
           {{ createCount }} {{ pluralizePages(createCount) }}
         </span>
       </div>
       <div class="summary-row">
-        <span class="summary-label">Может удалять:</span>
+        <span class="summary-label">
+          <Icon name="mdi:pencil" size="14" />
+          Может редактировать:
+        </span>
+        <span class="summary-value">
+          {{ editCount }} {{ pluralizePages(editCount) }}
+        </span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">
+          <Icon name="mdi:delete" size="14" />
+          Может удалять:
+        </span>
         <span class="summary-value">
           {{ deleteCount }} {{ pluralizePages(deleteCount) }}
         </span>
       </div>
       <div class="summary-row">
-        <span class="summary-label">Спец. операции:</span>
+        <span class="summary-label">
+          <Icon name="mdi:lightning-bolt" size="14" />
+          Спец. операции:
+        </span>
         <span class="summary-value">
           {{ specialCount }} {{ pluralizePages(specialCount) }}
         </span>
@@ -54,14 +87,24 @@
         <Icon name="mdi:pencil" size="16" />
         Настроить
       </button>
-      <button
-        v-if="isAdmin && role.role !== 'admin'"
-        class="btn btn-ghost"
-        @click="$emit('reset', role)"
-        title="Сбросить к дефолтным значениям"
-      >
-        <Icon name="mdi:restore" size="16" />
-      </button>
+      <div class="btn-group">
+        <button
+          v-if="isAdmin && role.role !== 'admin'"
+          class="btn btn-ghost btn-icon-only"
+          @click="$emit('copy', role)"
+          title="Скопировать права из другой роли"
+        >
+          <Icon name="mdi:content-copy" size="16" />
+        </button>
+        <button
+          v-if="isAdmin && role.role !== 'admin'"
+          class="btn btn-ghost btn-icon-only"
+          @click="$emit('reset', role)"
+          title="Сбросить к дефолтным значениям"
+        >
+          <Icon name="mdi:restore" size="16" />
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -70,18 +113,21 @@
 import { computed } from 'vue'
 
 // ============================================
-// ТИПЫ
+// ТИПЫ (новая модель без canView)
 // ============================================
+
+interface PagePermissions {
+  canCreate: boolean
+  canEdit: boolean
+  canDelete: boolean
+  canSpecial: boolean
+}
+
 interface RoleWithPermissions {
   role: string
   userCount: number
-  permissions: Record<string, {
-    canView: boolean
-    canCreate: boolean
-    canEdit: boolean
-    canDelete: boolean
-    canSpecial: boolean
-  }>
+  level: number
+  permissions: Record<string, PagePermissions>
 }
 
 interface SystemPage {
@@ -92,6 +138,7 @@ interface SystemPage {
 // ============================================
 // ПРОПСЫ
 // ============================================
+
 const props = defineProps<{
   /** Данные роли с правами */
   role: RoleWithPermissions
@@ -104,16 +151,20 @@ const props = defineProps<{
 // ============================================
 // ЭМИТТЫ
 // ============================================
+
 defineEmits<{
   /** Открыть модалку настройки прав роли */
   (e: 'edit', role: RoleWithPermissions): void
   /** Сбросить права роли к дефолтным */
   (e: 'reset', role: RoleWithPermissions): void
+  /** Копировать права из другой роли */
+  (e: 'copy', role: RoleWithPermissions): void
 }>()
 
 // ============================================
 // СЛОВАРИ РОЛЕЙ
 // ============================================
+
 const ROLE_NAMES: Record<string, string> = {
   admin: 'Администратор',
   manager: 'Менеджер',
@@ -147,8 +198,15 @@ const ROLE_COLORS: Record<string, string> = {
 }
 
 // ============================================
+// 🆕 VIEW-ONLY СТРАНИЦЫ (видимы всегда если есть в permissions)
+// ============================================
+
+const VIEW_ONLY_PAGES = ['dashboard', 'online', 'test'] as const
+
+// ============================================
 // COMPUTED: ДАННЫЕ РОЛИ
 // ============================================
+
 const roleName = computed(() => ROLE_NAMES[props.role.role] || props.role.role)
 const roleDescription = computed(() => ROLE_DESCRIPTIONS[props.role.role] || '')
 const roleIcon = computed(() => ROLE_ICONS[props.role.role] || 'mdi:account')
@@ -157,32 +215,47 @@ const roleColor = computed(() =>
 )
 
 // ============================================
-// COMPUTED: СВОДКА ПРАВ (новая система: без canExport/canApprove)
+// COMPUTED: СВОДКА ПРАВ (новая модель, без canView)
 // ============================================
 
-/** Количество разделов с canView = true */
-const viewableCount = computed(() =>
-  Object.values(props.role.permissions).filter(p => p.canView).length
-)
+/**
+ * Раздел виден в меню если:
+ * - Это CRUD-страница и есть хотя бы одно действие (create/edit/delete/special)
+ * - ИЛИ это view-only страница (dashboard, online, test) и она есть в permissions
+ *
+ * Поскольку серверный getAllUserPermissions() уже отфильтровал невидимые страницы,
+ * наличие записи в role.permissions означает что раздел виден.
+ */
+const visibleCount = computed(() => Object.keys(props.role.permissions).length)
 
-/** Количество разделов с canCreate = true */
 const createCount = computed(() =>
   Object.values(props.role.permissions).filter(p => p.canCreate).length
 )
 
-/** Количество разделов с canDelete = true */
+const editCount = computed(() =>
+  Object.values(props.role.permissions).filter(p => p.canEdit).length
+)
+
 const deleteCount = computed(() =>
   Object.values(props.role.permissions).filter(p => p.canDelete).length
 )
 
-/** Количество разделов с canSpecial = true (🆕 новая система) */
 const specialCount = computed(() =>
   Object.values(props.role.permissions).filter(p => p.canSpecial).length
 )
 
+/**
+ * Процент покрытия: сколько разделов доступно из общего числа
+ */
+const coveragePercent = computed(() => {
+  if (props.pages.length === 0) return 0
+  return Math.round((visibleCount.value / props.pages.length) * 100)
+})
+
 // ============================================
 // ХЕЛПЕРЫ: ПЛЮРАЛИЗАЦИЯ
 // ============================================
+
 function pluralizeUsers(count: number): string {
   const mod10 = count % 10
   const mod100 = count % 100
@@ -256,11 +329,61 @@ function pluralizePages(count: number): string {
   }
 }
 
+// ── ИНДИКАТОР УРОВНЯ РОЛИ ───────────────────────────────
+.role-level {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0.375rem 0.5rem;
+  background: var(--crm-bg-elevated);
+  border-radius: var(--crm-radius-sm);
+  flex-shrink: 0;
+
+  .level-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--crm-border);
+    transition: background var(--crm-transition);
+
+    &.active {
+      background: var(--crm-accent);
+      box-shadow: 0 0 4px var(--crm-accent);
+    }
+  }
+}
+
 // ── ОПИСАНИЕ ────────────────────────────────────────────
 .role-card-description {
   font-size: var(--crm-text-sm);
   color: var(--crm-text-secondary);
   line-height: 1.5;
+}
+
+// ── ПРОГРЕСС ПОКРЫТИЯ ───────────────────────────────────
+.role-coverage {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+
+  .coverage-bar {
+    height: 4px;
+    background: var(--crm-bg-elevated);
+    border-radius: 2px;
+    overflow: hidden;
+
+    .coverage-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--crm-accent) 0%, var(--crm-success) 100%);
+      border-radius: 2px;
+      transition: width 0.4s ease;
+    }
+  }
+
+  .coverage-text {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+  }
 }
 
 // ── СВОДКА ПРАВ ─────────────────────────────────────────
@@ -278,15 +401,22 @@ function pluralizePages(count: number): string {
   align-items: center;
   justify-content: space-between;
   font-size: var(--crm-text-sm);
-}
 
-.summary-label {
-  color: var(--crm-text-secondary);
-}
+  .summary-label {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    color: var(--crm-text-secondary);
 
-.summary-value {
-  color: var(--crm-text-primary);
-  font-weight: 500;
+    svg {
+      color: var(--crm-text-muted);
+    }
+  }
+
+  .summary-value {
+    color: var(--crm-text-primary);
+    font-weight: 500;
+  }
 }
 
 // ── ДЕЙСТВИЯ ────────────────────────────────────────────
@@ -294,6 +424,12 @@ function pluralizePages(count: number): string {
   display: flex;
   gap: 0.5rem;
   margin-top: auto;
+  align-items: center;
+
+  .btn-group {
+    display: flex;
+    gap: 0.25rem;
+  }
 }
 
 // ── КНОПКИ ──────────────────────────────────────────────
@@ -315,6 +451,12 @@ function pluralizePages(count: number): string {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  &.btn-icon-only {
+    width: 36px;
+    height: 36px;
+    padding: 0;
   }
 }
 
@@ -351,6 +493,10 @@ function pluralizePages(count: number): string {
 
   .role-title h3 {
     font-size: var(--crm-text-md);
+  }
+
+  .role-level {
+    display: none;
   }
 }
 </style>

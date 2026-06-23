@@ -9,63 +9,46 @@
  * ⚠️ Доступ: middleware уже проверил через PROTECTED_PATHS (settings.canEdit)
  * ⚠️ Защита:
  *   - Роль admin может изменять только admin
- *   - Нельзя отозвать canView у системных страниц у роли admin
+ *   - Нельзя отозвать права на системные страницы у роли admin
  *
- * Логика:
+ * Логика (упрощённая, без canView):
  * 1. Валидация входящих данных (zod через validateUpdateRolePermissions)
  * 2. Получение списка активных страниц для валидации slug
  * 3. Для каждой страницы — UPSERT в permissionsRoleAccess (в транзакции)
  * 4. Инвалидация кэша прав для ВСЕХ пользователей этой роли
  * 5. 🆕 Уведомление пользователей через сокет + принудительный разрыв при критичных изменениях
  *
- * Критичность изменений (определяется автоматически):
- * - Критичные (forceDisconnect): отозвали canView у dashboard/objects/works
- * - Обычные (notify): изменили canCreate/canEdit/canDelete/canSpecial
+ * Видимость раздела:
+ * - Раздел автоматически виден в меню, если есть хотя бы одно действие (create/edit/delete/special)
+ * - canView упразднён — больше нет отдельного флага просмотра
  *
  * @param {string} role — роль из пути (admin, manager, foreman, master, worker)
  * @body { description?: string, permissions: Record<string, PagePermissions> }
  * @returns { role, description, updatedCount, invalidatedUsers, disconnectedUsers, permissions }
- *
- * Пример body:
- * {
- *   "description": "Мастер с расширенными правами",
- *   "permissions": {
- *     "dashboard": { "canView": true },
- *     "objects": { "canView": true, "canCreate": true, "canEdit": true, "canDelete": true },
- *     "works": { "canView": true, "canEdit": true, "canSpecial": true }
- *   }
- * }
  */
-
-import { defineEventHandler, readBody, getRouterParam } from 'h3'
+import { defineEventHandler, readBody, getRouterParam, createError } from 'h3'
 import { eq } from 'drizzle-orm'
-
 import { db } from '../../../../db'
 import {
   permissionsPages,
   permissionsRoleAccess,
   users
 } from '../../../../db/schema'
-
 import {
   validateUpdateRolePermissions,
   validateRoleParam,
   type UpdateRolePermissionsInput
 } from '../../../../utils/permissions/validators'
-
 import {
   invalidatePermissionsCacheByRole,
   type DbUser
 } from '../../../../utils/permissions'
-
 import {
   hasRequiredRoleLevel,
   ROLE_LABELS,
   type Role
 } from 'shared/constants/roles'
-
 import type { PagePermissions } from 'shared/types/permissions'
-
 import { getIO } from '../../../../socket/common'
 import { getRoleRoomName } from '../../../../socket/utils'
 import { forceDisconnectRole } from '../../../../socket'
@@ -75,10 +58,10 @@ import { forceDisconnectRole } from '../../../../socket'
 // ============================================
 
 /**
- * Страницы, отзыв canView у которых требует принудительного отключения пользователей.
- *
- * Если у роли отозвали canView на одну из этих страниц — пользователи больше не смогут
- * работать в системе (не увидят меню, не смогут открыть объекты/работы).
+ * Страницы, потеря доступа к которым требует принудительного отключения пользователей.
+ * 
+ * Если у роли отозвали все действия (create/edit/delete/special) на одну из этих страниц —
+ * пользователи больше не смогут работать в системе (не увидят меню, не смогут открыть объекты/работы).
  * В таких случаях безопаснее принудительно разорвать соединение и отправить на relogin.
  */
 const CRITICAL_PAGES_FOR_DISCONNECT = ['dashboard', 'objects', 'works'] as const
@@ -162,7 +145,6 @@ export default defineEventHandler(async (event) => {
     })
     .from(permissionsRoleAccess)
     .where(
-      // Используем type assertion для совместимости с enum в БД
       eq(permissionsRoleAccess.role, targetRole as any)
     )
 
@@ -179,8 +161,8 @@ export default defineEventHandler(async (event) => {
       const page = pagesMap.get(slug)!
 
       // Фильтруем: передаём только те действия, которые страница поддерживает.
-      // Если страница не поддерживает hasCreate — canCreate всегда false.
-      const canView = perms.canView ?? false
+      // canView упразднён — всегда false (для совместимости с БД, но не используется)
+      const canView = false
       const canCreate = page.hasCreate && perms.canCreate === true
       const canEdit = page.hasEdit && perms.canEdit === true
       const canDelete = page.hasDelete && perms.canDelete === true
@@ -216,7 +198,6 @@ export default defineEventHandler(async (event) => {
       updatedCount++
 
       finalPermissions[slug] = {
-        canView,
         canCreate,
         canEdit,
         canDelete,
@@ -230,14 +211,12 @@ export default defineEventHandler(async (event) => {
   // ============================================
   // 8. ИНВАЛИДАЦИЯ КЭША ПРАВ (через утилиту из utils/permissions)
   // ============================================
-  // invalidatePermissionsCacheByRole делает SELECT всех users с этой ролью
-  // и удаляет их из in-memory кэша. Быстрее и надёжнее чем ручной цикл.
   const invalidationResult = await invalidatePermissionsCacheByRole(targetRole)
 
   // ============================================
   // 9. АНАЛИЗ КРИТИЧНОСТИ ИЗМЕНЕНИЙ
   // ============================================
-  // Определяем, были ли отозваны canView у критических страниц.
+  // Определяем, были ли отозваны ВСЕ действия у критических страниц.
   // Если да — пользователей нужно принудительно отключить (forceDisconnectRole),
   // т.к. они не смогут нормально работать с системой.
   const criticalRevocations: string[] = []
@@ -246,8 +225,17 @@ export default defineEventHandler(async (event) => {
     const newPerms = result.permissions[pageSlug]
     const oldPerms = currentMap.get(pageSlug)
 
-    // Было canView=true, стало canView=false → критичное изменение
-    if (oldPerms?.canView === true && newPerms && newPerms.canView === false) {
+    // Было хотя бы одно действие, стало ни одного → критичное изменение
+    const hadAccess = oldPerms && (
+      oldPerms.canCreate || oldPerms.canEdit || 
+      oldPerms.canDelete || oldPerms.canSpecial
+    )
+    const hasAccess = newPerms && (
+      newPerms.canCreate || newPerms.canEdit || 
+      newPerms.canDelete || newPerms.canSpecial
+    )
+
+    if (hadAccess && !hasAccess) {
       criticalRevocations.push(pageSlug)
     }
   }
@@ -305,8 +293,3 @@ export default defineEventHandler(async (event) => {
     permissions: result.permissions
   }
 })
-
-// ============================================
-// ЛОКАЛЬНЫЙ ИМПОРТ createError (для совместимости)
-// ============================================
-import { createError } from 'h3'

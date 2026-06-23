@@ -1,5 +1,5 @@
 <!-- app/components/pages/cabinet/settings/permissions/Users/ClearOverridesModal.vue -->
- <template>
+<template>
   <Teleport to="body">
     <Transition name="modal">
       <div
@@ -24,6 +24,9 @@
                 <p v-if="user" class="user-context">
                   Для пользователя:
                   <strong>{{ user.name }}</strong>
+                  <span class="user-role-badge" :class="`role-${user.role}`">
+                    {{ roleName }}
+                  </span>
                 </p>
               </div>
             </div>
@@ -56,26 +59,73 @@
               </div>
             </div>
 
+            <!-- 🆕 Сводка по типам переопределений -->
+            <div v-if="overridesStats.total > 0" class="info-block info-block--info">
+              <Icon name="mdi:chart-box-outline" size="20" />
+              <div>
+                <p class="info-title">Что будет удалено:</p>
+                <div class="stats-grid">
+                  <div class="stat-item">
+                    <span class="stat-value">{{ overridesStats.permanent }}</span>
+                    <span class="stat-label">Бессрочных</span>
+                  </div>
+                  <div class="stat-item">
+                    <span class="stat-value">{{ overridesStats.active }}</span>
+                    <span class="stat-label">Активных</span>
+                  </div>
+                  <div class="stat-item stat-item--warning">
+                    <span class="stat-value">{{ overridesStats.expiring }}</span>
+                    <span class="stat-label">Истекающих</span>
+                  </div>
+                  <div v-if="overridesStats.expired > 0" class="stat-item stat-item--danger">
+                    <span class="stat-value">{{ overridesStats.expired }}</span>
+                    <span class="stat-label">Просроченных</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- Список затронутых разделов -->
-            <div v-if="user && user.overrides.length > 0" class="info-block info-block--info">
+            <div v-if="user && user.overrides.length > 0" class="info-block info-block--neutral">
               <Icon name="mdi:format-list-bulleted" size="20" />
               <div>
                 <p class="info-title">Затронутые разделы:</p>
                 <ul class="affected-pages-list">
                   <li
-                    v-for="override in user.overrides"
+                    v-for="override in sortedOverrides"
                     :key="override.id"
-                    class="affected-page"
+                    :class="['affected-page', {
+                      'affected-page--expiring': getExpirationStatus(override) === 'expiring',
+                      'affected-page--expired': getExpirationStatus(override) === 'expired'
+                    }]"
                   >
                     <Icon :name="getPageIcon(override.pageSlug)" size="14" />
                     <span class="page-name">{{ getPageName(override.pageSlug) }}</span>
+
+                    <!-- Бейдж статуса -->
+                    <span
+                      v-if="getExpirationStatus(override) === 'expiring'"
+                      class="status-mini status-mini--warning"
+                      title="Истекает скоро"
+                    >
+                      <Icon name="mdi:clock-alert" size="10" />
+                    </span>
+                    <span
+                      v-else-if="getExpirationStatus(override) === 'expired'"
+                      class="status-mini status-mini--danger"
+                      title="Просрочен"
+                    >
+                      <Icon name="mdi:alert-circle" size="10" />
+                    </span>
+
                     <div class="page-perms">
                       <span
                         v-for="perm in getOverridePermsSummary(override)"
                         :key="perm.key"
                         :class="['perm-tag', `perm-${perm.value ? 'on' : 'off'}`]"
+                        :title="perm.label"
                       >
-                        {{ perm.label }}
+                        {{ perm.emoji }}
                       </span>
                     </div>
                   </li>
@@ -88,6 +138,33 @@
               <Icon name="mdi:information-outline" size="20" />
               <p>У пользователя нет активных переопределений.</p>
             </div>
+
+            <!-- 🆕 Предупреждение о критичности -->
+            <div v-if="hasCriticalOverrides" class="info-block info-block--danger">
+              <Icon name="mdi:alert-octagon" size="20" />
+              <div>
+                <p>
+                  <strong>Внимание!</strong> Есть переопределения на критичные разделы
+                  (dashboard, objects, works). После сброса пользователь может
+                  потерять доступ к системе и будет принудительно отключён.
+                </p>
+              </div>
+            </div>
+
+            <!-- Подтверждение -->
+            <label class="confirm-label">
+              <input
+                type="checkbox"
+                v-model="confirmed"
+                :disabled="clearing"
+              />
+              <span class="checkmark"></span>
+              <span>
+                Я понимаю, что все <strong>{{ overridesCount }}</strong>
+                {{ pluralizeOverrides(overridesCount) }} будут удалены,
+                а пользователь вернётся к базовым правам своей роли.
+              </span>
+            </label>
           </div>
 
           <!-- ───────── FOOTER ───────── -->
@@ -102,7 +179,7 @@
             <button
               class="btn btn-danger"
               @click="$emit('confirm')"
-              :disabled="clearing || overridesCount === 0"
+              :disabled="clearing || overridesCount === 0 || !confirmed"
             >
               <Icon v-if="clearing" name="mdi:loading" size="16" class="spin" />
               <Icon v-else name="mdi:broom" size="16" />
@@ -116,7 +193,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 // ============================================
 // ТИПЫ
@@ -131,6 +208,8 @@ interface UserOverride {
   canSpecial: boolean | null
   reason: string | null
   expiresAt: string | null
+  createdAt: string
+  createdBy: number | null
 }
 
 interface UserWithPermissions {
@@ -146,6 +225,8 @@ interface SystemPage {
   name: string
   icon: string | null
 }
+
+type ExpirationStatus = 'active' | 'expiring' | 'expired' | 'permanent'
 
 // ============================================
 // ПРОПСЫ
@@ -170,6 +251,23 @@ defineEmits<{
 }>()
 
 // ============================================
+// ЛОКАЛЬНОЕ СОСТОЯНИЕ
+// ============================================
+const confirmed = ref(false)
+
+// ============================================
+// СБРОС ПРИ ОТКРЫТИИ
+// ============================================
+watch(
+  () => props.isOpen,
+  (isOpen) => {
+    if (isOpen) {
+      confirmed.value = false
+    }
+  }
+)
+
+// ============================================
 // СЛОВАРИ
 // ============================================
 const ROLE_NAMES: Record<string, string> = {
@@ -180,45 +278,100 @@ const ROLE_NAMES: Record<string, string> = {
   worker: 'Рабочий',
 }
 
+const CRITICAL_PAGES = ['dashboard', 'objects', 'works']
+
 // ============================================
 // COMPUTED
 // ============================================
-
-/**
- * Название роли на русском
- */
 const roleName = computed(() =>
   ROLE_NAMES[props.user?.role || ''] || props.user?.role || ''
 )
 
-/**
- * Количество переопределений
- */
 const overridesCount = computed(() => props.user?.overrides.length || 0)
+
+/**
+ * Статистика по типам переопределений
+ */
+const overridesStats = computed(() => {
+  if (!props.user) return { total: 0, permanent: 0, active: 0, expiring: 0, expired: 0 }
+  
+  const stats = {
+    total: props.user.overrides.length,
+    permanent: 0,
+    active: 0,
+    expiring: 0,
+    expired: 0,
+  }
+  
+  for (const override of props.user.overrides) {
+    const status = getExpirationStatus(override)
+    switch (status) {
+      case 'permanent': stats.permanent++; break
+      case 'active': stats.active++; break
+      case 'expiring': stats.expiring++; break
+      case 'expired': stats.expired++; break
+    }
+  }
+  
+  return stats
+})
+
+/**
+ * Есть ли критичные override'ы (дающие canView на dashboard/objects/works)
+ */
+const hasCriticalOverrides = computed(() => {
+  if (!props.user) return false
+  return props.user.overrides.some(o => 
+    CRITICAL_PAGES.includes(o.pageSlug) && o.canView === true
+  )
+})
+
+/**
+ * Сортировка override'ов: критичные сверху, затем истекающие, потом остальные
+ */
+const sortedOverrides = computed(() => {
+  if (!props.user) return []
+  
+  return [...props.user.overrides].sort((a, b) => {
+    const aCritical = CRITICAL_PAGES.includes(a.pageSlug) && a.canView === true ? 0 : 1
+    const bCritical = CRITICAL_PAGES.includes(b.pageSlug) && b.canView === true ? 0 : 1
+    if (aCritical !== bCritical) return aCritical - bCritical
+    
+    const statusPriority: Record<ExpirationStatus, number> = {
+      expired: 0,
+      expiring: 1,
+      active: 2,
+      permanent: 3,
+    }
+    return statusPriority[getExpirationStatus(a)] - statusPriority[getExpirationStatus(b)]
+  })
+})
 
 // ============================================
 // МЕТОДЫ
 // ============================================
-
-/**
- * Получить название страницы по slug
- */
 function getPageName(slug: string): string {
   const page = props.pages.find(p => p.slug === slug)
   return page?.name || slug
 }
 
-/**
- * Получить иконку страницы по slug
- */
 function getPageIcon(slug: string): string {
   const page = props.pages.find(p => p.slug === slug)
   return page?.icon || 'mdi:file-outline'
 }
 
-/**
- * Плюрализация слова "переопределение"
- */
+function getExpirationStatus(override: UserOverride): ExpirationStatus {
+  if (!override.expiresAt) return 'permanent'
+  
+  const now = Date.now()
+  const expires = new Date(override.expiresAt).getTime()
+  const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000
+  
+  if (expires <= now) return 'expired'
+  if (expires - now <= TWENTY_FOUR_HOURS) return 'expiring'
+  return 'active'
+}
+
 function pluralizeOverrides(count: number): string {
   const mod10 = count % 10
   const mod100 = count % 100
@@ -227,31 +380,27 @@ function pluralizeOverrides(count: number): string {
   return 'переопределений'
 }
 
-/**
- * Сформировать краткую сводку переопределённых прав для строки списка
- * Новая система: canView, canCreate, canEdit, canDelete, canSpecial
- */
 function getOverridePermsSummary(
   override: UserOverride
-): Array<{ key: string; label: string; value: boolean | null }> {
-  const result: Array<{ key: string; label: string; value: boolean | null }> = []
-
+): Array<{ key: string; label: string; value: boolean | null; emoji: string }> {
+  const result: Array<{ key: string; label: string; value: boolean | null; emoji: string }> = []
+  
   if (override.canView !== null) {
-    result.push({ key: 'canView', label: '👁', value: override.canView })
+    result.push({ key: 'canView', label: 'Просмотр', value: override.canView, emoji: '👁' })
   }
   if (override.canCreate !== null) {
-    result.push({ key: 'canCreate', label: '➕', value: override.canCreate })
+    result.push({ key: 'canCreate', label: 'Создание', value: override.canCreate, emoji: '➕' })
   }
   if (override.canEdit !== null) {
-    result.push({ key: 'canEdit', label: '✏', value: override.canEdit })
+    result.push({ key: 'canEdit', label: 'Ред.', value: override.canEdit, emoji: '✏' })
   }
   if (override.canDelete !== null) {
-    result.push({ key: 'canDelete', label: '🗑', value: override.canDelete })
+    result.push({ key: 'canDelete', label: 'Удал.', value: override.canDelete, emoji: '🗑' })
   }
   if (override.canSpecial !== null) {
-    result.push({ key: 'canSpecial', label: '⚡', value: override.canSpecial })
+    result.push({ key: 'canSpecial', label: 'Спец.', value: override.canSpecial, emoji: '⚡' })
   }
-
+  
   return result
 }
 </script>
@@ -275,13 +424,14 @@ function getOverridePermsSummary(
   border: 1px solid var(--crm-border);
   border-radius: var(--crm-radius-xl);
   width: 100%;
-  max-width: 560px;
+  max-width: 580px;
+  max-height: 90vh;
   display: flex;
   flex-direction: column;
   box-shadow: var(--crm-shadow-lg);
 
   &.modal-small {
-    max-width: 520px;
+    max-width: 540px;
   }
 }
 
@@ -293,6 +443,7 @@ function getOverridePermsSummary(
   gap: 1rem;
   padding: 1.25rem 1.5rem;
   border-bottom: 1px solid var(--crm-border);
+  flex-shrink: 0;
 }
 
 .modal-title {
@@ -311,14 +462,33 @@ function getOverridePermsSummary(
 
   .user-context {
     margin: 0.375rem 0 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     font-size: var(--crm-text-sm);
     color: var(--crm-text-secondary);
+    flex-wrap: wrap;
 
     strong {
       color: var(--crm-text-primary);
       font-weight: 600;
     }
   }
+}
+
+.user-role-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  border-radius: 10px;
+  font-size: var(--crm-text-xs);
+  font-weight: 500;
+
+  &.role-admin { background: var(--crm-danger-dim); color: var(--crm-danger); }
+  &.role-manager { background: var(--crm-warning-dim); color: var(--crm-warning); }
+  &.role-foreman { background: var(--crm-success-dim); color: var(--crm-success); }
+  &.role-master { background: var(--crm-accent-dim); color: var(--crm-accent); }
+  &.role-worker { background: var(--crm-bg-overlay); color: var(--crm-text-secondary); }
 }
 
 .btn-close {
@@ -363,6 +533,8 @@ function getOverridePermsSummary(
 
 // ── BODY ────────────────────────────────────────────────
 .modal-body {
+  flex: 1;
+  overflow-y: auto;
   padding: 1.25rem 1.5rem;
   display: flex;
   flex-direction: column;
@@ -439,6 +611,55 @@ function getOverridePermsSummary(
       color: var(--crm-info);
     }
   }
+
+  &--neutral {
+    background: var(--crm-bg-elevated);
+    border-color: var(--crm-border);
+
+    > svg {
+      color: var(--crm-text-muted);
+    }
+  }
+
+  &--danger {
+    background: var(--crm-danger-dim);
+    border-color: rgba(242, 95, 92, 0.3);
+
+    > svg {
+      color: var(--crm-danger);
+    }
+  }
+}
+
+// ── СТАТИСТИКА ──────────────────────────────────────────
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.5rem;
+  background: var(--crm-bg-surface);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-sm);
+
+  .stat-value {
+    font-size: var(--crm-text-lg);
+    font-weight: 600;
+    color: var(--crm-text-primary);
+  }
+
+  .stat-label {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+  }
+
+  &--warning .stat-value { color: var(--crm-warning); }
+  &--danger .stat-value { color: var(--crm-danger); }
 }
 
 // ── СПИСОК ЗАТРОНУТЫХ РАЗДЕЛОВ ──────────────────────────
@@ -449,6 +670,8 @@ function getOverridePermsSummary(
   display: flex;
   flex-direction: column;
   gap: 0.375rem;
+  max-height: 200px;
+  overflow-y: auto;
 }
 
 .affected-page {
@@ -457,26 +680,65 @@ function getOverridePermsSummary(
   gap: 0.5rem;
   padding: 0.375rem 0.5rem;
   background: var(--crm-bg-surface);
+  border: 1px solid var(--crm-border);
   border-radius: var(--crm-radius-sm);
   font-size: var(--crm-text-xs);
   flex-wrap: wrap;
+  transition: all var(--crm-transition);
 
-  > svg {
+  > svg:first-child {
     color: var(--crm-accent);
     flex-shrink: 0;
   }
 
-  .page-name {
-    color: var(--crm-text-primary);
-    font-weight: 500;
-    margin-right: auto;
+  &--expiring {
+    border-color: rgba(245, 166, 35, 0.4);
+    background: var(--crm-warning-dim);
   }
 
-  .page-perms {
-    display: flex;
-    gap: 0.25rem;
-    flex-wrap: wrap;
+  &--expired {
+    border-color: rgba(242, 95, 92, 0.4);
+    background: var(--crm-danger-dim);
+    opacity: 0.75;
   }
+}
+
+.page-name {
+  color: var(--crm-text-primary);
+  font-weight: 500;
+  margin-right: auto;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status-mini {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  flex-shrink: 0;
+
+  &--warning {
+    background: var(--crm-warning-dim);
+    color: var(--crm-warning);
+  }
+
+  &--danger {
+    background: var(--crm-danger-dim);
+    color: var(--crm-danger);
+  }
+}
+
+.page-perms {
+  display: flex;
+  gap: 0.125rem;
+  flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 .perm-tag {
@@ -502,6 +764,84 @@ function getOverridePermsSummary(
   }
 }
 
+// ── ЧЕКБОКС ПОДТВЕРЖДЕНИЯ ──────────────────────────────
+.confirm-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  padding: 0.875rem;
+  background: var(--crm-bg-elevated);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-md);
+  cursor: pointer;
+  user-select: none;
+  transition: all var(--crm-transition);
+  font-size: var(--crm-text-sm);
+  color: var(--crm-text-secondary);
+  line-height: 1.5;
+
+  &:hover:not(:has(input:disabled)) {
+    border-color: var(--crm-border-hover);
+  }
+
+  input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 0;
+    height: 0;
+
+    &:checked ~ .checkmark {
+      background: var(--crm-accent);
+      border-color: var(--crm-accent);
+
+      &::after {
+        opacity: 1;
+      }
+    }
+
+    &:disabled ~ .checkmark {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    &:disabled ~ * {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  .checkmark {
+    position: relative;
+    width: 18px;
+    height: 18px;
+    border: 1.5px solid var(--crm-border-hover);
+    border-radius: 4px;
+    transition: all var(--crm-transition);
+    flex-shrink: 0;
+    margin-top: 2px;
+
+    &::after {
+      content: '';
+      position: absolute;
+      left: 5px;
+      top: 2px;
+      width: 5px;
+      height: 9px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+      opacity: 0;
+      transition: opacity var(--crm-transition);
+    }
+  }
+
+  strong {
+    color: var(--crm-text-primary);
+    font-weight: 600;
+  }
+}
+
 // ── FOOTER ──────────────────────────────────────────────
 .modal-footer {
   display: flex;
@@ -511,6 +851,7 @@ function getOverridePermsSummary(
   padding: 1rem 1.5rem;
   border-top: 1px solid var(--crm-border);
   background: var(--crm-bg-elevated);
+  flex-shrink: 0;
 }
 
 // ── КНОПКИ ──────────────────────────────────────────────
@@ -589,6 +930,10 @@ function getOverridePermsSummary(
   .modal-footer {
     padding-left: 1rem;
     padding-right: 1rem;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .modal-footer {

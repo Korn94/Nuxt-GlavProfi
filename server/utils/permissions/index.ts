@@ -6,31 +6,33 @@
  * - Чтение прав из БД (permissions_role_access + permissions_user_overrides)
  * - Поддержка переопределений для конкретных пользователей с expiresAt
  * - Кэширование в памяти (5 мин TTL) — инвалидируется при изменениях
- * - Упрощённая система действий: view, create, edit, delete, special
+ * - Упрощённая система действий: create, edit, delete, special
+ *
+ * Видимость страниц:
+ * - Раздел виден в меню, если есть хотя бы одно право (create/edit/delete/special)
+ * - canView упразднён — отдельного флага просмотра нет
  *
  * Импорт:
  *   import { hasUserPermission, getAllUserPermissions } from '~/server/utils/permissions'
- *
- * ⚠️ ВАЖНО: Возвращает ТОЛЬКО новую систему (pages), без legacy (permissions)
  */
-
 import { db } from '../../db'
 import {
   permissionsPages,
   permissionsRoleAccess,
   permissionsUserOverrides,
-  users  // ✅ Обычный импорт (не type), так как используется в drizzle-запросах
+  users
 } from '../../db/schema'
 import { eq, and, or, isNull, gt, sql } from 'drizzle-orm'
-
 import {
   ROLE_LEVELS,
   hasRequiredRoleLevel,
   type Role
 } from 'shared/constants/roles'
-
-import type { PageAction } from 'shared/constants/permissions'  // ✅ Импорт из constants
-
+import {
+  PAGE_SUPPORTED_ACTIONS,
+  type PageSlug,
+  type PageAction
+} from 'shared/constants/permissions'
 import type {
   PagePermissions,
   UserPermissionsResponse
@@ -41,6 +43,18 @@ import type {
 // ============================================
 
 export type DbUser = typeof users.$inferSelect
+
+/**
+ * Внутренний тип для хранения прав из БД
+ * canView сохраняется для обратной совместимости с БД, но не используется в логике
+ */
+interface DbPagePermissions {
+  canView: boolean
+  canCreate: boolean
+  canEdit: boolean
+  canDelete: boolean
+  canSpecial: boolean
+}
 
 // ============================================
 // КЭШИРОВАНИЕ (in-memory, 5 минут TTL)
@@ -55,6 +69,44 @@ const permissionsCache = new Map<number, CachedPermissions>()
 const CACHE_TTL = 5 * 60 * 1000 // 5 минут
 
 // ============================================
+// ХЕЛПЕРЫ
+// ============================================
+
+/**
+ * Проверить, есть ли у страницы хотя бы одно действие (кроме view)
+ * Такие страницы требуют наличия действий для видимости
+ */
+function hasCrudActions(pageSlug: string): boolean {
+  const supportedActions = PAGE_SUPPORTED_ACTIONS[pageSlug as PageSlug]
+  if (!supportedActions) return false
+  return supportedActions.some(action => action !== 'view')
+}
+
+/**
+ * Определить видимость страницы на основе прав
+ *
+ * Логика:
+ * - CRUD страницы: видна если есть хотя бы одно действие (create/edit/delete/special)
+ * - View-only страницы (dashboard, online, test): видна всегда если есть запись в БД
+ */
+function isPageVisible(
+  pageSlug: string,
+  perms: DbPagePermissions,
+  pageCapabilities: { hasCreate: boolean; hasEdit: boolean; hasDelete: boolean; hasSpecial: boolean }
+): boolean {
+  const hasAnyCapability = pageCapabilities.hasCreate || pageCapabilities.hasEdit ||
+                           pageCapabilities.hasDelete || pageCapabilities.hasSpecial
+
+  if (hasAnyCapability) {
+    // CRUD страница — видна если есть хотя бы одно действие
+    return perms.canCreate || perms.canEdit || perms.canDelete || perms.canSpecial
+  } else {
+    // View-only страница (dashboard, online, test) — видна если canView=true в БД
+    return perms.canView
+  }
+}
+
+// ============================================
 // ПОЛУЧЕНИЕ ВСЕХ ПРАВ (оптимизированная версия)
 // ============================================
 
@@ -67,8 +119,9 @@ const CACHE_TTL = 5 * 60 * 1000 // 5 минут
  * 3. Все активные переопределения пользователя
  *
  * Затем собирает результат в памяти.
- *
  * Результат кэшируется на 5 минут.
+ *
+ * ⚠️ Возвращает ТОЛЬКО видимые страницы
  */
 export async function getAllUserPermissions(user: DbUser): Promise<UserPermissionsResponse> {
   const now = Date.now()
@@ -111,7 +164,7 @@ export async function getAllUserPermissions(user: DbUser): Promise<UserPermissio
     )
 
   // Индексируем права роли по pageSlug
-  const rolePermissionsMap = new Map<string, PagePermissions>()
+  const rolePermissionsMap = new Map<string, DbPagePermissions>()
   for (const row of roleAccessRows) {
     rolePermissionsMap.set(row.pageSlug, {
       canView: row.canView,
@@ -145,7 +198,7 @@ export async function getAllUserPermissions(user: DbUser): Promise<UserPermissio
     )
 
   // Индексируем переопределения по pageSlug
-  const overridesMap = new Map<string, Partial<PagePermissions>>()
+  const overridesMap = new Map<string, Partial<DbPagePermissions>>()
   for (const row of overrideRows) {
     overridesMap.set(row.pageSlug, {
       canView: row.canView ?? undefined,
@@ -158,9 +211,10 @@ export async function getAllUserPermissions(user: DbUser): Promise<UserPermissio
 
   // 4. Собираем финальные права для каждой страницы
   const pages: Record<string, PagePermissions> = {}
+
   for (const page of activePages) {
     // Базовые права роли (или всё false если не настроено)
-    const rolePerms = rolePermissionsMap.get(page.slug) || {
+    const rolePerms: DbPagePermissions = rolePermissionsMap.get(page.slug) || {
       canView: false,
       canCreate: false,
       canEdit: false,
@@ -172,7 +226,7 @@ export async function getAllUserPermissions(user: DbUser): Promise<UserPermissio
     const override = overridesMap.get(page.slug)
 
     // Применяем переопределения (null/undefined = использовать права роли)
-    const effectivePerms: PagePermissions = {
+    const effectivePerms: DbPagePermissions = {
       canView: override?.canView ?? rolePerms.canView,
       canCreate: override?.canCreate ?? rolePerms.canCreate,
       canEdit: override?.canEdit ?? rolePerms.canEdit,
@@ -180,13 +234,24 @@ export async function getAllUserPermissions(user: DbUser): Promise<UserPermissio
       canSpecial: override?.canSpecial ?? rolePerms.canSpecial,
     }
 
-    // Фильтруем: действие доступно только если страница его поддерживает
-    pages[page.slug] = {
-      canView: effectivePerms.canView,
-      canCreate: page.hasCreate && effectivePerms.canCreate,
-      canEdit: page.hasEdit && effectivePerms.canEdit,
-      canDelete: page.hasDelete && effectivePerms.canDelete,
-      canSpecial: page.hasSpecial && effectivePerms.canSpecial,
+    // Проверяем видимость страницы
+    const pageCapabilities = {
+      hasCreate: page.hasCreate,
+      hasEdit: page.hasEdit,
+      hasDelete: page.hasDelete,
+      hasSpecial: page.hasSpecial,
+    }
+
+    const visible = isPageVisible(page.slug, effectivePerms, pageCapabilities)
+
+    // Включаем страницу в результат только если она видима
+    if (visible) {
+      pages[page.slug] = {
+        canCreate: page.hasCreate && effectivePerms.canCreate,
+        canEdit: page.hasEdit && effectivePerms.canEdit,
+        canDelete: page.hasDelete && effectivePerms.canDelete,
+        canSpecial: page.hasSpecial && effectivePerms.canSpecial,
+      }
     }
   }
 
@@ -242,7 +307,6 @@ export async function getUserPagePermissions(
   // Страница не найдена или неактивна — всё запрещено
   if (!page) {
     return {
-      canView: false,
       canCreate: false,
       canEdit: false,
       canDelete: false,
@@ -263,7 +327,7 @@ export async function getUserPagePermissions(
     )
     .limit(1)
 
-  const basePerms: PagePermissions = roleAccess ? {
+  const basePerms: DbPagePermissions = roleAccess ? {
     canView: roleAccess.canView,
     canCreate: roleAccess.canCreate,
     canEdit: roleAccess.canEdit,
@@ -295,7 +359,7 @@ export async function getUserPagePermissions(
     .limit(1)
 
   // 4. Применяем переопределения (null = использовать права роли)
-  const effectivePerms: PagePermissions = {
+  const effectivePerms: DbPagePermissions = {
     canView: override?.canView ?? basePerms.canView,
     canCreate: override?.canCreate ?? basePerms.canCreate,
     canEdit: override?.canEdit ?? basePerms.canEdit,
@@ -303,9 +367,27 @@ export async function getUserPagePermissions(
     canSpecial: override?.canSpecial ?? basePerms.canSpecial
   }
 
-  // 5. Фильтруем: действие доступно только если страница его поддерживает
+  // 5. Проверяем видимость
+  const pageCapabilities = {
+    hasCreate: page.hasCreate,
+    hasEdit: page.hasEdit,
+    hasDelete: page.hasDelete,
+    hasSpecial: page.hasSpecial,
+  }
+
+  const visible = isPageVisible(pageSlug, effectivePerms, pageCapabilities)
+
+  if (!visible) {
+    return {
+      canCreate: false,
+      canEdit: false,
+      canDelete: false,
+      canSpecial: false
+    }
+  }
+
+  // 6. Фильтруем: действие доступно только если страница его поддерживает
   return {
-    canView: effectivePerms.canView,
     canCreate: page.hasCreate && effectivePerms.canCreate,
     canEdit: page.hasEdit && effectivePerms.canEdit,
     canDelete: page.hasDelete && effectivePerms.canDelete,
@@ -321,8 +403,8 @@ export async function getUserPagePermissions(
  * Проверить, имеет ли пользователь право на действие
  *
  * Логика:
- * - view — достаточно canView
- * - create/edit/delete/special — canView + соответствующий флаг
+ * - view — страница должна быть видима (есть действия ИЛИ view-only с canView)
+ * - create/edit/delete/special — страница видима + соответствующий флаг
  *
  * Используется в middleware для проверки прав на endpoint.
  */
@@ -331,16 +413,55 @@ export async function hasUserPermission(
   pageSlug: string,
   action: PageAction
 ): Promise<boolean> {
-  const permissions = await getUserPagePermissions(user, pageSlug)
+  // Для view-only страниц — простая проверка canView в БД
+  if (!hasCrudActions(pageSlug)) {
+    const [roleAccess] = await db
+      .select({ canView: permissionsRoleAccess.canView })
+      .from(permissionsRoleAccess)
+      .where(
+        and(
+          eq(permissionsRoleAccess.role, user.role as Role),
+          eq(permissionsRoleAccess.pageSlug, pageSlug),
+          eq(permissionsRoleAccess.isActive, true)
+        )
+      )
+      .limit(1)
 
-  // Для просмотра достаточно canView
-  if (action === 'view') {
-    return permissions.canView
+    // Проверяем override
+    const [override] = await db
+      .select({ canView: permissionsUserOverrides.canView })
+      .from(permissionsUserOverrides)
+      .where(
+        and(
+          eq(permissionsUserOverrides.userId, user.id),
+          eq(permissionsUserOverrides.pageSlug, pageSlug),
+          eq(permissionsUserOverrides.isActive, true),
+          or(
+            isNull(permissionsUserOverrides.expiresAt),
+            gt(permissionsUserOverrides.expiresAt, sql`NOW()`)
+          )
+        )
+      )
+      .limit(1)
+
+    const effectiveCanView = override?.canView ?? roleAccess?.canView ?? false
+    return effectiveCanView
   }
 
-  // Для действий нужно canView + флаг действия
-  if (!permissions.canView) return false
+  // Для CRUD страниц — используем getUserPagePermissions
+  const permissions = await getUserPagePermissions(user, pageSlug)
 
+  if (action === 'view') {
+    // Страница видима если есть хотя бы одно действие
+    return (
+      permissions.canCreate ||
+      permissions.canEdit ||
+      permissions.canDelete ||
+      permissions.canSpecial
+    )
+  }
+
+  // Для действий нужен соответствующий флаг
   switch (action) {
     case 'create': return permissions.canCreate
     case 'edit': return permissions.canEdit
@@ -356,7 +477,8 @@ export async function hasUserPermission(
 
 /**
  * Получить список страниц, доступных пользователю для отображения в меню
- * Фильтр: только страницы с canView = true
+ *
+ * Фильтр: страницы, которые есть в результате getAllUserPermissions
  */
 export async function getUserVisiblePages(user: DbUser): Promise<Array<{
   slug: string
@@ -377,7 +499,8 @@ export async function getUserVisiblePages(user: DbUser): Promise<Array<{
     .where(eq(permissionsPages.isActive, true))
     .orderBy(permissionsPages.order)
 
-  return pages.filter(page => allPermissions.pages[page.slug]?.canView)
+  // Фильтруем: оставляем только те, что есть в правах (т.е. видимы)
+  return pages.filter(page => page.slug in allPermissions.pages)
 }
 
 // ============================================
@@ -387,8 +510,6 @@ export async function getUserVisiblePages(user: DbUser): Promise<Array<{
 /**
  * Получить полный ответ прав пользователя для API
  * Возвращает ТОЛЬКО новую систему: role, level, pages
- *
- * Используется в /api/permissions при логине и при обновлении токена
  */
 export async function getUserPermissionsResponse(user: DbUser): Promise<UserPermissionsResponse> {
   return getAllUserPermissions(user)
@@ -413,13 +534,11 @@ export async function invalidatePermissionsCacheByRole(role: Role): Promise<{
   total: number
   invalidated: number
 }> {
-  // Получаем всех пользователей с этой ролью
   const usersWithRole = await db
     .select({ id: users.id })
     .from(users)
     .where(eq(users.role, role))
 
-  // Инвалидируем кэш для каждого
   let invalidatedCount = 0
   for (const user of usersWithRole) {
     if (permissionsCache.has(user.id)) {
@@ -435,12 +554,5 @@ export async function invalidatePermissionsCacheByRole(role: Role): Promise<{
 // ЭКСПОРТ ИЗ SHARED (для обратной совместимости)
 // ============================================
 
-/**
- * @deprecated Используйте hasRequiredRoleLevel из shared/constants/roles
- */
 export { hasRequiredRoleLevel } from 'shared/constants/roles'
-
-/**
- * @deprecated Используйте ROLE_LEVELS из shared/constants/roles
- */
 export { ROLE_LEVELS } from 'shared/constants/roles'

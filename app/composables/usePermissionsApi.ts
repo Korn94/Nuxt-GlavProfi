@@ -3,9 +3,10 @@
  * API клиент для системы прав доступа
  * Использует useApi() для автоматической передачи JWT и обработки ошибок
  *
- * Новая система прав:
- * - canView, canCreate, canEdit, canDelete, canSpecial
- * - Без legacy (canExport, canApprove)
+ * Новая система прав (без canView):
+ * - canCreate, canEdit, canDelete, canSpecial
+ * - Видимость определяется наличием любого действия
+ * - Раздел виден в меню, если есть хотя бы одно право
  */
 import type { PagePermissions } from 'shared/types/permissions'
 import { useApi } from './useApi'
@@ -32,6 +33,9 @@ export interface SystemPage {
 
 export interface RoleWithPermissions {
   role: string
+  label: string
+  color: string
+  level: number
   userCount: number
   permissions: Record<string, PagePermissions>
 }
@@ -41,6 +45,8 @@ export interface UserWithPermissions {
   name: string
   login: string
   role: string
+  roleLabel: string
+  roleColor: string
   contractorType: string | null
   contractorId: number | null
   createdAt: string
@@ -52,7 +58,6 @@ export interface UserWithPermissions {
 export interface UserOverride {
   id: number
   pageSlug: string
-  canView: boolean | null
   canCreate: boolean | null
   canEdit: boolean | null
   canDelete: boolean | null
@@ -102,6 +107,8 @@ export async function updateRolePermissions(
 ): Promise<{
   role: string
   updatedCount: number
+  invalidatedUsers: number
+  disconnectedUsers: number
   permissions: Record<string, PagePermissions>
 }> {
   const api = useApi()
@@ -113,8 +120,11 @@ export async function updateRolePermissions(
  */
 export async function resetRolePermissions(role: string): Promise<{
   role: string
+  roleLabel: string
   resetCount: number
   previousCount: number
+  invalidatedUsers: number
+  disconnectedUsers: number
   message: string
 }> {
   const api = useApi()
@@ -127,8 +137,12 @@ export async function resetRolePermissions(role: string): Promise<{
 export async function copyRolePermissions(from: string, to: string): Promise<{
   from: string
   to: string
+  fromLabel: string
+  toLabel: string
   copiedCount: number
   previousCount: number
+  invalidatedUsers: number
+  disconnectedUsers: number
   message: string
 }> {
   const api = useApi()
@@ -149,15 +163,17 @@ export async function fetchPermissionsUsers(params: {
   pagination: PaginationResponse
 }> {
   const api = useApi()
-  // Формируем query string
+
   const query = new URLSearchParams()
   if (params.role) query.append('role', params.role)
   if (params.search) query.append('search', params.search)
   if (params.page) query.append('page', String(params.page))
   if (params.limit) query.append('limit', String(params.limit))
   if (params.withOverrides) query.append('withOverrides', 'true')
+
   const queryString = query.toString()
   const url = `/api/permissions/users${queryString ? `?${queryString}` : ''}`
+
   return await api.get(url)
 }
 
@@ -169,6 +185,11 @@ export async function fetchUserOverrides(userId: number): Promise<{
   userName: string
   login: string
   role: string
+  roleLabel: string
+  roleColor: string
+  contractorType: string | null
+  contractorId: number | null
+  createdAt: string
   basePermissions: Record<string, PagePermissions>
   overrides: UserOverride[]
   effectivePermissions: Record<string, PagePermissions>
@@ -184,7 +205,6 @@ export async function applyUserOverrides(
   userId: number,
   overrides: Array<{
     pageSlug: string
-    canView?: boolean
     canCreate?: boolean
     canEdit?: boolean
     canDelete?: boolean
@@ -195,9 +215,12 @@ export async function applyUserOverrides(
 ): Promise<{
   userId: number
   userName: string
+  roleLabel: string
   created: number
   updated: number
   applied: number
+  disconnected: boolean
+  changedPages: string[]
 }> {
   const api = useApi()
   return await api.post(`/api/permissions/users/${userId}/overrides`, { overrides })
@@ -209,7 +232,10 @@ export async function applyUserOverrides(
 export async function clearUserOverrides(userId: number): Promise<{
   userId: number
   userName: string
+  roleLabel: string
   deletedCount: number
+  disconnected: boolean
+  criticalPages: string[]
   message: string
 }> {
   const api = useApi()
@@ -222,8 +248,12 @@ export async function clearUserOverrides(userId: number): Promise<{
 export async function removeUserOverride(userId: number, pageSlug: string): Promise<{
   userId: number
   userName: string
+  roleLabel: string
   pageSlug: string
   deleted: boolean
+  disconnected: boolean
+  wasCritical: boolean
+  message: string
 }> {
   const api = useApi()
   return await api.delete(`/api/permissions/users/${userId}/overrides/${pageSlug}`)
@@ -233,11 +263,8 @@ export async function removeUserOverride(userId: number, pageSlug: string): Prom
  * Инициализировать систему прав (заполнить таблицы из seed)
  */
 export async function initPermissionsSystem(): Promise<{
-  pagesCreated: number
-  pagesExisting: number
-  rolesCreated: number
-  rolesExisting: number
-  message: string
+  pages: { created: number; skipped: number }
+  roles: { created: number; skipped: number }
 }> {
   const api = useApi()
   return await api.post('/api/permissions/init')
@@ -298,6 +325,7 @@ export async function deletePermissionsPage(
   mode: 'soft' | 'hard'
   affectedRoles: number
   affectedUsers: number
+  invalidatedCacheFor: number
   message: string
 }> {
   const api = useApi()

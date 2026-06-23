@@ -1,5 +1,5 @@
 <!-- app/components/pages/cabinet/settings/permissions/Roles/index.vue -->
- <template>
+<template>
   <div class="roles-view">
     <!-- ============================================
          ПАНЕЛЬ ИНСТРУМЕНТОВ
@@ -12,10 +12,16 @@
           Изменения применяются мгновенно для всех пользователей с этой ролью.
         </span>
       </div>
-      <button class="btn btn-secondary" @click="loadRoles" :disabled="loading">
-        <Icon name="mdi:refresh" size="16" />
-        Обновить
-      </button>
+      <div class="toolbar-actions">
+        <div v-if="isSyncing" class="sync-indicator">
+          <Icon name="mdi:sync" size="16" class="spin" />
+          <span>Синхронизация...</span>
+        </div>
+        <button class="btn btn-secondary" @click="loadRoles" :disabled="loading">
+          <Icon name="mdi:refresh" size="16" />
+          Обновить
+        </button>
+      </div>
     </div>
 
     <!-- ============================================
@@ -50,6 +56,7 @@
         :is-admin="isAdmin"
         @edit="openEditModal"
         @reset="openResetConfirm"
+        @copy="openCopyModal"
       />
     </div>
 
@@ -64,6 +71,17 @@
       :is-admin="isAdmin"
       @save="handleSavePermissions"
       @reset="openResetFromEditModal"
+    />
+
+    <!-- ============================================
+         МОДАЛКА КОПИРОВАНИЯ ПРАВ МЕЖДУ РОЛЯМИ
+    ============================================ -->
+    <PagesCabinetSettingsPermissionsRolesRoleCopyModal
+      v-model:is-open="copyModal.isOpen"
+      :target-role="copyModal.targetRole"
+      :all-roles="allRolesForCopy"
+      :copying="copying"
+      @copy="handleCopyPermissions"
     />
 
     <!-- ============================================
@@ -95,9 +113,11 @@ import {
   fetchPermissionsRoles,
   updateRolePermissions,
   resetRolePermissions,
+  copyRolePermissions,
 } from '~/composables/usePermissionsApi'
-import type { PagePermissions } from 'server/utils/permissions/types'
+import type { PagePermissions } from 'shared/types/permissions.ts'
 import { useAuthStore } from 'stores/auth'
+import { usePermissionsSocket } from '../composables/usePermissionsSocket'
 
 // ============================================
 // STORE И ПРАВА ДОСТУПА
@@ -111,6 +131,8 @@ const isAdmin = computed(() => authStore.user?.role === 'admin')
 const loading = ref(false)
 const saving = ref(false)
 const resetting = ref(false)
+const copying = ref(false)
+const isSyncing = ref(false)
 const roles = ref<RoleWithPermissions[]>([])
 const pages = ref<SystemPage[]>([])
 
@@ -121,6 +143,15 @@ const editModal = ref<{
 }>({
   isOpen: false,
   role: null,
+})
+
+// Модалка копирования прав между ролями
+const copyModal = ref<{
+  isOpen: boolean
+  targetRole: RoleWithPermissions | null
+}>({
+  isOpen: false,
+  targetRole: null,
 })
 
 // Модалка сброса прав к дефолтным
@@ -153,6 +184,63 @@ const ROLE_NAMES: Record<string, string> = {
   master: 'Мастер',
   worker: 'Рабочий',
 }
+
+// ============================================
+// COMPUTED: РОЛИ ДЛЯ КОПИРОВАНИЯ
+// ============================================
+/**
+ * Все роли с дополнительной информацией для RoleCopyModal
+ * Преобразуем формат RoleWithPermissions в формат ожидаемый модалкой
+ */
+const allRolesForCopy = computed(() =>
+  roles.value.map(r => ({
+    role: r.role,
+    label: ROLE_NAMES[r.role] || r.role,
+    color: ROLE_COLORS[r.role] || 'linear-gradient(135deg, #6c757d 0%, #495057 100%)',
+    level: 0, // уровень не используется в модалке
+    userCount: r.userCount,
+    permissions: r.permissions,
+  }))
+)
+
+const ROLE_COLORS: Record<string, string> = {
+  admin: 'linear-gradient(135deg, #f25f5c 0%, #d63384 100%)',
+  manager: 'linear-gradient(135deg, #f5a623 0%, #e67e22 100%)',
+  foreman: 'linear-gradient(135deg, #3dd68c 0%, #28a745 100%)',
+  master: 'linear-gradient(135deg, #00c3f5 0%, #0077b6 100%)',
+  worker: 'linear-gradient(135deg, #9aa0b8 0%, #6c757d 100%)',
+}
+
+// ============================================
+// REAL-TIME СИНХРОНИЗАЦИЯ ЧЕРЕЗ СОКЕТЫ
+// ============================================
+/**
+ * Тихая перезагрузка списка (без сброса состояния модалок)
+ * Используется при получении сокет-событий от других админов
+ */
+async function silentReload() {
+  isSyncing.value = true
+  try {
+    const [rolesData, pagesData] = await Promise.all([
+      fetchPermissionsRoles(),
+      fetchPermissionsPages(),
+    ])
+    roles.value = rolesData
+    pages.value = pagesData
+  } catch (error: any) {
+    console.error('[Roles] Ошибка тихой перезагрузки:', error)
+  } finally {
+    isSyncing.value = false
+  }
+}
+
+usePermissionsSocket({
+  onPermissionsChanged: async (data: any) => {
+    console.log('[Roles] 📥 Права изменены другим админом:', data?.reason)
+    showToast(`Права обновлены: ${data?.reason || 'изменения применены'}`, 'info')
+    await silentReload()
+  },
+})
 
 // ============================================
 // ЗАГРУЗКА ДАННЫХ
@@ -192,7 +280,6 @@ async function handleSavePermissions(
 ) {
   const role = editModal.value.role
   if (!role) return
-
   saving.value = true
   try {
     await updateRolePermissions(role.role, permissions)
@@ -211,9 +298,35 @@ async function handleSavePermissions(
 }
 
 // ============================================
+// КОПИРОВАНИЕ ПРАВ МЕЖДУ РОЛЯМИ
+// ============================================
+function openCopyModal(role: RoleWithPermissions) {
+  copyModal.value = {
+    isOpen: true,
+    targetRole: role,
+  }
+}
+
+/**
+ * Обработчик копирования прав из одной роли в другую
+ */
+async function handleCopyPermissions(data: { from: string; to: string }) {
+  copying.value = true
+  try {
+    const result = await copyRolePermissions(data.from, data.to)
+    showToast(result.message, 'success')
+    copyModal.value.isOpen = false
+    await loadRoles()
+  } catch (error: any) {
+    showToast(error.message || 'Не удалось скопировать права', 'error')
+  } finally {
+    copying.value = false
+  }
+}
+
+// ============================================
 // СБРОС ПРАВ К ДЕФОЛТНЫМ
 // ============================================
-
 /**
  * Открыть модалку сброса из карточки роли
  */
@@ -231,7 +344,6 @@ function openResetConfirm(role: RoleWithPermissions) {
 function openResetFromEditModal() {
   const currentRole = editModal.value.role
   if (!currentRole) return
-
   resetConfirm.value = {
     isOpen: true,
     role: { role: currentRole.role, userCount: currentRole.userCount },
@@ -244,16 +356,13 @@ function openResetFromEditModal() {
 async function handleConfirmReset() {
   const roleInfo = resetConfirm.value.role
   if (!roleInfo) return
-
   resetting.value = true
   try {
     const result = await resetRolePermissions(roleInfo.role)
     showToast(result.message, 'success')
-
     // Закрываем обе модалки (сброс + редактирование, если оно было открыто)
     resetConfirm.value.isOpen = false
     editModal.value.isOpen = false
-
     await loadRoles()
   } catch (error: any) {
     showToast(error.message || 'Не удалось сбросить права', 'error')
@@ -316,6 +425,29 @@ span {
   svg {
     color: var(--crm-info);
     flex-shrink: 0;
+  }
+}
+
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sync-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  background: var(--crm-accent-dim);
+  color: var(--crm-accent);
+  border: 1px solid var(--crm-accent-border);
+  border-radius: var(--crm-radius-md);
+  font-size: var(--crm-text-xs);
+  font-weight: 500;
+
+  svg {
+    animation: spin 0.8s linear infinite;
   }
 }
 
@@ -415,6 +547,11 @@ span {
   .toolbar {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .toolbar-actions {
+    justify-content: flex-end;
+    flex-wrap: wrap;
   }
 
   .roles-grid {

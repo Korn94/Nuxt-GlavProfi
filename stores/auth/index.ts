@@ -6,7 +6,11 @@
  * - Хранит токен, пользователя и права (pages)
  * - Cookie содержит ТОЛЬКО JWT (без userId/role)
  * - Права получаем либо в login-ответе, либо отдельным запросом (init)
- * - Предоставляет getter visiblePages для построения меню
+ *
+ * Модель прав (без canView):
+ * - Раздел виден в меню, если есть хотя бы одно действие (create/edit/delete/special)
+ * - View-only страницы (dashboard, online, test) видимы по факту наличия в pages
+ * - Видимость вычисляется в usePermissions composable, не в store
  *
  * Обратная совместимость:
  * - Парсер cookie поддерживает старый JSON-формат {token, userId, role}
@@ -35,8 +39,11 @@ interface AuthState {
   isAuthenticated: boolean
   isChecking: boolean
   error: string | null
+  /** Права пользователя: Record<PageSlug, PagePermissions> (без canView) */
   pages: Record<PageSlug, PagePermissions> | null
   roleLevel: number | null
+  /** Флаг: первичная инициализация уже выполнена */
+  initialized: boolean
 }
 
 /**
@@ -92,7 +99,8 @@ export const useAuthStore = defineStore('auth', {
     isChecking: true,
     error: null,
     pages: null,
-    roleLevel: null
+    roleLevel: null,
+    initialized: false,
   }),
 
   getters: {
@@ -113,26 +121,6 @@ export const useAuthStore = defineStore('auth', {
       return (this.user?.role as Role) ?? null
     },
 
-    // ============================================
-    // 🆕 СПИСОК ВИДИМЫХ СТРАНИЦ (для меню навигации)
-    // ============================================
-
-    /**
-     * Массив slug'ов страниц, доступных пользователю для просмотра.
-     * Используется для построения бокового меню и табов.
-     *
-     * @example
-     * const visiblePages = authStore.visiblePages
-     * // ['dashboard', 'objects', 'works', ...]
-     */
-    visiblePages(): PageSlug[] {
-      if (!this.pages) return []
-
-      return (Object.entries(this.pages) as [PageSlug, PagePermissions][])
-        .filter(([_, perms]) => perms.canView)
-        .map(([slug]) => slug)
-    },
-
     /**
      * Права на конкретную страницу (shortcut)
      */
@@ -140,7 +128,19 @@ export const useAuthStore = defineStore('auth', {
       return (page: PageSlug): PagePermissions | null => {
         return this.pages?.[page] ?? null
       }
-    }
+    },
+
+    /**
+     * Есть ли страница в правах (означает что она видима)
+     *
+     * В новой модели (без canView) страница есть в pages только если она видима.
+     * Серверный getAllUserPermissions() уже отфильтровал невидимые.
+     */
+    hasPage() {
+      return (page: PageSlug): boolean => {
+        return !!this.pages && page in this.pages
+      }
+    },
   },
 
   actions: {
@@ -175,13 +175,14 @@ export const useAuthStore = defineStore('auth', {
         const api = useApi()
         const [userRes, permsRes] = await Promise.all([
           api.get<{ user: User }>('/api/auth/check'),
-          api.get<UserPermissionsResponse>('/api/permissions')
+          api.get<UserPermissionsResponse>('/api/permissions'),
         ])
 
         this.user = userRes.user
         this.pages = permsRes.pages as Record<PageSlug, PagePermissions>
         this.roleLevel = permsRes.level
         this.isAuthenticated = true
+        this.initialized = true
       } catch (error) {
         console.error('[AuthStore] Ошибка проверки авторизации:', error)
         this.resetState()
@@ -210,7 +211,7 @@ export const useAuthStore = defineStore('auth', {
      * Аутентификация пользователя (логин или Telegram).
      *
      * Улучшения:
-     * - Cookie хранит ТОЛЬКО JWT (без userId/role)
+     * - Cookie хранит ТОЛЬКО JWT (без JSON-обёртки)
      * - Permissions берутся из login-ответа (нет race condition)
      * - Fallback: если сервер не вернул permissions — запрашиваем отдельно
      */
@@ -234,14 +235,14 @@ export const useAuthStore = defineStore('auth', {
         const tokenCookie = useCookie('auth_token', {
           maxAge: 60 * 60 * 24 * 7,
           sameSite: 'lax',
-          secure: process.env.NODE_ENV === 'production'
+          secure: process.env.NODE_ENV === 'production',
         })
         tokenCookie.value = response.token
 
         const sessionIdCookie = useCookie('session_id', {
           maxAge: 60 * 60 * 24 * 7,
           sameSite: 'lax',
-          secure: process.env.NODE_ENV === 'production'
+          secure: process.env.NODE_ENV === 'production',
         })
         sessionIdCookie.value = response.sessionId
 
@@ -252,6 +253,7 @@ export const useAuthStore = defineStore('auth', {
         this.sessionId = response.sessionId
 
         // ✅ Permissions из login-ответа (если сервер их вернул)
+        // ⚠️ Новая модель (без canView) — в pages только видимые страницы
         if (response.permissions) {
           this.pages = response.permissions.pages as Record<PageSlug, PagePermissions>
           this.roleLevel = response.permissions.level
@@ -267,6 +269,8 @@ export const useAuthStore = defineStore('auth', {
             this.roleLevel = null
           }
         }
+
+        this.initialized = true
 
         // Сбрасываем кэш useCurrentUser
         clearCurrentUser()
@@ -331,7 +335,7 @@ export const useAuthStore = defineStore('auth', {
         if (tokenCookie.value) {
           await $fetch('/api/auth/logout', {
             method: 'POST',
-            credentials: 'include'
+            credentials: 'include',
           }).catch(() => {})
         }
 
@@ -367,6 +371,86 @@ export const useAuthStore = defineStore('auth', {
     },
 
     // ============================================
+    // 🆕 ПРИНУДИТЕЛЬНЫЙ ВЫХОД (от сервера через сокет)
+    // ============================================
+
+    /**
+     * Принудительный выход: сервер потребовал перелогиниться.
+     *
+     * Используется когда:
+     * - Админ отозвал права на критические страницы (dashboard/objects/works)
+     * - Роль пользователя была сброшена к дефолтам
+     * - Права роли были существенно изменены (копирование/сброс)
+     *
+     * В отличие от logout() — НЕ уведомляет сервер (он сам инициировал)
+     * и НЕ отключает сокет (соединение уже разорвано сервером).
+     *
+     * @param reason — причина отключения (показывается пользователю)
+     */
+    async forceLogout(reason?: string) {
+      const notifications = useNotifications()
+
+      console.warn(
+        `[AuthStore] ⚠️ Принудительный выход: ${reason || 'причина не указана'}`
+      )
+
+      // Показываем уведомление с причиной
+      if (reason) {
+        notifications.warning(reason, 'Сессия завершена')
+      } else {
+        notifications.warning(
+          'Ваши права доступа были изменены. Необходимо войти заново.',
+          'Сессия завершена'
+        )
+      }
+
+      // Очищаем cookie (сервер уже знает о разрыве)
+      useCookie('auth_token').value = null
+      useCookie('session_id').value = null
+
+      clearCurrentUser()
+      this.resetState()
+
+      // Перенаправляем на логин
+      if (process.client) {
+        const router = useRouter()
+        router.push('/login')
+      }
+    },
+
+    // ============================================
+    // 🆕 ПЕРЕЗАГРУЗКА ПРАВ (без полного reinit)
+    // ============================================
+
+    /**
+     * Перезагрузить только права доступа (без повторной проверки авторизации).
+     *
+     * Используется когда:
+     * - Другой админ изменил права текущей роли
+     * - Текущему пользователю добавили/убрали override
+     * - Получено сокет-событие 'permissions:changed'
+     *
+     * При ошибке — разлогиниваем (возможно, отозвали доступ полностью).
+     */
+    async reloadPermissions(): Promise<void> {
+      if (!this.user || !this.token) return
+
+      try {
+        const api = useApi()
+        const permsRes = await api.get<UserPermissionsResponse>('/api/permissions')
+
+        this.pages = permsRes.pages as Record<PageSlug, PagePermissions>
+        this.roleLevel = permsRes.level
+
+        console.log('[AuthStore] 🔄 Права перезагружены')
+      } catch (error) {
+        console.error('[AuthStore] Ошибка перезагрузки прав:', error)
+        // При ошибке — разлогиниваем (возможно, отозвали доступ)
+        await this.forceLogout('Не удалось загрузить права доступа. Сессия завершена.')
+      }
+    },
+
+    // ============================================
     // СБРОС СОСТОЯНИЯ
     // ============================================
 
@@ -379,7 +463,8 @@ export const useAuthStore = defineStore('auth', {
       this.error = null
       this.pages = null
       this.roleLevel = null
-    }
+      this.initialized = false
+    },
   },
 
   // ============================================
@@ -393,21 +478,22 @@ export const useAuthStore = defineStore('auth', {
   hydrate(state: AuthState) {
     const tokenCookie = useCookie('auth_token')
     const token = extractTokenFromCookie(tokenCookie.value)
-    
+
     if (!token) {
       state.token = null
       state.user = null
       state.sessionId = null
       state.isAuthenticated = false
-      state.isChecking = false    // ✅ НЕТ токена = нечего проверять
+      state.isChecking = false // ✅ НЕТ токена = нечего проверять
       state.error = null
       state.pages = null
       state.roleLevel = null
+      state.initialized = false
       return
     }
-    
+
     state.token = token
     state.isAuthenticated = true
-    state.isChecking = true        // Токен есть → нужна проверка через init()
-  }
+    state.isChecking = true // Токен есть → нужна проверка через init()
+  },
 })

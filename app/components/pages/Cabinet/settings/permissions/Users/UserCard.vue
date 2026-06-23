@@ -1,7 +1,19 @@
 <!-- app/components/pages/cabinet/settings/permissions/Users/UserCard.vue -->
- <template>
-  <div class="user-card">
-    <!-- Шапка карточки -->
+<template>
+  <div :class="['user-card', { selected: selected, 'has-overrides': user.overrides.length > 0 }]">
+    <!-- ───────── BULK CHECKBOX (только для админа) ───────── -->
+    <div v-if="isAdmin" class="bulk-checkbox">
+      <label class="checkbox-label" @click.stop>
+        <input
+          type="checkbox"
+          :checked="selected"
+          @change="$emit('toggle-select', user)"
+        />
+        <span class="checkmark"></span>
+      </label>
+    </div>
+
+    <!-- ───────── ШАПКА КАРТОЧКИ ───────── -->
     <div class="user-card-header">
       <!-- Аватар с инициалами -->
       <div class="user-avatar" :style="{ background: userColor }">
@@ -32,6 +44,14 @@
       <!-- Бейдж с количеством переопределений -->
       <div class="user-actions-header">
         <span
+          v-if="expiringSoonCount > 0"
+          class="overrides-badge overrides-badge--warning"
+          :title="`${expiringSoonCount} истекает в ближайшие 24 часа`"
+        >
+          <Icon name="mdi:clock-alert" size="14" />
+          {{ expiringSoonCount }}
+        </span>
+        <span
           v-if="user.overrides.length > 0"
           class="overrides-badge"
         >
@@ -41,18 +61,21 @@
       </div>
     </div>
 
-    <!-- Список переопределений (если есть) -->
+    <!-- ───────── СПИСОК ПЕРЕОПРЕДЕЛЕНИЙ (если есть) ───────── -->
     <PagesCabinetSettingsPermissionsUsersUserOverridesList
       v-if="user.overrides.length > 0"
       :overrides="user.overrides"
       :pages="pages"
       :removing="removing"
-      @remove="handleRemoveOverride"
+      @remove="(pageSlug: string) => $emit('remove-override', user, pageSlug)"
     />
 
-    <!-- Footer с кнопками действий -->
+    <!-- ───────── FOOTER С КНОПКАМИ ДЕЙСТВИЙ ───────── -->
     <div class="user-card-footer">
-      <button class="btn btn-primary btn-sm" @click="$emit('add-override', user)">
+      <button
+        class="btn btn-primary btn-sm"
+        @click="$emit('add-override', user)"
+      >
         <Icon name="mdi:plus" size="16" />
         Добавить переопределение
       </button>
@@ -85,6 +108,8 @@ interface UserOverride {
   canSpecial: boolean | null
   reason: string | null
   expiresAt: string | null
+  createdAt: string
+  createdBy: number | null
 }
 
 interface UserWithPermissions {
@@ -94,7 +119,10 @@ interface UserWithPermissions {
   role: string
   contractorType: string | null
   contractorId: number | null
+  createdAt: string
+  basePermissions: Record<string, any>
   overrides: UserOverride[]
+  effectivePermissions: Record<string, any>
 }
 
 interface SystemPage {
@@ -119,18 +147,22 @@ const props = defineProps<{
   isAdmin: boolean
   /** Флаг процесса удаления (блокирует кнопки) */
   removing?: boolean
+  /** Выделен ли пользователь для bulk-операций */
+  selected?: boolean
 }>()
 
 // ============================================
 // ЭМИТТЫ
 // ============================================
-const emit = defineEmits<{
+defineEmits<{
   /** Открыть модалку добавления переопределения */
   (e: 'add-override', user: UserWithPermissions): void
   /** Открыть модалку сброса всех переопределений */
   (e: 'clear-overrides', user: UserWithPermissions): void
   /** Открыть модалку удаления одного переопределения */
   (e: 'remove-override', user: UserWithPermissions, pageSlug: string): void
+  /** Переключить выделение для bulk-операций */
+  (e: 'toggle-select', user: UserWithPermissions): void
 }>()
 
 // ============================================
@@ -182,10 +214,27 @@ const contractorLabel = computed(() => {
   return CONTRACTOR_LABELS[props.user.contractorType] || props.user.contractorType
 })
 
+/**
+ * Количество override'ов, истекающих в ближайшие 24 часа.
+ * Используется для показа предупреждающего бейджа.
+ */
+const expiringSoonCount = computed(() => {
+  const now = Date.now()
+  const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000
+  let count = 0
+  for (const override of props.user.overrides) {
+    if (!override.expiresAt) continue
+    const expires = new Date(override.expiresAt).getTime()
+    if (expires > now && expires - now <= TWENTY_FOUR_HOURS) {
+      count++
+    }
+  }
+  return count
+})
+
 // ============================================
 // МЕТОДЫ
 // ============================================
-
 /**
  * Плюрализация слова "переопределение"
  */
@@ -196,27 +245,95 @@ function pluralizeOverrides(count: number): string {
   if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'переопределения'
   return 'переопределений'
 }
-
-/**
- * Обработчик удаления переопределения из списка
- * Пробрасывает событие в родителя
- */
-function handleRemoveOverride(pageSlug: string) {
-  emit('remove-override', props.user, pageSlug)
-}
 </script>
 
 <style lang="scss" scoped>
 .user-card {
+  display: flex;
+  flex-direction: column;
   background: var(--crm-bg-surface);
   border: 1px solid var(--crm-border);
   border-radius: var(--crm-radius-lg);
   overflow: hidden;
   transition: all var(--crm-transition);
+  position: relative;
 
   &:hover {
     border-color: var(--crm-border-hover);
     box-shadow: var(--crm-shadow-sm);
+  }
+
+  &.selected {
+    border-color: var(--crm-accent);
+    box-shadow: 0 0 0 2px var(--crm-accent-dim);
+  }
+
+  &.has-overrides {
+    border-left: 3px solid var(--crm-accent);
+  }
+}
+
+// ── BULK ЧЕКБОКС ──────────────────────────────────────────
+.bulk-checkbox {
+  position: absolute;
+  top: 1.25rem;
+  left: -0.125rem;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity var(--crm-transition);
+
+  .user-card:hover &,
+  .user-card.selected & {
+    opacity: 1;
+  }
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+
+  input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 0;
+    height: 0;
+
+    &:checked ~ .checkmark {
+      background: var(--crm-accent);
+      border-color: var(--crm-accent);
+
+      &::after {
+        opacity: 1;
+      }
+    }
+  }
+
+  .checkmark {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--crm-border-hover);
+    border-radius: 4px;
+    background: var(--crm-bg-surface);
+    transition: all var(--crm-transition);
+    position: relative;
+
+    &::after {
+      content: '';
+      position: absolute;
+      left: 6px;
+      top: 2px;
+      width: 5px;
+      height: 10px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+      opacity: 0;
+      transition: opacity var(--crm-transition);
+    }
   }
 }
 
@@ -308,6 +425,18 @@ function handleRemoveOverride(pageSlug: string) {
   font-size: var(--crm-text-xs);
   font-weight: 500;
   white-space: nowrap;
+
+  &--warning {
+    background: var(--crm-warning-dim);
+    color: var(--crm-warning);
+    border-color: rgba(245, 166, 35, 0.3);
+    animation: pulse-warning 2s ease-in-out infinite;
+  }
+}
+
+@keyframes pulse-warning {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
 }
 
 // ── FOOTER КАРТОЧКИ ─────────────────────────────────────
@@ -379,6 +508,12 @@ function handleRemoveOverride(pageSlug: string) {
 
   .user-card-footer {
     flex-wrap: wrap;
+  }
+
+  .bulk-checkbox {
+    opacity: 1;
+    top: 0.5rem;
+    left: 0.5rem;
   }
 }
 </style>

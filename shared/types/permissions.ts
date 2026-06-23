@@ -1,14 +1,13 @@
 // shared/types/permissions.ts
 /**
  * 📋 Типы системы прав доступа (ACL)
- * 
+ *
  * Единый файл с типами для клиента и сервера
  * Использует zod inference для автоматической синхронизации с валидаторами
- * 
+ *
  * Импорт:
  *   import type { PagePermissions, UserPermissionsResponse } from 'shared/types/permissions'
  */
-
 import { z } from 'zod'
 import type { PageSlug, PageAction } from 'shared/constants/permissions'
 
@@ -19,9 +18,11 @@ import type { PageSlug, PageAction } from 'shared/constants/permissions'
 /**
  * Zod-схема для прав на странице
  * Используется для валидации на сервере и type inference
+ * 
+ * ⚠️ canView упразднён — видимость определяется наличием любого права
+ * (canCreate || canEdit || canDelete || canSpecial)
  */
 export const PagePermissionsSchema = z.object({
-  canView: z.boolean(),
   canCreate: z.boolean(),
   canEdit: z.boolean(),
   canDelete: z.boolean(),
@@ -31,9 +32,11 @@ export const PagePermissionsSchema = z.object({
 /**
  * Права пользователя на конкретную страницу
  * 
+ * Видимость в меню вычисляется автоматически:
+ * раздел виден, если хотя бы одно из действий = true
+ *
  * @example
  * const objectsPerms: PagePermissions = {
- *   canView: true,
  *   canCreate: true,
  *   canEdit: true,
  *   canDelete: false,
@@ -101,7 +104,6 @@ export type SystemPage = z.infer<typeof SystemPageSchema>
 export const UserPermissionOverrideSchema = z.object({
   userId: z.number(),
   pageSlug: z.string(),
-  canView: z.boolean().nullable(),
   canCreate: z.boolean().nullable(),
   canEdit: z.boolean().nullable(),
   canDelete: z.boolean().nullable(),
@@ -130,7 +132,6 @@ export type UserPermissionOverride = z.infer<typeof UserPermissionOverrideSchema
 export const RolePageAccessSchema = z.object({
   role: z.string(),
   pageSlug: z.string(),
-  canView: z.boolean(),
   canCreate: z.boolean(),
   canEdit: z.boolean(),
   canDelete: z.boolean(),

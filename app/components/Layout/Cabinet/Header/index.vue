@@ -114,11 +114,30 @@ const { can } = usePermissions()
 //
 // На сервере authStore.user = null (init() вызывается в onMounted)
 // На клиенте после гидратации — реактивно обновляется
+
 const user = computed(() => authStore.user)
 
-const displayName = computed(() => user.value?.name || '...')
-const displayRole = computed(() => roleLabels[user.value?.role || ''] || 'Пользователь')
+// ============================================
+// 🛡️ ЗАЩИТА ОТ HYDRATION MISMATCH
+// ============================================
+// Флаг монтирования компонента.
+// SSR и гидратация на клиенте должны рендерить одинаковые заглушки,
+// иначе Vue выдаст Hydration Mismatch. Реальные данные подставляем
+// только после успешного монтирования (onMounted).
+const isMounted = ref(false)
+
+const displayName = computed(() => {
+  if (!isMounted.value) return '...'
+  return user.value?.name || '...'
+})
+
+const displayRole = computed(() => {
+  if (!isMounted.value) return 'Пользователь'
+  return roleLabels[user.value?.role || ''] || 'Пользователь'
+})
+
 const userInitials = computed(() => {
+  if (!isMounted.value) return '?'
   const name = user.value?.name || ''
   if (!name || name === '...') return '?'
   return name.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase() || '?'
@@ -146,6 +165,8 @@ const roleLabels: Record<string, string> = {
  * 🔐 Доступ к разделу «Доски»
  */
 const isBoardsAvailable = computed(() => {
+  // На SSR/гидратации всегда true, чтобы структура DOM совпадала
+  if (!isMounted.value) return true 
   if (!user.value) return true
   return can('objects', 'view')
 })
@@ -193,6 +214,10 @@ function handleLogout() {
 // ЖИЗНЕННЫЙ ЦИКЛ
 // ============================================
 onMounted(() => {
+  // ✅ Устанавливаем флаг после монтирования — 
+  // теперь можно безопасно подставлять реальные данные пользователя
+  isMounted.value = true
+  
   checkIsMobile()
   window.addEventListener('resize', checkIsMobile)
 })

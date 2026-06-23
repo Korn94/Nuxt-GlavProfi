@@ -1,5 +1,4 @@
 // shared/constants/permissions.ts
-
 /**
  * 📄 Константы и валидаторы системы прав доступа (ACL)
  *
@@ -17,7 +16,6 @@
  * Импорт:
  *   import { PageSlugSchema, VALID_PAGE_SLUGS, PAGE_LABELS } from '~/shared/constants/permissions'
  */
-
 import { z } from 'zod'
 
 // ============================================
@@ -33,18 +31,19 @@ import { z } from 'zod'
  * - Массив значений: PageSlugSchema.options
  */
 export const PageSlugSchema = z.enum([
-  'dashboard',     // 📊 Дашборд
+  'dashboard',     // 📊 Главная
   'objects',       // 🏗️ Объекты
-  'comings',       // 💰 Приходы
-  'expenses',      // 💸 Расходы
-  'materials',     // 📦 Материалы
+  'operations',    // 💰 Операции (приходы + расходы)
+  'materials',     // 📦 Чеки
   'works',         // 🔨 Работы
-  'contractors',   // 👥 Контрагенты
-  'portfolio',     // 📁 Портфолио
+  'daily-work',    // 📅 Подневка
+  'contractors',   // 👥 Сотрудники
+  'portfolio',     // 📁 Кейсы
   'price',         // 💲 Прайс-лист
-  'users',         // 👤 Пользователи
+  'users',         // 👤 Пользователи (админка)
+  'online',        // 🟢 Онлайн-статус (мониторинг)
   'settings',      // ⚙️ Настройки
-  'online'         // 🟢 Онлайн-статус
+  'test'           // 🧪 Тест (только admin)
 ])
 
 /**
@@ -97,18 +96,19 @@ export const VALID_PAGE_ACTIONS = PageActionSchema.options
  * Русские названия страниц (для меню, заголовков, админки)
  */
 export const PAGE_LABELS: Record<PageSlug, string> = {
-  dashboard: 'Дашборд',
+  dashboard: 'Главная',
   objects: 'Объекты',
-  comings: 'Приходы',
-  expenses: 'Расходы',
-  materials: 'Материалы',
+  operations: 'Операции',
+  materials: 'Чеки',
   works: 'Работы',
-  contractors: 'Контрагенты',
-  portfolio: 'Портфолио',
+  'daily-work': 'Подневка',
+  contractors: 'Сотрудники',
+  portfolio: 'Кейсы',
   price: 'Прайс-лист',
   users: 'Пользователи',
+  online: 'Онлайн',
   settings: 'Настройки',
-  online: 'Онлайн-статус'
+  test: 'Тест'
 } as const
 
 /**
@@ -118,16 +118,17 @@ export const PAGE_LABELS: Record<PageSlug, string> = {
 export const PAGE_ICONS: Record<PageSlug, string> = {
   dashboard: 'mdi:view-dashboard',
   objects: 'mdi:office-building',
-  comings: 'mdi:cash-plus',
-  expenses: 'mdi:cash-minus',
-  materials: 'mdi:package-variant',
+  operations: 'mdi:instant-transfer',
+  materials: 'mdi:receipt-text-outline',
   works: 'mdi:hammer-wrench',
+  'daily-work': 'mdi:calendar-today-outline',
   contractors: 'mdi:account-hard-hat',
   portfolio: 'mdi:briefcase-outline',
   price: 'mdi:format-list-numbered',
   users: 'mdi:account-group',
+  online: 'mdi:circle-double',
   settings: 'mdi:cog',
-  online: 'mdi:circle-double'
+  test: 'mdi:flask-outline'
 } as const
 
 /**
@@ -154,21 +155,22 @@ export const ACTION_DESCRIPTIONS: Record<PageAction, string> = {
 
 /**
  * Какие действия в принципе поддерживаются страницей
- * (используется при seed и в админке — чтобы нельзя было отключить то, чего нет)
+ * (используется при seed и в админке — чтобы можно было отключить то, чего нет)
  */
 export const PAGE_SUPPORTED_ACTIONS: Record<PageSlug, PageAction[]> = {
   dashboard: ['view'],
   objects: ['view', 'create', 'edit', 'delete'],
-  comings: ['view', 'create', 'edit', 'delete'],
-  expenses: ['view', 'create', 'edit', 'delete'],
+  operations: ['view', 'create', 'edit', 'delete'],
   materials: ['view', 'create', 'edit', 'delete', 'special'], // special: toggle-check
   works: ['view', 'create', 'edit', 'delete', 'special'],     // special: accept/reject/pay
+  'daily-work': ['view', 'create', 'edit', 'delete', 'special'], // special: утверждение/оплата
   contractors: ['view', 'create', 'edit', 'delete', 'special'], // special: recalculate-balance
   portfolio: ['view', 'create', 'edit', 'delete'],
   price: ['view', 'create', 'edit', 'delete', 'special'],     // special: reorder
   users: ['view', 'create', 'edit', 'delete'],
+  online: ['view'],
   settings: ['view', 'edit'],
-  online: ['view']
+  test: ['view']
 } as const
 
 // ============================================

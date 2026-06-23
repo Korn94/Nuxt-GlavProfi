@@ -18,30 +18,29 @@
  * 5. 🆕 Принудительное отключение сокетов целевой роли
  *    (копирование = критичное изменение, как и сброс)
  *
+ * Модель прав (без canView):
+ * - Видимость раздела определяется наличием любого действия
+ * - canView упразднён — всегда false при копировании (для совместимости с БД)
+ *
  * Почему принудительное отключение?
  * - Копирование полностью заменяет права целевой роли
- * - Могут отозваться canView на критических страницах
+ * - Могут отозваться действия на критических страницах
  * - Пользователи должны войти заново для получения актуальных прав
  *
  * @body { from: Role, to: Role }
  * @returns { from, to, fromLabel, toLabel, copiedCount, previousCount, invalidatedUsers, disconnectedUsers, message }
  */
-
-import { defineEventHandler, readBody } from 'h3'
+import { defineEventHandler, readBody, createError } from 'h3'
 import { eq, sql, and } from 'drizzle-orm'
-
 import { db } from '../../../db'
 import { users, permissionsRoleAccess } from '../../../db/schema'
-
 import { validateCopyRolePermissions } from '../../../utils/permissions/validators'
 import { invalidatePermissionsCacheByRole, type DbUser } from '../../../utils/permissions'
-
 import {
   hasRequiredRoleLevel,
   ROLE_LABELS,
   type Role
 } from 'shared/constants/roles'
-
 import { getIO } from '../../../socket/common'
 import { forceDisconnectRole } from '../../../socket'
 
@@ -85,7 +84,6 @@ export default defineEventHandler(async (event) => {
   const sourcePermissions = await db
     .select({
       pageSlug: permissionsRoleAccess.pageSlug,
-      canView: permissionsRoleAccess.canView,
       canCreate: permissionsRoleAccess.canCreate,
       canEdit: permissionsRoleAccess.canEdit,
       canDelete: permissionsRoleAccess.canDelete,
@@ -126,11 +124,13 @@ export default defineEventHandler(async (event) => {
       .where(eq(permissionsRoleAccess.role, toRole as any))
 
     // 6.2. Создаём новые права на основе исходных
+    // ⚠️ canView упразднён — всегда false (для совместимости с БД, но не используется)
+    // Видимость определяется наличием любого действия (create/edit/delete/special)
     await tx.insert(permissionsRoleAccess).values(
       sourcePermissions.map(p => ({
         role: toRole,
         pageSlug: p.pageSlug,
-        canView: p.canView,
+        canView: false, // canView упразднён — всегда false
         canCreate: p.canCreate,
         canEdit: p.canEdit,
         canDelete: p.canDelete,
@@ -164,7 +164,7 @@ export default defineEventHandler(async (event) => {
   // 9. 🆕 ПРИНУДИТЕЛЬНОЕ ОТКЛЮЧЕНИЕ ВСЕХ ПОЛЬЗОВАТЕЛЕЙ ЦЕЛЕВОЙ РОЛИ
   // ============================================
   // Копирование полностью заменяет права — это критичное изменение.
-  // Могут отозваться canView на dashboard/objects/works.
+  // Могут отозваться действия на dashboard/objects/works.
   const io = getIO()
   let disconnectedUsers = 0
 
@@ -191,8 +191,3 @@ export default defineEventHandler(async (event) => {
     message: `Скопировано ${copiedCount} прав из роли "${ROLE_LABELS[fromRole as Role]}" в роль "${ROLE_LABELS[toRole as Role]}". Кэш обновлён для ${invalidationResult.invalidated} пользователей, ${disconnectedUsers} отключены.`
   }
 })
-
-// ============================================
-// ЛОКАЛЬНЫЙ ИМПОРТ createError (для совместимости)
-// ============================================
-import { createError } from 'h3'

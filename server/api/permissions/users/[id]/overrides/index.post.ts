@@ -23,6 +23,11 @@
  * - Это позволяет админу изменить только одно поле, не трогая остальные
  * - null = использовать права роли (сброс override для этого поля)
  *
+ * Видимость раздела (новая модель, без canView):
+ * - Раздел автоматически виден в меню, если включено хотя бы одно действие
+ *   (canCreate || canEdit || canDelete || canSpecial)
+ * - canView упразднён — больше нет отдельного флага просмотра
+ *
  * @param {string} id — ID пользователя из пути
  * @body { overrides: UserOverride[] }
  * @returns { userId, userName, roleLabel, created, updated, applied, disconnected, changedPages }
@@ -30,40 +35,34 @@
  * Пример body:
  * {
  *   "overrides": [
- *     { "pageSlug": "comings", "canView": true, "reason": "Временный доступ" },
+ *     { "pageSlug": "operations", "canCreate": true, "reason": "Временный доступ" },
  *     { "pageSlug": "works", "canSpecial": true, "expiresAt": "2026-12-31T00:00:00.000Z" }
  *   ]
  * }
  */
-
 import { defineEventHandler, readBody, getRouterParam } from 'h3'
 import { eq, and, inArray } from 'drizzle-orm'
-
 import { db } from '../../../../../db'
 import {
   users,
   permissionsPages,
-  permissionsUserOverrides
+  permissionsUserOverrides,
+  permissionsRoleAccess
 } from '../../../../../db/schema'
-
 import {
   validateUserOverrides,
   type UserOverrideInput
 } from '../../../../../utils/permissions/validators'
-
 import {
   invalidatePermissionsCache,
   type DbUser
 } from '../../../../../utils/permissions'
-
 import {
   hasRequiredRoleLevel,
   ROLE_LABELS,
   type Role
 } from 'shared/constants/roles'
-
 import { PageSlugSchema } from 'shared/constants/permissions'
-
 import { getIO } from '../../../../../socket/common'
 import { notifyUserPermissionsChanged } from '../../../../../socket/handlers/user'
 import { forceDisconnectUserWithReason } from '../../../../../socket/handlers/user'
@@ -73,11 +72,13 @@ import { forceDisconnectUserWithReason } from '../../../../../socket/handlers/us
 // ============================================
 
 /**
- * Страницы, отзыв canView у которых требует принудительного отключения пользователя.
+ * Страницы, потеря ВСЕХ действий на которых требует принудительного отключения.
  *
- * Если у пользователя override'ом отозвали canView на одну из этих страниц —
- * он больше не сможет работать в системе (не увидит меню, не сможет открыть объекты).
- * В таких случаях безопаснее принудительно разорвать соединение.
+ * Логика новой модели (без canView):
+ * - Раздел виден в меню только если есть хотя бы одно действие
+ * - Если override отозвал ВСЕ действия (create/edit/delete/special) на критической
+ *   странице — пользователь потеряет доступ к системе (меню станет пустым)
+ * - В таких случаях безопаснее принудительно разорвать соединение
  */
 const CRITICAL_PAGES_FOR_DISCONNECT = ['dashboard', 'objects', 'works'] as const
 
@@ -107,7 +108,6 @@ export default defineEventHandler(async (event) => {
       statusMessage: 'ID пользователя не указан в URL'
     })
   }
-
   const targetUserId = parseInt(idParam, 10)
   if (!Number.isFinite(targetUserId) || targetUserId <= 0) {
     throw createError({
@@ -166,7 +166,6 @@ export default defineEventHandler(async (event) => {
   // 6. ПРОВЕРКА СУЩЕСТВОВАНИЯ СТРАНИЦ (через inArray)
   // ============================================
   const pageSlugs = validated.overrides.map(o => o.pageSlug)
-
   const existingPages = await db
     .select({ slug: permissionsPages.slug })
     .from(permissionsPages)
@@ -179,7 +178,6 @@ export default defineEventHandler(async (event) => {
 
   const existingSlugs = new Set(existingPages.map(p => p.slug))
   const invalidSlugs = pageSlugs.filter(slug => !existingSlugs.has(slug))
-
   if (invalidSlugs.length > 0) {
     throw createError({
       statusCode: 400,
@@ -188,12 +186,16 @@ export default defineEventHandler(async (event) => {
   }
 
   // ============================================
-  // 7. ПОЛУЧЕНИЕ ТЕКУЩИХ OVERRIDE'ОВ (для анализа критичности изменений)
+  // 7. ПОЛУЧЕНИЕ ТЕКУЩЕГО СОСТОЯНИЯ ПРАВ (для анализа критичности)
   // ============================================
+  // Получаем текущие override'ы пользователя
   const currentOverrides = await db
     .select({
       pageSlug: permissionsUserOverrides.pageSlug,
-      canView: permissionsUserOverrides.canView
+      canCreate: permissionsUserOverrides.canCreate,
+      canEdit: permissionsUserOverrides.canEdit,
+      canDelete: permissionsUserOverrides.canDelete,
+      canSpecial: permissionsUserOverrides.canSpecial,
     })
     .from(permissionsUserOverrides)
     .where(
@@ -203,8 +205,30 @@ export default defineEventHandler(async (event) => {
         eq(permissionsUserOverrides.isActive, true)
       )
     )
+  const currentOverrideMap = new Map(
+    currentOverrides.map(o => [o.pageSlug, o])
+  )
 
-  const currentMap = new Map(currentOverrides.map(o => [o.pageSlug, o.canView]))
+  // Получаем базовые права роли (чтобы понять итоговое состояние)
+  const roleAccess = await db
+    .select({
+      pageSlug: permissionsRoleAccess.pageSlug,
+      canCreate: permissionsRoleAccess.canCreate,
+      canEdit: permissionsRoleAccess.canEdit,
+      canDelete: permissionsRoleAccess.canDelete,
+      canSpecial: permissionsRoleAccess.canSpecial,
+    })
+    .from(permissionsRoleAccess)
+    .where(
+      and(
+        eq(permissionsRoleAccess.role, targetUser.role as any),
+        inArray(permissionsRoleAccess.pageSlug, pageSlugs),
+        eq(permissionsRoleAccess.isActive, true)
+      )
+    )
+  const roleAccessMap = new Map(
+    roleAccess.map(r => [r.pageSlug, r])
+  )
 
   // ============================================
   // 8. ПРИМЕНЕНИЕ ПЕРЕОПРЕДЕЛЕНИЙ В ТРАНЗАКЦИИ
@@ -237,7 +261,7 @@ export default defineEventHandler(async (event) => {
         // если null — сбрасываем к правам роли, если boolean — устанавливаем
         await tx.update(permissionsUserOverrides)
           .set({
-            canView: override.canView !== undefined ? override.canView : existing.canView,
+            canView: false, // canView упразднён — всегда false в БД
             canCreate: override.canCreate !== undefined ? override.canCreate : existing.canCreate,
             canEdit: override.canEdit !== undefined ? override.canEdit : existing.canEdit,
             canDelete: override.canDelete !== undefined ? override.canDelete : existing.canDelete,
@@ -248,7 +272,6 @@ export default defineEventHandler(async (event) => {
             updatedAt: new Date()
           })
           .where(eq(permissionsUserOverrides.id, existing.id))
-
         updated++
       } else {
         // ============================================
@@ -257,7 +280,7 @@ export default defineEventHandler(async (event) => {
         await tx.insert(permissionsUserOverrides).values({
           userId: targetUserId,
           pageSlug: override.pageSlug,
-          canView: override.canView ?? null,
+          canView: false, // canView упразднён
           canCreate: override.canCreate ?? null,
           canEdit: override.canEdit ?? null,
           canDelete: override.canDelete ?? null,
@@ -267,7 +290,6 @@ export default defineEventHandler(async (event) => {
           createdBy: currentUser.id,
           isActive: true
         })
-
         created++
       }
     }
@@ -285,30 +307,51 @@ export default defineEventHandler(async (event) => {
   invalidatePermissionsCache(targetUserId)
 
   // ============================================
-  // 10. АНАЛИЗ КРИТИЧНОСТИ ИЗМЕНЕНИЙ
+  // 10. АНАЛИЗ КРИТИЧНОСТИ ИЗМЕНЕНИЙ (новая модель, без canView)
   // ============================================
-  // Определяем, были ли отозваны canView у критических страниц через override.
-  // Учитываем, что override может сбрасывать canView к false (или к null = использовать роль).
+  // Для каждой критической страницы определяем:
+  // - Было ли у пользователя хоть какое-то действие (из роли или override'а)
+  // - Стало ли после применения override'а ноль действий
   //
-  // Логика:
-  // - currentCanView = существующий override (или базовое право роли, если override нет)
-  // - newCanView = новый override (или текущий, если не менялся)
-  // - Если было true, стало false/null → критично
+  // Если было >0, стало 0 — критично, нужен disconnect
   const criticalRevocations: string[] = []
 
   for (const pageSlug of CRITICAL_PAGES_FOR_DISCONNECT) {
     if (!pageSlugs.includes(pageSlug)) continue
 
     const newOverride = validated.overrides.find(o => o.pageSlug === pageSlug)
-    if (!newOverride || newOverride.canView === undefined) continue
+    if (!newOverride) continue
 
-    const currentCanView = currentMap.get(pageSlug)
+    // Вычисляем эффективное состояние ДО применения override'а
+    const currentOverride = currentOverrideMap.get(pageSlug)
+    const role = roleAccessMap.get(pageSlug)
 
-    // Если раньше было canView=true (или override отсутствовал и у роли было true),
-    // а теперь override явно ставит false → критично
-    // Примечание: мы не знаем точно базовое право роли здесь, поэтому
-    // реагируем только на явный отзыв canView с true на false в override
-    if (currentCanView === true && newOverride.canView === false) {
+    const beforeCreate = currentOverride?.canCreate ?? role?.canCreate ?? false
+    const beforeEdit = currentOverride?.canEdit ?? role?.canEdit ?? false
+    const beforeDelete = currentOverride?.canDelete ?? role?.canDelete ?? false
+    const beforeSpecial = currentOverride?.canSpecial ?? role?.canSpecial ?? false
+
+    const wasVisible = beforeCreate || beforeEdit || beforeDelete || beforeSpecial
+
+    // Вычисляем эффективное состояние ПОСЛЕ применения
+    // (newOverride имеет приоритет, undefined = не менялось, null = использовать роль)
+    const afterCreate = newOverride.canCreate !== undefined
+      ? (newOverride.canCreate ?? (role?.canCreate ?? false))
+      : beforeCreate
+    const afterEdit = newOverride.canEdit !== undefined
+      ? (newOverride.canEdit ?? (role?.canEdit ?? false))
+      : beforeEdit
+    const afterDelete = newOverride.canDelete !== undefined
+      ? (newOverride.canDelete ?? (role?.canDelete ?? false))
+      : beforeDelete
+    const afterSpecial = newOverride.canSpecial !== undefined
+      ? (newOverride.canSpecial ?? (role?.canSpecial ?? false))
+      : beforeSpecial
+
+    const isVisible = afterCreate || afterEdit || afterDelete || afterSpecial
+
+    // Критично: было видно, стало невидимо
+    if (wasVisible && !isVisible) {
       criticalRevocations.push(pageSlug)
     }
   }

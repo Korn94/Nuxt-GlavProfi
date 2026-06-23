@@ -10,7 +10,7 @@
  * - Middleware проверяет settings.canSpecial
  * - Handler дополнительно проверяет admin
  *
- * Логика:
+ * Логика (упрощённая, без canView):
  * 1. Валидация роли из URL (через validateRoleParam — zod enum из shared)
  * 2. Получение дефолтных прав из ROLE_PERMISSIONS_SEED
  * 3. В транзакции: удаление всех текущих прав + создание дефолтных
@@ -19,30 +19,29 @@
  *    (сброс прав — критичное изменение, пользователи должны войти заново)
  *
  * Почему принудительное отключение?
- * - При сбросе могут отозваться canView на критических страницах (dashboard, objects)
+ * - При сбросе могут отозваться действия на критических страницах (dashboard, objects)
  * - Пользователь не сможет нормально работать со старым кэшем
  * - Безопаснее разорвать соединение с понятной причиной
+ *
+ * Видимость раздела:
+ * - Раздел виден в меню если есть хотя бы одно действие (create/edit/delete/special)
+ * - canView упразднён — отдельного флага просмотра нет
  *
  * @param {string} role — роль из пути (admin, manager, foreman, master, worker)
  * @returns { role, roleLabel, resetCount, previousCount, invalidatedUsers, disconnectedUsers, message }
  */
-
 import { defineEventHandler, getRouterParam } from 'h3'
 import { eq, sql } from 'drizzle-orm'
-
 import { db } from '../../../../db'
 import { users, permissionsRoleAccess } from '../../../../db/schema'
-
 import { validateRoleParam } from '../../../../utils/permissions/validators'
 import { invalidatePermissionsCacheByRole, type DbUser } from '../../../../utils/permissions'
 import { ROLE_PERMISSIONS_SEED } from '../../../../utils/permissions/seed'
-
 import {
   hasRequiredRoleLevel,
   ROLE_LABELS,
   type Role
 } from 'shared/constants/roles'
-
 import { getIO } from '../../../../socket/common'
 import { forceDisconnectRole } from '../../../../socket'
 
@@ -118,14 +117,14 @@ export default defineEventHandler(async (event) => {
       .where(eq(permissionsRoleAccess.role, targetRole))
 
     // 6.2. Создаём дефолтные права из ROLE_PERMISSIONS_SEED
-    // ВАЖНО: используем ?? false вместо || false, чтобы корректно обработать
-    // случай когда в seed явно указано canView: false (не undefined)
+    // ⚠️ canView упразднён — всегда false (для совместимости с БД, но не используется)
+    // Видимость определяется наличием любого действия (create/edit/delete/special)
     const insertValues = defaultPages.map(pageSlug => {
       const perms = defaultPermissions[pageSlug] || {}
       return {
         role: targetRole,
         pageSlug,
-        canView: perms.canView ?? false,
+        canView: false, // canView упразднён — всегда false
         canCreate: perms.canCreate ?? false,
         canEdit: perms.canEdit ?? false,
         canDelete: perms.canDelete ?? false,
@@ -158,7 +157,7 @@ export default defineEventHandler(async (event) => {
   // ============================================
   // 9. 🆕 ПРИНУДИТЕЛЬНОЕ ОТКЛЮЧЕНИЕ ВСЕХ ПОЛЬЗОВАТЕЛЕЙ РОЛИ
   // ============================================
-  // Сброс прав — критичное изменение (могут отозваться canView на dashboard/objects).
+  // Сброс прав — критичное изменение (могут отозваться действия на dashboard/objects).
   // Пользователи должны войти заново, чтобы получить актуальные права.
   const io = getIO()
   let disconnectedUsers = 0

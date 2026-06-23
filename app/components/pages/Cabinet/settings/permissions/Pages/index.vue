@@ -1,5 +1,5 @@
 <!-- app/components/pages/cabinet/settings/permissions/Pages/index.vue -->
- <template>
+<template>
   <div class="pages-view">
     <!-- ============================================
          ПАНЕЛЬ ИНСТРУМЕНТОВ
@@ -13,6 +13,10 @@
         </span>
       </div>
       <div class="toolbar-actions">
+        <div v-if="isSyncing" class="sync-indicator">
+          <Icon name="mdi:sync" size="16" class="spin" />
+          <span>Синхронизация...</span>
+        </div>
         <button class="btn btn-secondary" @click="loadPages" :disabled="loading">
           <Icon name="mdi:refresh" size="16" />
           Обновить
@@ -111,6 +115,7 @@ import {
   deletePermissionsPage,
 } from '~/composables/usePermissionsApi'
 import { useAuthStore } from 'stores/auth'
+import { usePermissionsSocket } from '../composables/usePermissionsSocket'
 
 // ============================================
 // STORE И ПРАВА ДОСТУПА
@@ -124,6 +129,7 @@ const isAdmin = computed(() => authStore.user?.role === 'admin')
 const loading = ref(false)
 const saving = ref(false)
 const deleting = ref(false)
+const isSyncing = ref(false)
 const pages = ref<SystemPage[]>([])
 
 // Модалка создания/редактирования
@@ -160,13 +166,50 @@ const toast = ref<{
 })
 
 // ============================================
+// REAL-TIME СИНХРОНИЗАЦИЯ ЧЕРЕЗ СОКЕТЫ
+// ============================================
+/**
+ * Тихая перезагрузка списка (без сброса состояния модалок)
+ * Используется при получении сокет-событий от других админов
+ */
+async function silentReload() {
+  isSyncing.value = true
+  try {
+    const data = await fetchPermissionsPages()
+    pages.value = data.sort((a, b) => a.order - b.order)
+  } catch (error: any) {
+    console.error('[Pages] Ошибка тихой перезагрузки:', error)
+  } finally {
+    isSyncing.value = false
+  }
+}
+
+usePermissionsSocket({
+  onPageCreated: async (data: any) => {
+    console.log('[Pages] 📥 Новая страница создана другим админом:', data?.page?.name)
+    showToast(`Раздел «${data?.page?.name}» создан ${data?.createdBy?.name || ''}`, 'info')
+    await silentReload()
+  },
+  onPageUpdated: async (data: any) => {
+    console.log('[Pages] 📥 Страница обновлена другим админом:', data?.page?.name)
+    showToast(`Раздел «${data?.page?.name}» обновлён`, 'info')
+    await silentReload()
+  },
+  onPageDeleted: async (data: any) => {
+    console.log('[Pages] 📥 Страница удалена другим админом:', data?.name)
+    const modeText = data?.mode === 'hard' ? 'полностью удалён' : 'скрыт'
+    showToast(`Раздел «${data?.name}» ${modeText}`, 'warning')
+    await silentReload()
+  },
+})
+
+// ============================================
 // ЗАГРУЗКА ДАННЫХ
 // ============================================
 async function loadPages() {
   loading.value = true
   try {
     const data = await fetchPermissionsPages()
-    // Сортируем по order (на всякий случай, сервер тоже сортирует)
     pages.value = data.sort((a, b) => a.order - b.order)
   } catch (error: any) {
     showToast(error.message || 'Не удалось загрузить разделы', 'error')
@@ -212,7 +255,6 @@ async function handleSavePage(data: {
   saving.value = true
   try {
     if (editModal.value.isEdit) {
-      // Обновление существующей страницы
       await updatePermissionsPage(data.slug, {
         name: data.name,
         description: data.description || null,
@@ -225,7 +267,6 @@ async function handleSavePage(data: {
       })
       showToast(`Раздел "${data.name}" обновлён`, 'success')
     } else {
-      // Создание новой страницы
       await createPermissionsPage({
         slug: data.slug,
         name: data.name,
@@ -239,7 +280,6 @@ async function handleSavePage(data: {
       })
       showToast(`Раздел "${data.name}" создан`, 'success')
     }
-
     editModal.value.isOpen = false
     await loadPages()
   } catch (error: any) {
@@ -252,29 +292,22 @@ async function handleSavePage(data: {
 // ============================================
 // ПЕРЕМЕЩЕНИЕ ПОРЯДКА
 // ============================================
-/**
- * Переместить страницу вверх/вниз в списке
- * Меняем местами две соседние страницы и обновляем их order в БД
- */
 async function movePage(page: SystemPage, direction: number) {
   const currentIndex = pages.value.findIndex(p => p.slug === page.slug)
   if (currentIndex === -1) return
-
   const newIndex = currentIndex + direction
   if (newIndex < 0 || newIndex >= pages.value.length) return
 
   const pageA = pages.value[currentIndex]
   const pageB = pages.value[newIndex]
-
   if (!pageA || !pageB) return
 
-  // Оптимистичное обновление UI: меняем местами сразу
+  // Оптимистичное обновление UI
   const updatedList = [...pages.value]
   updatedList[currentIndex] = pageB
   updatedList[newIndex] = pageA
   pages.value = updatedList
 
-  // Обновляем order в БД (параллельно)
   try {
     await Promise.all([
       updatePermissionsPage(pageB.slug, { order: currentIndex }),
@@ -282,13 +315,12 @@ async function movePage(page: SystemPage, direction: number) {
     ])
   } catch (error: any) {
     showToast(error.message || 'Не удалось изменить порядок', 'error')
-    // Откатываем изменения при ошибке
     await loadPages()
   }
 }
 
 // ============================================
-// АКТИВАЦИЯ / ДЕАКТИВАЦИЯ (мягкое удаление)
+// АКТИВАЦИЯ / ДЕАКТИВАЦИЯ
 // ============================================
 async function handleToggleActive(page: SystemPage, newActive: boolean) {
   try {
@@ -304,7 +336,7 @@ async function handleToggleActive(page: SystemPage, newActive: boolean) {
 }
 
 // ============================================
-// УДАЛЕНИЕ (мягкое или жёсткое)
+// УДАЛЕНИЕ
 // ============================================
 function openDeleteConfirm(page: SystemPage, hard: boolean) {
   deleteConfirm.value = {
@@ -317,7 +349,6 @@ function openDeleteConfirm(page: SystemPage, hard: boolean) {
 async function handleConfirmDelete(hard: boolean) {
   const page = deleteConfirm.value.page
   if (!page) return
-
   deleting.value = true
   try {
     const result = await deletePermissionsPage(page.slug, hard)
@@ -390,7 +421,25 @@ span {
 
 .toolbar-actions {
   display: flex;
+  align-items: center;
   gap: 0.5rem;
+}
+
+.sync-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  background: var(--crm-accent-dim);
+  color: var(--crm-accent);
+  border: 1px solid var(--crm-accent-border);
+  border-radius: var(--crm-radius-md);
+  font-size: var(--crm-text-xs);
+  font-weight: 500;
+
+  svg {
+    animation: spin 0.8s linear infinite;
+  }
 }
 
 // ── СОСТОЯНИЯ ─────────────────────────────────────────────
@@ -462,6 +511,7 @@ span {
   background: var(--crm-bg-overlay);
   color: var(--crm-text-primary);
   border-color: var(--crm-border);
+
   &:hover:not(:disabled) {
     background: var(--crm-bg-elevated);
     border-color: var(--crm-border-hover);
@@ -477,6 +527,7 @@ span {
 
   .toolbar-actions {
     justify-content: flex-end;
+    flex-wrap: wrap;
   }
 }
 </style>

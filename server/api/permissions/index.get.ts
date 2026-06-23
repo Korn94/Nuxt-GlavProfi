@@ -10,12 +10,15 @@
  * ⚠️ Публичный эндпоинт (в PUBLIC_PATHS мидлвара) — САМ проверяет токен.
  * Это позволяет клиенту мягко обработать 401 (разлогинить пользователя).
  *
+ * Новая модель прав (без canView):
+ * - Возвращает только видимые страницы (с хотя бы одним действием)
+ * - View-only страницы (dashboard, online, test) возвращаются если canView=true в БД
+ * - Клиент определяет видимость по наличию страницы в ответе
+ *
  * @returns { role, level, pages }
  */
-
 import { defineEventHandler, createError } from 'h3'
 import { eq } from 'drizzle-orm'
-
 import { db } from '../../db'
 import { users } from '../../db/schema'
 import { verifyToken } from '../../utils/jwt'
@@ -27,7 +30,6 @@ export default defineEventHandler(async (event) => {
   // 1. ИЗВЛЕЧЕНИЕ И ВЕРИФИКАЦИЯ ТОКЕНА
   // ============================================
   const token = extractJwt(event)
-
   if (!token) {
     throw createError({
       statusCode: 401,
@@ -69,6 +71,11 @@ export default defineEventHandler(async (event) => {
   // 3. ВОЗВРАТ ПРАВ
   // ============================================
   // getUserPermissionsResponse использует кэш (5 мин TTL)
-  // и возвращает role + level + pages
+  // и возвращает role + level + pages (только видимые страницы)
+  //
+  // ⚠️ Новая модель (без canView):
+  // - В pages только те страницы, которые видны пользователю
+  // - Видимость определяется наличием хотя бы одного действия
+  // - View-only страницы (dashboard, online, test) включаются если canView=true в БД
   return await getUserPermissionsResponse(user)
 })

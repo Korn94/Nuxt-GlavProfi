@@ -7,6 +7,10 @@
  * - Здесь: извлечение user + проверка прав перед выполнением действий
  * - Использует hasUserPermission из server/utils/permissions
  *
+ * Модель прав (без canView):
+ * - Раздел виден в меню если есть хотя бы одно действие (create/edit/delete/special)
+ * - View-only страницы (dashboard, online, test) видимы по факту наличия в правах
+ *
  * Использование в обработчиках:
  *   const user = getUserFromSocket(socket)
  *   await requirePermission(socket, user, 'objects', 'edit')
@@ -16,13 +20,15 @@
  * - canUserJoinBoard() — проверка права на подписку к доске (через объект)
  * - requirePermission() — универсальная проверка page+action
  * - requireSpecial() — проверка special-права (для accept/pay/reorder)
+ *
+ * ⚠️ Функции управления подключениями (forceDisconnectRole/User, notifyUserPermissionsChanged)
+ * находятся в server/socket/index.ts и server/socket/handlers/user.ts — НЕ дублируем здесь.
  */
 
-import type { Socket, Server } from 'socket.io'
+import type { Socket } from 'socket.io'
 import { db } from '../db'
-import { boards, users } from '../db/schema'
+import { boards } from '../db/schema'
 import { eq } from 'drizzle-orm'
-import { createError } from 'h3'
 
 import {
   hasUserPermission,
@@ -73,12 +79,6 @@ export class SocketPermissionError extends Error {
  * и сохранён в socket.user и socket.data.userId.
  *
  * @throws SocketPermissionError если user отсутствует (не должен происходить)
- *
- * @example
- * socket.on('task:create', async (data) => {
- *   const user = getUserFromSocket(socket)
- *   // user.id, user.role, user.name доступны
- * })
  */
 export function getUserFromSocket(socket: Socket): SocketUser {
   const user = (socket as any).user as SocketUser | undefined
@@ -95,8 +95,6 @@ export function getUserFromSocket(socket: Socket): SocketUser {
 /**
  * Безопасное извлечение userId из сокета.
  * Возвращает null если user не аутентифицирован (без бросания ошибки).
- *
- * Используется в случаях, когда нужно просто проверить наличие без ошибки.
  */
 export function getUserIdFromSocket(socket: Socket): number | null {
   const userId = socket.data?.userId
@@ -111,12 +109,9 @@ export function getUserIdFromSocket(socket: Socket): number | null {
  * Проверить право пользователя на действие для страницы.
  * Бросает SocketPermissionError при отсутствии права.
  *
- * @example
- * socket.on('object:create', async (data) => {
- *   const user = getUserFromSocket(socket)
- *   await requirePermission(socket, user, 'objects', 'create')
- *   // ... создание объекта
- * })
+ * Модель прав (без canView):
+ * - view — страница должна быть видима (есть хотя бы одно действие)
+ * - create/edit/delete/special — страница видима + соответствующий флаг
  */
 export async function requirePermission(
   socket: Socket,
@@ -131,7 +126,6 @@ export async function requirePermission(
       `[SocketACL] ❌ Отказано: user=${user.id}, page=${page}, action=${action}`
     )
 
-    // Отправляем ошибку клиенту
     socket.emit('error', {
       code: 'PERMISSION_DENIED',
       message: `Недостаточно прав: ${page}.${action}`,
@@ -149,13 +143,6 @@ export async function requirePermission(
 /**
  * Shortcut для проверки special-права.
  * Используется для бизнес-операций: accept, pay, reorder, recalculate.
- *
- * @example
- * socket.on('work:accept', async ({ workId }) => {
- *   const user = getUserFromSocket(socket)
- *   await requireSpecial(socket, user, 'works')
- *   // ... приёмка работы
- * })
  */
 export async function requireSpecial(
   socket: Socket,
@@ -166,14 +153,10 @@ export async function requireSpecial(
 }
 
 /**
- * Проверить право просмотра страницы (самое слабое требование).
+ * Проверить право просмотра страницы.
  *
- * @example
- * socket.on('works:list', async () => {
- *   const user = getUserFromSocket(socket)
- *   await requireView(socket, user, 'works')
- *   // ... отправка списка работ
- * })
+ * В новой модели (без canView) — страница видима если есть хотя бы одно действие.
+ * hasUserPermission('view') вернёт true если страница есть в правах пользователя.
  */
 export async function requireView(
   socket: Socket,
@@ -191,25 +174,16 @@ export async function requireView(
  * Проверить право пользователя на подписку к доске.
  *
  * Логика:
- * - Если доска имеет тип 'object' — требуется canView('objects')
- * - Если доска имеет тип 'general' — требуется canView('dashboard')
+ * - Если доска имеет тип 'object' — требуется право просмотра 'objects'
+ * - Если доска имеет тип 'general' — требуется право просмотра 'dashboard'
  *
  * Это защищает от подписки на доски объектов, к которым у пользователя нет доступа.
- *
- * @example
- * socket.on('join', async (roomName) => {
- *   const boardId = parseBoardIdFromRoom(roomName)
- *   const user = getUserFromSocket(socket)
- *   await canUserJoinBoard(socket, user, boardId)
- *   await socket.join(roomName)
- * })
  */
 export async function canUserJoinBoard(
   socket: Socket,
   user: SocketUser,
   boardId: number
 ): Promise<void> {
-  // 1. Получаем доску из БД
   const [board] = await db
     .select({
       id: boards.id,
@@ -230,17 +204,8 @@ export async function canUserJoinBoard(
     })
   }
 
-  // 2. Определяем требуемое право на основе типа доски
   const requiredPage: PageSlug = board.type === 'object' ? 'objects' : 'dashboard'
-
-  // 3. Проверяем право просмотра
   await requirePermission(socket, user, requiredPage, 'view')
-
-  // 4. Дополнительно: если доска привязана к объекту, проверяем доступ к объекту
-  // (на будущее: если будет разграничение по конкретным объектам)
-  // if (board.objectId) {
-  //   await canUserAccessObject(socket, user, board.objectId)
-  // }
 }
 
 // ============================================
@@ -249,17 +214,6 @@ export async function canUserJoinBoard(
 
 /**
  * Обернуть обработчик сокет-события с автоматической обработкой ACL-ошибок.
- *
- * Вместо того чтобы писать try/catch в каждом обработчике —
- * используем эту обёртку.
- *
- * @example
- * socket.on('task:create', withAcl(socket, async (data) => {
- *   const user = getUserFromSocket(socket)
- *   await requirePermission(socket, user, 'objects', 'edit')
- *   // ... создание задачи
- *   return { success: true, taskId: 123 }
- * }))
  */
 export function withAcl<TArgs extends any[], TResult>(
   socket: Socket,
@@ -269,7 +223,6 @@ export function withAcl<TArgs extends any[], TResult>(
     try {
       return await handler(...args)
     } catch (error) {
-      // ACL-ошибки уже отправлены клиенту внутри require*() — просто логируем
       if (error instanceof SocketPermissionError) {
         console.warn(
           `[SocketACL] ❌ ${error.message}`,
@@ -278,7 +231,6 @@ export function withAcl<TArgs extends any[], TResult>(
         return undefined
       }
 
-      // Другие ошибки — логируем и отправляем общую ошибку
       console.error('[Socket] ❌ Необработанная ошибка в обработчике:', error)
       socket.emit('error', {
         code: 'INTERNAL_ERROR',
@@ -295,8 +247,6 @@ export function withAcl<TArgs extends any[], TResult>(
 
 /**
  * Извлечь boardId из названия комнаты (формат: "board:123").
- *
- * @returns boardId или null если формат некорректный
  */
 export function parseBoardRoomName(roomName: string): number | null {
   if (!roomName.startsWith('board:')) return null
@@ -313,10 +263,6 @@ export function getBoardRoomName(boardId: number): string {
 
 /**
  * Сформировать имя комнаты для роли (для широковещательных событий).
- *
- * @example
- * // Отправить всем админам:
- * io.to(getRoleRoomName('admin')).emit('system:alert', data)
  */
 export function getRoleRoomName(role: string): string {
   return `role:${role}`
@@ -324,33 +270,15 @@ export function getRoleRoomName(role: string): string {
 
 /**
  * Сформировать имя комнаты для конкретного пользователя.
- *
- * @example
- * // Отправить конкретному пользователю:
- * io.to(getUserRoomName(123)).emit('notification', data)
  */
 export function getUserRoomName(userId: number): string {
   return `user:${userId}`
 }
 
-// ============================================
-// ПРИСОЕДИНЕНИЕ К СТАНДАРТНЫМ КОМНАТАМ
-// ============================================
-
 /**
  * Присоединить сокет к стандартным комнатам при подключении:
  * - user:{userId} — для персональных уведомлений
  * - role:{role} — для широковещательных сообщений по ролям
- *
- * Вызывается в setupUserHandlers после успешной аутентификации.
- *
- * @example
- * // После setupUserHandlers:
- * await joinStandardRooms(socket, user)
- *
- * // Теперь можно:
- * io.to('role:manager').emit('report:ready', data)
- * io.to(`user:${targetId}`).emit('notification', { message: 'Привет!' })
  */
 export async function joinStandardRooms(
   socket: Socket,
@@ -367,7 +295,6 @@ export async function joinStandardRooms(
 
 /**
  * Покинуть стандартные комнаты при отключении.
- * (обычно не требуется — Socket.IO сам чистит при disconnect)
  */
 export async function leaveStandardRooms(
   socket: Socket,

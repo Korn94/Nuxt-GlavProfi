@@ -1,5 +1,5 @@
 <!-- app/components/pages/cabinet/settings/permissions/Users/RemoveOverrideModal.vue -->
- <template>
+<template>
   <Teleport to="body">
     <Transition name="modal">
       <div
@@ -24,6 +24,9 @@
                 <p v-if="user" class="user-context">
                   Для пользователя:
                   <strong>{{ user.name }}</strong>
+                  <span class="user-role-badge" :class="`role-${user.role}`">
+                    {{ roleName }}
+                  </span>
                 </p>
               </div>
             </div>
@@ -38,6 +41,7 @@
 
           <!-- ───────── BODY ───────── -->
           <div class="modal-body">
+            <!-- Предупреждение -->
             <div class="info-block info-block--warning">
               <Icon name="mdi:alert" size="20" />
               <div>
@@ -57,7 +61,7 @@
               </div>
             </div>
 
-            <!-- Текущие переопределяемые права (показываем что теряется) -->
+            <!-- Текущее переопределение (показываем что теряется) -->
             <div v-if="currentOverride" class="info-block info-block--info">
               <Icon name="mdi:information-outline" size="20" />
               <div>
@@ -71,9 +75,50 @@
                     {{ perm.label }}
                   </span>
                 </div>
+
+                <!-- Причина -->
                 <p v-if="currentOverride.reason" class="hint reason-hint">
                   <Icon name="mdi:comment-text-outline" size="12" />
                   {{ currentOverride.reason }}
+                </p>
+
+                <!-- Срок действия -->
+                <p v-if="currentOverride.expiresAt" class="hint expires-hint">
+                  <Icon :name="expirationStatus === 'expiring' ? 'mdi:clock-alert' : 'mdi:clock-outline'" size="12" />
+                  <template v-if="expirationStatus === 'expired'">
+                    Просрочено (истекло {{ formatDate(currentOverride.expiresAt) }})
+                  </template>
+                  <template v-else-if="expirationStatus === 'expiring'">
+                    Истекает скоро ({{ formatDate(currentOverride.expiresAt) }})
+                  </template>
+                  <template v-else>
+                    Действует до {{ formatDate(currentOverride.expiresAt) }}
+                  </template>
+                </p>
+                <p v-else class="hint permanent-hint">
+                  <Icon name="mdi:infinity" size="12" />
+                  Бессрочное переопределение
+                </p>
+
+                <!-- Audit: кто создал -->
+                <p class="hint audit-hint">
+                  <Icon name="mdi:account-clock" size="12" />
+                  Создано {{ formatDate(currentOverride.createdAt) }}
+                  <template v-if="currentOverride.createdBy">
+                    · администратором #{{ currentOverride.createdBy }}
+                  </template>
+                </p>
+              </div>
+            </div>
+
+            <!-- Предупреждение о критическом отзыве -->
+            <div v-if="isCriticalRevocation" class="info-block info-block--danger">
+              <Icon name="mdi:alert-octagon" size="20" />
+              <div>
+                <p>
+                  <strong>Внимание!</strong> Это критический раздел.
+                  После удаления переопределения пользователь может потерять доступ
+                  к системе и будет принудительно отключён.
                 </p>
               </div>
             </div>
@@ -120,6 +165,8 @@ interface UserOverride {
   canSpecial: boolean | null
   reason: string | null
   expiresAt: string | null
+  createdAt: string
+  createdBy: number | null
 }
 
 interface UserWithPermissions {
@@ -135,6 +182,8 @@ interface SystemPage {
   name: string
   icon: string | null
 }
+
+type ExpirationStatus = 'active' | 'expiring' | 'expired' | 'permanent'
 
 // ============================================
 // ПРОПСЫ
@@ -171,56 +220,69 @@ const ROLE_NAMES: Record<string, string> = {
   worker: 'Рабочий',
 }
 
+/**
+ * Страницы, отзыв canView у которых критичен
+ */
+const CRITICAL_PAGES = ['dashboard', 'objects', 'works']
+
 // ============================================
 // COMPUTED
 // ============================================
-
-/**
- * Название роли на русском
- */
 const roleName = computed(() =>
   ROLE_NAMES[props.user?.role || ''] || props.user?.role || ''
 )
 
-/**
- * Объект страницы по slug
- */
 const currentPage = computed(() =>
   props.pages.find(p => p.slug === props.pageSlug) || null
 )
 
-/**
- * Название страницы для отображения
- */
 const pageName = computed(() =>
   currentPage.value?.name || props.pageSlug
 )
 
-/**
- * Иконка страницы (fallback: иконка файла)
- */
 const pageIcon = computed(() =>
   currentPage.value?.icon || 'mdi:file-outline'
 )
 
-/**
- * Текущее переопределение пользователя для этой страницы
- * (для отображения что именно удаляется)
- */
 const currentOverride = computed(() =>
   props.user?.overrides.find(o => o.pageSlug === props.pageSlug) || null
 )
 
 /**
+ * Определяет, является ли удаление критическим
+ * (отзыв canView у критической страницы, где override давал true)
+ */
+const isCriticalRevocation = computed(() => {
+  if (!CRITICAL_PAGES.includes(props.pageSlug)) return false
+  if (!currentOverride.value) return false
+  return currentOverride.value.canView === true
+})
+
+/**
+ * Статус срока действия переопределения
+ */
+const expirationStatus = computed<ExpirationStatus>(() => {
+  const override = currentOverride.value
+  if (!override) return 'permanent'
+  if (!override.expiresAt) return 'permanent'
+
+  const now = Date.now()
+  const expires = new Date(override.expiresAt).getTime()
+  const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000
+
+  if (expires <= now) return 'expired'
+  if (expires - now <= TWENTY_FOUR_HOURS) return 'expiring'
+  return 'active'
+})
+
+/**
  * Список тегов переопределённых прав (только те, что не null)
- * Новая система: canView, canCreate, canEdit, canDelete, canSpecial
  */
 const overridePermissionsList = computed(() => {
   const override = currentOverride.value
   if (!override) return []
 
   const result: Array<{ key: string; label: string; value: boolean | null }> = []
-
   if (override.canView !== null) {
     result.push({ key: 'canView', label: 'Просмотр', value: override.canView })
   }
@@ -236,9 +298,25 @@ const overridePermissionsList = computed(() => {
   if (override.canSpecial !== null) {
     result.push({ key: 'canSpecial', label: 'Спец.', value: override.canSpecial })
   }
-
   return result
 })
+
+// ============================================
+// МЕТОДЫ
+// ============================================
+/**
+ * Форматирование даты для отображения
+ */
+function formatDate(dateStr: string): string {
+  const date = new Date(dateStr)
+  return date.toLocaleDateString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
 </script>
 
 <style lang="scss" scoped>
@@ -296,14 +374,33 @@ const overridePermissionsList = computed(() => {
 
   .user-context {
     margin: 0.375rem 0 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     font-size: var(--crm-text-sm);
     color: var(--crm-text-secondary);
+    flex-wrap: wrap;
 
     strong {
       color: var(--crm-text-primary);
       font-weight: 600;
     }
   }
+}
+
+.user-role-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  border-radius: 10px;
+  font-size: var(--crm-text-xs);
+  font-weight: 500;
+
+  &.role-admin { background: var(--crm-danger-dim); color: var(--crm-danger); }
+  &.role-manager { background: var(--crm-warning-dim); color: var(--crm-warning); }
+  &.role-foreman { background: var(--crm-success-dim); color: var(--crm-success); }
+  &.role-master { background: var(--crm-accent-dim); color: var(--crm-accent); }
+  &.role-worker { background: var(--crm-bg-overlay); color: var(--crm-text-secondary); }
 }
 
 .btn-close {
@@ -377,21 +474,36 @@ const overridePermissionsList = computed(() => {
     }
 
     &.hint {
-      margin-top: 0.375rem;
+      margin-top: 0.5rem;
       font-size: var(--crm-text-xs);
       color: var(--crm-text-secondary);
-    }
-
-    &.reason-hint {
       display: flex;
       align-items: center;
       gap: 0.375rem;
-      margin-top: 0.5rem;
-      font-style: italic;
 
       svg {
         flex-shrink: 0;
       }
+    }
+
+    &.reason-hint {
+      font-style: italic;
+    }
+
+    &.expires-hint {
+      color: var(--crm-info);
+    }
+
+    &.permanent-hint {
+      color: var(--crm-text-muted);
+    }
+
+    &.audit-hint {
+      margin-top: 0.625rem;
+      padding-top: 0.5rem;
+      border-top: 1px dashed var(--crm-border);
+      color: var(--crm-text-muted);
+      font-size: var(--crm-text-xs);
     }
 
     &.info-title {
@@ -446,12 +558,22 @@ const overridePermissionsList = computed(() => {
       color: var(--crm-info);
     }
   }
+
+  &--danger {
+    background: var(--crm-danger-dim);
+    border-color: rgba(242, 95, 92, 0.3);
+
+    > svg {
+      color: var(--crm-danger);
+    }
+  }
 }
 
 .permissions-preview {
   display: flex;
   flex-wrap: wrap;
   gap: 0.375rem;
+  margin-top: 0.375rem;
 }
 
 .perm-tag {

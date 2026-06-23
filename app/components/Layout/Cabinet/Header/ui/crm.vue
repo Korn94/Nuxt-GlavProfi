@@ -2,7 +2,6 @@
 <template>
   <ul class="nav-list">
     <template v-for="item in filteredMenu" :key="item.id">
-
       <!-- 🔘 Скелетон загрузки (пока права не проверены) -->
       <li v-if="item.skeleton" class="nav-item nav-item--skeleton">
         <span class="nav-link__icon nav-link__icon--skeleton">
@@ -12,10 +11,8 @@
           <span class="skeleton-text" />
         </span>
       </li>
-
       <!-- ➖ Разделитель -->
       <li v-else-if="item.divider" class="nav-divider" />
-
       <!-- ✅ Обычный пункт меню -->
       <li v-else class="nav-item">
         <NuxtLink :to="item.path" class="nav-link" @click="handleClick">
@@ -25,7 +22,6 @@
           <span class="nav-link__label">{{ item.title }}</span>
         </NuxtLink>
       </li>
-
     </template>
 
     <!-- Переключатель темы -->
@@ -54,7 +50,6 @@ const { can, hasRole, isReady } = usePermissions()
 
 // Флаг завершения гидратации
 const isHydrated = ref(false)
-
 const isDark = computed(() => themeStore.isDark)
 
 function toggleTheme() {
@@ -64,6 +59,7 @@ function toggleTheme() {
 // ============================================
 // ТИПИЗАЦИЯ ПУНКТА МЕНЮ (новая система)
 // ============================================
+
 interface MenuItem {
   id: string
   title?: string
@@ -81,6 +77,7 @@ interface MenuItem {
 // ============================================
 // СКЕЛЕТОН (статичный для гидратации)
 // ============================================
+
 function getSkeletonMenu(): MenuItem[] {
   return [
     { id: 'sk-1', skeleton: true },
@@ -95,10 +92,27 @@ function getSkeletonMenu(): MenuItem[] {
 }
 
 // ============================================
-// КОНФИГУРАЦИЯ МЕНЮ (новая система прав)
+// КОНФИГУРАЦИЯ МЕНЮ (соответствует реальным страницам)
 // ============================================
+// Реальные разделы меню:
+// - Главная (dashboard)
+// - Сотрудники (contractors)
+// - Подневка (daily-work)
+// - Объекты (objects)
+// - Чеки (materials)
+// - Операции (operations) — объединены приходы + расходы
+// - Онлайн (online) — мониторинг, отдельный от users
+// - Тест (test) — только admin
+// - На сайт — публичный, всегда показываем
+// - Кейсы (portfolio)
+// - Настройки (settings)
+//
+// Прайс-лист (price) — в меню НЕ показывается, управляется
+// непосредственно на публичной странице сайта
+// ============================================
+
 const menuItems: MenuItem[] = [
-  // Главная — dashboard.canView
+  // Главная — dashboard (view-only страница, всегда видима если есть в правах)
   {
     id: 'dashboard',
     title: 'Главная',
@@ -107,7 +121,7 @@ const menuItems: MenuItem[] = [
     page: 'dashboard'
   },
 
-  // Сотрудники — contractors.canView
+  // Сотрудники — contractors
   {
     id: 'contractors',
     title: 'Сотрудники',
@@ -116,16 +130,16 @@ const menuItems: MenuItem[] = [
     page: 'contractors'
   },
 
-  // Подневка — только для foreman и admin, при условии что видят works (Вариант A)
+  // Подневка — daily-work (самостоятельная страница)
   {
     id: 'daily-work',
     title: 'Подневка',
     path: '/cabinet/daily-work',
     icon: 'mdi:calendar-today-outline',
-    check: () => can('works', 'view') && (hasRole('foreman') || hasRole('admin'))
+    page: 'daily-work'
   },
 
-  // Объекты — objects.canView
+  // Объекты — objects
   {
     id: 'objects',
     title: 'Объекты',
@@ -134,7 +148,7 @@ const menuItems: MenuItem[] = [
     page: 'objects'
   },
 
-  // Чеки (материалы) — materials.canView
+  // Чеки — materials (раздел "Чеки" в меню, slug materials)
   {
     id: 'materials',
     title: 'Чеки',
@@ -143,33 +157,33 @@ const menuItems: MenuItem[] = [
     page: 'materials'
   },
 
-  // Операции (comings + expenses) — показываем если есть доступ к любому из разделов
+  // Операции — operations (объединены приходы и расходы)
   {
     id: 'operations',
     title: 'Операции',
-    path: '/cabinet/operation',
+    path: '/cabinet/operations',
     icon: 'mdi:instant-transfer',
-    check: () => can('comings', 'view') || can('expenses', 'view')
+    page: 'operations'
   },
 
   { id: 'div-1', divider: true },
 
-  // Онлайн — users.canView (показывает список пользователей)
+  // Онлайн — online (мониторинг, отдельная страница)
   {
     id: 'online',
     title: 'Онлайн',
     path: '/cabinet/online',
     icon: 'mdi:account-multiple-check-outline',
-    page: 'users'
+    page: 'online'
   },
 
-  // Тестовая страница — только для админов
+  // Тест — test (только admin)
   {
     id: 'test',
     title: 'Тест',
     path: '/cabinet/testpage',
     icon: 'mdi:flask-outline',
-    page: 'dashboard',
+    page: 'test',
     roleCheck: 'admin'
   },
 
@@ -184,31 +198,40 @@ const menuItems: MenuItem[] = [
     alwaysShow: true
   },
 
-  // Кейсы (портфолио) — portfolio.canView
+  // Кейсы — portfolio
   {
     id: 'portfolio',
     title: 'Кейсы',
     path: '/cabinet/portfolio',
-    icon: 'mdi:plus-circle-outline',
+    icon: 'mdi:briefcase-outline',
     page: 'portfolio'
   },
 
   { id: 'div-3', divider: true },
 
-  // Настройки прав — settings.canView + settings.canEdit
+  // Настройки — settings (требуется canEdit)
   {
     id: 'permissions',
     title: 'Настройки',
     path: '/cabinet/settings/permissions',
-    icon: 'mdi:settings',
+    icon: 'mdi:cog',
     page: 'settings',
     action: 'edit'
   },
 ]
 
 // ============================================
-// ЛОГИКА ФИЛЬТРАЦИИ (новая система)
+// ЛОГИКА ФИЛЬТРАЦИИ
 // ============================================
+//
+// Видимость определяется через usePermissions.can():
+// - Для view-only страниц (dashboard, online, test) — can(page, 'view') = true
+//   если страница есть в authStore.pages
+// - Для CRUD страниц — раздел виден если есть хотя бы одно действие
+//   (canCreate || canEdit || canDelete || canSpecial)
+// - canView упразднён — видимость = наличие любого права
+// ============================================
+
 const filteredMenu = computed(() => {
   // Пока идёт гидратация или проверка прав — статичный скелетон
   if (!isHydrated.value || !isReady.value) {

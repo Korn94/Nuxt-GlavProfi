@@ -19,40 +19,41 @@
  * - Базовые права берутся из permissions_role_access по роли пользователя
  * - Переопределения (overrides) применяются поверх базовых (null = не менять)
  * - В ответ добавляются label/color роли — UI не нужно их знать заранее
- *
- * ⚠️ Известное ограничение:
- * - `withOverrides=true` фильтрует после выборки из БД, поэтому на странице
- *   может оказаться меньше `limit` пользователей (total при этом точное)
- * - Для точной пагинации с фильтром нужно вычислять COUNT с JOIN — TODO
+ * - canView упразднён — видимость определяется наличием любого действия
  *
  * @returns { users, pagination }
  */
-
 import { defineEventHandler, getQuery } from 'h3'
 import { eq, and, like, or, isNull, gt, sql, inArray } from 'drizzle-orm'
-
 import { db } from '../../../db'
 import {
   users,
   permissionsRoleAccess,
   permissionsUserOverrides
 } from '../../../db/schema'
-
 import { validateUsersQuery } from '../../../utils/permissions/validators'
 import type { DbUser } from '../../../utils/permissions'
-
 import {
   ROLE_LABELS,
   ROLE_COLORS,
-  ROLE_LEVELS,
   type Role
 } from 'shared/constants/roles'
-
 import type { PagePermissions } from 'shared/types/permissions'
 
 // ============================================
 // ТИП ОТВЕТА
 // ============================================
+
+interface UserOverride {
+  id: number
+  pageSlug: string
+  canCreate: boolean | null
+  canEdit: boolean | null
+  canDelete: boolean | null
+  canSpecial: boolean | null
+  reason: string | null
+  expiresAt: string | null
+}
 
 interface UserWithPermissions {
   id: number
@@ -65,17 +66,7 @@ interface UserWithPermissions {
   contractorId: number | null
   createdAt: Date | string | null
   basePermissions: Record<string, PagePermissions>
-  overrides: Array<{
-    id: number
-    pageSlug: string
-    canView: boolean | null
-    canCreate: boolean | null
-    canEdit: boolean | null
-    canDelete: boolean | null
-    canSpecial: boolean | null
-    reason: string | null
-    expiresAt: string | null
-  }>
+  overrides: UserOverride[]
   effectivePermissions: Record<string, PagePermissions>
 }
 
@@ -87,10 +78,8 @@ export default defineEventHandler(async (event) => {
   // ============================================
   // 1. ПРОВЕРКА ТЕКУЩЕГО ПОЛЬЗОВАТЕЛЯ
   // ============================================
-  // Middleware уже проверил права (settings.canView), но проверяем наличие user
   const currentUser = event.context.user as DbUser | undefined
   if (!currentUser) {
-    // Не бросаем 401 — это не ошибка авторизации, а баг middleware
     console.error('[Permissions/Users] ⚠️ event.context.user отсутствует')
   }
 
@@ -173,14 +162,12 @@ export default defineEventHandler(async (event) => {
   // ============================================
   // 6. ПОЛУЧЕНИЕ ПРАВ РОЛЕЙ (один запрос на все роли страницы)
   // ============================================
-  // Используем inArray вместо ручной сборки SQL — безопаснее и чище
   const uniqueRoles = [...new Set(usersList.map(u => u.role))]
 
   const allRoleAccess = await db
     .select({
       role: permissionsRoleAccess.role,
       pageSlug: permissionsRoleAccess.pageSlug,
-      canView: permissionsRoleAccess.canView,
       canCreate: permissionsRoleAccess.canCreate,
       canEdit: permissionsRoleAccess.canEdit,
       canDelete: permissionsRoleAccess.canDelete,
@@ -201,7 +188,6 @@ export default defineEventHandler(async (event) => {
       rolePermissionsMap.set(access.role, {})
     }
     rolePermissionsMap.get(access.role)![access.pageSlug] = {
-      canView: access.canView,
       canCreate: access.canCreate,
       canEdit: access.canEdit,
       canDelete: access.canDelete,
@@ -217,7 +203,6 @@ export default defineEventHandler(async (event) => {
       id: permissionsUserOverrides.id,
       userId: permissionsUserOverrides.userId,
       pageSlug: permissionsUserOverrides.pageSlug,
-      canView: permissionsUserOverrides.canView,
       canCreate: permissionsUserOverrides.canCreate,
       canEdit: permissionsUserOverrides.canEdit,
       canDelete: permissionsUserOverrides.canDelete,
@@ -254,7 +239,6 @@ export default defineEventHandler(async (event) => {
     const overrides = userOverridesMap.get(user.id) || []
 
     // Формируем effectivePermissions (база + переопределения)
-    // Делаем глубокую копию, чтобы не мутировать исходный объект
     const effectivePermissions: Record<string, PagePermissions> = {}
     for (const [pageSlug, perms] of Object.entries(basePermissions)) {
       effectivePermissions[pageSlug] = { ...perms }
@@ -265,7 +249,6 @@ export default defineEventHandler(async (event) => {
       // Создаём запись для страницы, если её нет в базовых правах
       if (!effectivePermissions[override.pageSlug]) {
         effectivePermissions[override.pageSlug] = {
-          canView: false,
           canCreate: false,
           canEdit: false,
           canDelete: false,
@@ -273,10 +256,7 @@ export default defineEventHandler(async (event) => {
         }
       }
 
-      // ✅ Non-null assertion: мы только что гарантированно создали объект выше
       const target = effectivePermissions[override.pageSlug]!
-
-      if (override.canView !== null) target.canView = override.canView
       if (override.canCreate !== null) target.canCreate = override.canCreate
       if (override.canEdit !== null) target.canEdit = override.canEdit
       if (override.canDelete !== null) target.canDelete = override.canDelete

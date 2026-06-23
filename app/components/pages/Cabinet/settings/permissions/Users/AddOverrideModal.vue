@@ -1,5 +1,5 @@
 <!-- app/components/pages/cabinet/settings/permissions/Users/AddOverrideModal.vue -->
- <template>
+<template>
   <Teleport to="body">
     <Transition name="modal">
       <div
@@ -38,6 +38,15 @@
 
           <!-- ───────── BODY ───────── -->
           <div class="modal-body">
+            <!-- Информация -->
+            <div class="info-block info-block--info">
+              <Icon name="mdi:information-outline" size="18" />
+              <span>
+                Переопределение позволяет дать пользователю права, отличные от базовых прав его роли.
+                Раздел автоматически появится в меню, если включено хотя бы одно действие.
+              </span>
+            </div>
+
             <!-- Выбор страницы -->
             <div class="form-group">
               <label class="form-label">
@@ -46,33 +55,69 @@
               </label>
               <div class="pages-select">
                 <button
-                  v-for="page in pages"
+                  v-for="page in availablePages"
                   :key="page.slug"
-                  :class="['page-option', { selected: localForm.pageSlug === page.slug }]"
+                  :class="['page-option', {
+                    selected: localForm.pageSlug === page.slug,
+                    'page-option--has-override': hasExistingOverride(page.slug)
+                  }]"
                   @click="selectPage(page.slug)"
                   :disabled="saving"
                 >
                   <Icon :name="page.icon || 'mdi:file-outline'" size="16" />
-                  {{ page.name }}
+                  <span class="page-option-name">{{ page.name }}</span>
+                  <Icon
+                    v-if="hasExistingOverride(page.slug)"
+                    name="mdi:pencil-circle"
+                    size="14"
+                    class="override-indicator"
+                    title="Уже есть переопределение"
+                  />
                 </button>
               </div>
+              <p v-if="hasExistingOverride(localForm.pageSlug)" class="form-hint form-hint--warning">
+                <Icon name="mdi:alert" size="12" />
+                Для этого раздела уже есть переопределение — оно будет обновлено
+              </p>
             </div>
 
-            <!-- Права для выбранной страницы (через shared компонент) -->
+            <!-- Права для выбранной страницы -->
             <div v-if="selectedPage" class="form-group">
               <label class="form-label">
                 Переопределяемые права
                 <span class="required">*</span>
               </label>
+
+              <!-- Контекст: базовые права роли -->
+              <div class="base-permissions-info">
+                <Icon name="mdi:information-outline" size="14" />
+                <span>
+                  Базовые права роли <strong>«{{ roleName }}»</strong>:
+                </span>
+                <div class="base-perms-tags">
+                  <span
+                    v-for="perm in basePermissionsList"
+                    :key="perm.key"
+                    :class="['base-perm-tag', { active: perm.value }]"
+                  >
+                    {{ perm.label }}
+                  </span>
+                  <span v-if="basePermissionsList.length === 0" class="base-perm-tag empty">
+                    нет прав
+                  </span>
+                </div>
+              </div>
+
               <PagesCabinetSettingsPermissionsSharedPermCheckboxes
                 :model-value="permissionsValue"
                 :page="selectedPage"
                 :disabled="saving"
                 @update:model-value="handlePermissionsUpdate"
               />
-              <p v-if="!localForm.canView" class="form-hint form-hint--info">
+
+              <p v-if="!hasAnyAction" class="form-hint form-hint--info">
                 <Icon name="mdi:information-outline" size="14" />
-                Включите просмотр, чтобы активировать остальные права
+                Включите хотя бы одно действие, чтобы раздел появился в меню пользователя
               </p>
             </div>
 
@@ -84,26 +129,66 @@
                 placeholder="Например: Временный доступ на время ремонта"
                 rows="2"
                 :disabled="saving"
+                maxlength="500"
               ></textarea>
-              <p class="form-hint">
-                <Icon name="mdi:information-outline" size="12" />
-                Будет видна администраторам в списке переопределений
-              </p>
+              <div class="form-hint-row">
+                <p class="form-hint">
+                  <Icon name="mdi:information-outline" size="12" />
+                  Будет видна администраторам в списке переопределений
+                </p>
+                <span v-if="localForm.reason" class="char-counter">
+                  {{ localForm.reason.length }}/500
+                </span>
+              </div>
             </div>
 
             <!-- Срок действия -->
             <div class="form-group">
               <label class="form-label">Срок действия (необязательно)</label>
-              <input
-                type="datetime-local"
-                v-model="localForm.expiresAt"
-                :min="minExpiresAt"
-                :disabled="saving"
-              />
+              <div class="expires-input-wrapper">
+                <input
+                  type="datetime-local"
+                  v-model="localForm.expiresAt"
+                  :min="minExpiresAt"
+                  :disabled="saving"
+                />
+                <button
+                  v-if="localForm.expiresAt"
+                  class="clear-expires-btn"
+                  @click="localForm.expiresAt = ''"
+                  :disabled="saving"
+                  title="Сделать бессрочным"
+                >
+                  <Icon name="mdi:close-circle" size="18" />
+                </button>
+              </div>
+              <div class="expires-presets">
+                <button
+                  v-for="preset in expiresPresets"
+                  :key="preset.label"
+                  class="preset-btn"
+                  :class="{ active: isPresetActive(preset.hours) }"
+                  @click="setExpiresPreset(preset.hours)"
+                  :disabled="saving"
+                >
+                  {{ preset.label }}
+                </button>
+              </div>
               <p class="form-hint">
                 <Icon name="mdi:information-outline" size="12" />
-                Оставьте пустым для бессрочного переопределения
+                {{ localForm.expiresAt ? `Истекает: ${formatExpiresPreview(localForm.expiresAt)}` : 'Бессрочное переопределение' }}
               </p>
+            </div>
+
+            <!-- Предупреждение о критичных изменениях -->
+            <div v-if="isCriticalChange" class="info-block info-block--danger">
+              <Icon name="mdi:alert-octagon" size="20" />
+              <div>
+                <p>
+                  <strong>Внимание!</strong> Вы отключаете доступ к критическому разделу.
+                  Пользователь будет принудительно отключён от системы.
+                </p>
+              </div>
             </div>
           </div>
 
@@ -138,16 +223,18 @@ import { ref, computed, watch } from 'vue'
 // ============================================
 // ТИПЫ
 // ============================================
+
 interface UserOverride {
   id: number
   pageSlug: string
-  canView: boolean | null
   canCreate: boolean | null
   canEdit: boolean | null
   canDelete: boolean | null
   canSpecial: boolean | null
   reason: string | null
   expiresAt: string | null
+  createdAt: string
+  createdBy: number | null
 }
 
 interface UserWithPermissions {
@@ -157,7 +244,10 @@ interface UserWithPermissions {
   role: string
   contractorType: string | null
   contractorId: number | null
+  createdAt: string
+  basePermissions: Record<string, PagePermissions>
   overrides: UserOverride[]
+  effectivePermissions: Record<string, PagePermissions>
 }
 
 interface SystemPage {
@@ -171,7 +261,6 @@ interface SystemPage {
 }
 
 interface PagePermissions {
-  canView: boolean
   canCreate: boolean
   canEdit: boolean
   canDelete: boolean
@@ -180,7 +269,6 @@ interface PagePermissions {
 
 interface OverrideFormData {
   pageSlug: string
-  canView: boolean
   canCreate: boolean
   canEdit: boolean
   canDelete: boolean
@@ -192,20 +280,18 @@ interface OverrideFormData {
 // ============================================
 // ПРОПСЫ
 // ============================================
+
 const props = defineProps<{
-  /** Флаг видимости модалки (v-model:isOpen) */
   isOpen: boolean
-  /** Пользователь для которого создаём переопределение */
   user: UserWithPermissions | null
-  /** Список всех страниц системы */
   pages: SystemPage[]
-  /** Флаг процесса сохранения */
   saving?: boolean
 }>()
 
 // ============================================
 // ЭМИТТЫ
 // ============================================
+
 const emit = defineEmits<{
   'update:isOpen': [value: boolean]
   'save': [data: OverrideFormData]
@@ -214,6 +300,7 @@ const emit = defineEmits<{
 // ============================================
 // СЛОВАРЬ РОЛЕЙ
 // ============================================
+
 const ROLE_NAMES: Record<string, string> = {
   admin: 'Администратор',
   manager: 'Менеджер',
@@ -223,11 +310,22 @@ const ROLE_NAMES: Record<string, string> = {
 }
 
 // ============================================
+// ПРЕСЕТЫ СРОКОВ ДЕЙСТВИЯ
+// ============================================
+
+const expiresPresets = [
+  { label: '1 час', hours: 1 },
+  { label: '24 часа', hours: 24 },
+  { label: '7 дней', hours: 24 * 7 },
+  { label: '30 дней', hours: 24 * 30 },
+]
+
+// ============================================
 // ЛОКАЛЬНОЕ СОСТОЯНИЕ ФОРМЫ
 // ============================================
+
 const localForm = ref<OverrideFormData>({
   pageSlug: '',
-  canView: false,
   canCreate: false,
   canEdit: false,
   canDelete: false,
@@ -239,22 +337,18 @@ const localForm = ref<OverrideFormData>({
 // ============================================
 // COMPUTED
 // ============================================
+
 const roleName = computed(() =>
   ROLE_NAMES[props.user?.role || ''] || props.user?.role || ''
 )
 
-/**
- * Текущая выбранная страница
- */
 const selectedPage = computed(() =>
   props.pages.find(p => p.slug === localForm.value.pageSlug) || null
 )
 
-/**
- * Значение прав для передачи в PermCheckboxes
- */
+const availablePages = computed(() => props.pages)
+
 const permissionsValue = computed<PagePermissions>(() => ({
-  canView: localForm.value.canView,
   canCreate: localForm.value.canCreate,
   canEdit: localForm.value.canEdit,
   canDelete: localForm.value.canDelete,
@@ -262,39 +356,75 @@ const permissionsValue = computed<PagePermissions>(() => ({
 }))
 
 /**
- * Минимальное допустимое время для expiresAt (текущий момент)
- * Формат: YYYY-MM-DDTHH:MM (для input[type="datetime-local"])
+ * Есть ли хотя бы одно действие включено
  */
-const minExpiresAt = computed(() => {
-  const now = new Date()
-  // Корректируем под локальный часовой пояс
-  now.setMinutes(now.getMinutes() - now.getTimezoneOffset())
-  return now.toISOString().slice(0, 16)
+const hasAnyAction = computed(() => {
+  return (
+    localForm.value.canCreate ||
+    localForm.value.canEdit ||
+    localForm.value.canDelete ||
+    localForm.value.canSpecial
+  )
 })
 
 /**
- * Валидация формы
- * Обязательные условия: выбрана страница + включён canView
+ * Список базовых прав роли для выбранной страницы (для контекста)
+ */
+const basePermissionsList = computed(() => {
+  if (!props.user || !localForm.value.pageSlug) return []
+  const base = props.user.basePermissions[localForm.value.pageSlug]
+  if (!base) return []
+  const result: Array<{ key: string; label: string; value: boolean }> = []
+  if (base.canCreate) result.push({ key: 'canCreate', label: '➕ Создание', value: true })
+  if (base.canEdit) result.push({ key: 'canEdit', label: '✏ Ред.', value: true })
+  if (base.canDelete) result.push({ key: 'canDelete', label: '🗑 Удал.', value: true })
+  if (base.canSpecial) result.push({ key: 'canSpecial', label: '⚡ Спец.', value: true })
+  return result
+})
+
+const minExpiresAt = computed(() => {
+  const now = new Date()
+  now.setMinutes(now.getMinutes() + 1 - now.getTimezoneOffset())
+  return now.toISOString().slice(0, 16)
+})
+
+const CRITICAL_PAGES = ['dashboard', 'objects', 'works']
+
+/**
+ * Является ли текущее изменение критичным
+ * (отключение всех действий у критической страницы, где у роли были права)
+ */
+const isCriticalChange = computed(() => {
+  if (!props.user || !localForm.value.pageSlug) return false
+  if (!CRITICAL_PAGES.includes(localForm.value.pageSlug)) return false
+  if (hasAnyAction.value) return false // есть хотя бы одно действие — не критично
+
+  const base = props.user.basePermissions[localForm.value.pageSlug]
+  if (!base) return false
+  // Критично если у роли были какие-то действия, а мы все отключаем
+  return base.canCreate || base.canEdit || base.canDelete || base.canSpecial
+})
+
+/**
+ * Валидация формы: страница выбрана + хотя бы одно действие включено
  */
 const isFormValid = computed(() => {
   const f = localForm.value
   if (!f.pageSlug) return false
-  if (!f.canView) return false
+  if (!hasAnyAction.value) return false
   return true
 })
 
 // ============================================
 // СИНХРОНИЗАЦИЯ: СБРОС ФОРМЫ ПРИ ОТКРЫТИИ
 // ============================================
+
 watch(
   () => props.isOpen,
   (isOpen) => {
     if (!isOpen) return
-
-    // Сбрасываем форму, выбираем первую страницу по умолчанию
     localForm.value = {
       pageSlug: props.pages[0]?.slug || '',
-      canView: false,
       canCreate: false,
       canEdit: false,
       canDelete: false,
@@ -307,37 +437,69 @@ watch(
 )
 
 // ============================================
-// ОБРАБОТЧИКИ
+// МЕТОДЫ
 // ============================================
 
-/**
- * Выбор страницы
- * При смене страницы — сбрасываем все права
- */
+function hasExistingOverride(pageSlug: string): boolean {
+  return props.user?.overrides.some(o => o.pageSlug === pageSlug) || false
+}
+
 function selectPage(slug: string) {
   localForm.value.pageSlug = slug
-  localForm.value.canView = false
   localForm.value.canCreate = false
   localForm.value.canEdit = false
   localForm.value.canDelete = false
   localForm.value.canSpecial = false
+
+  // Если есть существующий override — предзаполняем
+  const existing = props.user?.overrides.find(o => o.pageSlug === slug)
+  if (existing) {
+    localForm.value.canCreate = existing.canCreate ?? false
+    localForm.value.canEdit = existing.canEdit ?? false
+    localForm.value.canDelete = existing.canDelete ?? false
+    localForm.value.canSpecial = existing.canSpecial ?? false
+    localForm.value.reason = existing.reason || ''
+    if (existing.expiresAt) {
+      const d = new Date(existing.expiresAt)
+      d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
+      localForm.value.expiresAt = d.toISOString().slice(0, 16)
+    }
+  }
 }
 
-/**
- * Обновление прав из PermCheckboxes
- * Именованная функция для избежания ошибки TS7006 (неявный any)
- */
 function handlePermissionsUpdate(perms: PagePermissions) {
-  localForm.value.canView = perms.canView
   localForm.value.canCreate = perms.canCreate
   localForm.value.canEdit = perms.canEdit
   localForm.value.canDelete = perms.canDelete
   localForm.value.canSpecial = perms.canSpecial
 }
 
-/**
- * Сохранение переопределения — эмитим данные в родителя
- */
+function setExpiresPreset(hours: number) {
+  const date = new Date()
+  date.setHours(date.getHours() + hours)
+  date.setMinutes(date.getMinutes() - date.getTimezoneOffset())
+  localForm.value.expiresAt = date.toISOString().slice(0, 16)
+}
+
+function isPresetActive(hours: number): boolean {
+  if (!localForm.value.expiresAt) return false
+  const selected = new Date(localForm.value.expiresAt).getTime()
+  const now = Date.now()
+  const diffHours = (selected - now) / (1000 * 60 * 60)
+  return Math.abs(diffHours - hours) < 0.5
+}
+
+function formatExpiresPreview(expiresAt: string): string {
+  const date = new Date(expiresAt)
+  return date.toLocaleDateString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 function handleSave() {
   if (!isFormValid.value || props.saving) return
   emit('save', { ...localForm.value })
@@ -509,17 +671,27 @@ function handleSave() {
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  margin: 0.25rem 0 0;
+  margin: 0;
   font-size: var(--crm-text-xs);
   color: var(--crm-text-muted);
 
-  &--info {
-    color: var(--crm-info);
+  &--info { color: var(--crm-info); }
+  &--warning { color: var(--crm-warning); }
 
-    svg {
-      flex-shrink: 0;
-    }
-  }
+  svg { flex-shrink: 0; }
+}
+
+.form-hint-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.char-counter {
+  font-size: var(--crm-text-xs);
+  color: var(--crm-text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 textarea,
@@ -555,6 +727,101 @@ textarea {
   min-height: 60px;
 }
 
+// ── ИНФО-БЛОКИ ──────────────────────────────────────────
+.info-block {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--crm-radius-md);
+  border: 1px solid;
+  font-size: var(--crm-text-sm);
+  line-height: 1.4;
+  color: var(--crm-text-secondary);
+
+  > svg {
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  strong {
+    color: var(--crm-text-primary);
+    font-weight: 600;
+  }
+
+  &--info {
+    background: var(--crm-info-dim, rgba(0, 195, 245, 0.1));
+    border-color: rgba(0, 195, 245, 0.2);
+
+    > svg { color: var(--crm-info); }
+  }
+
+  &--danger {
+    background: var(--crm-danger-dim);
+    border-color: rgba(242, 95, 92, 0.3);
+
+    > svg { color: var(--crm-danger); }
+
+    p {
+      margin: 0;
+      color: var(--crm-text-primary);
+    }
+  }
+}
+
+// ── БАЗОВЫЕ ПРАВА РОЛИ (КОНТЕКСТ) ──────────────────────
+.base-permissions-info {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--crm-bg-elevated);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-md);
+  font-size: var(--crm-text-xs);
+  color: var(--crm-text-secondary);
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+
+  > svg {
+    color: var(--crm-info);
+    flex-shrink: 0;
+  }
+
+  strong {
+    color: var(--crm-text-primary);
+    font-weight: 600;
+  }
+}
+
+.base-perms-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-left: auto;
+}
+
+.base-perm-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.0625rem 0.375rem;
+  font-size: 0.6875rem;
+  border-radius: 3px;
+  background: var(--crm-bg-overlay);
+  color: var(--crm-text-muted);
+  white-space: nowrap;
+
+  &.active {
+    background: var(--crm-success-dim);
+    color: var(--crm-success);
+  }
+
+  &.empty {
+    background: var(--crm-danger-dim);
+    color: var(--crm-danger);
+    font-style: italic;
+  }
+}
+
 // ── ВЫБОР СТРАНИЦЫ ──────────────────────────────────────
 .pages-select {
   display: grid;
@@ -563,6 +830,7 @@ textarea {
 }
 
 .page-option {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -583,6 +851,94 @@ textarea {
   }
 
   &.selected {
+    border-color: var(--crm-accent);
+    background: var(--crm-accent-dim);
+    color: var(--crm-accent);
+  }
+
+  &--has-override {
+    border-color: var(--crm-warning-dim);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.page-option-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.override-indicator {
+  color: var(--crm-warning);
+  flex-shrink: 0;
+}
+
+// ── СРОК ДЕЙСТВИЯ ───────────────────────────────────────
+.expires-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+
+  input {
+    padding-right: 2.5rem;
+  }
+}
+
+.clear-expires-btn {
+  position: absolute;
+  right: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  color: var(--crm-text-muted);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all var(--crm-transition);
+
+  &:hover:not(:disabled) {
+    background: var(--crm-danger-dim);
+    color: var(--crm-danger);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.expires-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-top: 0.375rem;
+}
+
+.preset-btn {
+  padding: 0.25rem 0.625rem;
+  background: var(--crm-bg-elevated);
+  color: var(--crm-text-secondary);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-sm);
+  font-size: var(--crm-text-xs);
+  font-family: var(--crm-font-sans);
+  cursor: pointer;
+  transition: all var(--crm-transition);
+
+  &:hover:not(:disabled) {
+    border-color: var(--crm-border-hover);
+    color: var(--crm-text-primary);
+  }
+
+  &.active {
     border-color: var(--crm-accent);
     background: var(--crm-accent-dim);
     color: var(--crm-accent);

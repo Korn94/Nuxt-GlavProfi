@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/settings/permissions/Roles/RoleResetModal.vue -->
+<!-- app/components/pages/cabinet/settings/permissions/Users/BulkClearModal.vue -->
 <template>
   <Teleport to="body">
     <Transition name="modal">
@@ -8,32 +8,29 @@
         @click.self="$emit('update:isOpen', false)"
         role="dialog"
         aria-modal="true"
-        :aria-labelledby="`role-reset-title-${role?.role}`"
+        aria-labelledby="bulk-clear-title"
       >
         <div class="modal-content modal-small">
           <!-- ───────── HEADER ───────── -->
           <div class="modal-header">
             <div class="modal-title">
               <div class="icon-circle warning">
-                <Icon name="mdi:restore" size="24" />
+                <Icon name="mdi:account-multiple-remove" size="24" />
               </div>
               <div>
-                <h2 :id="`role-reset-title-${role?.role}`">
-                  Сбросить права роли?
+                <h2 id="bulk-clear-title">
+                  Массовый сброс переопределений
                 </h2>
-                <p v-if="role">
-                  Все настройки роли
-                  <span class="role-badge" :class="`role-${role.role}`">
-                    {{ roleName }}
-                  </span>
-                  будут заменены стандартными.
+                <p class="subtitle">
+                  Будет затронуто <strong>{{ count }}</strong>
+                  {{ pluralizeUsers(count) }}
                 </p>
               </div>
             </div>
             <button
               class="btn-close"
               @click="$emit('update:isOpen', false)"
-              :disabled="resetting"
+              :disabled="clearing"
             >
               <Icon name="mdi:close" size="20" />
             </button>
@@ -43,11 +40,16 @@
           <div class="modal-body">
             <!-- Основное предупреждение -->
             <div class="info-block info-block--warning">
-              <Icon name="mdi:alert" size="20" />
+              <Icon name="mdi:alert-circle" size="20" />
               <div>
                 <p>
-                  Текущие права роли будут <strong>полностью удалены</strong>
-                  и заменены на значения по умолчанию из конфигурации системы.
+                  У <strong>всех {{ count }}</strong> выбранных
+                  {{ pluralizeUsers(count) }} будут удалены
+                  <strong>все индивидуальные переопределения</strong> прав.
+                </p>
+                <p class="hint">
+                  Каждый пользователь вернётся к базовым правам своей роли
+                  для всех разделов системы.
                 </p>
               </div>
             </div>
@@ -59,23 +61,22 @@
                 <p class="info-title">Последствия операции:</p>
                 <ul class="impact-list">
                   <li>
-                    <Icon name="mdi:account-group" size="14" class="icon-warning" />
-                    Затронет <strong>{{ role?.userCount || 0 }}</strong>
-                    {{ pluralizeUsers(role?.userCount || 0) }} с этой ролью
+                    <Icon name="mdi:check" size="14" class="icon-success" />
+                    Удаление всех override'ов для выбранных пользователей
                   </li>
                   <li>
-                    <Icon name="mdi:shield-lock" size="14" class="icon-danger" />
-                    Все пользователи этой роли будут
-                    <strong>принудительно отключены</strong> от системы
+                    <Icon name="mdi:check" size="14" class="icon-success" />
+                    Автоматическая инвалидация кэша прав
                   </li>
                   <li>
-                    <Icon name="mdi:login" size="14" class="icon-info" />
-                    Для продолжения работы потребуется повторный вход
+                    <Icon name="mdi:alert" size="14" class="icon-warning" />
+                    Пользователи, потерявшие доступ к критичным разделам
+                    (dashboard, objects, works), будут принудительно
+                    отключены от системы
                   </li>
                   <li>
                     <Icon name="mdi:history" size="14" class="icon-info" />
-                    Индивидуальные переопределения пользователей
-                    <strong>сохранятся</strong>
+                    Операция параллельная — выполняется для всех одновременно
                   </li>
                 </ul>
               </div>
@@ -85,9 +86,9 @@
             <div class="info-block info-block--hint">
               <Icon name="mdi:lightbulb-outline" size="20" />
               <p>
-                Если вы хотите сохранить текущие настройки — нажмите «Отмена»
-                и скопируйте конфигурацию прав перед сбросом.
-                После сброса восстановить индивидуальные настройки роли будет невозможно.
+                Если нужно сбросить переопределения выборочно —
+                обрабатывайте пользователей по одному через кнопку
+                «Сбросить все» в карточке пользователя.
               </p>
             </div>
 
@@ -96,14 +97,13 @@
               <input
                 type="checkbox"
                 v-model="confirmed"
-                :disabled="resetting"
+                :disabled="clearing"
               />
               <span class="checkmark"></span>
               <span>
-                Я понимаю, что текущие права роли
-                <strong>«{{ roleName }}»</strong> будут полностью заменены,
-                а <strong>{{ role?.userCount || 0 }}</strong>
-                {{ pluralizeUsers(role?.userCount || 0) }} будут отключены от системы.
+                Я понимаю, что индивидуальные переопределения
+                <strong>{{ count }}</strong> {{ pluralizeUsers(count) }}
+                будут полностью удалены без возможности восстановления.
               </span>
             </label>
           </div>
@@ -113,18 +113,18 @@
             <button
               class="btn btn-secondary"
               @click="$emit('update:isOpen', false)"
-              :disabled="resetting"
+              :disabled="clearing"
             >
               Отмена
             </button>
             <button
               class="btn btn-danger"
-              @click="$emit('confirm')"
-              :disabled="resetting || !confirmed"
+              @click="handleConfirm"
+              :disabled="clearing || !confirmed"
             >
-              <Icon v-if="resetting" name="mdi:loading" size="16" class="spin" />
-              <Icon v-else name="mdi:restore" size="16" />
-              {{ resetting ? 'Сброс...' : 'Сбросить к дефолтным' }}
+              <Icon v-if="clearing" name="mdi:loading" size="16" class="spin" />
+              <Icon v-else name="mdi:broom" size="16" />
+              {{ clearing ? 'Выполняется...' : 'Сбросить у всех' }}
             </button>
           </div>
         </div>
@@ -134,15 +134,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-
-// ============================================
-// ТИПЫ
-// ============================================
-interface RoleInfo {
-  role: string
-  userCount: number
-}
+import { ref, watch } from 'vue'
 
 // ============================================
 // ПРОПСЫ
@@ -150,42 +142,24 @@ interface RoleInfo {
 const props = defineProps<{
   /** Флаг видимости модалки (v-model:isOpen) */
   isOpen: boolean
-  /** Информация о роли (null если ещё не загружена) */
-  role: RoleInfo | null
-  /** Флаг процесса сброса (блокирует кнопки) */
-  resetting?: boolean
+  /** Количество выбранных пользователей */
+  count: number
+  /** Флаг процесса массового сброса */
+  clearing?: boolean
 }>()
 
 // ============================================
 // ЭМИТТЫ
 // ============================================
-defineEmits<{
+const emit = defineEmits<{
   'update:isOpen': [value: boolean]
   'confirm': []
 }>()
 
 // ============================================
-// СЛОВАРЬ РОЛЕЙ
-// ============================================
-const ROLE_NAMES: Record<string, string> = {
-  admin: 'Администратор',
-  manager: 'Менеджер',
-  foreman: 'Прораб',
-  master: 'Мастер',
-  worker: 'Рабочий',
-}
-
-// ============================================
 // ЛОКАЛЬНОЕ СОСТОЯНИЕ
 // ============================================
 const confirmed = ref(false)
-
-// ============================================
-// COMPUTED
-// ============================================
-const roleName = computed(() =>
-  ROLE_NAMES[props.role?.role || ''] || props.role?.role || ''
-)
 
 // ============================================
 // СБРОС ПРИ ОТКРЫТИИ
@@ -200,14 +174,22 @@ watch(
 )
 
 // ============================================
-// ХЕЛПЕРЫ
+// ПЛЮРАЛИЗАЦИЯ
 // ============================================
 function pluralizeUsers(count: number): string {
   const mod10 = count % 10
   const mod100 = count % 100
-  if (mod10 === 1 && mod100 !== 11) return 'пользователь'
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'пользователя'
+  if (mod10 === 1 && mod100 !== 11) return 'пользователя'
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'пользователей'
   return 'пользователей'
+}
+
+// ============================================
+// ОБРАБОТЧИКИ
+// ============================================
+function handleConfirm() {
+  if (!confirmed.value || props.clearing) return
+  emit('confirm')
 }
 </script>
 
@@ -230,13 +212,13 @@ function pluralizeUsers(count: number): string {
   border: 1px solid var(--crm-border);
   border-radius: var(--crm-radius-xl);
   width: 100%;
-  max-width: 560px;
+  max-width: 580px;
   display: flex;
   flex-direction: column;
   box-shadow: var(--crm-shadow-lg);
 
   &.modal-small {
-    max-width: 520px;
+    max-width: 540px;
   }
 }
 
@@ -264,30 +246,16 @@ function pluralizeUsers(count: number): string {
     color: var(--crm-text-primary);
   }
 
-  p {
+  .subtitle {
     margin: 0.375rem 0 0;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
     font-size: var(--crm-text-sm);
     color: var(--crm-text-secondary);
-    flex-wrap: wrap;
+
+    strong {
+      color: var(--crm-warning);
+      font-weight: 600;
+    }
   }
-}
-
-.role-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.125rem 0.5rem;
-  border-radius: 10px;
-  font-size: var(--crm-text-xs);
-  font-weight: 600;
-
-  &.role-admin { background: var(--crm-danger-dim); color: var(--crm-danger); }
-  &.role-manager { background: var(--crm-warning-dim); color: var(--crm-warning); }
-  &.role-foreman { background: var(--crm-success-dim); color: var(--crm-success); }
-  &.role-master { background: var(--crm-accent-dim); color: var(--crm-accent); }
-  &.role-worker { background: var(--crm-bg-overlay); color: var(--crm-text-secondary); }
 }
 
 .btn-close {
@@ -360,6 +328,12 @@ function pluralizeUsers(count: number): string {
       font-weight: 600;
     }
 
+    &.hint {
+      margin-top: 0.375rem;
+      font-size: var(--crm-text-xs);
+      color: var(--crm-text-secondary);
+    }
+
     &.info-title {
       font-size: var(--crm-text-xs);
       font-weight: 600;
@@ -409,7 +383,7 @@ function pluralizeUsers(count: number): string {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.375rem;
 
   li {
     display: flex;
@@ -423,14 +397,9 @@ function pluralizeUsers(count: number): string {
       flex-shrink: 0;
       margin-top: 1px;
 
+      &.icon-success { color: var(--crm-success); }
       &.icon-warning { color: var(--crm-warning); }
-      &.icon-danger { color: var(--crm-danger); }
       &.icon-info { color: var(--crm-info); }
-    }
-
-    strong {
-      color: var(--crm-text-primary);
-      font-weight: 600;
     }
   }
 }
@@ -463,8 +432,8 @@ function pluralizeUsers(count: number): string {
     height: 0;
 
     &:checked ~ .checkmark {
-      background: var(--crm-danger);
-      border-color: var(--crm-danger);
+      background: var(--crm-accent);
+      border-color: var(--crm-accent);
 
       &::after {
         opacity: 1;

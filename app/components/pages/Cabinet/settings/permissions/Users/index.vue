@@ -1,5 +1,5 @@
 <!-- app/components/pages/cabinet/settings/permissions/Users/index.vue -->
- <template>
+<template>
   <div class="users-view">
     <!-- ============================================
          ПАНЕЛЬ ИНСТРУМЕНТОВ
@@ -51,10 +51,28 @@
         </label>
       </div>
 
-      <button class="btn btn-secondary" @click="loadData" :disabled="loading">
-        <Icon name="mdi:refresh" size="16" />
-        Обновить
-      </button>
+      <div class="toolbar-actions">
+        <div v-if="isSyncing" class="sync-indicator">
+          <Icon name="mdi:sync" size="16" class="spin" />
+          <span>Синхронизация...</span>
+        </div>
+
+        <!-- Bulk: выбрать всех на странице -->
+        <label v-if="users.length > 0" class="toggle-label">
+          <input
+            type="checkbox"
+            :checked="isAllSelected"
+            :indeterminate="isIndeterminate"
+            @change="toggleSelectAll"
+          />
+          <span class="toggle-text">Выбрать всех</span>
+        </label>
+
+        <button class="btn btn-secondary" @click="loadData" :disabled="loading">
+          <Icon name="mdi:refresh" size="16" />
+          Обновить
+        </button>
+      </div>
     </div>
 
     <!-- ============================================
@@ -96,6 +114,8 @@
           :pages="pages"
           :is-admin="isAdmin"
           :removing="removing"
+          :selected="selectedUserIds.has(user.id)"
+          @toggle-select="(u: UserWithPermissions) => toggleSelect(u.id)"
           @add-override="openAddOverrideModal"
           @clear-overrides="openClearOverridesConfirm"
           @remove-override="openRemoveOverrideConfirm"
@@ -111,7 +131,6 @@
         >
           <Icon name="mdi:chevron-left" size="18" />
         </button>
-
         <div class="page-numbers">
           <button
             v-for="pageNum in displayedPages"
@@ -123,7 +142,6 @@
             {{ pageNum === -1 ? '…' : pageNum }}
           </button>
         </div>
-
         <button
           class="btn btn-ghost btn-sm"
           :disabled="pagination.page === pagination.totalPages"
@@ -131,7 +149,6 @@
         >
           <Icon name="mdi:chevron-right" size="18" />
         </button>
-
         <span class="pagination-info">
           {{ pagination.total }} {{ pluralizeUsersTotal(pagination.total) }}
         </span>
@@ -173,6 +190,49 @@
     />
 
     <!-- ============================================
+         МОДАЛКА ПОДТВЕРЖДЕНИЯ МАССОВОГО СБРОСА
+    ============================================ -->
+    <PagesCabinetSettingsPermissionsUsersBulkClearModal
+      v-model:is-open="bulkClearConfirm.isOpen"
+      :count="bulkClearConfirm.count"
+      :clearing="bulkClearing"
+      @confirm="handleBulkClearOverrides"
+    />
+
+    <!-- ============================================
+         ПАНЕЛЬ МАССОВЫХ ДЕЙСТВИЙ
+    ============================================ -->
+    <Transition name="slide-up">
+      <div v-if="selectedUserIds.size > 0" class="bulk-actions-bar">
+        <div class="bulk-info">
+          <Icon name="mdi:checkbox-multiple-marked" size="20" />
+          <span>
+            Выбрано: <strong>{{ selectedUserIds.size }}</strong>
+            {{ pluralizeUsersTotal(selectedUserIds.size) }}
+          </span>
+        </div>
+        <div class="bulk-actions">
+          <button
+            class="btn btn-secondary btn-sm"
+            @click="clearSelection"
+            :disabled="bulkClearing"
+          >
+            <Icon name="mdi:close" size="14" />
+            Снять выделение
+          </button>
+          <button
+            class="btn btn-warning btn-sm"
+            @click="openBulkClearConfirm"
+            :disabled="bulkClearing"
+          >
+            <Icon name="mdi:broom" size="14" />
+            Сбросить все переопределения
+          </button>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- ============================================
          ОБЩИЙ TOAST
     ============================================ -->
     <PagesCabinetSettingsPermissionsSharedToast
@@ -199,6 +259,7 @@ import {
   clearUserOverrides,
 } from '~/composables/usePermissionsApi'
 import { useAuthStore } from 'stores/auth'
+import { usePermissionsSocket } from '../composables/usePermissionsSocket'
 
 // ============================================
 // STORE И ПРАВА ДОСТУПА
@@ -213,7 +274,8 @@ const loading = ref(false)
 const savingOverride = ref(false)
 const removing = ref(false)
 const clearing = ref(false)
-
+const bulkClearing = ref(false)
+const isSyncing = ref(false)
 const users = ref<UserWithPermissions[]>([])
 const pages = ref<SystemPage[]>([])
 const pagination = ref<PaginationResponse>({
@@ -222,6 +284,9 @@ const pagination = ref<PaginationResponse>({
   total: 0,
   totalPages: 0,
 })
+
+// Bulk-выделение
+const selectedUserIds = ref<Set<number>>(new Set())
 
 // Фильтры
 const search = ref('')
@@ -253,6 +318,14 @@ const clearOverridesConfirm = ref<{
 }>({
   isOpen: false,
   user: null,
+})
+
+const bulkClearConfirm = ref<{
+  isOpen: boolean
+  count: number
+}>({
+  isOpen: false,
+  count: 0,
 })
 
 // Toast уведомления
@@ -295,8 +368,25 @@ const emptyStateMessage = computed(() => {
 })
 
 /**
+ * Выбраны ли все пользователи на текущей странице
+ */
+const isAllSelected = computed(() => {
+  if (users.value.length === 0) return false
+  return users.value.every(u => selectedUserIds.value.has(u.id))
+})
+
+/**
+ * Indeterminate-состояние чекбокса "Выбрать всех"
+ * (выбрано несколько, но не все)
+ */
+const isIndeterminate = computed(() => {
+  if (users.value.length === 0) return false
+  const selectedOnPage = users.value.filter(u => selectedUserIds.value.has(u.id)).length
+  return selectedOnPage > 0 && selectedOnPage < users.value.length
+})
+
+/**
  * Отображаемые номера страниц (с разделителями)
- * Логика: показываем первую, последнюю, текущую ±1, разделители
  */
 const displayedPages = computed(() => {
   const total = pagination.value.totalPages
@@ -307,7 +397,7 @@ const displayedPages = computed(() => {
     for (let i = 1; i <= total; i++) pages.push(i)
   } else {
     pages.push(1)
-    if (current > 3) pages.push(-1) // разделитель
+    if (current > 3) pages.push(-1)
     for (
       let i = Math.max(2, current - 1);
       i <= Math.min(total - 1, current + 1);
@@ -315,11 +405,56 @@ const displayedPages = computed(() => {
     ) {
       pages.push(i)
     }
-    if (current < total - 2) pages.push(-1) // разделитель
+    if (current < total - 2) pages.push(-1)
     pages.push(total)
   }
-
   return pages
+})
+
+// ============================================
+// REAL-TIME СИНХРОНИЗАЦИЯ
+// ============================================
+/**
+ * Тихая перезагрузка списка при получении сокет-события от другого админа.
+ * Сохраняет выделение, если выбранные пользователи всё ещё есть на странице.
+ */
+async function silentReload() {
+  isSyncing.value = true
+  try {
+    const [usersData, pagesData] = await Promise.all([
+      fetchPermissionsUsers({
+        search: search.value || undefined,
+        role: filterRole.value || undefined,
+        page: pagination.value.page,
+        limit: pagination.value.limit,
+        withOverrides: onlyWithOverrides.value,
+      }),
+      fetchPermissionsPages(),
+    ])
+    users.value = usersData.users
+    pages.value = pagesData
+    pagination.value = usersData.pagination
+
+    // Очищаем выделение для пользователей, которых больше нет в списке
+    const currentIds = new Set(users.value.map(u => u.id))
+    const newSelection = new Set<number>()
+    for (const id of selectedUserIds.value) {
+      if (currentIds.has(id)) newSelection.add(id)
+    }
+    selectedUserIds.value = newSelection
+  } catch (error: any) {
+    console.error('[Users] Ошибка тихой перезагрузки:', error)
+  } finally {
+    isSyncing.value = false
+  }
+}
+
+usePermissionsSocket({
+  onPermissionsChanged: async (data: any) => {
+    console.log('[Users] 📥 Права изменены другим админом:', data?.reason)
+    showToast(`Права обновлены: ${data?.reason || 'изменения применены'}`, 'info')
+    await silentReload()
+  },
 })
 
 // ============================================
@@ -338,7 +473,6 @@ async function loadData() {
       }),
       fetchPermissionsPages(),
     ])
-
     users.value = usersData.users
     pages.value = pagesData
     pagination.value = usersData.pagination
@@ -349,10 +483,6 @@ async function loadData() {
   }
 }
 
-/**
- * Перезагрузка с сбросом на первую страницу
- * Используется при изменении фильтров
- */
 async function reloadUsers() {
   pagination.value.page = 1
   await loadData()
@@ -389,6 +519,39 @@ function goToPage(page: number) {
 }
 
 // ============================================
+// BULK-ВЫДЕЛЕНИЕ
+// ============================================
+function toggleSelect(userId: number) {
+  const newSet = new Set(selectedUserIds.value)
+  if (newSet.has(userId)) {
+    newSet.delete(userId)
+  } else {
+    newSet.add(userId)
+  }
+  selectedUserIds.value = newSet
+}
+
+function toggleSelectAll() {
+  const newSet = new Set(selectedUserIds.value)
+  if (isAllSelected.value) {
+    // Снимаем выделение со всех на текущей странице
+    for (const user of users.value) {
+      newSet.delete(user.id)
+    }
+  } else {
+    // Выделяем всех на текущей странице
+    for (const user of users.value) {
+      newSet.add(user.id)
+    }
+  }
+  selectedUserIds.value = newSet
+}
+
+function clearSelection() {
+  selectedUserIds.value = new Set()
+}
+
+// ============================================
 // МОДАЛКА ДОБАВЛЕНИЯ ПЕРЕОПРЕДЕЛЕНИЯ
 // ============================================
 function openAddOverrideModal(user: UserWithPermissions) {
@@ -398,10 +561,6 @@ function openAddOverrideModal(user: UserWithPermissions) {
   }
 }
 
-/**
- * Сохранение нового переопределения
- * Принимает данные формы из AddOverrideModal
- */
 async function handleSaveOverride(data: {
   pageSlug: string
   canView: boolean
@@ -414,10 +573,8 @@ async function handleSaveOverride(data: {
 }) {
   const user = addOverrideModal.value.user
   if (!user) return
-
   savingOverride.value = true
   try {
-    // Собираем объект с условным добавлением опциональных полей
     const override = {
       pageSlug: data.pageSlug,
       canView: data.canView,
@@ -425,11 +582,9 @@ async function handleSaveOverride(data: {
       canEdit: data.canEdit,
       canDelete: data.canDelete,
       canSpecial: data.canSpecial,
-      // Условное добавление через spread
       ...(data.reason.trim() ? { reason: data.reason.trim() } : {}),
       ...(data.expiresAt ? { expiresAt: new Date(data.expiresAt).toISOString() } : {}),
     }
-
     await applyUserOverrides(user.id, [override])
     showToast('Переопределение успешно применено', 'success')
     addOverrideModal.value.isOpen = false
@@ -459,7 +614,6 @@ async function handleConfirmRemoveOverride() {
   const user = removeOverrideConfirm.value.user
   const pageSlug = removeOverrideConfirm.value.pageSlug
   if (!user || !pageSlug) return
-
   removing.value = true
   try {
     const result = await removeUserOverride(user.id, pageSlug)
@@ -479,7 +633,7 @@ async function handleConfirmRemoveOverride() {
 }
 
 // ============================================
-// МОДАЛКА СБРОСА ВСЕХ ПЕРЕОПРЕДЕЛЕНИЙ
+// МОДАЛКА СБРОСА ВСЕХ ПЕРЕОПРЕДЕЛЕНИЙ (один пользователь)
 // ============================================
 function openClearOverridesConfirm(user: UserWithPermissions) {
   clearOverridesConfirm.value = {
@@ -491,7 +645,6 @@ function openClearOverridesConfirm(user: UserWithPermissions) {
 async function handleConfirmClearOverrides() {
   const user = clearOverridesConfirm.value.user
   if (!user) return
-
   clearing.value = true
   try {
     const result = await clearUserOverrides(user.id)
@@ -502,6 +655,59 @@ async function handleConfirmClearOverrides() {
     showToast(error.message || 'Не удалось сбросить переопределения', 'error')
   } finally {
     clearing.value = false
+  }
+}
+
+// ============================================
+// МАССОВЫЙ СБРОС ПЕРЕОПРЕДЕЛЕНИЙ
+// ============================================
+function openBulkClearConfirm() {
+  bulkClearConfirm.value = {
+    isOpen: true,
+    count: selectedUserIds.value.size,
+  }
+}
+
+async function handleBulkClearOverrides() {
+  if (selectedUserIds.value.size === 0) return
+  bulkClearing.value = true
+  const userIds = Array.from(selectedUserIds.value)
+  let successCount = 0
+  let failCount = 0
+
+  try {
+    // Параллельные запросы для каждого выбранного пользователя
+    const results = await Promise.allSettled(
+      userIds.map(id => clearUserOverrides(id))
+    )
+
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        successCount++
+      } else {
+        failCount++
+      }
+    }
+
+    if (failCount === 0) {
+      showToast(
+        `Переопределения сброшены для ${successCount} ${pluralizeUsersTotal(successCount)}`,
+        'success'
+      )
+    } else {
+      showToast(
+        `Сброшено: ${successCount}. Ошибок: ${failCount}`,
+        'warning'
+      )
+    }
+
+    bulkClearConfirm.value.isOpen = false
+    clearSelection()
+    await loadData()
+  } catch (error: any) {
+    showToast(error.message || 'Не удалось выполнить массовый сброс', 'error')
+  } finally {
+    bulkClearing.value = false
   }
 }
 
@@ -547,6 +753,7 @@ span {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  padding-bottom: 5rem; // Место для bulk-actions-bar
 }
 
 // ── ПАНЕЛЬ ИНСТРУМЕНТОВ ───────────────────────────────────
@@ -569,6 +776,30 @@ span {
   flex: 1;
   flex-wrap: wrap;
   min-width: 0;
+}
+
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.sync-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  background: var(--crm-accent-dim);
+  color: var(--crm-accent);
+  border: 1px solid var(--crm-accent-border);
+  border-radius: var(--crm-radius-md);
+  font-size: var(--crm-text-xs);
+  font-weight: 500;
+
+  svg {
+    animation: spin 0.8s linear infinite;
+  }
 }
 
 .search-box,
@@ -766,6 +997,49 @@ span {
   color: var(--crm-text-muted);
 }
 
+// ── ПАНЕЛЬ МАССОВЫХ ДЕЙСТВИЙ ──────────────────────────────
+.bulk-actions-bar {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1.25rem;
+  background: var(--crm-bg-elevated);
+  border: 1px solid var(--crm-accent-border);
+  border-radius: var(--crm-radius-lg);
+  box-shadow: var(--crm-shadow-lg), 0 0 0 4px var(--crm-accent-dim);
+  z-index: 100;
+  backdrop-filter: blur(8px);
+  max-width: calc(100vw - 2rem);
+}
+
+.bulk-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--crm-text-sm);
+  color: var(--crm-text-secondary);
+  white-space: nowrap;
+
+  svg {
+    color: var(--crm-accent);
+  }
+
+  strong {
+    color: var(--crm-accent);
+    font-weight: 600;
+  }
+}
+
+.bulk-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 // ── КНОПКИ ────────────────────────────────────────────────
 .btn {
   display: inline-flex;
@@ -823,6 +1097,27 @@ span {
   }
 }
 
+.btn-warning {
+  background: var(--crm-warning);
+  color: white;
+
+  &:hover:not(:disabled) {
+    background: #e09500;
+  }
+}
+
+// ── АНИМАЦИИ ──────────────────────────────────────────────
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translate(-50%, 20px);
+}
+
 // ── АДАПТИВНОСТЬ ──────────────────────────────────────────
 @media (max-width: 768px) {
   .toolbar {
@@ -838,9 +1133,26 @@ span {
     min-width: 100%;
   }
 
+  .toolbar-actions {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
   .pagination {
     flex-direction: column;
     gap: 0.75rem;
+  }
+
+  .bulk-actions-bar {
+    flex-direction: column;
+    gap: 0.75rem;
+    bottom: 1rem;
+    width: calc(100% - 2rem);
+
+    .bulk-actions {
+      width: 100%;
+      flex-wrap: wrap;
+    }
   }
 }
 </style>

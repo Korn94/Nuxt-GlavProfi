@@ -12,24 +12,23 @@
  * - Bulk-insert вместо построчных запросов (1 INSERT вместо N)
  * - Batch-проверка существующих записей (1 SELECT вместо N)
  * - Единый источник типов из shared/
+ *
+ * ⚠️ canView упразднён: при вставке всегда false (для совместимости с БД),
+ * видимость определяется наличием любого действия (create/edit/delete/special)
  */
-
 import { db } from '../../db'
 import {
   permissionsPages,
   permissionsRoleAccess
 } from '../../db/schema'
 import { eq, and, inArray } from 'drizzle-orm'
-
 import { type Role } from 'shared/constants/roles'
 import type { PageSeedData, RolePermissionsSeed } from 'shared/types/permissions'
 
 // ============================================
 // ЛОГГЕР (консоль с префиксами)
 // ============================================
-
 const LOG_PREFIX = '[Permissions]'
-
 const logger = {
   info: (...args: any[]) => console.log(`${LOG_PREFIX}`, ...args),
   success: (...args: any[]) => console.log(`${LOG_PREFIX} ✅`, ...args),
@@ -41,7 +40,6 @@ const logger = {
 // ============================================
 // ИНИЦИАЛИЗАЦИЯ СТРАНИЦ
 // ============================================
-
 /**
  * Инициализировать страницы системы из seed данных
  * Запускается при миграции или первом запуске
@@ -111,7 +109,6 @@ export async function seedPermissionsPages(pages: PageSeedData[]): Promise<{
 // ============================================
 // ИНИЦИАЛИЗАЦИЯ ПРАВ РОЛЕЙ
 // ============================================
-
 /**
  * Инициализировать права ролей из seed данных
  *
@@ -120,6 +117,9 @@ export async function seedPermissionsPages(pages: PageSeedData[]): Promise<{
  * 2. Строит Set из composite key для быстрой проверки
  * 3. Фильтрует seed — только новые записи
  * 4. Делает bulk-insert одним запросом
+ *
+ * ⚠️ canView всегда false при вставке — поле оставлено для совместимости с БД,
+ * но видимость определяется наличием любого действия (create/edit/delete/special)
  *
  * @param permissions — объект { role: { pageSlug: Partial<PagePermissions> } }
  */
@@ -158,7 +158,8 @@ export async function seedRolePermissions(permissions: RolePermissionsSeed): Pro
       newRecords.push({
         role: roleType,
         pageSlug,
-        canView: perms.canView ?? false,
+        // canView упразднён — всегда false, видимость через наличие действий
+        canView: false,
         canCreate: perms.canCreate ?? false,
         canEdit: perms.canEdit ?? false,
         canDelete: perms.canDelete ?? false,
@@ -178,7 +179,6 @@ export async function seedRolePermissions(permissions: RolePermissionsSeed): Pro
 
   // 3. Bulk-insert одним запросом
   await db.insert(permissionsRoleAccess).values(newRecords)
-
   logger.success(`Добавлено записей прав ролей: ${newRecords.length}`)
 
   const skipped = existingRows.length
@@ -188,7 +188,6 @@ export async function seedRolePermissions(permissions: RolePermissionsSeed): Pro
 // ============================================
 // ПОЛНАЯ ИНИЦИАЛИЗАЦИЯ
 // ============================================
-
 /**
  * Полная инициализация системы прав
  * Вызывает seedPermissionsPages() и seedRolePermissions() последовательно
@@ -196,7 +195,7 @@ export async function seedRolePermissions(permissions: RolePermissionsSeed): Pro
  * Используется в:
  * - POST /api/permissions/init (endpoint для ручной инициализации)
  * - Миграции при первом запуске
- * - Fallback-плагине permissions-init.ts
+ * - Seed-скрипте (npm run seed)
  */
 export async function initializePermissionsSystem(): Promise<{
   pages: { created: number; skipped: number }
@@ -228,7 +227,6 @@ export async function initializePermissionsSystem(): Promise<{
 // ============================================
 // СБРОС ПРАВ РОЛИ К ДЕФОЛТНЫМ
 // ============================================
-
 /**
  * Сбросить права роли к дефолтным значениям из seed
  *
@@ -238,6 +236,8 @@ export async function initializePermissionsSystem(): Promise<{
  * 3. Удаляет лишние записи (которых нет в seed)
  * 4. Обновляет существующие до дефолтных значений
  * 5. Создаёт недостающие записи
+ *
+ * ⚠️ canView всегда false при сбросе — видимость определяется действиями
  *
  * Используется в:
  * - POST /api/permissions/roles/[role]/reset
@@ -271,6 +271,7 @@ export async function resetRolePermissionsToDefaults(role: Role): Promise<{
 
   // 1. Удаляем лишние записи (которых нет в дефолтных)
   const toDelete = currentRows.filter(r => !defaultSlugs.has(r.pageSlug))
+
   if (toDelete.length > 0) {
     await db.delete(permissionsRoleAccess).where(
       inArray(permissionsRoleAccess.id, toDelete.map(r => r.id))
@@ -289,7 +290,8 @@ export async function resetRolePermissionsToDefaults(role: Role): Promise<{
       await db
         .update(permissionsRoleAccess)
         .set({
-          canView: perms.canView ?? false,
+          // canView упразднён — всегда false
+          canView: false,
           canCreate: perms.canCreate ?? false,
           canEdit: perms.canEdit ?? false,
           canDelete: perms.canDelete ?? false,
@@ -303,7 +305,7 @@ export async function resetRolePermissionsToDefaults(role: Role): Promise<{
       await db.insert(permissionsRoleAccess).values({
         role,
         pageSlug,
-        canView: perms.canView ?? false,
+        canView: false,
         canCreate: perms.canCreate ?? false,
         canEdit: perms.canEdit ?? false,
         canDelete: perms.canDelete ?? false,

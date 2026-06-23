@@ -1,9 +1,9 @@
 <!-- app/components/pages/cabinet/settings/permissions/index.vue -->
- <template>
+<template>
   <div class="permissions-page">
     <!-- ============================================
          БЛОКИРОВКА: нет прав на просмотр настроек
-    ============================================ -->
+         ============================================ -->
     <div v-if="!canAccessPage && isReady" class="access-denied">
       <div class="access-denied__icon">
         <Icon name="mdi:shield-lock-outline" size="48" />
@@ -18,8 +18,16 @@
 
     <!-- ============================================
          ОСНОВНОЕ СОДЕРЖИМОЕ (есть доступ)
-    ============================================ -->
+         ============================================ -->
     <template v-else-if="canAccessPage">
+      <!-- Индикатор синхронизации (когда другой админ что-то изменил) -->
+      <Transition name="fade">
+        <div v-if="syncMessage" class="sync-banner">
+          <Icon name="mdi:sync" size="16" class="spin" />
+          <span>{{ syncMessage }}</span>
+        </div>
+      </Transition>
+
       <!-- Заголовок страницы -->
       <header class="page-header">
         <div class="header-content">
@@ -30,6 +38,12 @@
             <h1>Настройки прав доступа</h1>
             <p>Управление доступом пользователей к разделам системы</p>
           </div>
+        </div>
+
+        <!-- Индикатор real-time статуса -->
+        <div class="header-status">
+          <span class="status-dot status-dot--live"></span>
+          <span class="status-text">Real-time</span>
         </div>
       </header>
 
@@ -50,8 +64,6 @@
       <!-- Контент активной вкладки -->
       <div class="tab-content">
         <Transition name="fade-slide" mode="out-in">
-          <!-- 🔄 Временные импорты: пока используем старые файлы,
-               в следующих шагах заменим на новые из поддиректорий -->
           <PagesCabinetSettingsPermissionsRoles
             v-if="activeTab === 'roles'"
             key="roles"
@@ -71,10 +83,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import { useHead } from 'nuxt/app'
 import { useAuthStore } from 'stores/auth'
 import { usePermissions } from '~/composables/usePermissions'
+import { usePermissionsSocket } from './composables/usePermissionsSocket'
 
 // ============================================
 // SEO И МЕТАДАННЫЕ
@@ -84,31 +97,89 @@ useHead({
 })
 
 // ============================================
-// ПРАВА ДОСТУПА (новая система)
+// ПРАВА ДОСТУПА (новая система без canView)
 // ============================================
 const authStore = useAuthStore()
-const { canView, isReady } = usePermissions()
+const { can, isReady } = usePermissions()
 
 /**
  * Доступ к странице настроек
- * Требуется: canView('settings') + can('settings', 'edit')
- * Пока права не загружены (isReady = false) — рендерим контент
- * для предотвращения гидратационных расхождений
+ * 
+ * В новой модели (без canView) доступ определяется наличием права edit:
+ * - Раздел виден в меню если есть хотя бы одно действие
+ * - Для настроек критично canEdit (иначе нельзя ничего менять)
  */
-
 const canAccessPage = computed(() => {
   // SSR: pages ещё не загружены — показываем контент
   if (!authStore.pages) return true
-  // Клиент после загрузки: проверяем права
-  return canView('settings')
+  
+  // Клиент после загрузки: проверяем право редактирования
+  return can('settings', 'edit')
 })
 
 // ============================================
 // СОСТОЯНИЕ ВКЛАДОК
 // ============================================
 type TabId = 'roles' | 'users' | 'pages'
-
 const activeTab = ref<TabId>('roles')
+
+// ============================================
+// REAL-TIME СИНХРОНИЗАЦИЯ НА УРОВНЕ СТРАНИЦЫ
+// ============================================
+/**
+ * Баннер-индикатор синхронизации.
+ * Показывается на 3 секунды при получении сокет-события
+ * от другого администратора, чтобы пользователь видел,
+ * что данные обновляются в реальном времени.
+ */
+const syncMessage = ref('')
+let syncTimeout: ReturnType<typeof setTimeout> | null = null
+
+function showSyncMessage(message: string) {
+  syncMessage.value = message
+  if (syncTimeout) clearTimeout(syncTimeout)
+  syncTimeout = setTimeout(() => {
+    syncMessage.value = ''
+  }, 3000)
+}
+
+/**
+ * Подписываемся на глобальные события прав на уровне страницы.
+ * 
+ * Логика:
+ * - permissions:changed → перезагружаем authStore.init() (права текущего юзера)
+ * - permissions:page:created/updated/deleted → просто показываем уведомление
+ *   (вкладки сами обновят свои списки через свои подписки)
+ */
+usePermissionsSocket({
+  onPermissionsChanged: async (data: any) => {
+    console.log('[Permissions/Index] 📥 Глобальное событие permissions:changed')
+    showSyncMessage(`Права изменены: ${data?.reason || 'обновление применено'}`)
+    
+    // Перезагружаем права текущего пользователя
+    // (на случай если другой админ изменил нашу роль или нам override)
+    try {
+      await authStore.reloadPermissions()
+    } catch (error) {
+      console.error('[Permissions/Index] Ошибка перезагрузки прав:', error)
+    }
+  },
+  onPageCreated: (data: any) => {
+    showSyncMessage(`Новый раздел создан: ${data?.page?.name || ''}`)
+  },
+  onPageUpdated: (data: any) => {
+    showSyncMessage(`Раздел обновлён: ${data?.page?.name || ''}`)
+  },
+  onPageDeleted: (data: any) => {
+    const modeText = data?.mode === 'hard' ? 'удалён' : 'скрыт'
+    showSyncMessage(`Раздел ${modeText}: ${data?.name || ''}`)
+  },
+})
+
+// Очистка таймера при размонтировании
+onUnmounted(() => {
+  if (syncTimeout) clearTimeout(syncTimeout)
+})
 
 // ============================================
 // КОНФИГУРАЦИЯ ВКЛАДОК
@@ -193,12 +264,31 @@ const tabs = computed(() => [
   }
 }
 
+// ── БАННЕР СИНХРОНИЗАЦИИ ─────────────────────────────
+.sync-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  background: var(--crm-accent-dim);
+  border: 1px solid var(--crm-accent-border);
+  border-radius: var(--crm-radius-md);
+  font-size: var(--crm-text-sm);
+  color: var(--crm-accent);
+  font-weight: 500;
+
+  svg {
+    flex-shrink: 0;
+  }
+}
+
 // ── ЗАГОЛОВОК СТРАНИЦЫ ──────────────────────────────────
 .page-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .header-content {
@@ -236,6 +326,43 @@ const tabs = computed(() => [
   }
 }
 
+// ── REAL-TIME СТАТУС ─────────────────────────────────
+.header-status {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  background: var(--crm-success-dim);
+  border: 1px solid rgba(61, 214, 140, 0.3);
+  border-radius: var(--crm-radius-md);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+
+  &--live {
+    background: var(--crm-success);
+    box-shadow: 0 0 6px var(--crm-success);
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+}
+
+.status-text {
+  font-size: var(--crm-text-xs);
+  font-weight: 500;
+  color: var(--crm-success);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; box-shadow: 0 0 6px var(--crm-success); }
+  50% { opacity: 0.6; box-shadow: 0 0 12px var(--crm-success); }
+}
+
 // ── НАВИГАЦИЯ ПО ВКЛАДКАМ ───────────────────────────────
 .tabs-nav {
   display: flex;
@@ -245,8 +372,8 @@ const tabs = computed(() => [
   border: 1px solid var(--crm-border);
   border-radius: var(--crm-radius-lg);
   overflow-x: auto;
-
   scrollbar-width: none;
+
   &::-webkit-scrollbar {
     display: none;
   }
@@ -329,6 +456,53 @@ const tabs = computed(() => [
   transform: translateY(-8px);
 }
 
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.spin {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+// ── КНОПКИ ──────────────────────────────────────────────
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  font-size: var(--crm-text-sm);
+  font-weight: 500;
+  font-family: var(--crm-font-sans);
+  border-radius: var(--crm-radius-md);
+  cursor: pointer;
+  transition: all var(--crm-transition);
+  border: 1px solid transparent;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.btn-secondary {
+  background: var(--crm-bg-overlay);
+  color: var(--crm-text-primary);
+  border-color: var(--crm-border);
+
+  &:hover {
+    background: var(--crm-bg-elevated);
+    border-color: var(--crm-border-hover);
+  }
+}
+
 // ── АДАПТИВНОСТЬ ────────────────────────────────────────
 @media (max-width: 640px) {
   .header-icon {
@@ -343,6 +517,10 @@ const tabs = computed(() => [
 
   .header-text h1 {
     font-size: 18px;
+  }
+
+  .header-status {
+    display: none;
   }
 
   .tab-btn {

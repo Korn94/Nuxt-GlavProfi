@@ -8,16 +8,17 @@
  * Импорты:
  *   import { usePermissions } from '~/composables/usePermissions'
  *   import { useAuthStore } from '~/stores/auth'
+ *
+ * Упрощённая система прав (без canView):
+ * - Раздел виден в меню, если есть хотя бы одно действие (create/edit/delete/special)
+ * - View-only страницы (dashboard, online, test) всегда видимы если есть в правах
  */
-
 import { computed } from 'vue'
 import { useAuthStore } from 'stores/auth'
-
 import {
   ROLE_LEVELS,
   type Role
 } from 'shared/constants/roles'
-
 import type {
   PageSlug,
   PageAction
@@ -43,27 +44,30 @@ export function usePermissions() {
   /**
    * Проверить право пользователя на действие для страницы
    *
-   * Логика:
-   * - view — достаточно canView
-   * - create/edit/delete/special — canView + соответствующий флаг
+   * Логика (упрощённая, без canView):
+   * - view — страница есть в правах (видима автоматически)
+   * - create/edit/delete/special — соответствующий флаг в правах
+   *
+   * ⚠️ canView упразднён — видимость определяется наличием в authStore.pages
    */
   function can(page: PageSlug, action: PageAction): boolean {
     const pagePerms = authStore.pages?.[page]
+    
+    // Если страницы нет в правах — она невидима, доступ запрещён
     if (!pagePerms) return false
 
+    // Для просмотра — страница уже видима (есть в authStore.pages)
+    if (action === 'view') {
+      return true
+    }
+
+    // Для действий — проверяем соответствующий флаг
     switch (action) {
-      case 'view':
-        return pagePerms.canView
-      case 'create':
-        return pagePerms.canView && pagePerms.canCreate
-      case 'edit':
-        return pagePerms.canView && pagePerms.canEdit
-      case 'delete':
-        return pagePerms.canView && pagePerms.canDelete
-      case 'special':
-        return pagePerms.canView && pagePerms.canSpecial
-      default:
-        return false
+      case 'create': return pagePerms.canCreate
+      case 'edit': return pagePerms.canEdit
+      case 'delete': return pagePerms.canDelete
+      case 'special': return pagePerms.canSpecial
+      default: return false
     }
   }
 
@@ -72,6 +76,16 @@ export function usePermissions() {
    */
   function canSpecial(page: PageSlug): boolean {
     return can(page, 'special')
+  }
+
+  /**
+   * Проверить, видима ли страница в меню навигации
+   *
+   * Логика: страница видима если она есть в authStore.pages
+   * (getAllUserPermissions на сервере уже отфильтровал невидимые)
+   */
+  function isPageVisible(page: PageSlug): boolean {
+    return page in (authStore.pages || {})
   }
 
   // ============================================
@@ -105,6 +119,7 @@ export function usePermissions() {
   return {
     can,
     canSpecial,
+    isPageVisible,
     hasRoleLevel,
     hasRole,
     isReady
