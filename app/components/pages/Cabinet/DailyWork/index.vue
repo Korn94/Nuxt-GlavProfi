@@ -14,115 +14,121 @@
       </template>
     </PagesCabinetUiLayoutPageTitle>
     
-    <!-- Подсказка -->
-    <div class="hint-wrapper">
-      <BulkSelectionHint :visible="showHelp" text="Зажми ячейку и веди пальцем, чтобы отметить смену на несколько дней сразу." @close="showHelp = false" />
-    </div>
+    <!-- ❌ Нет прав на просмотр -->
+    <UiAccessDeniedBlock v-if="isMounted && !canView" />
 
-    <!-- Навигация по датам -->
-    <div class="date-nav-wrapper">
-      <div class="date-nav">
-        <button class="btn-nav" @click="shiftDates(-7)"><Icon name="mdi:chevron-double-left" size="18" /></button>
-        <span class="date-nav__current">{{ weekLabel }}</span>
-        <button class="btn-nav" @click="shiftDates(7)"><Icon name="mdi:chevron-double-right" size="18" /></button>
-        <button class="btn-nav btn-nav--today" @click="resetDates">Сегодня</button>
+    <!-- ✅ Есть права — показываем контент -->
+    <template v-else>
+      <!-- Подсказка -->
+      <div class="hint-wrapper">
+        <BulkSelectionHint :visible="showHelp" text="Зажми ячейку и веди пальцем, чтобы отметить смену на несколько дней сразу." @close="showHelp = false" />
       </div>
-    </div>
 
-    <!-- ═══════════════════════════ LOADING ═══════════════════════════ -->
-    <!-- 🔥 ВАЖНО: условие как в старом коде -->
-    <div v-if="store.loading || (!store.workers.length && !store.error)" class="loading-state">
-      <div class="spinner"></div>
-      <span>{{ loadingText }}</span>
-    </div>
-
-    <!-- ═══════════════════════════ ERROR STATE ═══════════════════════════ -->
-    <div v-else-if="store.error" class="error-state">
-      <div class="error-card">
-        <span class="error-icon">⚠️</span>
-        <h3>Не удалось загрузить данные</h3>
-        <p>{{ store.error }}</p>
-        <button class="btn-retry" @click="retryLoad">Попробовать снова</button>
+      <!-- Навигация по датам -->
+      <div class="date-nav-wrapper">
+        <div class="date-nav">
+          <button class="btn-nav" @click="shiftDates(-7)"><Icon name="mdi:chevron-double-left" size="18" /></button>
+          <span class="date-nav__current">{{ weekLabel }}</span>
+          <button class="btn-nav" @click="shiftDates(7)"><Icon name="mdi:chevron-double-right" size="18" /></button>
+          <button class="btn-nav btn-nav--today" @click="resetDates">Сегодня</button>
+        </div>
       </div>
-    </div>
 
-    <!-- ═══════════════════════════ MAIN GRID ═══════════════════════ -->
-    <div v-else class="grid-wrapper" ref="scrollContainer">
-      <div class="daily-grid">
-        <div class="grid-header">
-          <div class="grid-header__sticky">{{ headerLabel }}</div>
-          <div v-for="date in datesRange" :key="date" class="grid-header__cell"
-            :class="{ 'grid-header__cell--today': date === todayStr }">
-            <span :class="['cell-day', { 'cell-day--weekend': isWeekend(date) }]">{{ getDayOfWeek(date) }}</span>
-            <span :class="['cell-date', { 'cell-date--weekend': isWeekend(date) }]">{{ getDayNumber(date) }}</span>
+      <!-- ═══════════════════════════ LOADING ═══════════════════════════ -->
+      <div v-if="store.loading || (!store.workers.length && !store.error)" class="loading-state">
+        <div class="spinner"></div>
+        <span>{{ loadingText }}</span>
+      </div>
+
+      <!-- ═══════════════════════════ ERROR STATE ═══════════════════════════ -->
+      <div v-else-if="store.error" class="error-state">
+        <div class="error-card">
+          <span class="error-icon">⚠️</span>
+          <h3>Не удалось загрузить данные</h3>
+          <p>{{ store.error }}</p>
+          <button class="btn-retry" @click="retryLoad">Попробовать снова</button>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════ MAIN GRID ═══════════════════════ -->
+      <div v-else class="grid-wrapper" ref="scrollContainer">
+        <div class="daily-grid">
+          <div class="grid-header">
+            <div class="grid-header__sticky">{{ headerLabel }}</div>
+            <div v-for="date in datesRange" :key="date" class="grid-header__cell"
+              :class="{ 'grid-header__cell--today': date === todayStr }">
+              <span :class="['cell-day', { 'cell-day--weekend': isWeekend(date) }]">{{ getDayOfWeek(date) }}</span>
+              <span :class="['cell-date', { 'cell-date--weekend': isWeekend(date) }]">{{ getDayNumber(date) }}</span>
+            </div>
+          </div>
+
+          <div v-for="worker in store.workersWithDailyRate" :key="worker.id" class="grid-row">
+            <div class="grid-row__info">
+              <NuxtLink
+                v-if="isMounted && isAdminUser"
+                :to="`/cabinet/contractors/${worker.contractorType}/${worker.id}`"
+                class="info-name info-name--link"
+                :title="worker.name"
+              >
+                {{ worker.name }}
+              </NuxtLink>
+              <span
+                v-else
+                class="info-name"
+                :title="worker.name"
+              >
+                {{ worker.name }}
+              </span>
+              <span class="info-balance">{{ formatCurrency(worker.balance) }}</span>
+            </div>
+            <CalendarCell
+              v-for="date in datesRange"
+              :key="date"
+              :date="date"
+              :worker-id="worker.id"
+              :daily-rate="worker.dailyRate"
+              :assignments="getAssignments(worker.id, date)"
+              :is-editable="isDateEditable(date) && canModify"
+              :is-selected="isDateSelected(worker.id, date)"
+              :range-type="getRangeType(worker.id, date)"
+              @click="handleCellClick(worker, date)"
+              @mousedown="handleMouseDown(worker, date)"
+              @mouseenter="handleMouseEnter(date)"
+              @touchstart="(e) => handleTouchStart(worker, date, e)"
+              @touchmove="(e) => handleTouchMove(date, e)"
+            />
           </div>
         </div>
+      </div>
 
-        <div v-for="worker in store.workersWithDailyRate" :key="worker.id" class="grid-row">
-          <div class="grid-row__info">
-            <NuxtLink
-              v-if="isAdmin"
-              :to="`/cabinet/contractors/${worker.contractorType}/${worker.id}`"
-              class="info-name info-name--link"
-              :title="worker.name"
-            >
-              {{ worker.name }}
-            </NuxtLink>
-            <span
-              v-else
-              class="info-name"
-              :title="worker.name"
-            >
-              {{ worker.name }}
-            </span>
-            <span class="info-balance">{{ formatCurrency(worker.balance) }}</span>
+      <!-- ═══════════════════════════ MODAL SHEET ═══════════════════════ -->
+      <DailyAssignmentSheet 
+        v-if="canModify"
+        v-model="sheetOpen" 
+        :dates="datesToApply" 
+        :daily-rate="selectedWorker?.dailyRate ?? 0"
+        :contractor-id="selectedWorker?.id"
+        :assignments="currentAssignments" 
+        :active-objects="store.activeObjects" 
+        :is-saving="store.loading"
+        :contractor-name="selectedWorker?.name"
+        :contractor-type="selectedWorker?.contractorType"
+        @save="handleSave" 
+        @confirm-delete="handleDeleteConfirm" 
+      />
+
+      <!-- Подтверждение удаления -->
+      <div v-if="showDeleteConfirm && canDelete" class="confirm-backdrop">
+        <div class="confirm-dialog">
+          <h3>Удалить записи за {{ selectedDate }}?</h3>
+          <p>Это действие удалит все назначения подневки. Баланс будет пересчитан.</p>
+          <div class="confirm-dialog__actions">
+            <button class="btn-text" @click="showDeleteConfirm = false">Отмена</button>
+            <button class="btn-danger" @click="executeDelete">Удалить всё</button>
           </div>
-          <CalendarCell
-            v-for="date in datesRange"
-            :key="date"
-            :date="date"
-            :worker-id="worker.id"
-            :daily-rate="worker.dailyRate"
-            :assignments="getAssignments(worker.id, date)"
-            :is-editable="isDateEditable(date)"
-            :is-selected="isDateSelected(worker.id, date)"
-            :range-type="getRangeType(worker.id, date)"
-            @click="handleCellClick(worker, date)"
-            @mousedown="handleMouseDown(worker, date)"
-            @mouseenter="handleMouseEnter(date)"
-            @touchstart="(e) => handleTouchStart(worker, date, e)"
-            @touchmove="(e) => handleTouchMove(date, e)"
-          />
         </div>
       </div>
-    </div>
-
-    <!-- ═══════════════════════════ MODAL SHEET ═══════════════════════ -->
-    <DailyAssignmentSheet 
-      v-model="sheetOpen" 
-      :dates="datesToApply" 
-      :daily-rate="selectedWorker?.dailyRate ?? 0"
-      :contractor-id="selectedWorker?.id"
-      :assignments="currentAssignments" 
-      :active-objects="store.activeObjects" 
-      :is-saving="store.loading"
-      :contractor-name="selectedWorker?.name"
-      :contractor-type="selectedWorker?.contractorType"
-      @save="handleSave" 
-      @confirm-delete="handleDeleteConfirm" 
-    />
-
-    <!-- Подтверждение удаления -->
-    <div v-if="showDeleteConfirm" class="confirm-backdrop">
-      <div class="confirm-dialog">
-        <h3>Удалить записи за {{ selectedDate }}?</h3>
-        <p>Это действие удалит все назначения подневки. Баланс будет пересчитан.</p>
-        <div class="confirm-dialog__actions">
-          <button class="btn-text" @click="showDeleteConfirm = false">Отмена</button>
-          <button class="btn-danger" @click="executeDelete">Удалить всё</button>
-        </div>
-      </div>
-    </div>
+    </template>
   </div>
 </template>
 
@@ -132,6 +138,7 @@ import { useForemanDailyStore } from 'stores/foremanDaily'
 import { useBulkSelection } from '~/composables/daily-work/useBulkSelection'
 import { useDailyAssignment } from '~/composables/daily-work/useDailyAssignment'
 import { usePermissions } from '~/composables/usePermissions'
+import { useNotifications } from '~/composables/useNotifications'
 import type { DailyWorker, DailyAssignment } from '~/types/daily-assignments'
 import CalendarCell from './ui/CalendarCell.vue'
 import DailyAssignmentSheet from './DailyAssignmentSheet.vue'
@@ -175,7 +182,24 @@ const {
 // ── Стор и утилиты ────────────────────────────────────────────
 const store = useForemanDailyStore()
 const { formatCurrency } = useDailyAssignment()
-const { isAdmin } = usePermissions()
+const { can, hasRole } = usePermissions()
+const notifications = useNotifications()
+
+// ── 🛡️ ЗАЩИТА ОТ HYDRATION MISMATCH ────────────────────────────
+const isMounted = ref(false)
+
+// ── ПРАВА ДОСТУПА ──────────────────────────────────────────────
+const canView = computed(() => can('daily-work', 'view'))
+const canCreate = computed(() => can('daily-work', 'create'))
+const canEdit = computed(() => can('daily-work', 'edit'))
+const canDelete = computed(() => can('daily-work', 'delete'))
+const canSpecial = computed(() => can('daily-work', 'special'))
+
+// Может создавать или редактировать (для модификации ячеек)
+const canModify = computed(() => canCreate.value || canEdit.value)
+
+// Администратор (для ссылки на карточку сотрудника)
+const isAdminUser = computed(() => hasRole('admin'))
 
 // ── Локальное состояние ───────────────────────────────────────
 const sheetOpen = ref(false)
@@ -241,7 +265,7 @@ const { bindCell, state: bulkState, isDragging } = useBulkSelection({
   },
   
   onEnd: (dates) => {
-    if (dates.length > 0 && selectedWorker.value) {
+    if (dates.length > 0 && selectedWorker.value && canModify.value) {
       console.log('[DailyWork] Выделение завершено, дней:', dates.length)
       
       selectedDate.value = dates[0]!
@@ -271,6 +295,8 @@ function onScroll() {
 
 // ── Обработчики событий ───────────────────────────────────────
 function handleMouseDown(worker: DailyWorker, date: string) {
+  if (!canModify.value) return
+  
   selectedWorker.value = worker
   selectedWorkerIdForBulk.value = worker.id
   currentWorkerForBulk = worker
@@ -283,6 +309,8 @@ function handleMouseEnter(date: string) {
 }
 
 function handleTouchStart(worker: DailyWorker, date: string, event: TouchEvent) {
+  if (!canModify.value) return
+  
   event.preventDefault()
   
   selectedWorker.value = worker
@@ -304,6 +332,8 @@ function handleTouchMove(date: string, event: TouchEvent) {
 
 function handleCellClick(worker: DailyWorker, date: string) {
   if (isDragging.value) return
+  if (!canModify.value) return
+  
   selectedWorker.value = worker
   selectedDate.value = date
   selectedDatesForModal.value = [date]
@@ -337,14 +367,32 @@ function isWeekend(date: string) { const d = new Date(date).getDay(); return d =
 // ── Сохранение и удаление ─────────────────────────────────────
 async function handleSave(data: { assignments: DailyAssignment[], dates: string[] }) {
   if (!selectedWorker.value) return
+  if (!canModify.value) {
+    notifications.error('У вас нет прав для изменения подневки', 'Доступ запрещён')
+    return
+  }
+  
   console.log('[DailyWork] Начало сохранения назначений...')
   
   try {
     for (const date of data.dates) {
       const existing = store.getGroupByDate(selectedWorker.value.id, date)
-      for (const item of existing) { if (item.id) await store.deleteAssignment(item.id) }
-      for (const item of data.assignments) {
-        await store.saveAssignment({ ...item, workerId: selectedWorker.value.id, contractorType: selectedWorker.value.contractorType, date })
+      // Удаляем существующие (требует canDelete или canEdit)
+      if (canDelete.value || canEdit.value) {
+        for (const item of existing) { 
+          if (item.id) await store.deleteAssignment(item.id) 
+        }
+      }
+      // Создаём новые (требует canCreate)
+      if (canCreate.value) {
+        for (const item of data.assignments) {
+          await store.saveAssignment({ 
+            ...item, 
+            workerId: selectedWorker.value.id, 
+            contractorType: selectedWorker.value.contractorType, 
+            date 
+          })
+        }
       }
     }
     
@@ -358,17 +406,34 @@ async function handleSave(data: { assignments: DailyAssignment[], dates: string[
     selectedDatesForModal.value = []
     selectedWorkerIdForBulk.value = null
     currentWorkerForBulk = null
-  } catch (e) {
+  } catch (e: any) {
     console.error('[DailyWork] Ошибка сохранения:', e)
+    
+    // Обработка 403
+    if (e.statusCode === 403) {
+      notifications.error('У вас нет прав для изменения подневки', 'Доступ запрещён')
+    }
+    
     emit('error', 'Не удалось сохранить данные')
   }
 }
 
-async function handleDeleteConfirm() { showDeleteConfirm.value = true }
+async function handleDeleteConfirm() {
+  if (!canDelete.value) {
+    notifications.error('У вас нет прав для удаления подневки', 'Доступ запрещён')
+    return
+  }
+  showDeleteConfirm.value = true
+}
 
 async function executeDelete() {
   showDeleteConfirm.value = false
   if (!selectedWorker.value) return
+  if (!canDelete.value) {
+    notifications.error('У вас нет прав для удаления подневки', 'Доступ запрещён')
+    return
+  }
+  
   console.log('[DailyWork] Удаление назначений...')
   
   try {
@@ -390,8 +455,14 @@ async function executeDelete() {
     selectedDatesForModal.value = []
     selectedWorkerIdForBulk.value = null
     currentWorkerForBulk = null
-  } catch (e) {
+  } catch (e: any) {
     console.error('[DailyWork] Ошибка удаления:', e)
+    
+    // Обработка 403
+    if (e.statusCode === 403) {
+      notifications.error('У вас нет прав для удаления подневки', 'Доступ запрещён')
+    }
+    
     emit('error', 'Не удалось удалить данные')
   }
 }
@@ -422,29 +493,50 @@ async function retryLoad() {
   store.error = null
   console.log('[DailyWork] Повторная загрузка данных...')
   
-  await Promise.allSettled([
-    store.fetchWorkers(),
-    store.fetchActiveObjects()
-  ])
-  
-  if (!store.workers.length && !store.error) {
-    store.error = 'Сервер ответил успешно, но список рабочих пуст.'
+  try {
+    await Promise.allSettled([
+      store.fetchWorkers(),
+      store.fetchActiveObjects()
+    ])
+    
+    if (!store.workers.length && !store.error) {
+      store.error = 'Сервер ответил успешно, но список рабочих пуст.'
+    }
+  } catch (e: any) {
+    console.error('[DailyWork] Ошибка загрузки:', e)
+    
+    // Обработка 403
+    if (e.statusCode === 403) {
+      notifications.error('У вас больше нет прав для просмотра подневки', 'Доступ запрещён')
+    }
   }
 }
 
 // ── Хуки жизненного цикла ─────────────────────────────────────
 onMounted(async () => {
-  if (autoLoad) {
-    // 1. Инициализация данных — как в старом коде
+  // ✅ Устанавливаем флаг ПОСЛЕ монтирования
+  isMounted.value = true
+  
+  if (autoLoad && canView.value) {
+    // 1. Инициализация данных
     store.error = null
-    await Promise.all([store.fetchWorkers(), store.fetchActiveObjects()])
-    
-    // 2. Сразу грузим назначения, если рабочие есть
-    if (store.workers.length > 0) {
-      await loadAssignmentsForRange()
+    try {
+      await Promise.all([store.fetchWorkers(), store.fetchActiveObjects()])
+      
+      // 2. Сразу грузим назначения, если рабочие есть
+      if (store.workers.length > 0) {
+        await loadAssignmentsForRange()
+      }
+      
+      emit('loaded')
+    } catch (e: any) {
+      console.error('[DailyWork] Ошибка загрузки:', e)
+      
+      // Обработка 403
+      if (e.statusCode === 403) {
+        notifications.error('У вас нет прав для просмотра подневки', 'Доступ запрещён')
+      }
     }
-    
-    emit('loaded')
   }
   
   // 3. Инициализация скролл-листенера

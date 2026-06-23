@@ -2,84 +2,144 @@
 <template>
   <div class="operation-page">
 
-    <!-- Заголовок -->
-    <PagesCabinetUiLayoutPageTitle title="Операции" icon="mdi:swap-horizontal">
-      <template #actions>
-        <button class="crm-btn crm-btn--expense" @click="showExpenseModal = true">
-          <Icon name="mdi:minus" size="15" />
-          Расход
-        </button>
-        <button class="crm-btn crm-btn--income" @click="showIncomeModal = true">
-          <Icon name="mdi:plus" size="15" />
-          Приход
-        </button>
-      </template>
-    </PagesCabinetUiLayoutPageTitle>
+    <!-- ❌ Нет прав на просмотр -->
+    <UiAccessDeniedBlock v-if="isMounted && !canView" />
 
-    <div class="operation-page__content">
+    <!-- ✅ Есть права — показываем контент -->
+    <template v-else>
+      <!-- Заголовок -->
+      <PagesCabinetUiLayoutPageTitle title="Операции" icon="mdi:swap-horizontal">
+        <template #actions>
+          <!-- Кнопки создания — только если есть canCreate -->
+          <template v-if="isMounted && canCreate">
+            <button class="crm-btn crm-btn--expense" @click="showExpenseModal = true">
+              <Icon name="mdi:minus" size="15" />
+              Расход
+            </button>
+            <button class="crm-btn crm-btn--income" @click="showIncomeModal = true">
+              <Icon name="mdi:plus" size="15" />
+              Приход
+            </button>
+          </template>
+        </template>
+      </PagesCabinetUiLayoutPageTitle>
 
-      <!-- Фильтр дат -->
-      <div class="operation-page__filter">
-        <PagesCabinetOperationDateFilter :start-date="startDate" :end-date="endDate"
-          @update:start-date="startDate = $event" @update:end-date="endDate = $event" @apply="applyFilter"
-          @reset="resetFilter" />
+      <div class="operation-page__content">
+
+        <!-- Фильтр дат -->
+        <div class="operation-page__filter">
+          <PagesCabinetOperationDateFilter 
+            :start-date="startDate" 
+            :end-date="endDate"
+            @update:start-date="startDate = $event" 
+            @update:end-date="endDate = $event" 
+            @apply="applyFilter"
+            @reset="resetFilter" 
+          />
+        </div>
+
+        <!-- Баланс -->
+        <PagesCabinetOperationBalanceSummary 
+          :balance="balance" 
+          :loading="loadingBalance" 
+          :error="errorBalance"
+          :expense-stats="expenseStats" 
+        />
+
+        <!-- Список операций -->
+        <PagesCabinetOperationOperationsList 
+          :expenses="filteredExpenses" 
+          :comings="filteredComings"
+          :loading="loadingExpenses || loadingComings" 
+          :error="errorExpenses || errorComings"
+          :object-labels="objectLabels" 
+          @filter-type="handleExpenseTypeFilter" 
+        />
+
       </div>
 
-      <!-- Баланс -->
-      <PagesCabinetOperationBalanceSummary :balance="balance" :loading="loadingBalance" :error="errorBalance"
-        :expense-stats="expenseStats" />
-
-      <!-- Список операций -->
-      <PagesCabinetOperationOperationsList :expenses="filteredExpenses" :comings="filteredComings"
-        :loading="loadingExpenses || loadingComings" :error="errorExpenses || errorComings"
-        :object-labels="objectLabels" @filter-type="handleExpenseTypeFilter" />
-
-    </div>
-
-    <!-- Модальные окна -->
-    <PagesCabinetOperationAddExpense :is-open="showExpenseModal" @close="showExpenseModal = false"
-      @expense-added="handleExpenseAdded" />
-    <PagesCabinetOperationAddIncome :is-open="showIncomeModal" @close="showIncomeModal = false"
-      @income-added="handleIncomeAdded" />
-
+      <!-- Модальные окна — только если есть canCreate -->
+      <template v-if="isMounted && canCreate">
+        <PagesCabinetOperationAddExpense 
+          :is-open="showExpenseModal" 
+          @close="showExpenseModal = false"
+          @expense-added="handleExpenseAdded" 
+        />
+        <PagesCabinetOperationAddIncome 
+          :is-open="showIncomeModal" 
+          @close="showIncomeModal = false"
+          @income-added="handleIncomeAdded" 
+        />
+      </template>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useApi } from '~/composables/useApi'
+import { usePermissions } from '~/composables/usePermissions'
+import { useNotifications } from '~/composables/useNotifications'
+
+// ============================================
+// ИНИЦИАЛИЗАЦИЯ
+// ============================================
 
 const api = useApi()
+const router = useRouter()
+const notifications = useNotifications()
+const { can } = usePermissions()
+
+// ============================================
+// 🛡️ ЗАЩИТА ОТ HYDRATION MISMATCH
+// ============================================
+
+const isMounted = ref(false)
+
+// ============================================
+// ПРАВА ДОСТУПА
+// ============================================
+
+const canView = computed(() => can('operations', 'view'))
+const canCreate = computed(() => can('operations', 'create'))
+
+// ============================================
+// СОСТОЯНИЕ
+// ============================================
 
 // ── Фильтры ─────────────────────────────────────────────────────────
 const startDate = ref('')
 const endDate = ref('')
 
 // ── Баланс ──────────────────────────────────────────────────────────
-const balance = ref < any > (null)
+const balance = ref<any>(null)
 const loadingBalance = ref(true)
-const errorBalance = ref < string | null > (null)
+const errorBalance = ref<string | null>(null)
 
 // ── Операции ────────────────────────────────────────────────────────
-const expenses = ref < any[] > ([])
-const comings = ref < any[] > ([])
+const expenses = ref<any[]>([])
+const comings = ref<any[]>([])
 const loadingExpenses = ref(false)
 const loadingComings = ref(false)
-const errorExpenses = ref < string | null > (null)
-const errorComings = ref < string | null > (null)
+const errorExpenses = ref<string | null>(null)
+const errorComings = ref<string | null>(null)
 
 // ── Статистика ───────────────────────────────────────────────────────
-const expenseStats = ref < any[] > ([])
+const expenseStats = ref<any[]>([])
 
 // ── Справочники ─────────────────────────────────────────────────────
-const objectLabels = ref < Record < number, string>> ({})
+const objectLabels = ref<Record<number, string>>({})
 
 // ── UI ───────────────────────────────────────────────────────────────
 const showExpenseModal = ref(false)
 const showIncomeModal = ref(false)
 const selectedExpenseType = ref('')
 
-// ── Computed ────────────────────────────────────────────────────────
+// ============================================
+// COMPUTED
+// ============================================
+
 const filteredExpenses = computed(() => {
   if (!startDate.value || !endDate.value) return expenses.value
   const start = new Date(startDate.value)
@@ -102,11 +162,26 @@ const filteredComings = computed(() => {
   })
 })
 
-// ── Загрузка ────────────────────────────────────────────────────────
+// ============================================
+// API ЗАПРОСЫ
+// ============================================
+
 function getParams() {
   return startDate.value && endDate.value
     ? { startDate: startDate.value, endDate: endDate.value }
     : {}
+}
+
+/**
+ * Обработка 403 ошибки — права отозвали во время работы
+ */
+function handle403(error: any, resourceName: string): boolean {
+  if (error?.statusCode === 403) {
+    notifications.error(`У вас больше нет прав для просмотра: ${resourceName}`, 'Доступ запрещён')
+    router.push('/cabinet')
+    return true
+  }
+  return false
 }
 
 async function loadBalance() {
@@ -114,8 +189,10 @@ async function loadBalance() {
   errorBalance.value = null
   try {
     balance.value = await api.get('/api/balance', { params: getParams() })
-  } catch {
-    errorBalance.value = 'Не удалось загрузить баланс'
+  } catch (e: any) {
+    if (!handle403(e, 'баланс')) {
+      errorBalance.value = 'Не удалось загрузить баланс'
+    }
   } finally {
     loadingBalance.value = false
   }
@@ -127,8 +204,10 @@ async function loadExpenses() {
   try {
     const data = await api.get<any[]>('/api/expenses', { params: getParams() })
     expenses.value = Array.isArray(data) ? data : []
-  } catch {
-    errorExpenses.value = 'Не удалось загрузить расходы'
+  } catch (e: any) {
+    if (!handle403(e, 'расходы')) {
+      errorExpenses.value = 'Не удалось загрузить расходы'
+    }
   } finally {
     loadingExpenses.value = false
   }
@@ -140,8 +219,10 @@ async function loadComings() {
   try {
     const data = await api.get<any[]>('/api/comings', { params: getParams() })
     comings.value = Array.isArray(data) ? data : []
-  } catch {
-    errorComings.value = 'Не удалось загрузить приходы'
+  } catch (e: any) {
+    if (!handle403(e, 'приходы')) {
+      errorComings.value = 'Не удалось загрузить приходы'
+    }
   } finally {
     loadingComings.value = false
   }
@@ -150,21 +231,32 @@ async function loadComings() {
 async function loadExpenseStats() {
   try {
     expenseStats.value = await api.get<any[]>('/api/expenses/stats', { params: getParams() }) || []
-  } catch (e) {
-    console.error('[Операции] Ошибка загрузки статистики:', e)
+  } catch (e: any) {
+    if (!handle403(e, 'статистика расходов')) {
+      console.error('[Операции] Ошибка загрузки статистики:', e)
+    }
   }
 }
 
 async function loadObjectLabels() {
   try {
     const data = await api.get<any[]>('/api/objects')
-      ; (data || []).forEach(obj => { objectLabels.value[obj.id] = obj.name })
-  } catch (e) {
-    console.error('[Операции] Ошибка загрузки объектов:', e)
+    ;(data || []).forEach((obj: any) => { 
+      objectLabels.value[obj.id] = obj.name 
+    })
+  } catch (e: any) {
+    // Для справочника объектов не делаем редирект при 403,
+    // т.к. это вспомогательные данные
+    if (e?.statusCode !== 403) {
+      console.error('[Операции] Ошибка загрузки объектов:', e)
+    }
   }
 }
 
-// ── Управление фильтрами ─────────────────────────────────────────────
+// ============================================
+// УПРАВЛЕНИЕ ФИЛЬТРАМИ
+// ============================================
+
 function applyFilter() {
   if (!startDate.value || !endDate.value) return
   loadBalance()
@@ -182,7 +274,10 @@ function resetFilter() {
   loadExpenseStats()
 }
 
-// ── Обработка событий ────────────────────────────────────────────────
+// ============================================
+// ОБРАБОТКА СОБЫТИЙ
+// ============================================
+
 function handleExpenseTypeFilter(type: string) {
   selectedExpenseType.value = type
 }
@@ -198,13 +293,22 @@ function handleIncomeAdded() {
   loadBalance()
 }
 
-// ── Инициализация ────────────────────────────────────────────────────
-onMounted(() => {
-  loadBalance()
-  loadExpenseStats()
-  loadObjectLabels()
-  loadExpenses()
-  loadComings()
+// ============================================
+// ЖИЗНЕННЫЙ ЦИКЛ
+// ============================================
+
+onMounted(async () => {
+  // ✅ Устанавливаем флаг ПОСЛЕ монтирования
+  isMounted.value = true
+  
+  // Загружаем данные только если есть права на просмотр
+  if (canView.value) {
+    loadBalance()
+    loadExpenseStats()
+    loadObjectLabels()
+    loadExpenses()
+    loadComings()
+  }
 })
 </script>
 
