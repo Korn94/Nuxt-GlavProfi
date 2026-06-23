@@ -124,7 +124,7 @@ export default defineEventHandler(async (event) => {
       return {
         role: targetRole,
         pageSlug,
-        canView: false, // canView упразднён — всегда false
+        canView: perms.canView ?? false,
         canCreate: perms.canCreate ?? false,
         canEdit: perms.canEdit ?? false,
         canDelete: perms.canDelete ?? false,

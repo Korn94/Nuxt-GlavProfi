@@ -58,6 +58,7 @@ export interface UserWithPermissions {
 export interface UserOverride {
   id: number
   pageSlug: string
+  canView: boolean | null
   canCreate: boolean | null
   canEdit: boolean | null
   canDelete: boolean | null
@@ -205,6 +206,7 @@ export async function applyUserOverrides(
   userId: number,
   overrides: Array<{
     pageSlug: string
+    canView?: boolean
     canCreate?: boolean
     canEdit?: boolean
     canDelete?: boolean

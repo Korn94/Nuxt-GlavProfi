@@ -6,11 +6,15 @@
  * - Чтение прав из БД (permissions_role_access + permissions_user_overrides)
  * - Поддержка переопределений для конкретных пользователей с expiresAt
  * - Кэширование в памяти (5 мин TTL) — инвалидируется при изменениях
- * - Упрощённая система действий: create, edit, delete, special
+ * - Упрощённая система действий: view, create, edit, delete, special
+ *
+ * Модель прав:
+ * - canView — доступ на чтение (Read-Only Access)
+ * - canCreate, canEdit, canDelete, canSpecial — CRUD операции
  *
  * Видимость страниц:
- * - Раздел виден в меню, если есть хотя бы одно право (create/edit/delete/special)
- * - canView упразднён — отдельного флага просмотра нет
+ * - Раздел виден в меню, если есть хотя бы одно право
+ *   (canView || canCreate || canEdit || canDelete || canSpecial)
  *
  * Импорт:
  *   import { hasUserPermission, getAllUserPermissions } from '~/server/utils/permissions'
@@ -46,7 +50,7 @@ export type DbUser = typeof users.$inferSelect
 
 /**
  * Внутренний тип для хранения прав из БД
- * canView сохраняется для обратной совместимости с БД, но не используется в логике
+ * Все 5 флагов используются в логике видимости
  */
 interface DbPagePermissions {
   canView: boolean
@@ -73,7 +77,7 @@ const CACHE_TTL = 5 * 60 * 1000 // 5 минут
 // ============================================
 
 /**
- * Проверить, есть ли у страницы хотя бы одно действие (кроме view)
+ * Проверить, есть ли у страницы хотя бы одно CRUD-действие (кроме view)
  * Такие страницы требуют наличия действий для видимости
  */
 function hasCrudActions(pageSlug: string): boolean {
@@ -85,25 +89,25 @@ function hasCrudActions(pageSlug: string): boolean {
 /**
  * Определить видимость страницы на основе прав
  *
- * Логика:
- * - CRUD страницы: видна если есть хотя бы одно действие (create/edit/delete/special)
- * - View-only страницы (dashboard, online, test): видна всегда если есть запись в БД
+ * Новая логика (с canView):
+ * isVisible = canView || canCreate || canEdit || canDelete || canSpecial
+ *
+ * Это позволяет:
+ * - Давать read-only доступ к CRUD-страницам (canView=true, все CRUD=false)
+ * - View-only страницы (dashboard, online, test) видимы по canView
  */
 function isPageVisible(
-  pageSlug: string,
+  _pageSlug: string,
   perms: DbPagePermissions,
-  pageCapabilities: { hasCreate: boolean; hasEdit: boolean; hasDelete: boolean; hasSpecial: boolean }
+  _pageCapabilities: { hasCreate: boolean; hasEdit: boolean; hasDelete: boolean; hasSpecial: boolean }
 ): boolean {
-  const hasAnyCapability = pageCapabilities.hasCreate || pageCapabilities.hasEdit ||
-                           pageCapabilities.hasDelete || pageCapabilities.hasSpecial
-
-  if (hasAnyCapability) {
-    // CRUD страница — видна если есть хотя бы одно действие
-    return perms.canCreate || perms.canEdit || perms.canDelete || perms.canSpecial
-  } else {
-    // View-only страница (dashboard, online, test) — видна если canView=true в БД
-    return perms.canView
-  }
+  return (
+    perms.canView ||
+    perms.canCreate ||
+    perms.canEdit ||
+    perms.canDelete ||
+    perms.canSpecial
+  )
 }
 
 // ============================================
@@ -247,6 +251,7 @@ export async function getAllUserPermissions(user: DbUser): Promise<UserPermissio
     // Включаем страницу в результат только если она видима
     if (visible) {
       pages[page.slug] = {
+        canView: effectivePerms.canView,
         canCreate: page.hasCreate && effectivePerms.canCreate,
         canEdit: page.hasEdit && effectivePerms.canEdit,
         canDelete: page.hasDelete && effectivePerms.canDelete,
@@ -265,7 +270,6 @@ export async function getAllUserPermissions(user: DbUser): Promise<UserPermissio
 
   // Сохраняем в кэш
   permissionsCache.set(user.id, { permissions: result, timestamp: now })
-
   return result
 }
 
@@ -307,6 +311,7 @@ export async function getUserPagePermissions(
   // Страница не найдена или неактивна — всё запрещено
   if (!page) {
     return {
+      canView: false,
       canCreate: false,
       canEdit: false,
       canDelete: false,
@@ -379,6 +384,7 @@ export async function getUserPagePermissions(
 
   if (!visible) {
     return {
+      canView: false,
       canCreate: false,
       canEdit: false,
       canDelete: false,
@@ -388,6 +394,7 @@ export async function getUserPagePermissions(
 
   // 6. Фильтруем: действие доступно только если страница его поддерживает
   return {
+    canView: effectivePerms.canView,
     canCreate: page.hasCreate && effectivePerms.canCreate,
     canEdit: page.hasEdit && effectivePerms.canEdit,
     canDelete: page.hasDelete && effectivePerms.canDelete,
@@ -403,7 +410,7 @@ export async function getUserPagePermissions(
  * Проверить, имеет ли пользователь право на действие
  *
  * Логика:
- * - view — страница должна быть видима (есть действия ИЛИ view-only с canView)
+ * - view — страница видима если canView=true ИЛИ есть любое CRUD-действие
  * - create/edit/delete/special — страница видима + соответствующий флаг
  *
  * Используется в middleware для проверки прав на endpoint.
@@ -452,8 +459,9 @@ export async function hasUserPermission(
   const permissions = await getUserPagePermissions(user, pageSlug)
 
   if (action === 'view') {
-    // Страница видима если есть хотя бы одно действие
+    // Страница видима если есть canView ИЛИ любое CRUD-действие
     return (
+      permissions.canView ||
       permissions.canCreate ||
       permissions.canEdit ||
       permissions.canDelete ||

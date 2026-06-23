@@ -44,21 +44,27 @@ export function usePermissions() {
   /**
    * Проверить право пользователя на действие для страницы
    *
-   * Логика (упрощённая, без canView):
-   * - view — страница есть в правах (видима автоматически)
-   * - create/edit/delete/special — соответствующий флаг в правах
+   * Логика (с canView = Read-Only Access):
+   * - view — страница видима если canView=true ИЛИ есть любое CRUD-действие
+   * - create/edit/delete/special — страница видима + соответствующий флаг
    *
-   * ⚠️ canView упразднён — видимость определяется наличием в authStore.pages
+   * isVisible = canView || canCreate || canEdit || canDelete || canSpecial
    */
   function can(page: PageSlug, action: PageAction): boolean {
     const pagePerms = authStore.pages?.[page]
-    
+
     // Если страницы нет в правах — она невидима, доступ запрещён
     if (!pagePerms) return false
 
-    // Для просмотра — страница уже видима (есть в authStore.pages)
+    // Для просмотра — страница видима если canView ИЛИ есть любое действие
     if (action === 'view') {
-      return true
+      return (
+        pagePerms.canView ||
+        pagePerms.canCreate ||
+        pagePerms.canEdit ||
+        pagePerms.canDelete ||
+        pagePerms.canSpecial
+      )
     }
 
     // Для действий — проверяем соответствующий флаг

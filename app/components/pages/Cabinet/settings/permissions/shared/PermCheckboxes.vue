@@ -1,7 +1,20 @@
 <!-- app/components/pages/cabinet/settings/permissions/shared/PermCheckboxes.vue -->
 <template>
   <div :class="['perm-checkboxes', { 'perm-checkboxes--compact': compact }]">
-    <!-- Создание (только если страница поддерживает) -->
+    <!-- 👁 Просмотр (Read-Only Access) — всегда доступен -->
+    <label class="action-checkbox action-checkbox--view">
+      <input
+        type="checkbox"
+        :checked="localPermissions.canView"
+        :disabled="disabled"
+        @change="onActionToggle('canView')"
+      />
+      <span class="checkmark"></span>
+      <Icon name="mdi:eye-outline" size="16" />
+      <span>Просмотр (только чтение)</span>
+    </label>
+    
+    <!-- ✅ ДОБАВЛЕНО: Создание (только если страница поддерживает) -->
     <label v-if="page.hasCreate" class="action-checkbox action-checkbox--create">
       <input
         type="checkbox"
@@ -72,6 +85,7 @@ import { computed } from 'vue'
 // ============================================
 
 interface PagePermissions {
+  canView: boolean
   canCreate: boolean
   canEdit: boolean
   canDelete: boolean
@@ -85,7 +99,7 @@ interface PageCapabilities {
   hasSpecial: boolean
 }
 
-type PermissionAction = 'canCreate' | 'canEdit' | 'canDelete' | 'canSpecial'
+type PermissionAction = 'canView' | 'canCreate' | 'canEdit' | 'canDelete' | 'canSpecial'
 
 // ============================================
 // ПРОПСЫ
@@ -140,12 +154,12 @@ const hasAnyActionCapability = computed(() => {
 // ============================================
 
 /**
- * Переключение конкретного действия (create/edit/delete/special)
- * 
+ * Переключение конкретного действия (view/create/edit/delete/special)
+ *
  * Логика:
  * - Простое переключение флага
- * - Видимость раздела в меню определяется автоматически:
- *   раздел виден если есть хотя бы одно действие = true
+ * - Видимость раздела в меню: canView || canCreate || canEdit || canDelete || canSpecial
+ * - canView позволяет дать доступ на чтение без CRUD-действий
  */
 function onActionToggle(action: PermissionAction) {
   const current = localPermissions.value
@@ -284,6 +298,10 @@ function onActionToggle(action: PermissionAction) {
   }
   
   // ── ВАРИАНТЫ ПО ТИПУ ДЕЙСТВИЯ ───────────────────
+  &--view:has(input:checked) svg {
+    color: var(--crm-text-primary);
+  }
+
   &--create:has(input:checked) svg {
     color: var(--crm-success);
   }

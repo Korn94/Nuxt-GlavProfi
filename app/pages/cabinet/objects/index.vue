@@ -1,14 +1,22 @@
 <!-- app/pages/cabinet/objects/index.vue -->
 <template>
   <div class="objects-page">
-
-    <!-- Заголовок -->
+    <!-- Заголовок всегда (для SSR и гидратации) -->
     <PagesCabinetUiLayoutPageTitle title="Объекты" icon="mdi:office-building-outline">
       <template #actions>
-        <div v-if="['admin', 'manager'].includes(user?.role)" class="add-form">
-          <input v-model="newObjectName" class="add-form__input" placeholder="Название объекта"
-            @keyup.enter="addObject" />
-          <button class="crm-btn crm-btn--accent" @click="addObject" :disabled="!newObjectName.trim() || loading">
+        <!-- Форма добавления только ПОСЛЕ монтирования и при наличии прав -->
+        <div v-if="isMounted && canCreate" class="add-form">
+          <input 
+            v-model="newObjectName" 
+            class="add-form__input" 
+            placeholder="Название объекта"
+            @keyup.enter="addObject" 
+          />
+          <button 
+            class="crm-btn crm-btn--accent" 
+            @click="addObject" 
+            :disabled="!newObjectName.trim() || loading"
+          >
             <Icon name="mdi:plus" size="15" />
             Добавить
           </button>
@@ -17,155 +25,223 @@
     </PagesCabinetUiLayoutPageTitle>
 
     <div class="objects-page__content">
-
-      <!-- Вкладки + счётчик -->
-      <div class="objects-nav">
-        <div class="tabs">
-          <button v-for="tab in tabs" :key="tab.value" class="tab" :class="{ 'tab--active': currentTab === tab.value }"
-            @click="currentTab = tab.value">
-            {{ tab.label }}
-            <span class="tab__count">{{ counts[tab.value as TabValue] }}</span>
-          </button>
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <!-- ФАЗА 1: До монтирования (SSR + гидратация) — СОВПАДАЕТ с сервером -->
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <template v-if="!isMounted">
+        <div class="objects-nav">
+          <div class="tabs">
+            <button 
+              v-for="tab in tabs" 
+              :key="tab.value" 
+              class="tab" 
+              :class="{ 'tab--active': currentTab === tab.value }"
+            >
+              {{ tab.label }}
+              <span class="tab__count">0</span>
+            </button>
+          </div>
         </div>
-
-        <div class="counts-summary" title="Активные / Ожидают / Завершены / Отклонены">
-          <span>{{ counts.active }}</span>
-          <span class="counts-summary__sep">/</span>
-          <span>{{ counts.waiting }}</span>
-          <span class="counts-summary__sep">/</span>
-          <span>{{ counts.completed }}</span>
-          <span class="counts-summary__sep">/</span>
-          <span>{{ counts.canceled }}</span>
+        
+        <div class="objects-card">
+          <div class="objects-skeleton">
+            <div v-for="i in 4" :key="i" class="skel" />
+          </div>
         </div>
-      </div>
+      </template>
 
-      <!-- Список -->
-      <div class="objects-card">
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <!-- ФАЗА 2: После монтирования — реальная логика с проверкой прав -->
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <template v-else>
+        <!-- ❌ Нет прав на просмотр -->
+        <UiAccessDeniedBlock v-if="!canView" />
 
-        <!-- Скелетон -->
-        <div v-if="loading" class="objects-skeleton">
-          <div v-for="i in 4" :key="i" class="skel" />
-        </div>
+        <!-- ⏳ Загрузка данных -->
+        <template v-else>
+          <!-- Вкладки + счётчик -->
+          <div class="objects-nav">
+            <div class="tabs">
+              <button 
+                v-for="tab in tabs" 
+                :key="tab.value" 
+                class="tab" 
+                :class="{ 'tab--active': currentTab === tab.value }"
+                @click="currentTab = tab.value"
+              >
+                {{ tab.label }}
+                <span class="tab__count">{{ counts[tab.value as TabValue] }}</span>
+              </button>
+            </div>
 
-        <!-- Пустое состояние -->
-        <div v-else-if="!filteredObjects.length" class="objects-empty">
-          <Icon name="mdi:office-building-outline" size="36" />
-          <span>Нет объектов в категории «{{ currentTabLabel }}»</span>
-        </div>
+            <div class="counts-summary" title="Активные / Ожидают / Завершены / Отклонены">
+              <span>{{ counts.active }}</span>
+              <span class="counts-summary__sep">/</span>
+              <span>{{ counts.waiting }}</span>
+              <span class="counts-summary__sep">/</span>
+              <span>{{ counts.completed }}</span>
+              <span class="counts-summary__sep">/</span>
+              <span>{{ counts.canceled }}</span>
+            </div>
+          </div>
 
-        <!-- Список объектов -->
-        <ul v-else class="object-list">
-          <li v-for="(obj, idx) in filteredObjects" :key="obj.id" class="object-list__item"
-            :class="{ 'object-list__item--alt': idx % 2 === 1 }">
-            <NuxtLink :to="`/cabinet/objects/${obj.id}`" class="object-item">
+          <!-- Список -->
+          <div class="objects-card">
+            <!-- Скелетон -->
+            <div v-if="loading" class="objects-skeleton">
+              <div v-for="i in 4" :key="i" class="skel" />
+            </div>
 
-              <!-- Основная информация -->
-              <div class="object-item__main">
-                <div class="object-item__name">{{ obj.name }}</div>
+            <!-- Пустое состояние -->
+            <div v-else-if="!filteredObjects.length" class="objects-empty">
+              <Icon name="mdi:office-building-outline" size="36" />
+              <span>Нет объектов в категории «{{ currentTabLabel }}»</span>
+            </div>
 
-                <div class="object-item__meta">
-                  <span v-if="obj.address">
-                    <Icon name="mdi:map-marker-outline" size="12" />
-                    {{ obj.address }}
-                  </span>
-                  <span v-if="obj.foreman">
-                    <Icon name="mdi:account-hard-hat-outline" size="12" />
-                    {{ obj.foreman.name }}
-                  </span>
-                  <span v-if="!obj.address && !obj.foreman" class="meta-empty">Адрес не указан</span>
-                </div>
+            <!-- Список объектов -->
+            <ul v-else class="object-list">
+              <li 
+                v-for="(obj, idx) in filteredObjects" 
+                :key="obj.id" 
+                class="object-list__item"
+                :class="{ 'object-list__item--alt': idx % 2 === 1 }"
+              >
+                <NuxtLink :to="`/cabinet/objects/${obj.id}`" class="object-item">
+                  <!-- Основная информация -->
+                  <div class="object-item__main">
+                    <div class="object-item__name">{{ obj.name }}</div>
 
-                <div class="object-item__docs">
-                  <div :class="['doc-chip', `doc-chip--${getDocumentClass(obj)}`]" :title="getDocumentTooltip(obj)">
-                    <span class="doc-chip__dot" />
-                    {{ getDocumentText(obj) }}
-                  </div>
-                  <div :class="['doc-chip', `doc-chip--${getInvoiceClass(obj)}`]" :title="getInvoiceTooltip(obj)">
-                    <span class="doc-chip__dot" />
-                    Счета {{ obj.invoiceStats.signed }}/{{ obj.invoiceStats.total }}
-                  </div>
-                  <div :class="['doc-chip', `doc-chip--${getActClass(obj)}`]" :title="getActTooltip(obj)">
-                    <span class="doc-chip__dot" />
-                    Акты {{ obj.actStats.signed }}/{{ obj.actStats.total }}
-                  </div>
-                </div>
-              </div>
-
-              <!-- Финансы справа -->
-              <div class="object-item__finance">
-
-                <!-- Активные/ожидающие: баланс -->
-                <template v-if="obj.status !== 'completed'">
-                  <div class="fin-block">
-                    <span class="fin-block__label">Баланс</span>
-                    <span class="fin-block__value" :class="obj.totalBalance >= 0 ? 'pos' : 'neg'">
-                      {{ formatNumber(obj.totalBalance) }} ₽
-                    </span>
-                  </div>
-                  <div class="fin-detail">
-                    <span>Работы: {{ formatNumber(obj.totalWorks) }} ₽</span>
-                    <span>
-                      Мат.:
-                      <span :class="getMaterialBalance(obj) >= 0 ? 'pos' : 'neg'">
-                        {{ getMaterialBalance(obj) >= 0 ? '+' : '' }}{{ formatNumber(getMaterialBalance(obj)) }} ₽
+                    <div class="object-item__meta">
+                      <span v-if="obj.address">
+                        <Icon name="mdi:map-marker-outline" size="12" />
+                        {{ obj.address }}
                       </span>
-                    </span>
-                  </div>
-                </template>
-
-                <!-- Завершённые: маржинальность -->
-                <template v-else-if="getProfitability(obj)">
-                  <div class="fin-block">
-                    <span class="fin-block__label">Маржа</span>
-                   <span class="fin-block__value" :class="getProfitabilityData(obj).isProfit ? 'pos' : 'neg'">
-                      {{ getProfitabilityData(obj).text }}
-                    </span>
-                  </div>
-                  <div class="fin-detail">
-                    <span>Работы: {{ formatNumber(obj.totalWorks) }} ₽</span>
-                    <span>
-                      Мат.:
-                      <span :class="getMaterialBalance(obj) >= 0 ? 'pos' : 'neg'">
-                        {{ getMaterialBalance(obj) >= 0 ? '+' : '' }}{{ formatNumber(getMaterialBalance(obj)) }} ₽
+                      <span v-if="obj.foreman">
+                        <Icon name="mdi:account-hard-hat-outline" size="12" />
+                        {{ obj.foreman.name }}
                       </span>
-                    </span>
+                      <span v-if="!obj.address && !obj.foreman" class="meta-empty">Адрес не указан</span>
+                    </div>
+
+                    <div class="object-item__docs">
+                      <div :class="['doc-chip', `doc-chip--${getDocumentClass(obj)}`]" :title="getDocumentTooltip(obj)">
+                        <span class="doc-chip__dot" />
+                        {{ getDocumentText(obj) }}
+                      </div>
+                      <div :class="['doc-chip', `doc-chip--${getInvoiceClass(obj)}`]" :title="getInvoiceTooltip(obj)">
+                        <span class="doc-chip__dot" />
+                        Счета {{ obj.invoiceStats.signed }}/{{ obj.invoiceStats.total }}
+                      </div>
+                      <div :class="['doc-chip', `doc-chip--${getActClass(obj)}`]" :title="getActTooltip(obj)">
+                        <span class="doc-chip__dot" />
+                        Акты {{ obj.actStats.signed }}/{{ obj.actStats.total }}
+                      </div>
+                    </div>
                   </div>
-                </template>
 
-              </div>
+                  <!-- Финансы справа -->
+                  <div class="object-item__finance">
+                    <!-- Активные/ожидающие: баланс -->
+                    <template v-if="obj.status !== 'completed'">
+                      <div class="fin-block">
+                        <span class="fin-block__label">Баланс</span>
+                        <span class="fin-block__value" :class="obj.totalBalance >= 0 ? 'pos' : 'neg'">
+                          {{ formatNumber(obj.totalBalance) }} ₽
+                        </span>
+                      </div>
+                      <div class="fin-detail">
+                        <span>Работы: {{ formatNumber(obj.totalWorks) }} ₽</span>
+                        <span>
+                          Мат.:
+                          <span :class="getMaterialBalance(obj) >= 0 ? 'pos' : 'neg'">
+                            {{ getMaterialBalance(obj) >= 0 ? '+' : '' }}{{ formatNumber(getMaterialBalance(obj)) }} ₽
+                          </span>
+                        </span>
+                      </div>
+                    </template>
 
-              <Icon name="mdi:chevron-right" size="16" class="object-item__arrow" />
+                    <!-- Завершённые: маржинальность -->
+                    <template v-else-if="getProfitability(obj)">
+                      <div class="fin-block">
+                        <span class="fin-block__label">Маржа</span>
+                        <span class="fin-block__value" :class="getProfitabilityData(obj).isProfit ? 'pos' : 'neg'">
+                          {{ getProfitabilityData(obj).text }}
+                        </span>
+                      </div>
+                      <div class="fin-detail">
+                        <span>Работы: {{ formatNumber(obj.totalWorks) }} ₽</span>
+                        <span>
+                          Мат.:
+                          <span :class="getMaterialBalance(obj) >= 0 ? 'pos' : 'neg'">
+                            {{ getMaterialBalance(obj) >= 0 ? '+' : '' }}{{ formatNumber(getMaterialBalance(obj)) }} ₽
+                          </span>
+                        </span>
+                      </div>
+                    </template>
+                  </div>
 
-            </NuxtLink>
-          </li>
-        </ul>
+                  <Icon name="mdi:chevron-right" size="16" class="object-item__arrow" />
+                </NuxtLink>
+              </li>
+            </ul>
 
-        <div class="objects-card__footer">
-          Всего: {{ filteredObjects.length }} объект(а)
-        </div>
-      </div>
-
+            <div class="objects-card__footer">
+              Всего: {{ filteredObjects.length }} объект(а)
+            </div>
+          </div>
+        </template>
+      </template>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
-import { useHead } from 'nuxt/app'
 import { ref, computed, onMounted } from 'vue'
-import { useApi } from '~/composables/useApi' // 👈 Новый composable
+import { useHead } from 'nuxt/app'
+import { useRouter } from 'vue-router'
+import { useApi } from '~/composables/useApi'
+import { usePermissions } from '~/composables/usePermissions'
+import { useNotifications } from '~/composables/useNotifications'
+import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
 
-const api = useApi() // 👈 Инициализация
+// ============================================
+// ИНИЦИАЛИЗАЦИЯ
+// ============================================
+
+const api = useApi()
+const router = useRouter()
+const notifications = useNotifications()
+const { can } = usePermissions()
+
+useHead({ 
+  title: 'CRM — Объекты', 
+  meta: [{ name: 'robots', content: 'noindex, nofollow' }] 
+})
 
 definePageMeta({
   layout: 'cabinet',
-  middleware: ['auth', 'role'],
-  allowedRoles: ['admin'] 
+  middleware: ['auth', 'role']
 })
 
-useHead({ title: 'CRM — Объекты', meta: [{ name: 'robots', content: 'noindex, nofollow' }] })
+// ============================================
+// 🛡️ ЗАЩИТА ОТ HYDRATION MISMATCH
+// ============================================
+// Флаг монтирования. На сервере всегда false.
+// После onMounted становится true — можно безопасно использовать
+// реактивные данные, которые отличаются между SSR и клиентом.
+const isMounted = ref(false)
 
-const user = ref<any>(null)
+// ============================================
+// ПРАВА ДОСТУПА
+// ============================================
+
+const canView = computed(() => can('objects', 'view'))
+const canCreate = computed(() => can('objects', 'create'))
+
+// ============================================
+// СОСТОЯНИЕ
+// ============================================
+
 const objects = ref<any[]>([])
 const newObjectName = ref('')
 const currentTab = ref('active')
@@ -179,6 +255,10 @@ const tabs = [
 ]
 
 type TabValue = 'active' | 'waiting' | 'completed' | 'canceled'
+
+// ============================================
+// COMPUTED
+// ============================================
 
 const currentTabLabel = computed(() =>
   tabs.find(t => t.value === currentTab.value)?.label || ''
@@ -206,8 +286,17 @@ const filteredObjects = computed(() => {
   )
 })
 
-function formatNumber(n: any) { return (Number(n) || 0).toLocaleString('ru-RU') }
-function getMaterialBalance(obj: any) { return (obj.materialIncoming || 0) - (obj.materialOutgoing || 0) }
+// ============================================
+// ХЕЛПЕРЫ
+// ============================================
+
+function formatNumber(n: any) { 
+  return (Number(n) || 0).toLocaleString('ru-RU') 
+}
+
+function getMaterialBalance(obj: any) { 
+  return (obj.materialIncoming || 0) - (obj.materialOutgoing || 0) 
+}
 
 function getProfitability(obj: any) {
   if (obj.status !== 'completed') return null
@@ -225,54 +314,74 @@ const getProfitabilityData = (obj: any) => {
 }
 
 const contractTypeMap: Record<string, string> = {
-  edo: 'ЭДО', paper: 'Бумажный', invoice: 'Счёт-д.', none: 'Не нужен', unassigned: '—',
+  edo: 'ЭДО', 
+  paper: 'Бумажный', 
+  invoice: 'Счёт-д.', 
+  none: 'Не нужен', 
+  unassigned: '—',
 }
 
 function getDocumentClass(obj: any) {
   if (!obj.contract) return 'red'
   return obj.contract.status === 'signed' ? 'green' : 'yellow'
 }
+
 function getDocumentText(obj: any) {
   return obj.contract ? (contractTypeMap[obj.contract.type] || '—') : 'Нет договора'
 }
+
 function getDocumentTooltip(obj: any) {
   if (!obj.contract) return 'Договор не создан'
   const sm: Record<string, string> = {
-    prepared: 'Подготовлен', sent: 'Отправлен',
-    awaiting: 'На подписи', signed: 'Подписан', cancelled: 'Отменён',
+    prepared: 'Подготовлен', 
+    sent: 'Отправлен',
+    awaiting: 'На подписи', 
+    signed: 'Подписан', 
+    cancelled: 'Отменён',
   }
   return `${contractTypeMap[obj.contract.type] || '—'} — ${sm[obj.contract.status] || '—'}`
 }
+
 function getInvoiceClass(obj: any) {
   const s = obj.invoiceStats
   if (s.total === 0) return 'red'
   return s.signed === s.total ? 'green' : 'yellow'
 }
+
 function getInvoiceTooltip(obj: any) {
   const { total, signed } = obj.invoiceStats
   if (total === 0) return 'Нет счётов'
   return signed === total ? `Все ${total} оплачены` : `${signed} из ${total} оплачено`
 }
+
 function getActClass(obj: any) {
   const s = obj.actStats
   if (s.total === 0) return 'red'
   return s.signed === s.total ? 'green' : 'yellow'
 }
+
 function getActTooltip(obj: any) {
   const { total, signed } = obj.actStats
   if (total === 0) return 'Нет актов'
   return signed === total ? `Все ${total} подписаны` : `${signed} из ${total} подписано`
 }
 
-// ── Загрузка ────────────────────────────────────────────────────────
+// ============================================
+// API ЗАПРОСЫ
+// ============================================
+
 async function fetchObjects() {
   loading.value = true
   try {
-    // 👇 GET-запрос через useApi() — токен и credentials подставляются автоматически
     objects.value = await api.get<any[]>('/api/objects') || []
   } catch (e: any) {
-    // 👇 Ошибки 401/403 уже обработаны в useApi(), здесь — только логирование
     console.error('[Объекты] Ошибка загрузки:', e)
+    
+    // Обработка 403 — права отозвали во время работы
+    if (e.statusCode === 403) {
+      notifications.error('У вас больше нет прав для просмотра объектов', 'Доступ запрещён')
+      router.push('/cabinet')
+    }
   } finally {
     loading.value = false
   }
@@ -280,31 +389,45 @@ async function fetchObjects() {
 
 async function addObject() {
   if (!newObjectName.value.trim()) return
+  
+  if (!canCreate.value) {
+    notifications.error('У вас нет прав для создания объектов', 'Доступ запрещён')
+    return
+  }
+  
   loading.value = true
   try {
-    // 👇 POST-запрос через useApi() — body сериализуется автоматически
     const c = await api.post<any>('/api/objects', {
       name: newObjectName.value.trim(),
       status: currentTab.value
     })
     objects.value.unshift({ ...c, totalBalance: 0 })
     newObjectName.value = ''
+    notifications.success('Объект успешно создан')
   } catch (e: any) {
     console.error('[Объекты] Ошибка создания:', e)
+    
+    if (e.statusCode === 403) {
+      notifications.error('У вас нет прав для создания объектов', 'Доступ запрещён')
+    }
   } finally {
     loading.value = false
   }
 }
 
+// ============================================
+// ЖИЗНЕННЫЙ ЦИКЛ
+// ============================================
+
 onMounted(async () => {
-  try {
-    // 👇 GET-запрос через useApi() для получения данных пользователя
-    const me = await api.get<{ user: any }>('/api/me')
-    user.value = me.user
-  } catch {
-    user.value = null
+  // ✅ Устанавливаем флаг ПОСЛЕ монтирования
+  // Теперь можно безопасно использовать canView, canCreate и другие реактивные данные
+  isMounted.value = true
+  
+  // Загружаем объекты только если есть права на просмотр
+  if (canView.value) {
+    await fetchObjects()
   }
-  await fetchObjects()
 })
 </script>
 

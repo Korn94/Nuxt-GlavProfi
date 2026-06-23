@@ -250,12 +250,13 @@ const currentOverride = computed(() =>
 
 /**
  * Определяет, является ли удаление критическим
- * (отзыв canView у критической страницы, где override давал true)
  */
 const isCriticalRevocation = computed(() => {
   if (!CRITICAL_PAGES.includes(props.pageSlug)) return false
   if (!currentOverride.value) return false
-  return currentOverride.value.canView === true
+  const o = currentOverride.value
+  // Критично если override даёт ЛЮБОЙ доступ (canView или CRUD)
+  return o.canView === true || o.canCreate === true || o.canEdit === true || o.canDelete === true || o.canSpecial === true
 })
 
 /**

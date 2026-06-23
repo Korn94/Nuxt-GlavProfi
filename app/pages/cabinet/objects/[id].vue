@@ -190,7 +190,7 @@ import { useApi } from '~/composables/useApi'
 definePageMeta({
   layout: 'cabinet',
   middleware: ['auth', 'role'],
-  allowedRoles: ['admin'] 
+  // allowedRoles: ['admin'] 
 })
 
 // ── Route ─────────────────────────────────────────────────────────────

@@ -84,6 +84,7 @@ export default defineEventHandler(async (event) => {
   const sourcePermissions = await db
     .select({
       pageSlug: permissionsRoleAccess.pageSlug,
+      canView: permissionsRoleAccess.canView,
       canCreate: permissionsRoleAccess.canCreate,
       canEdit: permissionsRoleAccess.canEdit,
       canDelete: permissionsRoleAccess.canDelete,
@@ -130,7 +131,7 @@ export default defineEventHandler(async (event) => {
       sourcePermissions.map(p => ({
         role: toRole,
         pageSlug: p.pageSlug,
-        canView: false, // canView упразднён — всегда false
+        canView: p.canView,
         canCreate: p.canCreate,
         canEdit: p.canEdit,
         canDelete: p.canDelete,

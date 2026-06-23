@@ -162,7 +162,7 @@ export default defineEventHandler(async (event) => {
 
       // Фильтруем: передаём только те действия, которые страница поддерживает.
       // canView упразднён — всегда false (для совместимости с БД, но не используется)
-      const canView = false
+      const canView = perms.canView ?? false
       const canCreate = page.hasCreate && perms.canCreate === true
       const canEdit = page.hasEdit && perms.canEdit === true
       const canDelete = page.hasDelete && perms.canDelete === true
@@ -198,6 +198,7 @@ export default defineEventHandler(async (event) => {
       updatedCount++
 
       finalPermissions[slug] = {
+        canView,
         canCreate,
         canEdit,
         canDelete,
@@ -227,11 +228,11 @@ export default defineEventHandler(async (event) => {
 
     // Было хотя бы одно действие, стало ни одного → критичное изменение
     const hadAccess = oldPerms && (
-      oldPerms.canCreate || oldPerms.canEdit || 
+      oldPerms.canView || oldPerms.canCreate || oldPerms.canEdit ||
       oldPerms.canDelete || oldPerms.canSpecial
     )
     const hasAccess = newPerms && (
-      newPerms.canCreate || newPerms.canEdit || 
+      newPerms.canView || newPerms.canCreate || newPerms.canEdit ||
       newPerms.canDelete || newPerms.canSpecial
     )
 

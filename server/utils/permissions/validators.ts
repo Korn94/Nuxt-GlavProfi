@@ -10,7 +10,10 @@
  * Архитектурный принцип: все переиспользуемые схемы живут в shared/,
  * здесь только специфичные для серверных API схемы.
  *
- * ⚠️ canView упразднён — видимость определяется наличием любого действия
+ * Модель прав:
+ * - canView — Read-Only Access (возвращён для поддержки режима «только просмотр»)
+ * - canCreate, canEdit, canDelete, canSpecial — CRUD операции
+ * - Видимость: canView || canCreate || canEdit || canDelete || canSpecial
  */
 import { z } from 'zod'
 import { createError } from 'h3'
@@ -71,7 +74,7 @@ function throwZodError(error: z.ZodError, context?: string): never {
  * Схема для обновления прав роли
  * permissions: Record<PageSlug, PagePermissions>
  *
- * ⚠️ canView отсутствует в PagePermissions — видимость вычисляется автоматически
+ * ✅ canView возвращается — для поддержки Read-Only Access
  */
 export const UpdateRolePermissionsSchema = z.object({
   description: z.string().max(500).optional(),
@@ -97,15 +100,16 @@ export const CopyRolePermissionsSchema = z.object({
  * Схема для одного переопределения прав пользователя
  * pageSlug валидируется через PageSlugSchema (enum из shared)
  *
- * ⚠️ canView отсутствует — видимость определяется наличием действий
+ * ✅ canView возвращается — для поддержки Read-Only override'ов
  * null = использовать права роли (сброс override для этого поля)
  */
 export const UserOverrideSchema = z.object({
   pageSlug: PageSlugSchema,
-  canCreate: z.boolean().optional(),
-  canEdit: z.boolean().optional(),
-  canDelete: z.boolean().optional(),
-  canSpecial: z.boolean().optional(),
+  canView: z.boolean().optional().nullable(),
+  canCreate: z.boolean().optional().nullable(),
+  canEdit: z.boolean().optional().nullable(),
+  canDelete: z.boolean().optional().nullable(),
+  canSpecial: z.boolean().optional().nullable(),
   reason: z.string().max(500).optional(),
   expiresAt: z.string().datetime().optional()
 })

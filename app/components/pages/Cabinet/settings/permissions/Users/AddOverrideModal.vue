@@ -227,6 +227,7 @@ import { ref, computed, watch } from 'vue'
 interface UserOverride {
   id: number
   pageSlug: string
+  canView: boolean | null
   canCreate: boolean | null
   canEdit: boolean | null
   canDelete: boolean | null
@@ -261,6 +262,7 @@ interface SystemPage {
 }
 
 interface PagePermissions {
+  canView: boolean
   canCreate: boolean
   canEdit: boolean
   canDelete: boolean
@@ -269,6 +271,7 @@ interface PagePermissions {
 
 interface OverrideFormData {
   pageSlug: string
+  canView: boolean
   canCreate: boolean
   canEdit: boolean
   canDelete: boolean
@@ -326,6 +329,7 @@ const expiresPresets = [
 
 const localForm = ref<OverrideFormData>({
   pageSlug: '',
+  canView: false,
   canCreate: false,
   canEdit: false,
   canDelete: false,
@@ -349,6 +353,7 @@ const selectedPage = computed(() =>
 const availablePages = computed(() => props.pages)
 
 const permissionsValue = computed<PagePermissions>(() => ({
+  canView: localForm.value.canView,
   canCreate: localForm.value.canCreate,
   canEdit: localForm.value.canEdit,
   canDelete: localForm.value.canDelete,
@@ -360,6 +365,7 @@ const permissionsValue = computed<PagePermissions>(() => ({
  */
 const hasAnyAction = computed(() => {
   return (
+    localForm.value.canView ||
     localForm.value.canCreate ||
     localForm.value.canEdit ||
     localForm.value.canDelete ||
@@ -375,6 +381,7 @@ const basePermissionsList = computed(() => {
   const base = props.user.basePermissions[localForm.value.pageSlug]
   if (!base) return []
   const result: Array<{ key: string; label: string; value: boolean }> = []
+  if (base.canView) result.push({ key: 'canView', label: '👁 Просмотр', value: true })
   if (base.canCreate) result.push({ key: 'canCreate', label: '➕ Создание', value: true })
   if (base.canEdit) result.push({ key: 'canEdit', label: '✏ Ред.', value: true })
   if (base.canDelete) result.push({ key: 'canDelete', label: '🗑 Удал.', value: true })
@@ -398,11 +405,10 @@ const isCriticalChange = computed(() => {
   if (!props.user || !localForm.value.pageSlug) return false
   if (!CRITICAL_PAGES.includes(localForm.value.pageSlug)) return false
   if (hasAnyAction.value) return false // есть хотя бы одно действие — не критично
-
   const base = props.user.basePermissions[localForm.value.pageSlug]
   if (!base) return false
   // Критично если у роли были какие-то действия, а мы все отключаем
-  return base.canCreate || base.canEdit || base.canDelete || base.canSpecial
+  return base.canView || base.canCreate || base.canEdit || base.canDelete || base.canSpecial
 })
 
 /**
@@ -425,6 +431,7 @@ watch(
     if (!isOpen) return
     localForm.value = {
       pageSlug: props.pages[0]?.slug || '',
+      canView: false,
       canCreate: false,
       canEdit: false,
       canDelete: false,
@@ -446,14 +453,15 @@ function hasExistingOverride(pageSlug: string): boolean {
 
 function selectPage(slug: string) {
   localForm.value.pageSlug = slug
+  localForm.value.canView = false
   localForm.value.canCreate = false
   localForm.value.canEdit = false
   localForm.value.canDelete = false
   localForm.value.canSpecial = false
-
   // Если есть существующий override — предзаполняем
   const existing = props.user?.overrides.find(o => o.pageSlug === slug)
   if (existing) {
+    localForm.value.canView = existing.canView ?? false
     localForm.value.canCreate = existing.canCreate ?? false
     localForm.value.canEdit = existing.canEdit ?? false
     localForm.value.canDelete = existing.canDelete ?? false
@@ -468,6 +476,7 @@ function selectPage(slug: string) {
 }
 
 function handlePermissionsUpdate(perms: PagePermissions) {
+  localForm.value.canView = perms.canView
   localForm.value.canCreate = perms.canCreate
   localForm.value.canEdit = perms.canEdit
   localForm.value.canDelete = perms.canDelete

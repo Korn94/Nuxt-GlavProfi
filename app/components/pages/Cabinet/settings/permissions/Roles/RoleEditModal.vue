@@ -326,6 +326,7 @@ import { ref, computed, watch } from 'vue'
 // ============================================
 
 interface PagePermissions {
+  canView: boolean
   canCreate: boolean
   canEdit: boolean
   canDelete: boolean
@@ -475,7 +476,7 @@ function isPageVisible(pageSlug: string): boolean {
   // CRUD страница — видима если есть хотя бы одно действие
   const perms = localPermissions.value[pageSlug]
   if (!perms) return false
-  return perms.canCreate || perms.canEdit || perms.canDelete || perms.canSpecial
+  return perms.canView || perms.canCreate || perms.canEdit || perms.canDelete || perms.canSpecial
 }
 
 // ============================================
@@ -537,6 +538,7 @@ watch(
     for (const page of props.pages) {
       const existing = props.role.permissions[page.slug]
       permissions[page.slug] = {
+        canView: existing?.canView ?? false,
         canCreate: existing?.canCreate ?? false,
         canEdit: existing?.canEdit ?? false,
         canDelete: existing?.canDelete ?? false,
@@ -560,6 +562,7 @@ function getPerm(pageSlug: string, key: keyof PagePermissions): boolean {
 
 function getPagePermissions(pageSlug: string): PagePermissions {
   return localPermissions.value[pageSlug] || {
+    canView: false,
     canCreate: false,
     canEdit: false,
     canDelete: false,
@@ -584,16 +587,17 @@ function togglePageVisibility(pageSlug: string) {
   const isVisible = perms.canCreate || perms.canEdit || perms.canDelete || perms.canSpecial
 
   if (isVisible) {
-    // Выключаем все действия
+    // Выключаем всё (полный запрет)
+    perms.canView = false
     perms.canCreate = false
     perms.canEdit = false
     perms.canDelete = false
     perms.canSpecial = false
   } else {
-    // Включаем базовый набор действий (только те, что поддерживает страница)
-    perms.canCreate = page.hasCreate
-    perms.canEdit = page.hasEdit
-    // delete и special по умолчанию выключаем — это более опасные действия
+    // Включаем базовый Read-Only доступ (остальные действия админ добавит точечно)
+    perms.canView = true
+    perms.canCreate = false
+    perms.canEdit = false
     perms.canDelete = false
     perms.canSpecial = false
   }
@@ -605,6 +609,7 @@ function onActionsUpdate(
 ) {
   const perms = localPermissions.value[pageSlug]
   if (!perms) return
+  perms.canView = actions.canView
   perms.canCreate = actions.canCreate
   perms.canEdit = actions.canEdit
   perms.canDelete = actions.canDelete
@@ -619,6 +624,7 @@ function isPageModified(pageSlug: string): boolean {
   const original = originalPermissions.value[pageSlug]
   if (!current || !original) return false
   return (
+    current.canView !== original.canView ||
     current.canCreate !== original.canCreate ||
     current.canEdit !== original.canEdit ||
     current.canDelete !== original.canDelete ||
@@ -636,8 +642,8 @@ function isCriticalRevocation(pageSlug: string): boolean {
   const original = originalPermissions.value[pageSlug]
   if (!current || !original) return false
 
-  const wasVisible = original.canCreate || original.canEdit || original.canDelete || original.canSpecial
-  const isNowVisible = current.canCreate || current.canEdit || current.canDelete || current.canSpecial
+  const wasVisible = original.canView || original.canCreate || original.canEdit || original.canDelete || original.canSpecial
+  const isNowVisible = current.canView || current.canCreate || current.canEdit || current.canDelete || current.canSpecial
 
   return wasVisible && !isNowVisible
 }
@@ -649,6 +655,7 @@ function formatOriginalPerms(pageSlug: string): string {
   const original = originalPermissions.value[pageSlug]
   if (!original) return '—'
   const parts: string[] = []
+  if (original.canView) parts.push('👁')
   if (original.canCreate) parts.push('➕')
   if (original.canEdit) parts.push('✏')
   if (original.canDelete) parts.push('🗑')

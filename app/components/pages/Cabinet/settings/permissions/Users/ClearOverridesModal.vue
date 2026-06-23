@@ -321,8 +321,10 @@ const overridesStats = computed(() => {
  */
 const hasCriticalOverrides = computed(() => {
   if (!props.user) return false
-  return props.user.overrides.some(o => 
-    CRITICAL_PAGES.includes(o.pageSlug) && o.canView === true
+  return props.user.overrides.some(o =>
+    CRITICAL_PAGES.includes(o.pageSlug) &&
+    (o.canView === true || o.canCreate === true || o.canEdit === true ||
+     o.canDelete === true || o.canSpecial === true)
   )
 })
 
@@ -333,8 +335,12 @@ const sortedOverrides = computed(() => {
   if (!props.user) return []
   
   return [...props.user.overrides].sort((a, b) => {
-    const aCritical = CRITICAL_PAGES.includes(a.pageSlug) && a.canView === true ? 0 : 1
-    const bCritical = CRITICAL_PAGES.includes(b.pageSlug) && b.canView === true ? 0 : 1
+    const aCritical = CRITICAL_PAGES.includes(a.pageSlug) &&
+      (a.canView === true || a.canCreate === true || a.canEdit === true ||
+      a.canDelete === true || a.canSpecial === true) ? 0 : 1
+    const bCritical = CRITICAL_PAGES.includes(b.pageSlug) &&
+      (b.canView === true || b.canCreate === true || b.canEdit === true ||
+      b.canDelete === true || b.canSpecial === true) ? 0 : 1
     if (aCritical !== bCritical) return aCritical - bCritical
     
     const statusPriority: Record<ExpirationStatus, number> = {

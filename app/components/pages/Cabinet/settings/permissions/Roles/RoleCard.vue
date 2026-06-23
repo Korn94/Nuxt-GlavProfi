@@ -79,6 +79,15 @@
           {{ specialCount }} {{ pluralizePages(specialCount) }}
         </span>
       </div>
+      <div class="summary-row">
+        <span class="summary-label">
+          <Icon name="mdi:eye-outline" size="14" />
+          Только просмотр:
+        </span>
+        <span class="summary-value">
+          {{ readOnlyCount }} {{ pluralizePages(readOnlyCount) }}
+        </span>
+      </div>
     </div>
 
     <!-- Кнопки действий -->
@@ -117,6 +126,7 @@ import { computed } from 'vue'
 // ============================================
 
 interface PagePermissions {
+  canView: boolean
   canCreate: boolean
   canEdit: boolean
   canDelete: boolean
@@ -220,13 +230,18 @@ const roleColor = computed(() =>
 
 /**
  * Раздел виден в меню если:
- * - Это CRUD-страница и есть хотя бы одно действие (create/edit/delete/special)
- * - ИЛИ это view-only страница (dashboard, online, test) и она есть в permissions
+ * - canView = true (Read-Only доступ)
+ * - ИЛИ есть хотя бы одно CRUD-действие (create/edit/delete/special)
  *
- * Поскольку серверный getAllUserPermissions() уже отфильтровал невидимые страницы,
- * наличие записи в role.permissions означает что раздел виден.
+ * Серверный getAllUserPermissions() уже отфильтровал невидимые страницы,
+ * поэтому наличие записи в role.permissions означает что раздел виден.
+ * Подсчитываем явно для надёжности.
  */
-const visibleCount = computed(() => Object.keys(props.role.permissions).length)
+const visibleCount = computed(() => {
+  return Object.values(props.role.permissions).filter(p =>
+    p.canView || p.canCreate || p.canEdit || p.canDelete || p.canSpecial
+  ).length
+})
 
 const createCount = computed(() =>
   Object.values(props.role.permissions).filter(p => p.canCreate).length
@@ -242,6 +257,12 @@ const deleteCount = computed(() =>
 
 const specialCount = computed(() =>
   Object.values(props.role.permissions).filter(p => p.canSpecial).length
+)
+
+const readOnlyCount = computed(() =>
+  Object.values(props.role.permissions).filter(p =>
+    p.canView && !p.canCreate && !p.canEdit && !p.canDelete && !p.canSpecial
+  ).length
 )
 
 /**

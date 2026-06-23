@@ -168,6 +168,7 @@ export default defineEventHandler(async (event) => {
     .select({
       role: permissionsRoleAccess.role,
       pageSlug: permissionsRoleAccess.pageSlug,
+      canView: permissionsRoleAccess.canView,
       canCreate: permissionsRoleAccess.canCreate,
       canEdit: permissionsRoleAccess.canEdit,
       canDelete: permissionsRoleAccess.canDelete,
@@ -188,6 +189,7 @@ export default defineEventHandler(async (event) => {
       rolePermissionsMap.set(access.role, {})
     }
     rolePermissionsMap.get(access.role)![access.pageSlug] = {
+      canView: access.canView,
       canCreate: access.canCreate,
       canEdit: access.canEdit,
       canDelete: access.canDelete,
@@ -203,6 +205,7 @@ export default defineEventHandler(async (event) => {
       id: permissionsUserOverrides.id,
       userId: permissionsUserOverrides.userId,
       pageSlug: permissionsUserOverrides.pageSlug,
+      canView: permissionsUserOverrides.canView,
       canCreate: permissionsUserOverrides.canCreate,
       canEdit: permissionsUserOverrides.canEdit,
       canDelete: permissionsUserOverrides.canDelete,
@@ -249,6 +252,7 @@ export default defineEventHandler(async (event) => {
       // Создаём запись для страницы, если её нет в базовых правах
       if (!effectivePermissions[override.pageSlug]) {
         effectivePermissions[override.pageSlug] = {
+          canView: false,
           canCreate: false,
           canEdit: false,
           canDelete: false,
@@ -257,6 +261,7 @@ export default defineEventHandler(async (event) => {
       }
 
       const target = effectivePermissions[override.pageSlug]!
+      if (override.canView !== null) target.canView = override.canView
       if (override.canCreate !== null) target.canCreate = override.canCreate
       if (override.canEdit !== null) target.canEdit = override.canEdit
       if (override.canDelete !== null) target.canDelete = override.canDelete

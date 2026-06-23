@@ -130,19 +130,16 @@ const PROTECTED_PATHS: Record<string, PathRequirement> = {
   '/api/objects/invoices/[id]': { type: 'page', value: 'objects', action: 'edit' },
 
   // ═══════════════════════════════════════════════════════════════
-  // 💰 ПРИХОДЫ (comings)
+  // 💰 ФИНАНСОВЫЕ ОПЕРАЦИИ (operations = comings + expenses)
   // ═══════════════════════════════════════════════════════════════
-  '/api/comings': { type: 'page', value: 'comings', action: 'view' },
-  '/api/comings/[id]': { type: 'page', value: 'comings', action: 'view' },
-
-  // ═══════════════════════════════════════════════════════════════
-  // 💸 РАСХОДЫ (expenses)
-  // ═══════════════════════════════════════════════════════════════
-  '/api/expenses': { type: 'page', value: 'expenses', action: 'view' },
-  '/api/expenses/[id]': { type: 'page', value: 'expenses', action: 'view' },
-  '/api/expenses/stats': { type: 'page', value: 'expenses', action: 'view' },
-  '/api/balance': { type: 'page', value: 'expenses', action: 'view' },
-  '/api/salary-deductions': { type: 'page', value: 'expenses', action: 'view' },
+  // В новой системе прав comings и expenses объединены в 'operations'
+  '/api/comings': { type: 'page', value: 'operations', action: 'view' },
+  '/api/comings/[id]': { type: 'page', value: 'operations', action: 'view' },
+  '/api/expenses': { type: 'page', value: 'operations', action: 'view' },
+  '/api/expenses/[id]': { type: 'page', value: 'operations', action: 'view' },
+  '/api/expenses/stats': { type: 'page', value: 'operations', action: 'view' },
+  '/api/balance': { type: 'page', value: 'operations', action: 'view' },
+  '/api/salary-deductions': { type: 'page', value: 'operations', action: 'view' },
 
   // ═══════════════════════════════════════════════════════════════
   // 📦 МАТЕРИАЛЫ (materials)

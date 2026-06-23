@@ -192,6 +192,7 @@ export default defineEventHandler(async (event) => {
   const currentOverrides = await db
     .select({
       pageSlug: permissionsUserOverrides.pageSlug,
+      canView: permissionsUserOverrides.canView,
       canCreate: permissionsUserOverrides.canCreate,
       canEdit: permissionsUserOverrides.canEdit,
       canDelete: permissionsUserOverrides.canDelete,
@@ -213,6 +214,7 @@ export default defineEventHandler(async (event) => {
   const roleAccess = await db
     .select({
       pageSlug: permissionsRoleAccess.pageSlug,
+      canView: permissionsRoleAccess.canView,
       canCreate: permissionsRoleAccess.canCreate,
       canEdit: permissionsRoleAccess.canEdit,
       canDelete: permissionsRoleAccess.canDelete,
@@ -261,7 +263,7 @@ export default defineEventHandler(async (event) => {
         // если null — сбрасываем к правам роли, если boolean — устанавливаем
         await tx.update(permissionsUserOverrides)
           .set({
-            canView: false, // canView упразднён — всегда false в БД
+            canView: override.canView !== undefined ? override.canView : existing.canView,
             canCreate: override.canCreate !== undefined ? override.canCreate : existing.canCreate,
             canEdit: override.canEdit !== undefined ? override.canEdit : existing.canEdit,
             canDelete: override.canDelete !== undefined ? override.canDelete : existing.canDelete,
@@ -280,7 +282,7 @@ export default defineEventHandler(async (event) => {
         await tx.insert(permissionsUserOverrides).values({
           userId: targetUserId,
           pageSlug: override.pageSlug,
-          canView: false, // canView упразднён
+          canView: override.canView ?? null,
           canCreate: override.canCreate ?? null,
           canEdit: override.canEdit ?? null,
           canDelete: override.canDelete ?? null,
@@ -326,15 +328,16 @@ export default defineEventHandler(async (event) => {
     const currentOverride = currentOverrideMap.get(pageSlug)
     const role = roleAccessMap.get(pageSlug)
 
+    const beforeView = currentOverride?.canView ?? role?.canView ?? false
     const beforeCreate = currentOverride?.canCreate ?? role?.canCreate ?? false
     const beforeEdit = currentOverride?.canEdit ?? role?.canEdit ?? false
     const beforeDelete = currentOverride?.canDelete ?? role?.canDelete ?? false
     const beforeSpecial = currentOverride?.canSpecial ?? role?.canSpecial ?? false
+    const wasVisible = beforeView || beforeCreate || beforeEdit || beforeDelete || beforeSpecial
 
-    const wasVisible = beforeCreate || beforeEdit || beforeDelete || beforeSpecial
-
-    // Вычисляем эффективное состояние ПОСЛЕ применения
-    // (newOverride имеет приоритет, undefined = не менялось, null = использовать роль)
+    const afterView = newOverride.canView !== undefined
+      ? (newOverride.canView ?? (role?.canView ?? false))
+      : beforeView
     const afterCreate = newOverride.canCreate !== undefined
       ? (newOverride.canCreate ?? (role?.canCreate ?? false))
       : beforeCreate
@@ -347,8 +350,7 @@ export default defineEventHandler(async (event) => {
     const afterSpecial = newOverride.canSpecial !== undefined
       ? (newOverride.canSpecial ?? (role?.canSpecial ?? false))
       : beforeSpecial
-
-    const isVisible = afterCreate || afterEdit || afterDelete || afterSpecial
+    const isVisible = afterView || afterCreate || afterEdit || afterDelete || afterSpecial
 
     // Критично: было видно, стало невидимо
     if (wasVisible && !isVisible) {

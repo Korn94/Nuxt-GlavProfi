@@ -77,6 +77,11 @@
                     Индивидуальные переопределения пользователей
                     <strong>сохранятся</strong>
                   </li>
+                  <li>
+                    <Icon name="mdi:eye-outline" size="14" class="icon-info" />
+                    Права <strong>«только просмотр»</strong> (Read-Only) также будут
+                    сброшены к дефолтным значениям
+                  </li>
                 </ul>
               </div>
             </div>

@@ -100,6 +100,10 @@
                     <span>{{ countVisible(sourceRoleData) }} видимых разделов</span>
                   </div>
                   <div class="preview-stat">
+                    <Icon name="mdi:eye-outline" size="14" />
+                    <span>{{ countReadOnly(sourceRoleData) }} только просмотр</span>
+                  </div>
+                  <div class="preview-stat">
                     <Icon name="mdi:plus-circle" size="14" />
                     <span>{{ countAction(sourceRoleData, 'canCreate') }} с созданием</span>
                   </div>
@@ -169,6 +173,7 @@ import { ref, computed, watch } from 'vue'
 // ============================================
 
 interface PagePermissions {
+  canView: boolean
   canCreate: boolean
   canEdit: boolean
   canDelete: boolean
@@ -283,17 +288,15 @@ function getRoleIcon(role: string): string {
 }
 
 /**
- * Подсчёт видимых разделов (новая модель без canView)
+ * Подсчёт видимых разделов
  *
- * Раздел виден в меню если есть хотя бы одно действие:
- * canCreate || canEdit || canDelete || canSpecial
- *
- * Поскольку серверный getAllUserPermissions() уже отфильтровал
- * невидимые страницы, наличие записи в permissions означает что
- * раздел виден.
+ * Раздел виден в меню если:
+ * canView || canCreate || canEdit || canDelete || canSpecial
  */
 function countVisible(role: RoleWithPermissions): number {
-  return Object.keys(role.permissions).length
+  return Object.values(role.permissions).filter(p =>
+    p.canView || p.canCreate || p.canEdit || p.canDelete || p.canSpecial
+  ).length
 }
 
 function countAction(
@@ -301,6 +304,12 @@ function countAction(
   action: keyof PagePermissions
 ): number {
   return Object.values(role.permissions).filter(p => p[action]).length
+}
+
+function countReadOnly(role: RoleWithPermissions): number {
+  return Object.values(role.permissions).filter(p =>
+    p.canView && !p.canCreate && !p.canEdit && !p.canDelete && !p.canSpecial
+  ).length
 }
 
 function pluralizeUsers(count: number): string {

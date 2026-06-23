@@ -161,7 +161,7 @@ const menuItems: MenuItem[] = [
   {
     id: 'operations',
     title: 'Операции',
-    path: '/cabinet/operations',
+    path: '/cabinet/operation',
     icon: 'mdi:instant-transfer',
     page: 'operations'
   },

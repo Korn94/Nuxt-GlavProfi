@@ -39,7 +39,7 @@ interface AuthState {
   isAuthenticated: boolean
   isChecking: boolean
   error: string | null
-  /** Права пользователя: Record<PageSlug, PagePermissions> (без canView) */
+  /** Права пользователя: Record<PageSlug, PagePermissions> (с canView для Read-Only) */
   pages: Record<PageSlug, PagePermissions> | null
   roleLevel: number | null
   /** Флаг: первичная инициализация уже выполнена */

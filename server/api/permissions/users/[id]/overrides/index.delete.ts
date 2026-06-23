@@ -196,20 +196,15 @@ export default defineEventHandler(async (event) => {
   // ============================================
   // 7. АНАЛИЗ КРИТИЧНОСТИ ИЗМЕНЕНИЙ
   // ============================================
-  // Override был критичным если:
-  // 1. Он был на критической странице (dashboard/objects/works)
-  // 2. Override давал canView=true
-  // 3. Базовая роль НЕ даёт canView (false или отсутствует)
   const criticalPages: string[] = []
 
   for (const override of currentOverrides) {
     if (!criticalPageSlugs.includes(override.pageSlug as any)) continue
-    if (override.canView !== true) continue
+    const overrideGivesAccess = override.canView === true
 
-    const roleHasView = roleCanViewMap.get(override.pageSlug) === true
+    const roleHasAccess = roleCanViewMap.get(override.pageSlug) === true
 
-    if (!roleHasView) {
-      // Override давал canView, а роль — нет. После удаления потеряет доступ.
+    if (overrideGivesAccess && !roleHasAccess) {
       criticalPages.push(override.pageSlug)
     }
   }

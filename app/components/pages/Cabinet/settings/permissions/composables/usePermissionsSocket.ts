@@ -185,8 +185,8 @@ export function usePermissionsSocket(options: UsePermissionsSocketOptions = {}) 
       socketService = service
 
       // Проверяем что сокет подключён
-      if (!socketService.isConnected()) {
-        console.warn('[PermissionsSocket] ⚠️ Сокет не подключён, подписки не будут работать')
+      if (!socketService.socket) {
+        console.warn('[PermissionsSocket] ⚠️ Сокет не инициализирован, подписки не будут работать')
         return
       }
 

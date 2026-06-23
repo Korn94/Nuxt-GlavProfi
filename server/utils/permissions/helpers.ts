@@ -158,8 +158,7 @@ export async function seedRolePermissions(permissions: RolePermissionsSeed): Pro
       newRecords.push({
         role: roleType,
         pageSlug,
-        // canView упразднён — всегда false, видимость через наличие действий
-        canView: false,
+        canView: perms.canView ?? false,
         canCreate: perms.canCreate ?? false,
         canEdit: perms.canEdit ?? false,
         canDelete: perms.canDelete ?? false,
@@ -290,8 +289,7 @@ export async function resetRolePermissionsToDefaults(role: Role): Promise<{
       await db
         .update(permissionsRoleAccess)
         .set({
-          // canView упразднён — всегда false
-          canView: false,
+          canView: perms.canView ?? false,
           canCreate: perms.canCreate ?? false,
           canEdit: perms.canEdit ?? false,
           canDelete: perms.canDelete ?? false,
@@ -305,7 +303,7 @@ export async function resetRolePermissionsToDefaults(role: Role): Promise<{
       await db.insert(permissionsRoleAccess).values({
         role,
         pageSlug,
-        canView: false,
+        canView: perms.canView ?? false,
         canCreate: perms.canCreate ?? false,
         canEdit: perms.canEdit ?? false,
         canDelete: perms.canDelete ?? false,
