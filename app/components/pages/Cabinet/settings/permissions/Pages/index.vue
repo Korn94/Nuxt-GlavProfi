@@ -94,14 +94,6 @@
       @confirm="handleConfirmDelete"
     />
 
-    <!-- ============================================
-         ОБЩИЙ TOAST
-    ============================================ -->
-    <PagesCabinetSettingsPermissionsSharedToast
-      v-model:show="toast.show"
-      :type="toast.type"
-      :message="toast.message"
-    />
   </div>
 </template>
 
@@ -116,6 +108,7 @@ import {
 } from '~/composables/usePermissionsApi'
 import { useAuthStore } from 'stores/auth'
 import { usePermissionsSocket } from '../composables/usePermissionsSocket'
+import { useNotifications } from '~/composables/useNotifications'
 
 // ============================================
 // STORE И ПРАВА ДОСТУПА
@@ -154,16 +147,8 @@ const deleteConfirm = ref<{
   hard: false,
 })
 
-// Toast уведомления
-const toast = ref<{
-  show: boolean
-  type: 'success' | 'error' | 'info' | 'warning'
-  message: string
-}>({
-  show: false,
-  type: 'success',
-  message: '',
-})
+// Уведомления (глобальные, через store)
+const notifications = useNotifications()
 
 // ============================================
 // REAL-TIME СИНХРОНИЗАЦИЯ ЧЕРЕЗ СОКЕТЫ
@@ -187,18 +172,18 @@ async function silentReload() {
 usePermissionsSocket({
   onPageCreated: async (data: any) => {
     console.log('[Pages] 📥 Новая страница создана другим админом:', data?.page?.name)
-    showToast(`Раздел «${data?.page?.name}» создан ${data?.createdBy?.name || ''}`, 'info')
+    notifications.info(`Раздел «${data?.page?.name}» создан ${data?.createdBy?.name || ''}`)
     await silentReload()
   },
   onPageUpdated: async (data: any) => {
     console.log('[Pages] 📥 Страница обновлена другим админом:', data?.page?.name)
-    showToast(`Раздел «${data?.page?.name}» обновлён`, 'info')
+    notifications.info(`Раздел «${data?.page?.name}» обновлён`)
     await silentReload()
   },
   onPageDeleted: async (data: any) => {
     console.log('[Pages] 📥 Страница удалена другим админом:', data?.name)
     const modeText = data?.mode === 'hard' ? 'полностью удалён' : 'скрыт'
-    showToast(`Раздел «${data?.name}» ${modeText}`, 'warning')
+    notifications.warning(`Раздел «${data?.name}» ${modeText}`)
     await silentReload()
   },
 })
@@ -212,7 +197,7 @@ async function loadPages() {
     const data = await fetchPermissionsPages()
     pages.value = data.sort((a, b) => a.order - b.order)
   } catch (error: any) {
-    showToast(error.message || 'Не удалось загрузить разделы', 'error')
+    notifications.error(error.message || 'Не удалось загрузить разделы')
   } finally {
     loading.value = false
   }
@@ -265,7 +250,7 @@ async function handleSavePage(data: {
         hasDelete: data.hasDelete,
         hasSpecial: data.hasSpecial,
       })
-      showToast(`Раздел "${data.name}" обновлён`, 'success')
+      notifications.success(`Раздел "${data.name}" обновлён`)
     } else {
       await createPermissionsPage({
         slug: data.slug,
@@ -278,12 +263,12 @@ async function handleSavePage(data: {
         hasDelete: data.hasDelete,
         hasSpecial: data.hasSpecial,
       })
-      showToast(`Раздел "${data.name}" создан`, 'success')
+      notifications.success(`Раздел "${data.name}" создан`)
     }
     editModal.value.isOpen = false
     await loadPages()
   } catch (error: any) {
-    showToast(error.message || 'Не удалось сохранить', 'error')
+    notifications.error(error.message || 'Не удалось сохранить')
   } finally {
     saving.value = false
   }
@@ -314,7 +299,7 @@ async function movePage(page: SystemPage, direction: number) {
       updatePermissionsPage(pageA.slug, { order: newIndex }),
     ])
   } catch (error: any) {
-    showToast(error.message || 'Не удалось изменить порядок', 'error')
+    notifications.error(error.message || 'Не удалось изменить порядок')
     await loadPages()
   }
 }
@@ -325,13 +310,12 @@ async function movePage(page: SystemPage, direction: number) {
 async function handleToggleActive(page: SystemPage, newActive: boolean) {
   try {
     await updatePermissionsPage(page.slug, { isActive: newActive })
-    showToast(
-      `Раздел "${page.name}" ${newActive ? 'активирован' : 'скрыт'}`,
-      'success'
+    notifications.success(
+      `Раздел "${page.name}" ${newActive ? 'активирован' : 'скрыт'}`
     )
     await loadPages()
   } catch (error: any) {
-    showToast(error.message || 'Не удалось изменить статус', 'error')
+    notifications.error(error.message || 'Не удалось изменить статус')
   }
 }
 
@@ -352,24 +336,14 @@ async function handleConfirmDelete(hard: boolean) {
   deleting.value = true
   try {
     const result = await deletePermissionsPage(page.slug, hard)
-    showToast(result.message, 'success')
+    notifications.success(result.message)
     deleteConfirm.value.isOpen = false
     await loadPages()
   } catch (error: any) {
-    showToast(error.message || 'Не удалось удалить', 'error')
+    notifications.error(error.message || 'Не удалось удалить')
   } finally {
     deleting.value = false
   }
-}
-
-// ============================================
-// TOAST УВЕДОМЛЕНИЯ
-// ============================================
-function showToast(
-  message: string,
-  type: 'success' | 'error' | 'info' | 'warning' = 'success'
-) {
-  toast.value = { show: true, type, message }
 }
 
 // ============================================

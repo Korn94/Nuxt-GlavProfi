@@ -4,6 +4,7 @@
     <NuxtRouteAnnouncer />
     <NuxtLoadingIndicator />
     <NuxtLayout />
+    <UiNotificationsContainer />
   </div>
 </template>
 

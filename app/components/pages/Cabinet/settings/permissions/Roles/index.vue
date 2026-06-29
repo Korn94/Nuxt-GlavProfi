@@ -94,14 +94,6 @@
       @confirm="handleConfirmReset"
     />
 
-    <!-- ============================================
-         ОБЩИЙ TOAST
-    ============================================ -->
-    <PagesCabinetSettingsPermissionsSharedToast
-      v-model:show="toast.show"
-      :type="toast.type"
-      :message="toast.message"
-    />
   </div>
 </template>
 
@@ -118,6 +110,7 @@ import {
 import type { PagePermissions } from 'shared/types/permissions.ts'
 import { useAuthStore } from 'stores/auth'
 import { usePermissionsSocket } from '../composables/usePermissionsSocket'
+import { useNotifications } from '~/composables/useNotifications'
 
 // ============================================
 // STORE И ПРАВА ДОСТУПА
@@ -163,16 +156,8 @@ const resetConfirm = ref<{
   role: null,
 })
 
-// Toast уведомления
-const toast = ref<{
-  show: boolean
-  type: 'success' | 'error' | 'info' | 'warning'
-  message: string
-}>({
-  show: false,
-  type: 'success',
-  message: '',
-})
+// Уведомления (глобальные, через store)
+const notifications = useNotifications()
 
 // ============================================
 // СЛОВАРИ ДЛЯ ИМЕН РОЛЕЙ (для toast-сообщений)
@@ -378,7 +363,7 @@ function showToast(
   message: string,
   type: 'success' | 'error' | 'info' | 'warning' = 'success'
 ) {
-  toast.value = { show: true, type, message }
+  notifications[type](message)
 }
 
 // ============================================

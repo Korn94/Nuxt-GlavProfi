@@ -55,6 +55,13 @@ export function usePriceSeo(
     'electricity': 'Цены на электромонтаж 2026 — Рязань и область',
   }
 
+  // ✅ Описания по умолчанию (fallback, если metaDescription не задан в БД)
+  const categoryDescriptions: Record<string, string> = {
+    'otdelochnye-raboty': 'Прайс-лист на отделочные работы в Рязани и области 2026. Цены на штукатурку, шпаклёвку, покраску, укладку плитки и другие виды отделки помещений.',
+    'plumbing': 'Стоимость сантехнических работ в Рязани 2026. Цены на установку унитазов, ванн, смесителей, разводку труб и другие сантехнические услуги.',
+    'electricity': 'Цены на электромонтажные работы в Рязани 2026. Стоимость установки розеток, выключателей, электрощитов, прокладки кабеля и других электромонтажных услуг.',
+  }
+
   // ✅ Приоритет: metaTitle из БД → словарь → дефолт
   const pageTitle = computed(() => {
     return (
@@ -64,11 +71,12 @@ export function usePriceSeo(
     )
   })
 
-  // ✅ Описание: metaDescription из БД → metaDescription из API прайса → дефолт
+  // ✅ Описание: metaDescription из БД → metaDescription из API прайса → словарь → дефолт
   const pageDescription = computed(
     () =>
       currentPage.value?.metaDescription ||
       priceData.value?.metaDescription ||
+      categoryDescriptions[currentSlug] ||
       'Актуальные цены 2026 на ремонт помещений.',
   )
 

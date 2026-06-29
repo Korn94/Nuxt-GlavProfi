@@ -232,14 +232,6 @@
       </div>
     </Transition>
 
-    <!-- ============================================
-         ОБЩИЙ TOAST
-    ============================================ -->
-    <PagesCabinetSettingsPermissionsSharedToast
-      v-model:show="toast.show"
-      :type="toast.type"
-      :message="toast.message"
-    />
   </div>
 </template>
 
@@ -260,6 +252,7 @@ import {
 } from '~/composables/usePermissionsApi'
 import { useAuthStore } from 'stores/auth'
 import { usePermissionsSocket } from '../composables/usePermissionsSocket'
+import { useNotifications } from '~/composables/useNotifications'
 
 // ============================================
 // STORE И ПРАВА ДОСТУПА
@@ -328,16 +321,8 @@ const bulkClearConfirm = ref<{
   count: 0,
 })
 
-// Toast уведомления
-const toast = ref<{
-  show: boolean
-  type: 'success' | 'error' | 'info' | 'warning'
-  message: string
-}>({
-  show: false,
-  type: 'success',
-  message: '',
-})
+// Уведомления (глобальные, через store)
+const notifications = useNotifications()
 
 // ============================================
 // КОНСТАНТЫ И СЛОВАРИ
@@ -452,7 +437,7 @@ async function silentReload() {
 usePermissionsSocket({
   onPermissionsChanged: async (data: any) => {
     console.log('[Users] 📥 Права изменены другим админом:', data?.reason)
-    showToast(`Права обновлены: ${data?.reason || 'изменения применены'}`, 'info')
+    notifications.info(`Права обновлены: ${data?.reason || 'изменения применены'}`)
     await silentReload()
   },
 })
@@ -477,7 +462,7 @@ async function loadData() {
     pages.value = pagesData
     pagination.value = usersData.pagination
   } catch (error: any) {
-    showToast(error.message || 'Не удалось загрузить данные', 'error')
+    notifications.error(error.message || 'Не удалось загрузить данные')
   } finally {
     loading.value = false
   }
@@ -586,11 +571,11 @@ async function handleSaveOverride(data: {
       ...(data.expiresAt ? { expiresAt: new Date(data.expiresAt).toISOString() } : {}),
     }
     await applyUserOverrides(user.id, [override])
-    showToast('Переопределение успешно применено', 'success')
+    notifications.success('Переопределение успешно применено')
     addOverrideModal.value.isOpen = false
     await loadData()
   } catch (error: any) {
-    showToast(error.message || 'Не удалось применить переопределение', 'error')
+    notifications.error(error.message || 'Не удалось применить переопределение')
   } finally {
     savingOverride.value = false
   }
@@ -617,16 +602,15 @@ async function handleConfirmRemoveOverride() {
   removing.value = true
   try {
     const result = await removeUserOverride(user.id, pageSlug)
-    showToast(
-      result.deleted
-        ? 'Переопределение успешно удалено'
-        : 'Переопределение не найдено',
-      result.deleted ? 'success' : 'warning'
-    )
+    if (result.deleted) {
+      notifications.success('Переопределение успешно удалено')
+    } else {
+      notifications.warning('Переопределение не найдено')
+    }
     removeOverrideConfirm.value.isOpen = false
     await loadData()
   } catch (error: any) {
-    showToast(error.message || 'Не удалось удалить переопределение', 'error')
+    notifications.error(error.message || 'Не удалось удалить переопределение')
   } finally {
     removing.value = false
   }
@@ -648,11 +632,11 @@ async function handleConfirmClearOverrides() {
   clearing.value = true
   try {
     const result = await clearUserOverrides(user.id)
-    showToast(result.message, 'success')
+    notifications.success(result.message)
     clearOverridesConfirm.value.isOpen = false
     await loadData()
   } catch (error: any) {
-    showToast(error.message || 'Не удалось сбросить переопределения', 'error')
+    notifications.error(error.message || 'Не удалось сбросить переопределения')
   } finally {
     clearing.value = false
   }
@@ -690,14 +674,12 @@ async function handleBulkClearOverrides() {
     }
 
     if (failCount === 0) {
-      showToast(
-        `Переопределения сброшены для ${successCount} ${pluralizeUsersTotal(successCount)}`,
-        'success'
+      notifications.success(
+        `Переопределения сброшены для ${successCount} ${pluralizeUsersTotal(successCount)}`
       )
     } else {
-      showToast(
-        `Сброшено: ${successCount}. Ошибок: ${failCount}`,
-        'warning'
+      notifications.warning(
+        `Сброшено: ${successCount}. Ошибок: ${failCount}`
       )
     }
 
@@ -705,7 +687,7 @@ async function handleBulkClearOverrides() {
     clearSelection()
     await loadData()
   } catch (error: any) {
-    showToast(error.message || 'Не удалось выполнить массовый сброс', 'error')
+    notifications.error(error.message || 'Не удалось выполнить массовый сброс')
   } finally {
     bulkClearing.value = false
   }
@@ -720,16 +702,6 @@ function pluralizeUsersTotal(count: number): string {
   if (mod10 === 1 && mod100 !== 11) return 'пользователь'
   if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'пользователя'
   return 'пользователей'
-}
-
-// ============================================
-// TOAST УВЕДОМЛЕНИЯ
-// ============================================
-function showToast(
-  message: string,
-  type: 'success' | 'error' | 'info' | 'warning' = 'success'
-) {
-  toast.value = { show: true, type, message }
 }
 
 // ============================================

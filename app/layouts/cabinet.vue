@@ -20,7 +20,6 @@
           <Component :is="Component" :key="$route.fullPath" />
         </Transition>
       </NuxtPage>
-      <UiNotificationsContainer />
     </main>
   </div>
 </template>

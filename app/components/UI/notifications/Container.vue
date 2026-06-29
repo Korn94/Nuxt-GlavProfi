@@ -1,42 +1,50 @@
 <!-- components/ui/notifications/Container.vue -->
 <template>
-  <!-- Teleport убран: position: fixed + z-index: 9999 уже обеспечивают корректное позиционирование -->
-  <TransitionGroup name="notif" tag="div" class="notif-container">
-    <div
-      v-for="n in notificationStore.notifications"
-      :key="n.id"
-      :class="['notif', `notif--${n.type}`]"
-    >
-      <!-- Левая полоса + иконка -->
-      <div class="notif__aside">
-        <Icon :name="getIcon(n.type)" size="18" />
-      </div>
-
-      <!-- Контент -->
-      <div class="notif__body">
-        <p class="notif__title">{{ n.title }}</p>
-        <p class="notif__message">{{ n.message }}</p>
-
-        <!-- Кнопки действий -->
-        <div v-if="n.actions?.length" class="notif__actions">
-          <button
-            v-for="(action, i) in n.actions"
-            :key="i"
-            class="notif__action"
-            :class="action.class"
-            @click="notificationStore.handleAction(n.id, action)"
-          >
-            {{ action.text }}
-          </button>
+  <!-- Позиция снизу справа, как в Toast, но работа через store -->
+  <Teleport to="body">
+    <TransitionGroup name="notif" tag="div" class="notif-container">
+      <div
+        v-for="n in notificationStore.notifications"
+        :key="n.id"
+        :class="['notif', `notif--${n.type}`]"
+        role="alert"
+        aria-live="polite"
+      >
+        <!-- Иконка -->
+        <div class="notif__icon">
+          <Icon :name="getIcon(n.type)" size="20" />
         </div>
-      </div>
 
-      <!-- Закрыть -->
-      <button class="notif__close" @click="notificationStore.close(n.id)">
-        <Icon name="mdi:close" size="16" />
-      </button>
-    </div>
-  </TransitionGroup>
+        <!-- Контент -->
+        <div class="notif__body">
+          <p v-if="n.title" class="notif__title">{{ n.title }}</p>
+          <p class="notif__message">{{ n.message }}</p>
+
+          <!-- Кнопки действий -->
+          <div v-if="n.actions?.length" class="notif__actions">
+            <button
+              v-for="(action, i) in n.actions"
+              :key="i"
+              class="notif__action"
+              :class="action.class"
+              @click="notificationStore.handleAction(n.id, action)"
+            >
+              {{ action.text }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Закрыть -->
+        <button
+          class="notif__close"
+          @click="notificationStore.close(n.id)"
+          :aria-label="`Закрыть уведомление: ${n.message}`"
+        >
+          <Icon name="mdi:close" size="16" />
+        </button>
+      </div>
+    </TransitionGroup>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -56,13 +64,13 @@ const getIcon = (type: string) => ({
 // ── Контейнер ───────────────────────────────────────────────────────
 .notif-container {
   position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 9999;
+  bottom: 2rem;
+  right: 2rem;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  width: 340px;
+  width: 360px;
+  z-index: 9999;
   pointer-events: none;
 }
 
@@ -70,72 +78,69 @@ const getIcon = (type: string) => ({
 .notif {
   display: flex;
   align-items: flex-start;
-  gap: 0;
-  background: var(--crm-bg-elevated);
-  border: 1px solid var(--crm-border-hover);
-  border-radius: var(--crm-radius-lg);
-  box-shadow: var(--crm-shadow-lg);
-  overflow: hidden;
+  gap: 0.75rem;
+  padding: 0.875rem 1.25rem;
+  background: var(--crm-bg-elevated, #ffffff);
+  border: 1px solid var(--crm-border, #e5e7eb);
+  border-radius: var(--crm-radius-md, 8px);
+  box-shadow: var(--crm-shadow-lg, 0 10px 25px rgba(0,0,0,0.15));
+  color: var(--crm-text-primary, #1f2937);
+  font-size: var(--crm-text-md, 14px);
   pointer-events: auto;
+  overflow: hidden;
+  max-width: calc(100vw - 2rem);
 
   // ── Цветовые варианты ──
   &--success {
-    border-left: 3px solid var(--crm-success);
+    border-color: var(--crm-success, #22c55e);
 
-    .notif__aside {
-      color: var(--crm-success);
-      background: var(--crm-success-dim);
+    .notif__icon {
+      color: var(--crm-success, #22c55e);
     }
   }
 
   &--error {
-    border-left: 3px solid var(--crm-danger);
+    border-color: var(--crm-danger, #ef4444);
 
-    .notif__aside {
-      color: var(--crm-danger);
-      background: var(--crm-danger-dim);
+    .notif__icon {
+      color: var(--crm-danger, #ef4444);
     }
   }
 
   &--warning {
-    border-left: 3px solid var(--crm-warning);
+    border-color: var(--crm-warning, #f59e0b);
 
-    .notif__aside {
-      color: var(--crm-warning);
-      background: var(--crm-warning-dim);
+    .notif__icon {
+      color: var(--crm-warning, #f59e0b);
     }
   }
 
   &--info {
-    border-left: 3px solid var(--crm-info);
+    border-color: var(--crm-info, #3b82f6);
 
-    .notif__aside {
-      color: var(--crm-info);
-      background: var(--crm-info-dim);
+    .notif__icon {
+      color: var(--crm-info, #3b82f6);
     }
   }
 }
 
-// ── Иконка слева ────────────────────────────────────────────────────
-.notif__aside {
+// ── Иконка ──────────────────────────────────────────────────────────
+.notif__icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  min-height: 100%;
   flex-shrink: 0;
-  padding: 14px 0;
+  margin-top: 1px;
 }
 
 // ── Текст ───────────────────────────────────────────────────────────
 .notif__body {
   flex: 1;
-  padding: 12px 8px 12px 0;
   min-width: 0;
 }
 
 .notif__title {
-  font-size: var(--crm-text-md);
+  font-size: var(--crm-text-md, 14px);
   font-weight: 600;
   color: var(--crm-text-primary);
   margin: 0 0 3px;
@@ -143,10 +148,11 @@ const getIcon = (type: string) => ({
 }
 
 .notif__message {
-  font-size: var(--crm-text-sm);
-  color: var(--crm-text-secondary);
+  font-size: var(--crm-text-sm, 13px);
+  color: var(--crm-text-secondary, #6b7280);
   margin: 0;
   line-height: 1.5;
+  word-break: break-word;
 }
 
 // ── Кнопки действий ─────────────────────────────────────────────────
@@ -158,19 +164,19 @@ const getIcon = (type: string) => ({
 
 .notif__action {
   padding: 4px 10px;
-  background: var(--crm-bg-overlay);
-  border: 1px solid var(--crm-border-hover);
-  border-radius: var(--crm-radius-sm);
-  color: var(--crm-text-primary);
-  font-size: var(--crm-text-xs);
+  background: var(--crm-bg-overlay, #f3f4f6);
+  border: 1px solid var(--crm-border-hover, #d1d5db);
+  border-radius: var(--crm-radius-sm, 6px);
+  color: var(--crm-text-primary, #1f2937);
+  font-size: var(--crm-text-xs, 12px);
   font-weight: 500;
   cursor: pointer;
   transition: var(--crm-transition);
 
   &:hover {
-    background: var(--crm-accent-dim);
-    border-color: var(--crm-accent-border);
-    color: var(--crm-accent);
+    background: var(--crm-accent-dim, rgba(0, 195, 245, 0.1));
+    border-color: var(--crm-accent-border, rgba(0, 195, 245, 0.3));
+    color: var(--crm-accent, #00c3f5);
   }
 }
 
@@ -179,46 +185,45 @@ const getIcon = (type: string) => ({
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  margin: 6px 6px 0 0;
+  width: 24px;
+  height: 24px;
   background: transparent;
   border: none;
   border-radius: var(--crm-radius-sm);
-  color: var(--crm-text-muted);
+  color: var(--crm-text-muted, #9ca3af);
   cursor: pointer;
   flex-shrink: 0;
-  transition: var(--crm-transition);
+  transition: all var(--crm-transition, 0.2s);
 
   &:hover {
-    background: var(--crm-bg-overlay);
-    color: var(--crm-text-primary);
+    background: var(--crm-bg-overlay, #f3f4f6);
+    color: var(--crm-text-primary, #1f2937);
   }
 }
 
 // ── Анимация ────────────────────────────────────────────────────────
 .notif-enter-active,
 .notif-leave-active {
-  transition: all 0.25s ease;
+  transition: all 0.3s ease;
 }
 
-.notif-enter-from {
-  opacity: 0;
-  transform: translateX(100%) scale(0.95);
-}
-
+.notif-enter-from,
 .notif-leave-to {
   opacity: 0;
-  transform: translateX(100%) scale(0.95);
+  transform: translateY(20px);
 }
 
-// ── Мобиле ──────────────────────────────────────────────────────────
-@media (max-width: 640px) {
+// ── Адаптивность ────────────────────────────────────────────────────
+@media (max-width: 768px) {
   .notif-container {
-    top: 62px; // под мобильной шапкой
-    right: 12px;
-    left: 12px;
+    left: 1rem;
+    right: 1rem;
+    bottom: 1rem;
     width: auto;
+  }
+
+  .notif {
+    max-width: none;
   }
 }
 </style>

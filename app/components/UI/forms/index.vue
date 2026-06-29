@@ -19,19 +19,14 @@
       </label>
     </div>
   </form>
-
-  <!-- Компонент уведомления -->
-  <UiAlerts
-    :visible="isNotificationVisible"
-    :message="notificationMessage"
-    :color="notificationColor"
-    @update:visible="isNotificationVisible = false"
-  />
 </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
+import { useNotifications } from '~/composables/useNotifications'
+
+const notifications = useNotifications()
 
 // Реактивные данные
 const name = ref('')
@@ -39,9 +34,6 @@ const phoneNumber = ref('+7 ')
 const comment = ref('')
 const agreed = ref(false)
 const phoneError = ref(false)
-const isNotificationVisible = ref(false)
-const notificationMessage = ref('')
-const notificationColor = ref('green')
 
 // Форматирование имени
 function textFilter() {
@@ -60,7 +52,7 @@ async function submitForm() {
   // Проверка телефона
   if (phoneCleaned.length < 11) {
     phoneError.value = true
-    showNotification('Введите корректный номер телефона', 'red')
+    notifications.error('Введите корректный номер телефона')
     return
   }
   phoneError.value = false
@@ -91,7 +83,7 @@ async function submitForm() {
     }
 
     // Успех
-    showNotification('Форма успешно отправлена!', 'green')
+    notifications.success('Форма успешно отправлена!')
     triggerYandexGoal('FORM_SUBMITTED')
     
     // Очистка формы после успешной отправки
@@ -111,16 +103,9 @@ async function submitForm() {
     } else if (error.request) {
       errorMessage = 'Нет ответа от сервера'
     }
-    showNotification(errorMessage, 'red')
+    notifications.error(errorMessage)
     triggerYandexGoal('FORM_ERROR')
   }
-}
-
-// Вспомогательные функции
-function showNotification(message, color) {
-  notificationMessage.value = message
-  notificationColor.value = color
-  isNotificationVisible.value = true
 }
 
 function triggerYandexGoal(goal) {
@@ -131,7 +116,6 @@ function triggerYandexGoal(goal) {
 </script>
 
 <style lang="scss" scoped>
-// ... ваши стили без изменений ...
 $primary-color: #00c3f5;
 $highlight-color: #ff9800;
 $border-color: #ddd;
