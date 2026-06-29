@@ -70,6 +70,8 @@ export default eventHandler(async (event) => {
         login: user.login,
         role: user.role,
         name: user.name,
+        contractorId: user.contractorId || undefined,
+        contractorType: user.contractorType || undefined,
       }
     }
   } catch (error) {

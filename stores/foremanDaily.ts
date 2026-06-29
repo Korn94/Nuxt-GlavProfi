@@ -122,7 +122,8 @@ export const useForemanDailyStore = defineStore('foremanDaily', () => {
         objectId: payload.objectId,
         workerAmount: payload.amount.toString(),
         operationDate: payload.date,
-        workSource: 'daily'
+        workSource: 'daily',
+        workTypes: 'Подневка'
       })
 
       const key = `${payload.workerId}_${payload.date}`

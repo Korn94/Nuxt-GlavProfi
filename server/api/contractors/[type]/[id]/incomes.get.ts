@@ -49,7 +49,7 @@ export default defineEventHandler(async (event) => {
   return list.map(w => ({
     id: w.id,
     type: 'income' as const,
-    title: `Работа: ${w.workTypes}`,
+    title: `${w.workTypes}`,
     amount: parseFloat(String(w.workerAmount)),
     date: w.operationDate instanceof Date ? w.operationDate.toISOString() : w.operationDate,
     object: w.objectId,
