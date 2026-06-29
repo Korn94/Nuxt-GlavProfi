@@ -19,7 +19,6 @@ import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime';
 definePageMeta({
   layout: 'cabinet',
   middleware: ['auth', 'role'],
-  allowedRoles: ['master', 'admin']
 })
 </script>
 

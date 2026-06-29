@@ -1,24 +1,17 @@
 <!-- app\components\pages\cabinet\DailyWork\ui\CalendarCell.vue -->
 <template>
-  <div
-    :class="{
-      'daily-cell': true,
-      'daily-cell--locked': !isEditable,
-      'daily-cell--selected': isSelected,
-      'daily-cell--range-start': rangeType === 'start',
-      'daily-cell--range-middle': rangeType === 'middle',
-      'daily-cell--range-end': rangeType === 'end'
-    }"
-    :data-date="date"
-    v-on="cellEvents"
-  >
+  <div :class="{
+    'daily-cell': true,
+    'daily-cell--locked': !isEditable,
+    'daily-cell--selected': isSelected,
+    'daily-cell--range-start': rangeType === 'start',
+    'daily-cell--range-middle': rangeType === 'middle',
+    'daily-cell--range-end': rangeType === 'end'
+  }" :data-date="date" v-on="cellEvents">
     <div v-if="assignments.length === 0" class="daily-cell__placeholder" />
     <div v-else class="daily-cell__indicator-wrapper">
-      <div
-        class="daily-cell__indicator"
-        :class="{ 'daily-cell__indicator--half': isHalfDay }"
-        :style="indicatorStyle"
-      />
+      <div class="daily-cell__indicator" :class="{ 'daily-cell__indicator--half': isHalfDay }"
+        :style="indicatorStyle" />
       <!-- Бейдж количества людей -->
       <span v-if="displayMultiplier" class="daily-cell__multiplier">
         ×{{ displayMultiplier }}
@@ -61,24 +54,49 @@ const totalAmount = computed(() =>
   props.assignments.reduce((sum, a) => sum + a.amount, 0)
 )
 
+/** Соотношение суммы к ставке: целая часть = полные, дробная 0.5 = пол-дневный */
+const ratio = computed(() => {
+  if (!props.dailyRate || props.dailyRate <= 0) return 0
+  return totalAmount.value / props.dailyRate
+})
+
+/** Есть ли пол-дневные (дробная часть ≈ 0.5) */
+const hasHalfDayWorker = computed(() => {
+  const frac = ratio.value - Math.floor(ratio.value)
+  return Math.abs(frac - 0.5) < 0.1
+})
+
 /** Количество людей (мульти-контрагент).
  *  Рассчитывается как totalAmount / dailyRate.
  *  Если workerCount > 1 — показываем бейдж ×N */
 const workerCount = computed(() => {
   if (!props.dailyRate || props.dailyRate <= 0) return 1
-  return Math.round(totalAmount.value / props.dailyRate)
+  return Math.round(ratio.value)
 })
 
-/** Количество людей для отображения (только если > 1) */
-const displayMultiplier = computed(() =>
-  workerCount.value > 1 ? workerCount.value : null
-)
+/**
+ * Значение для бейджа.
+ * Показываем только если ratio > 1 (т.е. больше одной ставки за день).
+ * Формат: "1.5", "2.5", "3.5" — или "2", "3" если без дроби.
+ */
+const displayMultiplier = computed(() => {
+  if (ratio.value <= 1.1) return null
 
-/** Определяем "пол дня" по сумме процентов ≈ 50.
- *  Работает только когда нет мульти-смены (workerCount ≤ 1) */
+  // Округляем до 1 знака после запятой
+  const rounded = Math.round(ratio.value * 2) / 2 // шаг 0.5
+
+  // Если дробная часть нулевая — показываем целое: "2" вместо "2.0"
+  if (rounded === Math.floor(rounded)) {
+    return Math.floor(rounded)
+  }
+
+  return rounded
+})
+
+/** Определяем "пол дня" для обычных контрагентов (ratio ≤ 1) */
 const isHalfDay = computed(() => {
   if (props.assignments.length === 0) return false
-  if (workerCount.value > 1) return false // мульти имеет приоритет
+  if (ratio.value > 1.1) return false
   const totalPct = props.assignments.reduce((sum, a) => sum + a.percentage, 0)
   return totalPct > 40 && totalPct < 60
 })

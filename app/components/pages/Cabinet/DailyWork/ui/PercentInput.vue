@@ -1,43 +1,30 @@
 <!-- app\components\pages\cabinet\DailyWork\ui\PercentInput.vue -->
 <template>
-  <div 
-    class="percent-input" 
-    :class="{ 
+  <div
+    class="percent-input"
+    :class="{
       'percent-input--focused': isFocused,
       'percent-input--single': isSingleObject,
-      'percent-input--hidden': isSingleObject && hideWhenSingle 
+      'percent-input--hidden': isSingleObject && hideWhenSingle
     }"
   >
-    
-    <!-- Заголовок поля -->
     <label class="percent-input__label">
-      <span>Доля</span>
-      <span v-if="secondaryValue !== undefined && !isSingleObject" class="percent-input__label-sub">
-        ≈ {{ formatCurrency(secondaryValue) }}
+      <span>{{ mode === 'currency' ? 'Сумма' : 'Доля' }}</span>
+      <span v-if="secondaryText !== undefined && !isSingleObject" class="percent-input__label-sub">
+        {{ secondaryText }}
       </span>
     </label>
 
-    <!-- Контролы: кнопки + инпут -->
     <div class="percent-input__control-group" v-if="!isSingleObject || !hideWhenSingle">
-      
-      <!-- Кнопка "−" -->
-      <button
-        type="button"
-        class="percent-input__btn percent-input__btn--dec"
-        @click="handleDecrement"
-        :disabled="clampedValue <= min"
-        aria-label="Уменьшить"
-      >
-        −
-      </button>
+      <button type="button" class="percent-input__btn percent-input__btn--dec"
+        @click="handleDecrement" :disabled="clampedValue <= min" aria-label="Уменьшить">−</button>
 
-      <!-- Поле ввода -->
       <div class="percent-input__field-wrapper">
         <input
           ref="inputRef"
           type="number"
           inputmode="decimal"
-          :value="displayValue"
+          :value="inputValue"
           @input="handleInput"
           @blur="handleBlur"
           @focus="onFocus"
@@ -45,32 +32,24 @@
           @keydown.arrow-up.prevent="handleIncrement"
           @keydown.arrow-down.prevent="handleDecrement"
           class="percent-input__field"
-          aria-label="Процент распределения"
+          :aria-label="mode === 'currency' ? 'Сумма распределения' : 'Процент распределения'"
         />
-        <span class="percent-input__suffix">%</span>
+        <span class="percent-input__suffix">
+          {{ mode === 'currency' ? '₽' : '%' }}
+        </span>
       </div>
 
-      <!-- Кнопка "+" -->
-      <button
-        type="button"
-        class="percent-input__btn percent-input__btn--inc"
-        @click="handleIncrement"
-        :disabled="clampedValue >= max"
-        aria-label="Увеличить"
-      >
-        +
-      </button>
-
+      <button type="button" class="percent-input__btn percent-input__btn--inc"
+        @click="handleIncrement" :disabled="clampedValue >= max" aria-label="Увеличить">+</button>
     </div>
 
-    <!-- Режим одного объекта: показываем только значение -->
+    <!-- Режим одного объекта -->
     <div v-else class="percent-input__single-value">
-      <span class="percent-input__value">{{ displayValue }}%</span>
-      <span v-if="secondaryValue !== undefined" class="percent-input__value-sub">
-        {{ formatCurrency(secondaryValue) }}
+      <span class="percent-input__value">{{ displayText }}</span>
+      <span v-if="secondaryText !== undefined" class="percent-input__value-sub">
+        {{ secondaryText }}
       </span>
     </div>
-
   </div>
 </template>
 
@@ -86,46 +65,60 @@ const props = withDefaults(defineProps<{
   secondaryValue?: number
   isSingleObject?: boolean
   hideWhenSingle?: boolean
+  // ▼ НОВОЕ ▼
+  mode?: 'percent' | 'currency'
 }>(), {
   min: 0,
   max: 100,
   step: 10,
   secondaryValue: undefined,
   isSingleObject: false,
-  hideWhenSingle: true
+  hideWhenSingle: true,
+  mode: 'percent'
 })
 
-const emit = defineEmits<{
-  'update:value': [value: number]
-}>()
-
+const emit = defineEmits<{ 'update:value': [value: number] }>()
 const { formatCurrency } = useDailyAssignment()
 const inputRef = ref<HTMLInputElement | null>(null)
 const isFocused = ref(false)
 
-// ✅ Защита от двойного срабатывания (throttle)
 let lastClickTime = 0
-const CLICK_THROTTLE_MS = 150 // мин. интервал между кликами
+const CLICK_THROTTLE_MS = 150
 
-const clampedValue = computed(() => 
+const clampedValue = computed(() =>
   Math.max(props.min, Math.min(props.max, props.value))
 )
 
-const displayValue = computed(() => 
-  Math.round(clampedValue.value)
-)
+// Значение для <input> (всегда число без форматирования)
+const inputValue = computed(() => Math.round(clampedValue.value).toString())
+
+// Текст для отображения (отформатированный)
+const displayText = computed(() => {
+  if (props.mode === 'currency') {
+    return formatCurrency(Math.round(clampedValue.value))
+  }
+  return `${Math.round(clampedValue.value)}%`
+})
+
+// Текст для вторичного значения
+const secondaryText = computed(() => {
+  if (props.secondaryValue === undefined) return undefined
+  if (props.mode === 'currency') {
+    // В режиме ₽ показываем проценты
+    return `${Math.round(props.secondaryValue)}%`
+  }
+  // В режиме % показываем сумму
+  return `≈ ${formatCurrency(props.secondaryValue)}`
+})
 
 function emitValue(val: number) {
-  const clamped = Math.max(props.min, Math.min(props.max, Math.round(val)))
+  const clamped = Math.max(props.min, Math.min(props.max, val))
   emit('update:value', clamped)
 }
 
-/** Проверка: не слишком ли быстро идёт клик */
 function canProcessClick(): boolean {
   const now = Date.now()
-  if (now - lastClickTime < CLICK_THROTTLE_MS) {
-    return false
-  }
+  if (now - lastClickTime < CLICK_THROTTLE_MS) return false
   lastClickTime = now
   return true
 }
@@ -145,9 +138,7 @@ function handleDecrement() {
 function handleInput(e: Event) {
   const val = (e.target as HTMLInputElement).value
   const num = parseFloat(val)
-  if (!isNaN(num)) {
-    emit('update:value', num)
-  }
+  if (!isNaN(num)) emit('update:value', num)
 }
 
 function handleBlur() {
@@ -155,9 +146,7 @@ function handleBlur() {
   emitValue(clampedValue.value)
 }
 
-function onFocus() {
-  isFocused.value = true
-}
+function onFocus() { isFocused.value = true }
 
 async function focusInputWithoutSelect() {
   await nextTick()
@@ -167,10 +156,6 @@ async function focusInputWithoutSelect() {
     inputRef.value.setSelectionRange(len, len)
   }
 }
-
-const ariaValueText = computed(() => 
-  `${displayValue.value} процентов${props.secondaryValue ? `, ${formatCurrency(props.secondaryValue)}` : ''}`
-)
 </script>
 
 <style lang="scss" scoped>

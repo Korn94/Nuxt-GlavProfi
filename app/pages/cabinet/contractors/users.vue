@@ -97,10 +97,9 @@ import { useUserActions } from '~/composables/useUserActions'
 import type { User } from 'stores/users'
 import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
 
-// 🛡️ Middleware: доступ только авторизованным админам
 definePageMeta({
   layout: 'cabinet',
-  middleware: ['auth', 'role']
+  // middleware: ['auth'],
 })
 
 const usersStore = useUsersStore()

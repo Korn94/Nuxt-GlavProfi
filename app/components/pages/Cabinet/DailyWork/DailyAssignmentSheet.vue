@@ -39,7 +39,39 @@
                   aria-label="Увеличить"
                 >+</button>
               </div>
-              <div v-if="workerCount > 1" class="multi-worker-control__total">
+
+              <!-- ▼ НОВОЕ: Счётчик пол-дневных людей ▼ -->
+              <div class="multi-worker-control__sub">
+                <div class="multi-worker-control__label multi-worker-control__label--sub">
+                  <Icon name="mdi:clock-outline" size="14" />
+                  <span>Из них пол дня</span>
+                </div>
+                <div class="multi-worker-control__stepper multi-worker-control__stepper--sub">
+                  <button
+                    type="button"
+                    class="multi-worker-control__btn multi-worker-control__btn--dec"
+                    :disabled="halfDayCount <= 0"
+                    @click="halfDayCount--"
+                    aria-label="Уменьшить пол-дневных"
+                  >−</button>
+                  <span class="multi-worker-control__value multi-worker-control__value--sub">
+                    {{ halfDayCount }}
+                  </span>
+                  <button
+                    type="button"
+                    class="multi-worker-control__btn multi-worker-control__btn--inc"
+                    :disabled="halfDayCount >= workerCount"
+                    @click="halfDayCount++"
+                    aria-label="Увеличить пол-дневных"
+                  >+</button>
+                </div>
+                <div v-if="halfDayCount > 0" class="multi-worker-control__sub-hint">
+                  {{ halfDayCount }} чел. × 50% ставки
+                </div>
+              </div>
+              <!-- ▲ НОВОЕ ▲ -->
+
+              <div v-if="workerCount > 1 || halfDayCount > 0" class="multi-worker-control__total">
                 Итого за день: <strong>{{ formatCurrency(effectiveRate) }}</strong>
               </div>
             </div>
@@ -73,11 +105,20 @@
 
           <!-- Список объектов -->
           <div class="sheet__list">
-            <ObjectSplitRow v-for="(split, idx) in localSplits" :key="split.objectId" :object-id="split.objectId"
-              :object-name="getObjectName(split.objectId)" :value="split.value" :daily-rate="effectiveRate"
-              :is-removable="localSplits.length > 1" @update:value="updateSplit(idx, $event)"
+            <ObjectSplitRow
+              v-for="(split, idx) in localSplits"
+              :key="split.objectId"
+              :object-id="split.objectId"
+              :object-name="getObjectName(split.objectId)"
+              :value="split.value"
+              :daily-rate="effectiveRate"
+              :is-removable="localSplits.length > 1"
               :is-single-object="localSplits.length === 1"
-              @remove="removeSplit(idx)" />
+              :is-multi-worker="isMultiWorker"
+              :effective-rate="effectiveRate"
+              @update:value="updateSplit(idx, $event)"
+              @remove="removeSplit(idx)"
+            />
           </div>
 
           <!-- Добавление объекта -->
@@ -167,7 +208,8 @@ const showObjectSelect = ref(false)
 const localSplits = ref<{ objectId: number; value: number }[]>([])
 const localSelectedDates = ref<string[]>([])
 const isHalfDay = ref(false)
-const workerCount = ref(1) // ← НОВОЕ
+const workerCount = ref(1)
+const halfDayCount = ref(0)
 
 // ── Вычисляемые ──────────────────────────────────────────────────
 
@@ -190,10 +232,12 @@ const isMultiWorker = computed(() =>
   )
 )
 
-/** Эффективная ставка за день: dailyRate × workerCount (или × 0.5 для пол дня) */
+/** Эффективная ставка за день */
 const effectiveRate = computed(() => {
   if (isMultiWorker.value) {
-    return props.dailyRate * workerCount.value
+    // ИЗМЕНЕНО: учитываем пол-дневных
+    const fullDayWorkers = workerCount.value - halfDayCount.value
+    return props.dailyRate * fullDayWorkers + (props.dailyRate / 2) * halfDayCount.value
   }
   return isHalfDay.value ? props.dailyRate / 2 : props.dailyRate
 })
@@ -277,25 +321,33 @@ watch(() => props.modelValue, (open) => {
     }))
 
     if (props.dates.length === 1) {
-      // Рассчитываем суммарную сумму за день
       const totalAmount = props.assignments.reduce((sum, a) => sum + a.amount, 0)
 
       if (isMultiWorker.value) {
-        // Автоопределение количества людей
-        const detectedCount = Math.round(totalAmount / props.dailyRate)
-        workerCount.value = Math.max(1, Math.min(MAX_WORKERS, detectedCount || 1))
+        // ИЗМЕНЕНО: автоопределение workerCount и halfDayCount
+        const ratio = totalAmount / props.dailyRate
+        const fullPart = Math.floor(ratio)
+        const fractional = ratio - fullPart
+        
+        // Дробная часть ≈ 0.5 → есть пол-дневные
+        const detectedHalf = Math.round(fractional * 2) // 0 или 1
+        const detectedTotal = fullPart + (detectedHalf > 0 ? 1 : 0)
+        
+        workerCount.value = Math.max(1, Math.min(MAX_WORKERS, detectedTotal || 1))
+        halfDayCount.value = Math.max(0, Math.min(workerCount.value, detectedHalf))
         isHalfDay.value = false
       } else {
-        // Автоопределение "пол дня"
         const totalPct = props.assignments.reduce((sum, a) => sum + a.percentage, 0)
         isHalfDay.value = Math.abs(totalPct - 50) < 0.01
         workerCount.value = 1
+        halfDayCount.value = 0 // ← НОВОЕ
       }
     }
   } else {
     localSplits.value = []
     isHalfDay.value = false
     workerCount.value = 1
+    halfDayCount.value = 0 // ← НОВОЕ
   }
   showObjectSelect.value = false
 }, { immediate: true })
@@ -308,7 +360,17 @@ watch(isHalfDay, () => {
 })
 
 // При изменении количества людей — перераспределяем
-watch(workerCount, () => {
+watch(workerCount, (newCount) => {
+  // Если пол-дневных больше чем людей — корректируем
+  if (halfDayCount.value > newCount) {
+    halfDayCount.value = newCount
+  }
+  if (localSplits.value.length === 0) return
+  redistributeEqually()
+})
+
+// НОВОЕ: При изменении количества пол-дневных
+watch(halfDayCount, () => {
   if (localSplits.value.length === 0) return
   redistributeEqually()
 })
@@ -613,6 +675,41 @@ function handleSave(): void {
       font-family: var(--crm-font-mono);
       font-weight: 600;
     }
+  }
+
+    &__sub {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--crm-accent-border);
+  }
+
+  &__label--sub {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-secondary);
+    opacity: 0.9;
+    margin-bottom: 6px;
+  }
+
+  &__stepper--sub {
+    padding: 2px;
+
+    .multi-worker-control__btn {
+      width: 28px;
+      height: 28px;
+      font-size: 18px;
+    }
+  }
+
+  &__value--sub {
+    font-size: var(--crm-text-md);
+    min-width: 20px;
+  }
+
+  &__sub-hint {
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--crm-text-muted);
+    font-style: italic;
   }
 }
 

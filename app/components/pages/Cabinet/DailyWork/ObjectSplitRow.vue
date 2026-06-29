@@ -1,26 +1,27 @@
 <!-- app\components\pages\cabinet\DailyWork\ObjectSplitRow.vue -->
- <template>
+<template>
   <div class="split-row">
-    <!-- Информация об объекте -->
     <div class="split-row__info">
       <div class="split-row__dot" :style="dotStyle" />
       <span class="split-row__name" :title="objectName">{{ objectName }}</span>
     </div>
 
-    <!-- Управление долей -->
     <div class="split-row__control">
-      <!-- Передаем значение, режим и рассчитанное вторичное значение -->
       <PercentInput
-        :value="currentValue"
+        :value="percentInputValue"
         :secondary-value="secondaryValue"
         :is-single-object="isSingleObject"
-        @update:value="$emit('update:value', $event)"
+        :mode="isMultiWorker ? 'currency' : 'percent'"
+        :min="0"
+        :max="isMultiWorker ? effectiveRate : 100"
+        :step="isMultiWorker ? (dailyRate / 2 || 500) : 10"
+        @update:value="handleValueUpdate"
       />
-      
-      <button 
-        v-if="isRemovable" 
-        type="button" 
-        class="split-row__remove" 
+
+      <button
+        v-if="isRemovable"
+        type="button"
+        class="split-row__remove"
         aria-label="Удалить объект"
         @click="$emit('remove')"
       >
@@ -37,38 +38,60 @@ import PercentInput from './ui/PercentInput.vue'
 const props = withDefaults(defineProps<{
   objectId: number
   objectName: string
-  value: number         // Текущее значение (зависит от mode)
+  value: number           // Всегда в процентах
   dailyRate: number
   isRemovable?: boolean
   isSingleObject?: boolean
+  // ▼ НОВОЕ ▼
+  isMultiWorker?: boolean
+  effectiveRate?: number
 }>(), {
   isRemovable: true,
-  isSingleObject: false
+  isSingleObject: false,
+  isMultiWorker: false,
+  effectiveRate: 0
 })
 
 const emit = defineEmits<{
-  'update:value': [value: number]
+  'update:value': [value: number]  // Всегда в процентах
   'remove': []
 }>()
 
-// ── Логика ────────────────────────────────────────────────────────
-
 const HUES = [340, 25, 55, 140, 190, 275, 310, 225] as const
 
-// Цвет объекта на основе ID
 const dotStyle = computed(() => {
   const hue = HUES[props.objectId % HUES.length] ?? HUES[0]
   return { backgroundColor: `hsl(${hue}, 92%, 58%)` }
 })
 
-// Текущее значение, которое редактируется
-const currentValue = computed(() => props.value)
+// ▼ НОВОЕ: для мульти-контрагентов конвертируем % в ₽
+const percentInputValue = computed(() => {
+  if (props.isMultiWorker && props.effectiveRate > 0) {
+    return (props.value / 100) * props.effectiveRate
+  }
+  return props.value
+})
 
-// Вторичное значение для отображения в PercentInput
-// Если режим %, показываем сумму. Если режим ₽, показываем %.
+// Вторичное значение:
+// Для currency-режима — это % (number)
+// Для percent-режима — это сумма (number)
 const secondaryValue = computed(() => {
+  if (props.isMultiWorker) {
+    return props.value  // показываем проценты
+  }
   return (props.dailyRate * props.value) / 100
 })
+
+// ▼ НОВОЕ: обработчик для currency-режима
+function handleValueUpdate(newValue: number) {
+  if (props.isMultiWorker && props.effectiveRate > 0) {
+    // Конвертируем ₽ обратно в %
+    const newPercent = (newValue / props.effectiveRate) * 100
+    emit('update:value', newPercent)
+  } else {
+    emit('update:value', newValue)
+  }
+}
 </script>
 
 <style lang="scss" scoped>
