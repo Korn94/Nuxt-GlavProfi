@@ -1,5 +1,5 @@
-<!-- app/components/pages/cabinet/homePage/RecentOperationsCard.vue -->
-<template>
+<!-- app\components\pages\cabinet\dashboards\admin\RecentOperationsCard.vue -->
+ <template>
   <PagesCabinetUiCardsCard :loading="isLoading" title="Последние операции" flush>
     <template #icon>
       <Icon name="mdi:history" size="18" />
@@ -67,9 +67,9 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { navigateTo } from '#app'
-import { useApi } from '~/composables/useApi' // 👈 Новый composable
+import { useApi } from '~/composables/useApi'
 
-const api = useApi() // 👈 Инициализация
+const api = useApi()
 
 interface Operation {
   id: number
@@ -106,7 +106,6 @@ async function fetchData() {
   isLoading.value = true
   error.value = null
   try {
-    // 👇 Все запросы через api.get() — токен и credentials подставляются автоматически
     const [comings, expenses] = await Promise.all([
       api.get<any[]>('/api/comings'),
       api.get<any[]>('/api/expenses'),
@@ -122,7 +121,6 @@ async function fetchData() {
       .slice(0, 8)
 
   } catch (e: any) {
-    // 👇 Ошибки 401/403 уже обработаны в useApi(), здесь — только локальная логика UI
     console.error('[Операции] Ошибка загрузки:', e)
     error.value = e?.message || 'Ошибка загрузки'
   } finally {
@@ -139,7 +137,6 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
 </script>
 
 <style lang="scss" scoped>
-// ── Список ──────────────────────────────────────────────────────────
 .ops {
   display: flex;
   flex-direction: column;
@@ -161,7 +158,6 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
     background: var(--crm-bg-elevated);
   }
 
-  // ── Иконка ──
   &__icon {
     width: 32px;
     height: 32px;
@@ -182,7 +178,6 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
     color: var(--crm-danger);
   }
 
-  // ── Контент ──
   &__body {
     flex: 1;
     min-width: 0;
@@ -235,7 +230,6 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    // max-width: 140px;
   }
 
   &__date {
@@ -246,7 +240,6 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
   }
 }
 
-// ── Пустые состояния ────────────────────────────────────────────────
 .ops-state {
   display: flex;
   flex-direction: column;
@@ -262,7 +255,6 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
   }
 }
 
-// ── Кнопки ──────────────────────────────────────────────────────────
 .crm-btn {
   display: inline-flex;
   align-items: center;

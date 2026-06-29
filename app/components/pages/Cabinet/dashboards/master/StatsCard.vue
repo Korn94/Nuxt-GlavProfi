@@ -1,5 +1,5 @@
-// app/components/pages/cabinet/MasterDashboard/StatsCard.vue
-<template>
+<!-- app\components\pages\cabinet\dashboards\master\StatsCard.vue -->
+ <template>
   <div class="stats-card">
     <!-- Заголовок -->
     <div class="stats-card__header">

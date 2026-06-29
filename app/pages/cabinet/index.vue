@@ -18,16 +18,7 @@ const router = useRouter()
 definePageMeta({
   layout: 'cabinet',
   middleware: ['auth', 'role'],
-});
-
-// Карта: роль → целевой роут
-const ROLE_ROUTES: Record<string, string> = {
-  admin: '/cabinet/admin',
-  manager: '/cabinet/admin',    // менеджеры пока видят как админы
-  foreman: '/cabinet/foreman',
-  master: '/cabinet/master',   // мастера → интерфейс прораба
-  worker: '/cabinet/worker',   // рабочие → минималка
-}
+})
 
 onMounted(async () => {
   // Ждём завершения проверки авторизации, если она ещё идёт
@@ -36,19 +27,15 @@ onMounted(async () => {
       // Если проверка упала — init() сам сделает редирект на /login
     })
   }
-  
-  const role = authStore.user?.role || 'worker'
-  const targetRoute = ROLE_ROUTES[role] || '/cabinet/foreman'
-  
-  // replace вместо push — чтобы не ломать историю навигации
-  await router.replace(targetRoute)
+
+  // Все роли теперь идут на одну страницу dashboard
+  // Внутри dashboard.vue сам определит роль и подключит нужный компонент
+  await router.replace('/cabinet/dashboard')
 })
 
 useHead({
-  meta: [
-    { name: 'robots', content: 'noindex, nofollow' },
-  ],
-  title: 'CRM — Главная'
+  meta: [{ name: 'robots', content: 'noindex, nofollow' }],
+  title: 'CRM — Главная',
 })
 </script>
 

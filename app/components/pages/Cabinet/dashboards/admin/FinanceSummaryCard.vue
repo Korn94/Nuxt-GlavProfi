@@ -1,5 +1,5 @@
-<!-- app/components/pages/cabinet/homePage/FinanceSummaryCard.vue -->
-<template>
+<!-- app\components\pages\cabinet\dashboards\admin\FinanceSummaryCard.vue -->
+ <template>
   <PagesCabinetUiCardsCard :loading="isLoading" title="Финансовая сводка" flush>
     <template #icon>
       <Icon name="mdi:finance" size="18" />
@@ -125,9 +125,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { navigateTo } from '#app'
-import { useApi } from '~/composables/useApi' // 👈 Новый composable
+import { useApi } from '~/composables/useApi'
 
-const api = useApi() // 👈 Инициализация
+const api = useApi()
 
 const balanceData = ref<any>(null)
 const expenseCategories = ref<any[]>([])
@@ -198,7 +198,6 @@ async function fetchData() {
       ? { startDate: localStartDate.value, endDate: localEndDate.value }
       : {}
 
-    // 👇 Все запросы через api.get() — токен и credentials подставляются автоматически
     const [balance, stats] = await Promise.all([
       api.get<any>('/api/balance', { params }),
       api.get<any[]>('/api/expenses/stats', { params }),
@@ -213,7 +212,6 @@ async function fetchData() {
       .sort((a, b) => b.amount - a.amount)
 
   } catch (e: any) {
-    // 👇 Ошибки 401/403 уже обработаны в useApi(), здесь — только локальная логика UI
     console.error('[ФинСводка] Ошибка загрузки:', e)
     error.value = e?.message || 'Ошибка загрузки'
   } finally {
@@ -247,13 +245,11 @@ watch([localStartDate, localEndDate], () => {
 </script>
 
 <style lang="scss" scoped>
-// ── Обёртка ─────────────────────────────────────────────────────────
 .finance {
   display: flex;
   flex-direction: column;
 }
 
-// ── Итог ────────────────────────────────────────────────────────────
 .finance__total {
   display: flex;
   align-items: center;
@@ -280,7 +276,6 @@ watch([localStartDate, localEndDate], () => {
   }
 }
 
-// ── Метрики ─────────────────────────────────────────────────────────
 .finance__metrics {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -332,7 +327,6 @@ watch([localStartDate, localEndDate], () => {
     white-space: nowrap;
   }
 
-  // Цвета по типу
   &--income .metric__icon {
     background: var(--crm-success-dim);
     color: var(--crm-success);
@@ -354,7 +348,6 @@ watch([localStartDate, localEndDate], () => {
   }
 }
 
-// ── Категории ───────────────────────────────────────────────────────
 .finance__categories {
   padding: 14px 16px;
 }
@@ -435,7 +428,6 @@ watch([localStartDate, localEndDate], () => {
   }
 }
 
-// ── Состояния ───────────────────────────────────────────────────────
 .finance-state {
   display: flex;
   flex-direction: column;
@@ -452,7 +444,6 @@ watch([localStartDate, localEndDate], () => {
   }
 }
 
-// ── Футер ───────────────────────────────────────────────────────────
 .finance-footer {
   display: flex;
   align-items: center;
@@ -491,7 +482,6 @@ watch([localStartDate, localEndDate], () => {
   }
 }
 
-// ── Кнопки (локальные) ──────────────────────────────────────────────
 .crm-btn {
   display: inline-flex;
   align-items: center;

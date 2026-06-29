@@ -1,5 +1,5 @@
-// app/components/pages/cabinet/MasterDashboard/BalanceCard.vue
-<template>
+<!-- app\components\pages\cabinet\dashboards\master\BalanceCard.vue -->
+ <template>
   <div class="balance-card">
     <!-- Заголовок -->
     <div class="balance-card__header">
@@ -247,7 +247,6 @@ function getExpensePercent(): number {
   }
 
   &__content {
-    color: $text-light;
     display: flex;
     flex-direction: column;
     gap: 2px;

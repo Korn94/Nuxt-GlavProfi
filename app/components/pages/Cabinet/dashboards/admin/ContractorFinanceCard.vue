@@ -1,5 +1,5 @@
-<!-- app/components/pages/cabinet/homePage/ContractorFinanceCard.vue -->
-<template>
+<!-- app\components\pages\cabinet\dashboards\admin\ContractorFinanceCard.vue -->
+ <template>
   <PagesCabinetUiCardsCard :loading="isLoading" title="Финансы контрагентов" flush>
     <template #icon>
       <Icon name="mdi:account-group-outline" size="18" />
@@ -68,8 +68,7 @@
                 </span>
               </div>
 
-              <!-- Раскрытые транзакции -->
-             <Transition name="expand">
+              <Transition name="expand">
                 <div v-if="expandedId === c.id" class="contractor-item__transactions">
                   <div v-if="loadingTransactions === c.id" class="tx-loading">
                     <Icon name="mdi:loading" class="spin" size="14" /> Загрузка...
@@ -132,7 +131,7 @@
                 </span>
               </div>
 
-            <Transition name="expand">
+              <Transition name="expand">
                 <div v-if="expandedId === c.id" class="contractor-item__transactions">
                   <div v-if="loadingTransactions === c.id" class="tx-loading">
                     <Icon name="mdi:loading" class="spin" size="14" /> Загрузка...
@@ -197,9 +196,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { navigateTo } from '#app'
-import { useApi } from '~/composables/useApi' // 👈 Новый composable
+import { useApi } from '~/composables/useApi'
 
-const api = useApi() // 👈 Инициализация
+const api = useApi()
 
 // ── Справочники ─────────────────────────────────────────────────────
 const contractorTypes = [
@@ -279,7 +278,6 @@ async function fetchData() {
   isLoading.value = true
   error.value = null
   try {
-    // 👇 Все запросы через api.get() — токен и credentials подставляются автоматически
     const [masters, workers, foremans, offices] = await Promise.all([
       api.get<any>('/api/contractors/master'),
       api.get<any>('/api/contractors/worker'),
@@ -287,13 +285,12 @@ async function fetchData() {
       api.get<any>('/api/contractors/office'),
     ])
 
-    // Обработка ответа (API возвращает { contractors: [], count: N })
     const process = (response: any, type: string) => {
       const list = response?.contractors || response || []
-      return (list || []).map((c: any) => ({ 
-        ...c, 
-        type, 
-        balance: parseFloat(c.balance) || 0 
+      return (list || []).map((c: any) => ({
+        ...c,
+        type,
+        balance: parseFloat(c.balance) || 0
       }))
     }
 
@@ -311,12 +308,11 @@ async function fetchData() {
       offices: { totalBalance: sum(o), count: o.length, list: o },
     }
 
-    updatedAt.value = new Date().toLocaleTimeString('ru-RU', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    updatedAt.value = new Date().toLocaleTimeString('ru-RU', {
+      hour: '2-digit',
+      minute: '2-digit'
     })
   } catch (e: any) {
-    // 👇 Ошибки 401/403 уже обработаны в useApi(), здесь — только локальная логика UI
     console.error('[КонтрФинансы] Ошибка загрузки:', e)
     error.value = e?.message || 'Ошибка загрузки'
   } finally {
@@ -328,31 +324,30 @@ async function loadTransactions(contractor: any) {
   if (transactions.value[contractor.id]) return
   loadingTransactions.value = contractor.id
   try {
-    // 👇 GET-запросы с параметрами через useApi()
     const [expenses, comings] = await Promise.all([
-      api.get<any[]>('/api/expenses', { 
-        params: { 
+      api.get<any[]>('/api/expenses', {
+        params: {
           contractorType: contractor.type,
-          contractorId: contractor.id 
-        } 
+          contractorId: contractor.id
+        }
       }),
-      api.get<any[]>('/api/comings', { 
-        params: { 
+      api.get<any[]>('/api/comings', {
+        params: {
           objectId: contractor.objectId || undefined
-        } 
+        }
       }),
     ])
-    
+
     transactions.value[contractor.id] = {
-      expenses: (expenses || []).map(e => ({ 
-        ...e, 
+      expenses: (expenses || []).map(e => ({
+        ...e,
         amount: parseFloat(e.amount),
-        objectName: e.objectName 
+        objectName: e.objectName
       })),
-      comings: (comings || []).map(c => ({ 
-        ...c, 
+      comings: (comings || []).map(c => ({
+        ...c,
         amount: parseFloat(c.amount),
-        objectName: c.objectName 
+        objectName: c.objectName
       })),
     }
   } catch (e: any) {
@@ -385,7 +380,6 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
   flex-direction: column;
 }
 
-// ── Итог ────────────────────────────────────────────────────────────
 .cf__total {
   display: flex;
   align-items: center;
@@ -412,7 +406,6 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
   }
 }
 
-// ── Типы контрагентов ───────────────────────────────────────────────
 .cf__types {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -484,7 +477,6 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
   }
 }
 
-// ── Секции должников/кредиторов ─────────────────────────────────────
 .cf__sections {
   display: flex;
   flex-direction: column;
@@ -533,7 +525,6 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
   }
 }
 
-// ── Список контрагентов ─────────────────────────────────────────────
 .contractor-list {
   display: flex;
   flex-direction: column;
@@ -610,7 +601,6 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
     }
   }
 
-  // Транзакции
   &__transactions {
     padding: 0 10px 10px;
     border-top: 1px solid var(--crm-border);
@@ -618,7 +608,6 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
   }
 }
 
-// ── Транзакции ───────────────────────────────────────────────────────
 .tx-loading {
   display: flex;
   align-items: center;
@@ -707,7 +696,6 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
   text-align: center;
 }
 
-// ── Состояния ───────────────────────────────────────────────────────
 .cf-state {
   display: flex;
   flex-direction: column;
@@ -723,7 +711,6 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
   }
 }
 
-// ── Анимация раскрытия ───────────────────────────────────────────────
 .expand-enter-active,
 .expand-leave-active {
   transition: all .2s ease;
@@ -742,7 +729,6 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
   max-height: 600px;
 }
 
-// ── Спиннер ─────────────────────────────────────────────────────────
 .spin {
   animation: spin 1s linear infinite;
   display: inline-block;
@@ -758,7 +744,6 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
   }
 }
 
-// ── Кнопки ──────────────────────────────────────────────────────────
 .crm-btn {
   display: inline-flex;
   align-items: center;

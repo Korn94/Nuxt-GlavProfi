@@ -1,12 +1,11 @@
-<!-- app/components/pages/cabinet/index.vue -->
-<template>
-  <div class="home-page">
-
+<!-- app\components\pages\cabinet\dashboards\admin\index.vue -->
+ <template>
+  <div class="admin-dashboard">
     <!-- Заголовок страницы -->
     <PagesCabinetUiLayoutPageTitle title="Главная" icon="mdi:view-dashboard-outline" />
 
     <!-- Контент -->
-    <div class="home-page__content">
+    <div class="admin-dashboard__content">
 
       <!-- Профиль пользователя -->
       <div class="profile-card">
@@ -28,10 +27,10 @@
 
       <!-- Сетка виджетов -->
       <div class="home-grid">
-        <PagesCabinetHomePageFinanceSummaryCard class="home-grid__item" />
-        <PagesCabinetHomePageRecentOperationsCard class="home-grid__item" />
-        <PagesCabinetHomePageObjectStatusCard class="home-grid__item" />
-        <PagesCabinetHomePageContractorFinanceCard class="home-grid__item" />
+        <PagesCabinetDashboardsAdminFinanceSummaryCard class="home-grid__item" />
+        <PagesCabinetDashboardsAdminRecentOperationsCard class="home-grid__item" />
+        <PagesCabinetDashboardsAdminObjectStatusCard class="home-grid__item" />
+        <PagesCabinetDashboardsAdminContractorFinanceCard class="home-grid__item" />
       </div>
 
     </div>
@@ -42,9 +41,9 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from 'stores/auth'
 import { navigateTo } from '#app'
-import { useApi } from '~/composables/useApi' // 👈 Новый composable
+import { useApi } from '~/composables/useApi'
 
-const api = useApi() // 👈 Инициализация
+const api = useApi()
 const data = ref<any>(null)
 const contractorData = ref<any>(null)
 const isLoading = ref(true)
@@ -80,7 +79,6 @@ const formatBalance = (amount: number) =>
 async function fetchData() {
   isLoading.value = true
   try {
-    // 👇 GET-запрос через useApi() — токен и credentials подставляются автоматически
     const response = await api.get<{ user: any }>('/api/me')
 
     if (!response) return navigateTo('/login')
@@ -90,14 +88,12 @@ async function fetchData() {
     if (user.contractorId && user.contractorType) {
       const type = contractorTypeMap[user.contractorType]
       if (type) {
-        // 👇 Второй запрос — также через api.get()
         contractorData.value = await api.get(
           `/api/contractors/${type}/${user.contractorId}`
         )
       }
     }
   } catch (err) {
-    // 👇 Ошибки 401/403 уже обработаны в useApi(), здесь — только логирование
     console.error('[Главная] Ошибка загрузки данных:', err)
     data.value = null
   } finally {
@@ -111,7 +107,7 @@ onMounted(fetchData)
 </script>
 
 <style lang="scss" scoped>
-.home-page {
+.admin-dashboard {
   display: flex;
   flex-direction: column;
   min-height: 100%;
@@ -124,7 +120,6 @@ onMounted(fetchData)
   }
 }
 
-// ── Профиль ─────────────────────────────────────────────────────────
 .profile-card {
   display: flex;
   align-items: center;
@@ -210,7 +205,6 @@ onMounted(fetchData)
   }
 }
 
-// ── Сетка виджетов ───────────────────────────────────────────────────
 .home-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -233,7 +227,6 @@ onMounted(fetchData)
   }
 }
 
-// ── Спиннер ─────────────────────────────────────────────────────────
 .spin {
   animation: spin 1s linear infinite;
 }
@@ -249,7 +242,7 @@ onMounted(fetchData)
 }
 
 @media (max-width: 767.98px) {
-  .home-page__content {
+  .admin-dashboard__content {
     padding: 16px;
   }
 }

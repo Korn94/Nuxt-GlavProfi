@@ -1,5 +1,5 @@
-// app/pages/cabinet/master.vue
-<template>
+<!-- app\components\pages\cabinet\dashboards\master\index.vue -->
+ <template>
   <div class="master-dashboard">
     <PagesCabinetUiLayoutPageTitle 
       title="Панель мастера" 
@@ -18,7 +18,7 @@
       <div class="dashboard-grid">
         <!-- Виджет баланса -->
         <div class="dashboard-widget dashboard-widget--balance">
-          <PagesCabinetMasterDashboardBalanceCard 
+          <PagesCabinetDashboardsMasterBalanceCard 
             :balance="balance"
             :loading="loadingBalance"
             @refresh="loadBalance"
@@ -27,7 +27,7 @@
 
         <!-- Виджет статистики -->
         <div class="dashboard-widget dashboard-widget--stats">
-          <PagesCabinetMasterDashboardStatsCard 
+          <PagesCabinetDashboardsMasterStatsCard 
             :stats="stats"
             :loading="loadingStats"
           />
@@ -35,7 +35,7 @@
 
         <!-- Виджет операций -->
         <div class="dashboard-widget dashboard-widget--operations">
-          <PagesCabinetMasterDashboardOperationsWidget 
+          <PagesCabinetDashboardsMasterOperationsWidget 
             :contractorId="contractorId"
             :contractorType="contractorType"
             @balance-changed="handleBalanceChanged"
@@ -44,7 +44,7 @@
 
         <!-- Placeholder для будущих виджетов -->
         <div class="dashboard-widget dashboard-widget--placeholder">
-          <PagesCabinetMasterDashboardComingSoonWidget 
+          <PagesCabinetDashboardsMasterComingSoonWidget 
             title="Активные объекты"
             icon="mdi:map-marker-multiple-outline"
             message="Скоро здесь появятся ваши активные объекты"
@@ -52,7 +52,7 @@
         </div>
 
         <div class="dashboard-widget dashboard-widget--placeholder">
-          <PagesCabinetMasterDashboardComingSoonWidget 
+          <PagesCabinetDashboardsMasterComingSoonWidget 
             title="Задачи"
             icon="mdi:clipboard-check-outline"
             message="Здесь будут ваши задачи и поручения"
@@ -76,12 +76,6 @@ import { useApi } from '~/composables/useApi'
 import { navigateTo } from '#app'
 import type { ContractorDTO, ContractorType } from '~/types/contractors'
 import { useHead } from 'nuxt/app'
-import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
-
-definePageMeta({
-  layout: 'cabinet',
-  middleware: ['auth', 'role'],
-})
 
 // ── Интерфейсы для API ответов ────────────────────────────────────────
 interface UserData {

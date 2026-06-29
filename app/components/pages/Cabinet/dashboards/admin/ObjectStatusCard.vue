@@ -1,5 +1,5 @@
-<!-- app/components/pages/cabinet/homePage/ObjectStatusCard.vue -->
-<template>
+<!-- app\components\pages\cabinet\dashboards\admin\ObjectStatusCard.vue -->
+ <template>
   <PagesCabinetUiCardsCard :loading="isLoading" title="Статусы объектов" flush>
     <template #icon>
       <Icon name="mdi:office-building-outline" size="18" />
@@ -168,9 +168,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { navigateTo } from '#app'
-import { useApi } from '~/composables/useApi' // 👈 Новый composable
+import { useApi } from '~/composables/useApi'
 
-const api = useApi() // 👈 Инициализация
+const api = useApi()
 
 // ── Типы ────────────────────────────────────────────────────────────
 interface DocStats {
@@ -220,7 +220,6 @@ async function fetchData() {
   isLoading.value = true
   error.value = null
   try {
-    // 👇 GET-запрос через useApi() — токен и credentials подставляются автоматически
     const data = await api.get<any[]>('/api/objects')
 
     const stats: ObjectStats = { active: 0, waiting: 0, completed: 0, inProgress: 0, total: data.length }
@@ -257,7 +256,6 @@ async function fetchData() {
     updatedAt.value = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
 
   } catch (e: any) {
-    // 👇 Ошибки 401/403 уже обработаны в useApi(), здесь — только локальная логика UI
     console.error('[Объекты] Ошибка загрузки:', e)
     error.value = e?.message || 'Ошибка загрузки'
   } finally {
@@ -279,7 +277,6 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
   flex-direction: column;
 }
 
-// ── Статистика ───────────────────────────────────────────────────────
 .obj__stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -350,7 +347,6 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
   }
 }
 
-// ── Критические объекты ─────────────────────────────────────────────
 .obj__critical {
   padding: 14px 16px;
   border-bottom: 1px solid var(--crm-border);
@@ -444,7 +440,6 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
   }
 }
 
-// ── Документооборот ─────────────────────────────────────────────────
 .obj__docs {
   padding: 14px 16px;
   display: flex;
@@ -532,7 +527,6 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
   }
 }
 
-// ── Пустые состояния ────────────────────────────────────────────────
 .obj-state {
   display: flex;
   flex-direction: column;
@@ -548,7 +542,6 @@ onBeforeUnmount(() => clearInterval(refreshTimer))
   }
 }
 
-// ── Кнопки ──────────────────────────────────────────────────────────
 .crm-btn {
   display: inline-flex;
   align-items: center;

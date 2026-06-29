@@ -62,7 +62,7 @@
 
             <div class="op-item__body">
               <NuxtLink v-if="expense.contractorType && expense.contractorId"
-                :to="`/cabinet/admin/contractors/${expense.contractorType}/${expense.contractorId}`"
+                :to="`/cabinet/contractors/${expense.contractorType}/${expense.contractorId}`"
                 class="op-item__link">
                 <Icon name="mdi:account-outline" size="13" />
                 {{ expense.contractorName }}

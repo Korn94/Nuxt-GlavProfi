@@ -1,5 +1,5 @@
-<!-- app/pages/cabinet/manager.vue -->
-<template>
+<!-- app\components\pages\cabinet\dashboards\manager\index.vue -->
+ <template>
   <div class="manager-dashboard">
     <PagesCabinetUiLayoutPageTitle 
       title="Панель менеджера" 
@@ -14,15 +14,15 @@
 </template>
 
 <script setup lang="ts">
-import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime';
-
-definePageMeta({
-  middleware: ['auth', 'role'],
-  allowedRoles: ['manager', 'admin']
-})
 </script>
 
 <style lang="scss" scoped>
+.manager-dashboard {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
 .placeholder {
   display: flex;
   flex-direction: column;
