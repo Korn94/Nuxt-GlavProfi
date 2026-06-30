@@ -253,6 +253,7 @@ function getExpensePercent(): number {
   }
 
   &__value {
+    color: var(--crm-text-primary);
     font-size: var(--crm-text-md);
     font-weight: 700;
     font-family: var(--crm-font-mono);

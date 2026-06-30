@@ -195,7 +195,7 @@ const menuItems: MenuItem[] = [
     title: 'На сайт',
     path: '/',
     icon: 'mdi:web',
-    alwaysShow: true
+    check: () => hasRole('admin')
   },
 
   // Кейсы — portfolio

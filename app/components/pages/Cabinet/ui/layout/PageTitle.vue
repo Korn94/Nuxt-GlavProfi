@@ -7,10 +7,17 @@
         <Icon :name="icon" size="18" />
       </div>
 
-      <!-- Заголовок -->
-      <h1 class="page-title__heading">
-        <slot>{{ title }}</slot>
-      </h1>
+      <!-- Блок заголовка и подзаголовка -->
+      <div class="page-title__text">
+        <h1 class="page-title__heading">
+          <slot>{{ title }}</slot>
+        </h1>
+
+        <!-- Подзаголовок (слот или пропс) -->
+        <div v-if="$slots.subtitle || subtitle" class="page-title__subtitle">
+          <slot name="subtitle">{{ subtitle }}</slot>
+        </div>
+      </div>
 
       <!-- Бейдж (опционально, например счётчик) -->
       <span v-if="badge !== undefined" class="page-title__badge">{{ badge }}</span>
@@ -24,11 +31,12 @@
 </template>
 
 <script setup lang="ts">
-defineProps < {
+defineProps<{
   title?: string
+  subtitle?: string
   icon?: string
   badge?: string | number
-} > ()
+}>()
 </script>
 
 <style lang="scss" scoped>
@@ -38,7 +46,7 @@ defineProps < {
   justify-content: space-between;
   gap: 12px;
   padding: 0 24px;
-  height: 52px;
+  min-height: 52px;
   background: var(--crm-bg-surface);
   border-bottom: 1px solid var(--crm-border);
   position: sticky;
@@ -51,6 +59,7 @@ defineProps < {
     align-items: center;
     gap: 10px;
     min-width: 0;
+    flex: 1;
   }
 
   &__icon {
@@ -66,6 +75,20 @@ defineProps < {
     flex-shrink: 0;
   }
 
+  &__text {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    min-width: 0;
+    flex-wrap: wrap;
+
+    @media (max-width: 500px) {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+    }
+  }
+
   &__heading {
     font-size: var(--crm-text-lg);
     font-weight: 600;
@@ -74,6 +97,14 @@ defineProps < {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  &__subtitle {
+    display: flex;
+    align-items: center;
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+    white-space: nowrap;
   }
 
   &__badge {

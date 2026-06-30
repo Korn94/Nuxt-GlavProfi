@@ -1,10 +1,10 @@
 <!-- app\components\pages\cabinet\dashboards\foreman\index.vue -->
  <template>
   <div class="foreman-dashboard">
-    <PagesCabinetUiLayoutPageTitle 
+    <!-- <PagesCabinetUiLayoutPageTitle 
       title="Ежедневные работы" 
       icon="mdi:clipboard-text-clock-outline" 
-    />
+    /> -->
     
     <DailyWork
       :auto-load="true"
@@ -41,11 +41,3 @@ useHead({
   title: 'CRM — Главная прораба'
 })
 </script>
-
-<style lang="scss" scoped>
-.foreman-dashboard {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 1.5rem;
-}
-</style>

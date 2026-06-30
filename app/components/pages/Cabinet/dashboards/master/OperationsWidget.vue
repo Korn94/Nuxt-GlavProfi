@@ -1,5 +1,5 @@
-<!-- app\components\pages\cabinet\dashboards\master\OperationsWidget.vue -->
- <template>
+// app/components/pages/cabinet/MasterDashboard/OperationsWidget.vue
+<template>
   <div class="operations-widget">
     <!-- Заголовок -->
     <div class="operations-widget__header">
@@ -8,7 +8,12 @@
         <span>История операций</span>
       </div>
       <div class="operations-widget__controls">
-        <button class="crm-btn crm-btn--sm crm-btn--ghost" @click="loadOperations" :disabled="loading" title="Обновить">
+        <button
+          class="crm-btn crm-btn--sm crm-btn--ghost"
+          @click="loadOperations"
+          :disabled="loading"
+          title="Обновить"
+        >
           <Icon name="mdi:refresh" size="16" :class="{ spin: loading }" />
         </button>
       </div>
@@ -63,17 +68,30 @@
     </div>
 
     <div v-else class="operations-widget__list">
-      <div v-for="operation in filteredOperations" :key="operation.id"
-        :class="['operation-item', `operation-item--${operation.type}`]">
+      <div
+        v-for="operation in filteredOperations"
+        :key="operation.id"
+        :class="['operation-item', `operation-item--${operation.type}`]"
+      >
         <div class="operation-item__left">
           <div :class="['operation-icon', `operation-icon--${operation.type}`]">
             <Icon :name="operation.type === 'expense' ? 'mdi:minus' : 'mdi:plus'" size="18" />
           </div>
           <div class="operation-info">
-            <!-- ✅ Используем getDisplayTitle вместо operation.title -->
+            <!-- ✅ Заголовок операции -->
             <div class="operation-info__title">{{ getDisplayTitle(operation) }}</div>
+            
+            <!-- ✅ Метаданные: дата, объект, комментарий -->
             <div class="operation-info__meta">
               <span class="operation-info__date">{{ formatDate(operation.date) }}</span>
+              
+              <!-- ✅ Объект (без ссылки, как в оригинале) -->
+              <span v-if="operation.objectName" class="operation-info__object">
+                <Icon name="mdi:map-marker-outline" size="12" />
+                {{ operation.objectName }}
+              </span>
+              
+              <!-- Комментарий -->
               <span v-if="operation.comment" class="operation-info__comment">
                 <Icon name="mdi:comment-outline" size="12" />
                 {{ operation.comment }}
@@ -93,13 +111,13 @@
     <div v-if="filteredOperations.length > 0" class="operations-widget__footer">
       <div class="operations-summary">
         <div class="summary-item">
-          <span class="summary-item__label">Работ принято</span>
+          <span class="summary-item__label">Приходы</span>
           <span class="summary-item__value summary-item__value--income">
             +{{ formatCurrency(totals.incomes) }}
           </span>
         </div>
         <div class="summary-item">
-          <span class="summary-item__label">Оплатили</span>
+          <span class="summary-item__label">Расходы</span>
           <span class="summary-item__value summary-item__value--expense">
             −{{ formatCurrency(totals.expenses) }}
           </span>
@@ -128,6 +146,7 @@ interface Operation {
   amount: number
   date: string
   object?: number
+  objectName?: string // ✅ Добавляем имя объекта
   comment?: string
 }
 
@@ -138,6 +157,7 @@ interface IncomeOperation {
   amount: number
   date: string
   object?: number
+  objectName?: string // ✅ Добавляем имя объекта
   comment?: string
   paymentDate?: string
   accepted: boolean
@@ -151,6 +171,7 @@ interface ExpenseOperation {
   amount: number
   date: string
   object?: number
+  objectName?: string // ✅ Добавляем имя объекта
   comment?: string
   paymentDate?: string
 }
@@ -220,12 +241,13 @@ const totals = computed(() => {
 })
 
 // ── Helpers ───────────────────────────────────────────────────────────
+
 // ✅ Кастомный заголовок для операций
 function getDisplayTitle(operation: Operation): string {
   if (operation.type === 'expense') {
     return 'Оплачено'
   }
-  // Для income оставляем существующий title (например "Работа принята: Плитка")
+  // Для income оставляем существующий title
   return operation.title
 }
 
@@ -259,6 +281,12 @@ function getNetClass(): string {
 
 // ── Загрузка операций ─────────────────────────────────────────────────
 async function loadOperations() {
+  if (!props.contractorId) {
+    console.warn('[OperationsWidget] contractorId не задан, пропускаем загрузку')
+    operations.value = []
+    return
+  }
+
   loading.value = true
   error.value = null
 
@@ -280,6 +308,7 @@ async function loadOperations() {
       amount: e.amount,
       date: e.date,
       object: e.object,
+      objectName: e.objectName, // ✅ Добавляем имя объекта
       comment: e.comment
     }))
 
@@ -291,6 +320,7 @@ async function loadOperations() {
       amount: w.amount,
       date: w.date,
       object: w.object,
+      objectName: w.objectName, // ✅ Добавляем имя объекта
       comment: w.comment
     }))
 
@@ -624,6 +654,42 @@ onMounted(() => {
     &--income {
       color: var(--crm-success);
     }
+  }
+}
+
+// ── Информация об операции ───────────────────────────────────────────
+.operation-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+
+  &__title {
+    font-size: var(--crm-text-md);
+    font-weight: 500;
+    color: var(--crm-text-primary);
+  }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  &__date { 
+    font-size: var(--crm-text-xs); 
+    color: var(--crm-text-muted); 
+  }
+
+  // ✅ Стиль для объекта (как в оригинале)
+  &__object,
+  &__comment {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
   }
 }
 

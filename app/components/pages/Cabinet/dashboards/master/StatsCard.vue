@@ -1,77 +1,103 @@
-<!-- app\components\pages\cabinet\dashboards\master\StatsCard.vue -->
- <template>
+// app/components/pages/cabinet/MasterDashboard/StatsCard.vue
+<template>
   <div class="stats-card">
     <!-- Заголовок -->
     <div class="stats-card__header">
       <div class="stats-card__title">
-        <Icon name="mdi:chart-box-outline" size="20" />
-        <span>Статистика</span>
+        <Icon name="mdi:calendar-clock" size="20" />
+        <span>Подневка</span>
       </div>
+      <div class="stats-card__subtitle">Последние 3 месяца</div>
     </div>
 
-    <!-- Статистика -->
+    <!-- Загрузка -->
     <div v-if="loading" class="stats-card__skeleton">
-      <div v-for="i in 3" :key="i" class="stat-skeleton">
-        <div class="skel skel--value" />
-        <div class="skel skel--label" />
+      <div v-for="i in 3" :key="i" class="month-skeleton">
+        <div class="skel skel--month" />
+        <div class="skel skel--days" />
       </div>
     </div>
 
+    <!-- Контент -->
     <div v-else class="stats-card__content">
-      <div class="stat-block">
-        <div class="stat-block__value">{{ stats.totalWorks }}</div>
-        <div class="stat-block__label">Всего работ</div>
-        <Icon name="mdi:clipboard-text-outline" size="24" class="stat-block__icon" />
-      </div>
-
-      <div class="stat-block">
-        <div class="stat-block__value">{{ stats.completedWorks }}</div>
-        <div class="stat-block__label">Завершено</div>
-        <Icon name="mdi:check-circle-outline" size="24" class="stat-block__icon stat-block__icon--success" />
-      </div>
-
-      <div class="stat-block">
-        <div class="stat-block__value">{{ stats.thisMonth }}</div>
-        <div class="stat-block__label">В этом месяце</div>
-        <Icon name="mdi:calendar-month-outline" size="24" class="stat-block__icon stat-block__icon--accent" />
+      <div 
+        v-for="month in stats" 
+        :key="month.month"
+        class="month-block"
+      >
+        <div class="month-block__header">
+          <div class="month-block__name">{{ month.monthName }}</div>
+          <div class="month-block__year">{{ month.year }}</div>
+        </div>
+        <div class="month-block__value">
+          <span class="month-block__days">{{ month.days }}</span>
+          <span class="month-block__label">{{ month.days === 1 ? 'день' : getDaysLabel(month.days) }}</span>
+        </div>
+        <div class="month-block__visual">
+          <div 
+            class="month-block__bar"
+            :style="{ width: getBarWidth(month.days) + '%' }"
+          />
+        </div>
       </div>
     </div>
 
-    <!-- Прогресс -->
-    <div v-if="!loading && stats.totalWorks > 0" class="stats-card__progress">
-      <div class="progress-label">
-        <span>Прогресс выполнения</span>
-        <span>{{ getCompletionPercent() }}%</span>
-      </div>
-      <div class="progress-bar">
-        <div 
-          class="progress-bar__fill"
-          :style="{ width: getCompletionPercent() + '%' }"
-        />
+    <!-- Итого -->
+    <div v-if="!loading && stats.length > 0" class="stats-card__footer">
+      <div class="total-info">
+        <Icon name="mdi:information-outline" size="14" />
+        <span>Всего за 3 месяца: <strong>{{ totalDays }}</strong> {{ getDaysLabel(totalDays) }}</span>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { getCurrentInstance } from 'vue';
+import { computed, getCurrentInstance } from 'vue';
 
-interface Stats {
-  totalWorks: number
-  completedWorks: number
-  thisMonth: number
+interface MonthStats {
+  month: string
+  monthName: string
+  year: number
+  days: number
 }
 
 defineProps<{
-  stats: Stats
+  stats: MonthStats[]
   loading?: boolean
 }>()
 
-function getCompletionPercent(): number {
-  const props = getCurrentInstance()?.props as any
-  if (!props || props.stats.totalWorks === 0) return 0
-  return Math.round((props.stats.completedWorks / props.stats.totalWorks) * 100)
+// Правильное склонение слова "день"
+function getDaysLabel(days: number): string {
+  const lastDigit = days % 10
+  const lastTwoDigits = days % 100
+
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) {
+    return 'дней'
+  }
+  
+  if (lastDigit === 1) {
+    return 'день'
+  }
+  
+  if (lastDigit >= 2 && lastDigit <= 4) {
+    return 'дня'
+  }
+  
+  return 'дней'
 }
+
+// Ширина прогресс-бара (максимум 31 день в месяце)
+function getBarWidth(days: number): number {
+  return Math.min((days / 31) * 100, 100)
+}
+
+// Общее количество дней
+const totalDays = computed(() => {
+  const props = getCurrentInstance()?.props as any
+  if (!props || !props.stats) return 0
+  return props.stats.reduce((sum: number, month: MonthStats) => sum + month.days, 0)
+})
 </script>
 
 <style lang="scss" scoped>
@@ -88,8 +114,8 @@ function getCompletionPercent(): number {
 
 .stats-card__header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .stats-card__title {
@@ -101,12 +127,18 @@ function getCompletionPercent(): number {
   color: var(--crm-text-primary);
 }
 
+.stats-card__subtitle {
+  font-size: var(--crm-text-xs);
+  color: var(--crm-text-muted);
+  margin-left: 30px;
+}
+
 .stats-card__skeleton {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 12px;
 
-  .stat-skeleton {
+  .month-skeleton {
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -123,91 +155,98 @@ function getCompletionPercent(): number {
       background-size: 200% 100%;
       animation: shimmer 1.6s infinite;
 
-      &--value {
-        height: 32px;
-        width: 60px;
+      &--month {
+        height: 20px;
+        width: 120px;
       }
 
-      &--label {
-        height: 14px;
-        width: 80px;
+      &--days {
+        height: 32px;
+        width: 60px;
       }
     }
   }
 }
 
 .stats-card__content {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
+  // flex-direction: column;
   gap: 12px;
 }
 
-.stat-block {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+.month-block {
   padding: 16px;
   background: var(--crm-bg-elevated);
   border-radius: var(--crm-radius-md);
   border: 1px solid var(--crm-border);
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 8px;
+
+  &__header {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  &__name {
+    font-size: var(--crm-text-md);
+    font-weight: 600;
+    color: var(--crm-text-primary);
+  }
+
+  &__year {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+  }
 
   &__value {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  &__days {
     font-size: 28px;
     font-weight: 700;
     font-family: var(--crm-font-mono);
-    color: var(--crm-text-primary);
+    color: var(--crm-accent);
   }
 
   &__label {
     font-size: var(--crm-text-sm);
-    color: var(--crm-text-muted);
+    color: var(--crm-text-secondary);
   }
 
-  &__icon {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    color: var(--crm-text-disabled);
-    opacity: 0.3;
+  &__visual {
+    margin-top: 4px;
+  }
 
-    &--success {
-      color: var(--crm-success);
-      opacity: 0.2;
-    }
-
-    &--accent {
-      color: var(--crm-accent);
-      opacity: 0.2;
-    }
+  &__bar {
+    height: 6px;
+    background: linear-gradient(90deg, var(--crm-accent) 0%, var(--crm-success) 100%);
+    border-radius: var(--crm-radius-sm);
+    transition: width 0.3s ease;
   }
 }
 
-.stats-card__progress {
+.stats-card__footer {
   margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--crm-border);
 }
 
-.progress-label {
+.total-info {
   display: flex;
-  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
   font-size: var(--crm-text-sm);
   color: var(--crm-text-secondary);
-}
 
-.progress-bar {
-  height: 8px;
-  background: var(--crm-bg-elevated);
-  border-radius: var(--crm-radius-sm);
-  overflow: hidden;
-
-  &__fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--crm-accent) 0%, var(--crm-success) 100%);
-    transition: width 0.3s ease;
+  strong {
+    color: var(--crm-accent);
+    font-weight: 700;
   }
 }
 
@@ -217,11 +256,7 @@ function getCompletionPercent(): number {
 }
 
 @media (max-width: 768px) {
-  .stats-card__content {
-    grid-template-columns: 1fr;
-  }
-
-  .stat-block__value {
+  .month-block__days {
     font-size: 24px;
   }
 }

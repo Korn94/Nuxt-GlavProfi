@@ -5,12 +5,12 @@
  * 
  * @param {string} type — тип контрагента: 'master'|'worker'|'foreman'|'office' (из пути)
  * @param {string} id — ID контрагента (из пути)
- * @returns { Array<{ id, type: 'expense', title, amount: number, date, object?, comment, paymentDate? }> }
+ * @returns { Array<{ id, type: 'expense', title, amount: number, date, object?, objectName?, comment, paymentDate? }> }
  */
 
 import { defineEventHandler, getRouterParam, createError } from 'h3'
 import { db } from '../../../../db'
-import { expenses } from '../../../../db/schema'
+import { expenses, objects } from '../../../../db/schema'
 import { and, eq, desc } from 'drizzle-orm'
 import { CONTRACTOR_TYPES } from '~/types/contractors'
 import type { ContractorType } from '~/types/contractors'
@@ -27,9 +27,20 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'Неверный ID' })
   }
 
+  // ✅ Добавляем JOIN с objects для получения имени объекта
   const list = await db
-    .select()
+    .select({
+      id: expenses.id,
+      expenseType: expenses.expenseType,
+      amount: expenses.amount,
+      operationDate: expenses.operationDate,
+      objectId: expenses.objectId,
+      objectName: objects.name,
+      comment: expenses.comment,
+      paymentDate: expenses.paymentDate
+    })
     .from(expenses)
+    .leftJoin(objects, eq(expenses.objectId, objects.id))
     .where(
       and(
         eq(expenses.contractorType, type),
@@ -45,6 +56,7 @@ export default defineEventHandler(async (event) => {
     amount: parseFloat(String(e.amount)),
     date: e.operationDate instanceof Date ? e.operationDate.toISOString() : e.operationDate,
     object: e.objectId,
+    objectName: e.objectName, // ✅ Добавляем имя объекта
     comment: e.comment,
     paymentDate: e.paymentDate instanceof Date ? e.paymentDate.toISOString() : e.paymentDate
   }))

@@ -1,83 +1,86 @@
-<!-- app\components\pages\cabinet\dashboards\master\index.vue -->
- <template>
+<!-- app/components/pages/cabinet/dashboards/master/index.vue -->
+<template>
   <div class="master-dashboard">
+    <!-- Персонализированный заголовок -->
     <PagesCabinetUiLayoutPageTitle 
-      title="Панель мастера" 
-      icon="mdi:hammer-wrench" 
-    />
-    
-    <!-- Загрузка данных -->
+      :title="greetingTitle" 
+      icon="mdi:hammer-wrench"
+    >
+    </PagesCabinetUiLayoutPageTitle>
+
+    <!-- Состояние: Загрузка -->
     <div v-if="isLoading" class="master-dashboard__loading">
       <Icon name="mdi:loading" class="animate-spin" size="32" />
       <span>Загрузка данных...</span>
     </div>
 
-    <!-- Контент -->
+    <!-- Состояние: Контент (если есть contractorId) -->
     <template v-else-if="contractorId && contractorType">
-      <!-- Сетка виджетов -->
       <div class="dashboard-grid">
-        <!-- Виджет баланса -->
+        <!-- Строка 1: Баланс + Статистика -->
         <div class="dashboard-widget dashboard-widget--balance">
           <PagesCabinetDashboardsMasterBalanceCard 
-            :balance="balance"
+            :balance="balance" 
             :loading="loadingBalance"
-            @refresh="loadBalance"
+            @refresh="loadBalance" 
           />
         </div>
 
-        <!-- Виджет статистики -->
         <div class="dashboard-widget dashboard-widget--stats">
           <PagesCabinetDashboardsMasterStatsCard 
-            :stats="stats"
-            :loading="loadingStats"
+            :stats="stats" 
+            :loading="loadingStats" 
           />
         </div>
 
-        <!-- Виджет операций -->
+        <!-- Строка 2: График подневки (только если есть данные) -->
+        <div v-if="hasDailyData" class="dashboard-widget dashboard-widget--daily-schedule">
+          <PagesCabinetDashboardsMasterDailyScheduleCard />
+        </div>
+
+        <!-- Строка 3: Операции -->
         <div class="dashboard-widget dashboard-widget--operations">
           <PagesCabinetDashboardsMasterOperationsWidget 
-            :contractorId="contractorId"
+            :contractorId="contractorId" 
             :contractorType="contractorType"
-            @balance-changed="handleBalanceChanged"
+            @balance-changed="handleBalanceChanged" 
           />
         </div>
 
-        <!-- Placeholder для будущих виджетов -->
+        <!-- Строка 4: Placeholder -->
         <div class="dashboard-widget dashboard-widget--placeholder">
           <PagesCabinetDashboardsMasterComingSoonWidget 
-            title="Активные объекты"
+            title="Активные объекты" 
             icon="mdi:map-marker-multiple-outline"
-            message="Скоро здесь появятся ваши активные объекты"
-          />
-        </div>
-
-        <div class="dashboard-widget dashboard-widget--placeholder">
-          <PagesCabinetDashboardsMasterComingSoonWidget 
-            title="Задачи"
-            icon="mdi:clipboard-check-outline"
-            message="Здесь будут ваши задачи и поручения"
+            message="Скоро здесь появятся ваши активные объекты" 
           />
         </div>
       </div>
     </template>
 
-    <!-- Ошибка: нет данных контрагента -->
+    <!-- Состояние: Ошибка (если нет contractorId) -->
     <div v-else class="master-dashboard__error">
       <Icon name="mdi:alert-circle-outline" size="48" />
-      <p>Не удалось загрузить данные мастера</p>
-      <p class="error-hint">Возможно, ваш аккаунт не привязан к контрагенту</p>
+      <p class="master-dashboard__error-title">Не удалось загрузить данные мастера</p>
+      <p class="master-dashboard__error-hint">Возможно, ваш аккаунт не привязан к контрагенту</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useApi } from '~/composables/useApi'
 import { navigateTo } from '#app'
 import type { ContractorDTO, ContractorType } from '~/types/contractors'
+import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
 import { useHead } from 'nuxt/app'
 
-// ── Интерфейсы для API ответов ────────────────────────────────────────
+definePageMeta({
+  layout: 'cabinet',
+  middleware: ['auth', 'role'],
+})
+
+// ── Интерфейсы ───────────────────────────────────────────────────────
 interface UserData {
   id: number
   login: string
@@ -115,7 +118,14 @@ interface ExpenseOperation {
   paymentDate?: string
 }
 
-// ── Маппинг типа контрагента (как в админской странице) ──────────────
+interface MonthStats {
+  month: string
+  monthName: string
+  year: number
+  days: number
+}
+
+// ── Константы ────────────────────────────────────────────────────────
 const contractorTypeMap: Record<string, ContractorType> = {
   office: 'office',
   foreman: 'foreman',
@@ -123,13 +133,23 @@ const contractorTypeMap: Record<string, ContractorType> = {
   master: 'master',
 }
 
+const roleLabels: Record<string, string> = {
+  admin: 'Администратор',
+  manager: 'Менеджер',
+  foreman: 'Прораб',
+  master: 'Мастер',
+  worker: 'Рабочий'
+}
+
+// ── Инициализация ────────────────────────────────────────────────────
 const api = useApi()
 
-// ── Состояние ─────────────────────────────────────────────────────────
+// ── Состояние ────────────────────────────────────────────────────────
 const isLoading = ref(true)
 const userData = ref<UserData | null>(null)
 const contractorId = ref<number>(0)
 const contractorType = ref<ContractorType>('master')
+const hasDailyData = ref(false)
 
 const balance = ref({
   current: 0,
@@ -137,18 +157,33 @@ const balance = ref({
   expense: 0
 })
 
-const stats = ref({
-  totalWorks: 0,
-  completedWorks: 0,
-  thisMonth: 0
-})
+const stats = ref<MonthStats[]>([])
 
 const loadingBalance = ref(false)
 const loadingStats = ref(false)
 
-// ── Загрузка данных пользователя (как в admin/index.vue) ──────────────
+// ── Персонализация заголовка ─────────────────────────────────────────
+function getTimeOfDay(): string {
+  const hour = new Date().getHours()
+  if (hour >= 5 && hour < 12) return 'Доброе утро'
+  if (hour >= 12 && hour < 18) return 'Добрый день'
+  if (hour >= 18 && hour < 23) return 'Добрый вечер'
+  return 'Доброй ночи'
+}
+
+const greetingTitle = computed(() => {
+  const greeting = getTimeOfDay()
+  const name = userData.value?.name || 'Мастер'
+  return `${greeting}, ${name}!`
+})
+
+const roleLabel = computed(() => {
+  const role = userData.value?.role || 'master'
+  return roleLabels[role] || 'Мастер'
+})
+
+// ── Загрузка данных пользователя ─────────────────────────────────────
 async function fetchUserData() {
-  isLoading.value = true
   try {
     const response = await api.get<MeResponse>('/api/me')
 
@@ -158,24 +193,19 @@ async function fetchUserData() {
     }
 
     userData.value = response.user
-    console.log('[MasterDashboard] ✅ Данные пользователя из /api/me:', {
+    console.log('[MasterDashboard] ✅ Данные пользователя:', {
       id: response.user.id,
-      role: response.user.role,
       name: response.user.name,
+      role: response.user.role,
       contractorId: response.user.contractorId,
       contractorType: response.user.contractorType
     })
 
-    // Проверяем наличие contractorId (как в admin/index.vue)
     if (response.user.contractorId && response.user.contractorType) {
       const type = contractorTypeMap[response.user.contractorType]
       if (type) {
         contractorId.value = response.user.contractorId
         contractorType.value = type
-        console.log('[MasterDashboard] ✅ Контрагент определен:', {
-          id: contractorId.value,
-          type: contractorType.value
-        })
       } else {
         console.warn('[MasterDashboard] Неизвестный тип контрагента:', response.user.contractorType)
       }
@@ -184,26 +214,19 @@ async function fetchUserData() {
     }
   } catch (err: any) {
     console.error('[MasterDashboard] Ошибка загрузки данных:', err)
-  } finally {
-    isLoading.value = false
   }
 }
 
-// ── Загрузка баланса ──────────────────────────────────────────────────
+// ── Загрузка баланса ─────────────────────────────────────────────────
 async function loadBalance() {
-  if (!contractorId.value) {
-    console.warn('[MasterDashboard] contractorId не найден')
-    return
-  }
+  if (!contractorId.value) return
 
   loadingBalance.value = true
   try {
-    // Получаем данные контрагента для баланса
     const contractorResponse = await api.get<ContractorDTO>(
       `/api/contractors/${contractorType.value}/${contractorId.value}`
     )
 
-    // Получаем историю доходов и расходов
     const [incomesResponse, expensesResponse] = await Promise.all([
       api.get<IncomeOperation[]>(
         `/api/contractors/${contractorType.value}/${contractorId.value}/incomes`
@@ -214,8 +237,11 @@ async function loadBalance() {
     ])
 
     const totalIncome = incomesResponse.reduce((sum, op) => sum + op.amount, 0)
+    
+    // ✅ Фильтр по значению из БД — 'Работа' (не 'Оплачено'!)
+    // В UI оно отображается как "Оплачено" через getDisplayTitle() в OperationsWidget
     const totalExpense = expensesResponse
-      .filter(e => e.title === 'Работа' || e.title === 'Оплата работы')
+      .filter(e => e.title === 'Работа')
       .reduce((sum, op) => sum + op.amount, 0)
 
     balance.value = {
@@ -227,74 +253,65 @@ async function loadBalance() {
     console.log('[MasterDashboard] ✅ Баланс загружен:', balance.value)
   } catch (error: any) {
     console.error('[MasterDashboard] Ошибка загрузки баланса:', error)
-    // Заглушка
-    balance.value = {
-      current: 150000,
-      income: 450000,
-      expense: 300000
-    }
   } finally {
     loadingBalance.value = false
   }
 }
 
-// ── Загрузка статистики ───────────────────────────────────────────────
+// ── Загрузка статистики подневки ─────────────────────────────────────
 async function loadStats() {
   if (!contractorId.value) return
 
   loadingStats.value = true
   try {
-    const incomesResponse = await api.get<IncomeOperation[]>(
-      `/api/contractors/${contractorType.value}/${contractorId.value}/incomes`
+    const response = await api.get<MonthStats[]>(
+      `/api/contractors/${contractorType.value}/${contractorId.value}/daily-stats`
     )
-
-    const totalWorks = incomesResponse.length
-    const completedWorks = incomesResponse.filter(w => w.accepted).length
-    
-    const now = new Date()
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-    const thisMonth = incomesResponse.filter(w => {
-      if (!w.date) return false
-      return new Date(w.date) >= monthStart
-    }).length
-
-    stats.value = {
-      totalWorks,
-      completedWorks,
-      thisMonth
-    }
-
-    console.log('[MasterDashboard] ✅ Статистика загружена:', stats.value)
+    stats.value = response
   } catch (error: any) {
     console.error('[MasterDashboard] Ошибка загрузки статистики:', error)
-    stats.value = {
-      totalWorks: 42,
-      completedWorks: 38,
-      thisMonth: 7
-    }
+    stats.value = []
   } finally {
     loadingStats.value = false
   }
 }
 
-// ── Обработчик изменения баланса ──────────────────────────────────────
+// ── Проверка наличия данных подневки за 14 дней ──────────────────────
+async function checkDailyData() {
+  if (!contractorId.value) return
+
+  try {
+    const response = await api.get<{ hasData: boolean }>('/api/contractors/me/daily-recent')
+    hasDailyData.value = response.hasData
+  } catch (err: any) {
+    console.error('[MasterDashboard] Ошибка проверки данных подневки:', err)
+    hasDailyData.value = false
+  }
+}
+
+// ── Обработчик изменения баланса ─────────────────────────────────────
 function handleBalanceChanged() {
   loadBalance()
   loadStats()
+  checkDailyData()
 }
 
-// ── Lifecycle ─────────────────────────────────────────────────────────
+// ── Lifecycle ────────────────────────────────────────────────────────
 onMounted(async () => {
-  // 1. Сначала загружаем данные пользователя через /api/me (как в admin/index.vue)
+  // 1. Сначала получаем данные пользователя (включая contractorId)
   await fetchUserData()
-  
-  // 2. Если contractorId найден — загружаем баланс и статистику
+
+  // 2. Если contractorId найден — загружаем все виджеты параллельно
   if (contractorId.value) {
     await Promise.all([
       loadBalance(),
-      loadStats()
+      loadStats(),
+      checkDailyData()
     ])
   }
+
+  // 3. Снимаем флаг загрузки после всех запросов
+  isLoading.value = false
 })
 
 useHead({
@@ -304,10 +321,29 @@ useHead({
 
 <style lang="scss" scoped>
 .master-dashboard {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  background: var(--crm-bg-base);
 
+  // ── Персонализированный бейдж роли ─────────────────────────────────
+  :deep(.greeting-subtitle) {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    background: var(--crm-accent-dim);
+    border: 1px solid var(--crm-accent-border);
+    border-radius: var(--crm-radius-md);
+    font-size: var(--crm-text-xs);
+    font-weight: 600;
+    color: var(--crm-accent);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    line-height: 1;
+  }
+
+  // ── Состояние загрузки ─────────────────────────────────────────────
   &__loading {
     display: flex;
     flex-direction: column;
@@ -319,6 +355,7 @@ useHead({
     font-size: var(--crm-text-md);
   }
 
+  // ── Состояние ошибки ───────────────────────────────────────────────
   &__error {
     display: flex;
     flex-direction: column;
@@ -329,13 +366,22 @@ useHead({
     color: var(--crm-text-muted);
     text-align: center;
 
-    .error-hint {
+    &-title {
+      font-size: var(--crm-text-lg);
+      font-weight: 600;
+      color: var(--crm-text-primary);
+      margin: 0;
+    }
+
+    &-hint {
       font-size: var(--crm-text-sm);
       color: var(--crm-text-disabled);
+      margin: 0;
     }
   }
 }
 
+// ── Спиннер ──────────────────────────────────────────────────────────
 .animate-spin {
   animation: spin 1s linear infinite;
 }
@@ -345,39 +391,52 @@ useHead({
   to { transform: rotate(360deg); }
 }
 
+// ── Сетка виджетов ───────────────────────────────────────────────────
 .dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 20px;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px;
 
-  @media (max-width: 1200px) {
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  @media (max-width: 1024px) {
+    gap: 16px;
+    padding: 16px;
   }
 
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
+    padding: 16px;
+    gap: 14px;
   }
 }
 
 .dashboard-widget {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 
+  // Строка 1: Баланс (колонка 1) + Статистика (колонка 2)
   &--balance,
   &--stats {
     grid-column: span 1;
   }
 
-  &--operations {
+  // Строка 2-4: широкие блоки (занимают обе колонки)
+  &--daily-schedule,
+  &--operations,
+  &--placeholder {
     grid-column: 1 / -1;
-
-    @media (min-width: 1200px) {
-      grid-column: span 2;
-    }
   }
 
-  &--placeholder {
-    grid-column: span 1;
+  @media (max-width: 768px) {
+    // На мобильных все блоки на всю ширину
+    &--balance,
+    &--stats {
+      grid-column: span 1;
+    }
   }
 }
 </style>
