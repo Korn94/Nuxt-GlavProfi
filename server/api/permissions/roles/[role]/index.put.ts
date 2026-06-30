@@ -246,14 +246,14 @@ export default defineEventHandler(async (event) => {
   // ============================================
   // 10. ЛОГИРОВАНИЕ
   // ============================================
-  console.log(
-    `[Permissions] ✅ Администратор ${currentUser.name} (ID: ${currentUser.id}) ` +
-    `обновил ${result.updatedCount} страниц для роли "${targetRole}" ` +
-    `(${ROLE_LABELS[targetRole]}). ` +
-    `Кэш инвалидирован для ${invalidationResult.invalidated}/${invalidationResult.total} пользователей. ` +
-    `Критичных отзывов: ${criticalRevocations.length}` +
-    (criticalRevocations.length > 0 ? ` [${criticalRevocations.join(', ')}]` : '')
-  )
+  // console.log(
+  //   `[Permissions] ✅ Администратор ${currentUser.name} (ID: ${currentUser.id}) ` +
+  //   `обновил ${result.updatedCount} страниц для роли "${targetRole}" ` +
+  //   `(${ROLE_LABELS[targetRole]}). ` +
+  //   `Кэш инвалидирован для ${invalidationResult.invalidated}/${invalidationResult.total} пользователей. ` +
+  //   `Критичных отзывов: ${criticalRevocations.length}` +
+  //   (criticalRevocations.length > 0 ? ` [${criticalRevocations.join(', ')}]` : '')
+  // )
 
   // ============================================
   // 11. 🆕 УВЕДОМЛЕНИЕ ПОЛЬЗОВАТЕЛЕЙ ЧЕРЕЗ СОКЕТ

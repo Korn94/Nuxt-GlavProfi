@@ -26,6 +26,7 @@
       </div>
 
       <!-- Сетка виджетов -->
+      <PagesCabinetDashboardsWidgetsOnlineWidget class="home-grid__item" />
       <div class="home-grid">
         <PagesCabinetDashboardsAdminFinanceSummaryCard class="home-grid__item" />
         <PagesCabinetDashboardsAdminRecentOperationsCard class="home-grid__item" />

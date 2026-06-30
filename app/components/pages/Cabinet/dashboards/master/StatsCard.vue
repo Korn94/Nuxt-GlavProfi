@@ -1,4 +1,4 @@
-// app/components/pages/cabinet/MasterDashboard/StatsCard.vue
+// app/components/pages/cabinet/dashboards/master/StatsCard.vue
 <template>
   <div class="stats-card">
     <!-- Заголовок -->
@@ -30,9 +30,16 @@
           <div class="month-block__year">{{ month.year }}</div>
         </div>
         <div class="month-block__value">
-          <span class="month-block__days">{{ month.days }}</span>
-          <span class="month-block__label">{{ month.days === 1 ? 'день' : getDaysLabel(month.days) }}</span>
+          <span class="month-block__days">{{ formatDays(month.days) }}</span>
+          <span class="month-block__label">{{ getDaysLabel(month.days) }}</span>
         </div>
+        
+        <!-- Подсказка: уникальных дней -->
+        <div v-if="month.uniqueDays > 0" class="month-block__hint">
+          <Icon name="mdi:calendar-outline" size="11" />
+          {{ month.uniqueDays }} {{ getDaysLabel(month.uniqueDays, true) }} в календаре
+        </div>
+        
         <div class="month-block__visual">
           <div 
             class="month-block__bar"
@@ -46,57 +53,72 @@
     <div v-if="!loading && stats.length > 0" class="stats-card__footer">
       <div class="total-info">
         <Icon name="mdi:information-outline" size="14" />
-        <span>Всего за 3 месяца: <strong>{{ totalDays }}</strong> {{ getDaysLabel(totalDays) }}</span>
+        <span>
+          Всего за 3 месяца: 
+          <strong>{{ formatDays(totalDays) }}</strong> 
+          {{ getDaysLabel(totalDays) }}
+        </span>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, getCurrentInstance } from 'vue';
+import { computed } from 'vue'
 
 interface MonthStats {
   month: string
   monthName: string
   year: number
-  days: number
+  days: number        // сумма "человеко-дней" (может быть дробным: 4.5)
+  uniqueDays: number  // количество уникальных календарных дней
 }
 
-defineProps<{
+const props = defineProps<{
   stats: MonthStats[]
   loading?: boolean
 }>()
 
-// Правильное склонение слова "день"
-function getDaysLabel(days: number): string {
-  const lastDigit = days % 10
-  const lastTwoDigits = days % 100
+/**
+ * Правильное склонение слова "день"
+ * Для дробных чисел (1.5, 2.5) — всегда "дня"
+ */
+function getDaysLabel(days: number, isInteger: boolean = false): string {
+  // Для дробных чисел — всегда "дня"
+  if (!Number.isInteger(days)) return 'дня'
+  
+  const intDays = isInteger ? Math.floor(days) : days
+  const lastDigit = intDays % 10
+  const lastTwoDigits = intDays % 100
 
-  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) {
-    return 'дней'
-  }
-  
-  if (lastDigit === 1) {
-    return 'день'
-  }
-  
-  if (lastDigit >= 2 && lastDigit <= 4) {
-    return 'дня'
-  }
-  
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) return 'дней'
+  if (lastDigit === 1) return 'день'
+  if (lastDigit >= 2 && lastDigit <= 4) return 'дня'
   return 'дней'
 }
 
-// Ширина прогресс-бара (максимум 31 день в месяце)
-function getBarWidth(days: number): number {
-  return Math.min((days / 31) * 100, 100)
+/**
+ * Форматирование дней: целые без дроби, дробные с одной цифрой после точки
+ */
+function formatDays(days: number): string {
+  if (Number.isInteger(days)) return String(days)
+  // Округляем до 1 знака после запятой
+  return (Math.round(days * 10) / 10).toString().replace('.', ',')
 }
 
-// Общее количество дней
+/**
+ * Ширина прогресс-бара
+ * Максимум — примерное количество рабочих дней в месяце (22)
+ * Но показываем до 100% если больше
+ */
+function getBarWidth(days: number): number {
+  const maxDays = 22 // среднее количество рабочих дней в месяце
+  return Math.min((days / maxDays) * 100, 100)
+}
+
+// Общее количество "человеко-дней" за 3 месяца
 const totalDays = computed(() => {
-  const props = getCurrentInstance()?.props as any
-  if (!props || !props.stats) return 0
-  return props.stats.reduce((sum: number, month: MonthStats) => sum + month.days, 0)
+  return props.stats.reduce((sum, month) => sum + month.days, 0)
 })
 </script>
 
@@ -162,7 +184,7 @@ const totalDays = computed(() => {
 
       &--days {
         height: 32px;
-        width: 60px;
+        width: 80px;
       }
     }
   }
@@ -181,8 +203,8 @@ const totalDays = computed(() => {
   border: 1px solid var(--crm-border);
   display: flex;
   flex-direction: column;
-  width: 100%;
   gap: 8px;
+  width: 100%;
 
   &__header {
     display: flex;
@@ -212,11 +234,21 @@ const totalDays = computed(() => {
     font-weight: 700;
     font-family: var(--crm-font-mono);
     color: var(--crm-accent);
+    line-height: 1;
   }
 
   &__label {
     font-size: var(--crm-text-sm);
     color: var(--crm-text-secondary);
+  }
+
+  &__hint {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+    font-style: italic;
   }
 
   &__visual {
@@ -247,6 +279,7 @@ const totalDays = computed(() => {
   strong {
     color: var(--crm-accent);
     font-weight: 700;
+    font-family: var(--crm-font-mono);
   }
 }
 

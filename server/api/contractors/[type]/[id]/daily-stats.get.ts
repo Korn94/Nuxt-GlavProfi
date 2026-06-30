@@ -1,7 +1,19 @@
 // server/api/contractors/[type]/[id]/daily-stats.get.ts
+/**
+ * Назначение: Получение статистики подневки за последние 3 месяца
+ * 
+ * Логика подсчёта:
+ * - Для каждого дня считаем totalAmount (сумма всех amount)
+ * - ratio = totalAmount / dailyRate (это количество "человеко-дней")
+ *   Пример: 1 человек = 1, 2 человека = 2, 1.5 человека = 1.5
+ * - Итог за месяц = сумма всех ratio за дни месяца
+ * 
+ * @returns { Array<{ month, monthName, year, days: number, uniqueDays: number }> }
+ */
+
 import { defineEventHandler, getRouterParam, createError } from 'h3'
 import { db } from '../../../../db'
-import { works } from '../../../../db/schema'
+import { works, masters, workers } from '../../../../db/schema'
 import { and, eq, gte, isNotNull } from 'drizzle-orm'
 import { CONTRACTOR_TYPES } from '~/types/contractors'
 import type { ContractorType } from '~/types/contractors'
@@ -17,29 +29,52 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'Неверный ID' })
   }
 
-  // Поддерживаем только master/worker для таблицы works
   if (!['master', 'worker'].includes(type)) {
     return []
   }
 
   const contractorType = type as 'master' | 'worker'
 
-  // Вычисляем даты для последних 3 месяцев
+  // ── 1. Получаем дневную ставку контрагента ─────────────────────────
+  let dailyRate = 0
+  if (contractorType === 'master') {
+    const [master] = await db
+      .select({ dailyRate: masters.dailyRate })
+      .from(masters)
+      .where(eq(masters.id, id))
+    dailyRate = Number(master?.dailyRate ?? 0)
+  } else {
+    const [worker] = await db
+      .select({ dailyRate: workers.dailyRate })
+      .from(workers)
+      .where(eq(workers.id, id))
+    dailyRate = Number(worker?.dailyRate ?? 0)
+  }
+
+  if (dailyRate === 0) {
+    // Контрагент не на подневке — возвращаем нули за 3 месяца
+    const now = new Date()
+    return [2, 1, 0].map(offset => {
+      const d = new Date(now.getFullYear(), now.getMonth() - offset, 1)
+      return {
+        month: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+        monthName: getMonthName(d),
+        year: d.getFullYear(),
+        days: 0,
+        uniqueDays: 0
+      }
+    })
+  }
+
+  // ── 2. Вычисляем диапазон (последние 3 месяца) ─────────────────────
   const now = new Date()
-  
-  // Текущий месяц
-  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-  
-  // Прошлый месяц
-  const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-  
-  // Два месяца назад
   const twoMonthsAgoStart = new Date(now.getFullYear(), now.getMonth() - 2, 1)
 
-  // Получаем все подневные работы за период
+  // ── 3. Получаем все подневные работы ───────────────────────────────
   const dailyWorks = await db
     .select({
-      operationDate: works.operationDate
+      operationDate: works.operationDate,
+      amount: works.workerAmount
     })
     .from(works)
     .where(
@@ -51,67 +86,62 @@ export default defineEventHandler(async (event) => {
         gte(works.operationDate, twoMonthsAgoStart)
       )
     )
-    .orderBy(works.operationDate)
 
-  // Функция для получения ключа месяца (YYYY-MM)
-  function getMonthKey(date: Date): string {
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-  }
-
-  // Функция для получения названия месяца на русском
-  function getMonthName(date: Date): string {
-    const months = [
-      'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
-      'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
-    ]
-    // ✅ Добавляем fallback на случай невалидного индекса
-    return months[date.getMonth()] ?? 'Неизвестный месяц'
-  }
-
-  // Группируем работы по месяцам и считаем уникальные дни
-  const monthStats = new Map<string, Set<string>>()
-
+  // ── 4. Группируем по дате и считаем totalAmount за каждый день ─────
+  const dateMap = new Map<string, number>() // dateKey -> totalAmount
+  
   for (const work of dailyWorks) {
     if (!work.operationDate) continue
-    
     const date = new Date(work.operationDate)
-    const monthKey = getMonthKey(date)
     const dateKey = date.toISOString().split('T')[0]
-    
-    // ✅ Проверяем что dateKey существует
     if (!dateKey) continue
+    
+    const amount = parseFloat(String(work.amount ?? 0))
+    dateMap.set(dateKey, (dateMap.get(dateKey) ?? 0) + amount)
+  }
 
+  // ── 5. Группируем по месяцам и считаем сумму ratio ─────────────────
+  // ratio = totalAmount / dailyRate (количество "человеко-дней")
+  const monthStats = new Map<string, { sumRatio: number; uniqueDays: number }>()
+
+  for (const [dateKey, totalAmount] of dateMap.entries()) {
+    const date = new Date(dateKey)
+    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+    
+    const ratio = totalAmount / dailyRate
+    
     if (!monthStats.has(monthKey)) {
-      monthStats.set(monthKey, new Set())
+      monthStats.set(monthKey, { sumRatio: 0, uniqueDays: 0 })
     }
-    // ✅ Теперь TypeScript знает, что Set существует
-    const monthSet = monthStats.get(monthKey)
-    if (monthSet) {
-      monthSet.add(dateKey)
+    const stat = monthStats.get(monthKey)
+    if (stat) {
+      stat.sumRatio += ratio
+      stat.uniqueDays += 1
     }
   }
 
-  // Формируем результат для 3 месяцев
-  const result = [
-    {
-      month: getMonthKey(twoMonthsAgoStart),
-      monthName: getMonthName(twoMonthsAgoStart),
-      year: twoMonthsAgoStart.getFullYear(),
-      days: monthStats.get(getMonthKey(twoMonthsAgoStart))?.size || 0
-    },
-    {
-      month: getMonthKey(prevMonthStart),
-      monthName: getMonthName(prevMonthStart),
-      year: prevMonthStart.getFullYear(),
-      days: monthStats.get(getMonthKey(prevMonthStart))?.size || 0
-    },
-    {
-      month: getMonthKey(currentMonthStart),
-      monthName: getMonthName(currentMonthStart),
-      year: currentMonthStart.getFullYear(),
-      days: monthStats.get(getMonthKey(currentMonthStart))?.size || 0
+  // ── 6. Формируем результат для 3 месяцев ───────────────────────────
+  const result = [2, 1, 0].map(offset => {
+    const d = new Date(now.getFullYear(), now.getMonth() - offset, 1)
+    const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    const stat = monthStats.get(monthKey)
+
+    return {
+      month: monthKey,
+      monthName: getMonthName(d),
+      year: d.getFullYear(),
+      days: stat ? Math.round(stat.sumRatio * 10) / 10 : 0,  // округляем до 0.1
+      uniqueDays: stat?.uniqueDays ?? 0
     }
-  ]
+  })
 
   return result
 })
+
+function getMonthName(date: Date): string {
+  const months = [
+    'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+    'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+  ]
+  return months[date.getMonth()] ?? 'Неизвестный месяц'
+}

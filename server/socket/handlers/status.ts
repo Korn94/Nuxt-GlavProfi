@@ -2,6 +2,7 @@
 import type { Socket, Server } from 'socket.io'
 import { getOnlineUsers } from '../../utils/sessions'
 import type { UserStatusEvent } from '../events/status'
+import { invalidateOnlineCache } from '../../api/online.get'
 
 /**
  * Отправка уведомления о статусе пользователя
@@ -37,7 +38,6 @@ function broadcastStatus(
 export function setupStatusHandlers(socket: Socket, user: any, io: Server) {
   const userName = user.name || user.login
 
-  // Обработчик ручного обновления статуса
   socket.on('status:update', async (data: { status: 'online' | 'afk' | 'offline' }) => {
     try {
       const sessionId = (socket as any).sessionId
@@ -48,14 +48,13 @@ export function setupStatusHandlers(socket: Socket, user: any, io: Server) {
 
       console.log(`[Status] Manual status update: ${userName} -> ${data.status}`)
 
-      // Отправляем уведомление
       broadcastStatus(io, socket, user.id, userName, data.status, {
         sessionId
       })
 
-      // Обновляем список онлайн-пользователей
-      const onlineUsers = await getOnlineUsers()
-      io.emit('online-users:update', onlineUsers)
+      // ✅ НЕМЕДЛЕННАЯ ОТПРАВКА (ручное изменение статуса)
+      const { immediateOnlineBroadcast } = await import('../../utils/online-broadcast')
+      await immediateOnlineBroadcast(io)
 
     } catch (error) {
       console.error('[Status] Error updating status:', error)

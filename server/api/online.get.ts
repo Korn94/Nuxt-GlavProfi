@@ -41,7 +41,7 @@ let cache: {
  */
 export const invalidateOnlineCache = () => {
   cache = null
-  console.log('[API/Online] 🗑️ Кэш инвалидирован')
+  // console.log('[API/Online] 🗑️ Кэш инвалидирован')
 }
 
 // ============================================

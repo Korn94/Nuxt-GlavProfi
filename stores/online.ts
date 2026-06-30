@@ -34,6 +34,10 @@ interface OnlineState {
    * Флаг активной подписки на сокет-события
    */
   isSubscribed: boolean
+  /**
+   * Флаг, были ли данные хотя бы раз загружены
+   */
+  isInitialized: boolean
 }
 
 export const useOnlineStore = defineStore('online', {
@@ -44,7 +48,8 @@ export const useOnlineStore = defineStore('online', {
     users: [],
     isLoading: false,
     error: null,
-    isSubscribed: false
+    isSubscribed: false,
+    isInitialized: false
   }),
 
   // ============================================
@@ -109,13 +114,53 @@ export const useOnlineStore = defineStore('online', {
      * Получить рабочих
      */
     getWorkers: (state): OnlineUser[] =>
-      state.users.filter(u => u.user?.role === 'worker')
+      state.users.filter(u => u.user?.role === 'worker'),
+
+    // ✅ Фильтрация по типу устройства
+    /**
+     * Получить пользователей на десктопе
+     */
+    getDesktopUsers: (state): OnlineUser[] =>
+      state.users.filter(u => u.deviceType === 'desktop'),
+
+    /**
+     * Получить пользователей на мобильных устройствах
+     */
+    getMobileUsers: (state): OnlineUser[] =>
+      state.users.filter(u => u.deviceType === 'mobile')
   },
 
   // ============================================
   // ACTIONS
   // ============================================
   actions: {
+    /**
+     * Инициализация: загрузка данных + подписка на обновления
+     * Вызывается один раз при входе в раздел онлайна
+     */
+    async init() {
+      if (this.isInitialized) {
+        console.log('[OnlineStore] ⚠️ Уже инициализирован')
+        return
+      }
+      try {
+        await this.fetchOnlineUsers()
+        this.subscribeToUpdates()
+        this.isInitialized = true
+      } catch (error) {
+        console.error('[OnlineStore] ❌ Ошибка инициализации:', error)
+      }
+    },
+
+    /**
+     * Переподписка на обновления (вызывается после переподключения сокета)
+     */
+    resubscribe() {
+      if (!this.isInitialized) return
+      this.unsubscribeFromUpdates()
+      this.subscribeToUpdates()
+    },
+
     /**
      * Загрузка списка онлайн-пользователей с API
      */
@@ -219,6 +264,7 @@ export const useOnlineStore = defineStore('online', {
       this.users = []
       this.error = null
       this.isSubscribed = false
+      this.isInitialized = false
       this.unsubscribeFromUpdates()
     },
 

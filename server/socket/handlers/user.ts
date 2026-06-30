@@ -23,6 +23,7 @@ import type { Server } from 'socket.io'
 import { createSession, updateSessionStatus, getOnlineUsers, closeZombieSessions } from '../../utils/sessions'
 import { broadcastStatus } from './status'
 import { invalidatePermissionsCache } from '../../utils/permissions'
+import { invalidateOnlineCache } from '../../api/online.get'
 
 // ============================================
 // 🆕 УВЕДОМЛЕНИЯ ОБ ИЗМЕНЕНИИ ПРАВ
@@ -225,6 +226,7 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
       const usersList = onlineUsers || []
 
       io.emit('online-users:update', usersList)
+      invalidateOnlineCache()
 
       // ✅ ОТПРАВЛЯЕМ УВЕДОМЛЕНИЕ О ВХОДЕ
       broadcastStatus(io, socket, user.id, userName, 'online', {
@@ -261,7 +263,6 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
 
       console.log(`   📌 Регистрация вкладки: ${tabId}`)
 
-      // Помечаем все сессии пользователя КРОМЕ текущей как неактивные
       await db
         .update(userSessions)
         .set({ isActiveTab: false })
@@ -272,17 +273,15 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
           )
         )
 
-      // Обновляем текущую сессию
       await updateSessionStatus(sessionId, 'online', {
         tabId,
         currentPath,
         isActiveTab: true
       })
 
-      // Обновляем список онлайн-пользователей
-      const onlineUsers = await getOnlineUsers()
-      const usersList = onlineUsers || []
-      io.emit('online-users:update', usersList)
+      // ✅ DEBOUNCE вместо немедленной отправки
+      const { scheduleOnlineBroadcast } = await import('../../utils/online-broadcast')
+      scheduleOnlineBroadcast(io)
 
     } catch (error) {
       console.error('Ошибка регистрации вкладки:', error)
@@ -308,9 +307,9 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
         currentPath
       })
 
-      const onlineUsers = await getOnlineUsers()
-      const usersList = onlineUsers || []
-      io.emit('online-users:update', usersList)
+      // ✅ DEBOUNCE вместо немедленной отправки
+      const { scheduleOnlineBroadcast } = await import('../../utils/online-broadcast')
+      scheduleOnlineBroadcast(io)
 
     } catch (error) {
       console.error('Ошибка обработки навигации:', error)
@@ -355,22 +354,19 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
       if (sessionId) {
         console.log(`   Помечаю сессию ${sessionId} как оффлайн...`)
 
-        // ✅ КРИТИЧНО: updateSessionStatus теперь сам ставит endedAt при статусе 'offline'
         await updateSessionStatus(sessionId, 'offline')
 
         console.log(`   ✅ Сессия ${sessionId} помечена как оффлайн (endedAt установлен)`)
 
-        // Обновляем список онлайн-пользователей
-        const onlineUsers = await getOnlineUsers()
-        const usersList = onlineUsers || []
-        io.emit('online-users:update', usersList)
+        // ✅ НЕМЕДЛЕННАЯ ОТПРАВКА (вход/выход — критичные события)
+        const { immediateOnlineBroadcast } = await import('../../utils/online-broadcast')
+        await immediateOnlineBroadcast(io)
 
-        // Отправляем уведомление о выходе
         broadcastStatus(io, socket, user.id, userName, 'offline', {
           sessionId
         })
 
-        console.log(`   📡 Список отправлен (${usersList.length} пользователей)`)
+        console.log(`   📡 Список отправлен`)
       } else {
         console.warn('   ID сессии не найден для отключившегося пользователя')
       }
@@ -378,13 +374,6 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
     } catch (error) {
       console.error('❌ Ошибка обработки отключения:', error)
     }
-  })
-
-  // ============================================
-  // HEARTBEAT
-  // ============================================
-  socket.on('heartbeat', () => {
-    socket.emit('heartbeat:ack')
   })
 
   // ============================================

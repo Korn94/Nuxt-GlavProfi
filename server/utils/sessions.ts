@@ -5,6 +5,28 @@ import { eq, and, sql, desc, or } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 
 /**
+ * Определение типа устройства по user-agent
+ */
+function getDeviceType(userAgent?: string): 'desktop' | 'mobile' | 'unknown' {
+  if (!userAgent) return 'unknown'
+
+  const ua = userAgent.toLowerCase()
+
+  // Мобильные устройства
+  if (/mobile|android|iphone|ipad|ipod|blackberry|iemobile|opera mini|fennec|webos/i.test(ua)) {
+    return 'mobile'
+  }
+
+  // Планшеты (iPad, Android планшеты)
+  if (/tablet|ipad|playbook|silk/i.test(ua)) {
+    return 'mobile'
+  }
+
+  // Десктоп
+  return 'desktop'
+}
+
+/**
  * Форматирование даты для MySQL (локальное время МСК)
  */
 function formatMySQLDate(date: Date): string {
@@ -268,6 +290,7 @@ export async function getOnlineUsers() {
       startedAt: userSessions.startedAt,
       endedAt: userSessions.endedAt,
       ipAddress: userSessions.ipAddress,
+      userAgent: userSessions.userAgent,
       userName: users.name,
       userRole: users.role,
       userLogin: users.login
@@ -352,8 +375,8 @@ export async function getOnlineUsers() {
       lastActivity: best.lastActivity || now.toISOString(),
       startedAt: best.startedAt || now.toISOString(),
       endedAt: best.endedAt || null,
-      ipAddress: best.ipAddress || 'unknown'
-      // ✅ tabsCount убран — не нужен
+      ipAddress: best.ipAddress || 'unknown',
+      deviceType: getDeviceType(best.userAgent || undefined)
     }
   }).filter((u): u is NonNullable<typeof u> => u !== null)
 

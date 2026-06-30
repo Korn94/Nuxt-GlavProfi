@@ -9,6 +9,7 @@
  * - Интеграция с Pinia stores
  * - Клиент-сайдовый только (process.client)
  * - ✅ Поддержка нового JSON-формата куки авторизации
+ * - ✅ Activity Tracking вместо Heartbeat (отслеживание реальной активности)
  */
 
 import { io, type Socket } from 'socket.io-client'
@@ -95,6 +96,12 @@ export class SocketService {
   private config: Required<SocketServiceConfig>
   private isInitialized: boolean = false
   private eventHandlers = new Map<string, Set<SocketEventHandler>>()
+  
+  // ✅ Activity Tracking вместо Heartbeat
+  private activityThrottle: ReturnType<typeof setTimeout> | null = null
+  private readonly ACTIVITY_INTERVAL = 1000 * 60 * 2 // 2 минуты
+  private activityListenersAdded = false
+  private sessionId: string | null = null
 
   constructor(config: SocketServiceConfig = {}) {
     this.config = {
@@ -111,32 +118,23 @@ export class SocketService {
   // ============================================
   // ✅ ХЕЛПЕР: Извлечение чистого JWT из куки
   // ============================================
-  /**
-   * Безопасно извлекает токен из куки, поддерживая старый и новый формат.
-   * Новый формат: JSON { token, userId, role }
-   * Старый формат: просто строка JWT
-   */
   private getJwtToken(): string | null {
     if (!process.client) return null
 
-    // Способ 1: через useCookie (надёжнее, чем document.cookie)
     try {
       const rawCookie = useCookie('auth_token').value
       if (!rawCookie) return null
 
-      // Новый формат: JSON { token, userId, role }
       try {
         const parsed = JSON.parse(rawCookie)
         return parsed.token || null
       } catch {
-        // Старый формат: просто строка
         return rawCookie.length > 20 ? rawCookie : null
       }
     } catch (e) {
       console.warn('[SocketService] ❌ Ошибка чтения куки:', e)
     }
 
-    // Фолбэк: document.cookie (если useCookie не сработал)
     try {
       const match = document.cookie.match(/(?:^|; )auth_token=([^;]*)/)
       const rawCookie = match?.[1] ? decodeURIComponent(match[1]) : null
@@ -177,7 +175,6 @@ export class SocketService {
 
       console.log(`[SocketService] 📍 Socket URL: ${socketUrl} (prod: ${isProd})`)
 
-      // ✅ Используем хелпер для извлечения чистого JWT, или явный токен
       const authToken = explicitToken || this.getJwtToken() || ''
 
       console.log('[SocketService] 🔑 Токен для инициализации (длина:', authToken?.length || 0, ')')
@@ -189,7 +186,6 @@ export class SocketService {
         reconnection: this.config.reconnection,
         reconnectionAttempts: this.config.reconnectionAttempts,
         reconnectionDelay: this.config.reconnectionDelay,
-        // ✅ Передаём только чистый JWT
         auth: authToken ? { token: authToken } : {},
         secure: window.location.protocol === 'https:',
         rejectUnauthorized: process.env.NODE_ENV === 'production',
@@ -200,7 +196,6 @@ export class SocketService {
       this.setupEventHandlers()
       this.isInitialized = true
 
-      // Навешиваем хендлеры, накопленные до init()
       for (const [event, handlers] of this.eventHandlers.entries()) {
         if (handlers.size > 0) {
           this.socket!.on(event, (data: any) => {
@@ -222,11 +217,9 @@ export class SocketService {
       return
     }
 
-    // ✅ Если сокет уже существует, но не подключён — обновляем токен и подключаемся
     if (!this.socket.connected) {
       const authToken = explicitToken || this.getJwtToken() || ''
 
-      // 👇 Обновляем конфиг перед подключением
       if (this.socket.io) {
         (this.socket.io.opts as any).auth = authToken ? { token: authToken } : {}
       }
@@ -234,20 +227,16 @@ export class SocketService {
       console.log('[SocketService] 🔑 Подключение с токеном (длина:', authToken?.length || 0, ')')
       this.socket.connect()
     }
-    // ✅ Если сокет уже подключён, но нужно обновить токен — переподключаемся
     else if (explicitToken && this.socket.connected) {
       const authToken = explicitToken
       console.log('[SocketService] 🔄 Токен обновлён, переподключение...')
 
-      // Отключаемся
       this.socket.disconnect()
 
-      // Обновляем конфиг
       if (this.socket.io) {
         (this.socket.io.opts as any).auth = { token: authToken }
       }
 
-      // Подключаемся заново
       setTimeout(() => {
         this.socket?.connect()
       }, 100)
@@ -257,6 +246,10 @@ export class SocketService {
   disconnect(): void {
     if (!this.socket) return
     console.log('[SocketService] 🔌 Отключение от сервера...')
+    
+    // ✅ Останавливаем Activity Tracking
+    this.stopActivityTracking()
+    
     this.unsubscribeFromAll()
     this.socket.disconnect()
     this.socket = null
@@ -358,6 +351,61 @@ export class SocketService {
   }
 
   // ============================================
+  // ✅ Activity Tracking (заменяет Heartbeat)
+  // ============================================
+  /**
+   * Запуск отслеживания реальной активности пользователя
+   * Отправляет activity событие не чаще 1 раза в 2 минуты
+   */
+  private startActivityTracking(): void {
+    if (!process.client || this.activityListenersAdded) return
+    
+    // Функция отправки активности с throttle
+    const emitActivity = () => {
+      if (this.activityThrottle) return
+      
+      if (this.socket?.connected && this.sessionId) {
+        this.socket.emit('activity', {
+          sessionId: this.sessionId,
+          status: 'online'
+        })
+      }
+      
+      // Throttle: следующий вызов не раньше чем через ACTIVITY_INTERVAL
+      this.activityThrottle = setTimeout(() => {
+        this.activityThrottle = null
+      }, this.ACTIVITY_INTERVAL)
+    }
+    
+    // Отправляем сразу при загрузке
+    emitActivity()
+    
+    // Слушаем реальную активность пользователя
+    window.addEventListener('mousemove', emitActivity, { passive: true })
+    window.addEventListener('keydown', emitActivity, { passive: true })
+    window.addEventListener('click', emitActivity, { passive: true })
+    window.addEventListener('scroll', emitActivity, { passive: true })
+    
+    this.activityListenersAdded = true
+    console.log('[SocketService] 🎯 Activity tracking запущен (интервал: 2мин)')
+  }
+  
+  /**
+   * Остановка отслеживания активности
+   */
+  private stopActivityTracking(): void {
+    if (!process.client) return
+    
+    if (this.activityThrottle) {
+      clearTimeout(this.activityThrottle)
+      this.activityThrottle = null
+    }
+    
+    this.activityListenersAdded = false
+    console.log('[SocketService] 🎯 Activity tracking остановлен')
+  }
+
+  // ============================================
   // PUBLIC METHODS - Utility
   // ============================================
   getConnected(): boolean {
@@ -399,15 +447,29 @@ export class SocketService {
       this.socket?.io.engine.once('upgrade', (transport: any) => {
         console.log('[SocketService] 🚀 Transport upgraded to:', transport.name)
       })
+
+      // ✅ Запускаем Activity Tracking (вместо Heartbeat)
+      this.startActivityTracking()
+
       // Восстанавливаем подписки на доски после переподключения
       this.subscribedBoards.forEach(boardId => {
         this.socket?.emit('join', `board:${boardId}`)
       })
+
+      // Авто-восстановление подписки на онлайн после переподключения
+      import('stores/online').then(({ useOnlineStore }) => {
+        const onlineStore = useOnlineStore()
+        onlineStore.resubscribe()
+      }).catch(() => {})
     })
 
     this.socket.on('disconnect', (reason: string) => {
       this.isConnected = false
       console.log('[SocketService] ❌ Отключено:', reason)
+
+      // ✅ Останавливаем Activity Tracking (вместо Heartbeat)
+      this.stopActivityTracking()
+
       if (reason !== 'io client disconnect') {
         console.log('[SocketService] 🔄 Соединение разорвано, пытаемся переподключиться...')
       }
@@ -415,7 +477,6 @@ export class SocketService {
 
     this.socket.on('connect_error', (error: any) => {
       console.error('[SocketService] ⚠️ Ошибка подключения:', error.message)
-      // 🔐 Очищаем куки только при невалидном токене, НЕ при его отсутствии
       const isInvalidToken =
         error.message?.includes('Unauthorized') ||
         error.message?.includes('Invalid token') ||
@@ -425,7 +486,6 @@ export class SocketService {
         console.log('[SocketService] 🔐 Невалидный токен, очищаем состояние')
         useCookie('auth_token').value = null
         useCookie('session_id').value = null
-        // Не вызываем logout() чтобы избежать циклических зависимостей и Buffer errors
         window.location.href = '/login'
       }
     })
@@ -466,6 +526,15 @@ export class SocketService {
 
   private setupEventHandlers(): void {
     if (!this.socket) return
+
+    // ✅ Обработка обновления списка онлайн-пользователей
+    this.socket.on('online-users:update', (users: any[]) => {
+      if (!process.client) return
+      import('stores/online').then(({ useOnlineStore }) => {
+        const onlineStore = useOnlineStore()
+        onlineStore.updateUsers(users)
+      }).catch(() => {})
+    })
 
     // События для задач
     this.socket.on('board:task:created', (data: { task: Task; boardId: number }) => {
@@ -698,6 +767,8 @@ export class SocketService {
   private handleSessionInitialized(data: { sessionId: string; userId: number }): void {
     if (!process.client) return
     try {
+      // ✅ Сохраняем sessionId для Activity Tracking
+      this.sessionId = data.sessionId
       setSessionId(data.sessionId)
     } catch (error) {
       console.error('[SocketService] ❌ Ошибка сохранения session_id:', error)

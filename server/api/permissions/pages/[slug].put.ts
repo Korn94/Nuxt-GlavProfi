@@ -158,11 +158,11 @@ export default defineEventHandler(async (event) => {
   // 8. ЛОГИРОВАНИЕ И УВЕДОМЛЕНИЕ АДМИНОВ
   // ============================================
   const changedFields = updateKeys.join(', ')
-  console.log(
-    `[Permissions] ✅ Администратор ${currentUser.name} (ID: ${currentUser.id}) ` +
-    `обновил страницу "${updated.name}" (${pageSlug}) — поля: ${changedFields}. ` +
-    `Кэш инвалидирован для ${invalidatedCount} пользователей.`
-  )
+  // console.log(
+  //   `[Permissions] ✅ Администратор ${currentUser.name} (ID: ${currentUser.id}) ` +
+  //   `обновил страницу "${updated.name}" (${pageSlug}) — поля: ${changedFields}. ` +
+  //   `Кэш инвалидирован для ${invalidatedCount} пользователей.`
+  // )
 
   const io = getIO()
   if (io) {

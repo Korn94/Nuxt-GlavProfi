@@ -72,6 +72,13 @@
           >
             <div :class="['online-user__dot', `online-user__dot--${user.status}`]" :title="user.status" />
 
+            <!-- Иконка устройства -->
+            <span class="online-user__device" :title="deviceLabels[user.deviceType]">
+              <Icon v-if="user.deviceType === 'mobile'" name="mdi:cellphone" size="14" />
+              <Icon v-else-if="user.deviceType === 'desktop'" name="mdi:monitor" size="14" />
+              <Icon v-else name="mdi:devices" size="14" />
+            </span>
+
             <div class="online-user__info">
               <div class="online-user__row">
                 <span class="online-user__name">
@@ -159,29 +166,16 @@ const statusLabels: Record<string, string> = {
   offline: 'вышел',
 }
 
-// Клиентский пересчёт статусов — реагирует на currentTime каждую секунду
+const deviceLabels: Record<string, string> = {
+  desktop: 'Компьютер',
+  mobile: 'Мобильное устройство',
+  unknown: 'Неизвестное устройство',
+}
+
+// Сортировка пользователей (статус приходит уже корректный с сервера)
 const allUsers = computed<OnlineUser[]>(() => {
-  const now = currentTime.value
-
-  const list = (onlineUsersRaw.value || []).map((u: OnlineUser) => {
-    const lastMs = new Date(u.lastActivity).getTime()
-    const diff = now - lastMs
-    
-    // ✅ ПРИОРИТЕТ: если активность свежая (<5 мин) → всегда 'online'
-    // Даже если сервер прислал 'afk' (рассинхрон)
-    if (diff < AFK_THRESHOLD) {
-      return { ...u, status: 'online' as const }
-    }
-    
-    // ✅ Если активность старая И статус 'online' → меняем на 'afk'
-    if (u.status === 'online' && diff >= AFK_THRESHOLD) {
-      return { ...u, status: 'afk' as const }
-    }
-    
-    return u
-  })
-
-  return list.sort((a: OnlineUser, b: OnlineUser) => {
+  const list = onlineUsersRaw.value || []
+  return [...list].sort((a: OnlineUser, b: OnlineUser) => {
     if (a.userId === authStore.user?.id) return -1
     if (b.userId === authStore.user?.id) return 1
     const order: Record<string, number> = { online: 0, afk: 1, offline: 2 }
@@ -353,8 +347,6 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  // min-height: 400px;
-  // max-height: 600px;
   &__header {
     display: flex;
     align-items: center;
@@ -403,7 +395,7 @@ onUnmounted(() => {
 
 .online-user {
   display: grid;
-  grid-template-columns: auto 1fr auto auto;
+  grid-template-columns: auto auto 1fr auto auto;
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
@@ -434,6 +426,14 @@ onUnmounted(() => {
     }
     &--afk    { background: var(--crm-warning); }
     &--offline { background: var(--crm-text-disabled); }
+  }
+  &__device {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--crm-text-muted);
+    width: 20px;
+    flex-shrink: 0;
   }
   &__info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
   &__row  { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -577,7 +577,7 @@ onUnmounted(() => {
 
 @media (max-width: 700px) {
   .online-user {
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: auto auto 1fr auto;
     .online-user__ip { display: none; }
   }
 }

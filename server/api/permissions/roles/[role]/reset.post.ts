@@ -147,12 +147,12 @@ export default defineEventHandler(async (event) => {
   // ============================================
   // 8. ЛОГИРОВАНИЕ
   // ============================================
-  console.log(
-    `[Права] ✅ Администратор ${currentUser.name} (ID: ${currentUser.id}) ` +
-    `сбросил права роли "${ROLE_LABELS[targetRole]}" (${targetRole}) к дефолтным значениям. ` +
-    `Было: ${previousCount}, стало: ${resetCount}. ` +
-    `Кэш инвалидирован для ${invalidationResult.invalidated}/${invalidationResult.total} пользователей`
-  )
+  // console.log(
+  //   `[Права] ✅ Администратор ${currentUser.name} (ID: ${currentUser.id}) ` +
+  //   `сбросил права роли "${ROLE_LABELS[targetRole]}" (${targetRole}) к дефолтным значениям. ` +
+  //   `Было: ${previousCount}, стало: ${resetCount}. ` +
+  //   `Кэш инвалидирован для ${invalidationResult.invalidated}/${invalidationResult.total} пользователей`
+  // )
 
   // ============================================
   // 9. 🆕 ПРИНУДИТЕЛЬНОЕ ОТКЛЮЧЕНИЕ ВСЕХ ПОЛЬЗОВАТЕЛЕЙ РОЛИ

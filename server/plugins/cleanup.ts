@@ -9,10 +9,6 @@ import { cleanupOldSessions } from '../utils/sessions'
 export default defineNitroPlugin(() => {
   console.log('[CleanupPlugin] Initializing cleanup plugin...')
   
-  /**
-   * Планирование ежедневной очистки
-   * Запускается в 3:00 по МСК (после основной активности пользователей)
-   */
   const scheduleDailyCleanup = () => {
     const now = new Date()
     const nextRun = new Date(now)
@@ -34,9 +30,7 @@ export default defineNitroPlugin(() => {
       console.log('[CleanupPlugin] 🧹 Starting daily cleanup...')
       
       try {
-        // Очищаем сессии старше 30 дней
         const deletedCount = await cleanupOldSessions(30)
-        
         console.log(`[CleanupPlugin] ✅ Cleanup completed: ${deletedCount} old sessions removed`)
       } catch (error) {
         console.error('[CleanupPlugin] ❌ Cleanup failed:', error)

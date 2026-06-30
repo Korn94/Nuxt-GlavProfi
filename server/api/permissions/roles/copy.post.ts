@@ -153,13 +153,13 @@ export default defineEventHandler(async (event) => {
   // ============================================
   // 8. ЛОГИРОВАНИЕ
   // ============================================
-  console.log(
-    `[Права] ✅ Администратор ${currentUser.name} (ID: ${currentUser.id}) ` +
-    `скопировал ${copiedCount} прав из роли "${ROLE_LABELS[fromRole as Role]}" (${fromRole}) ` +
-    `в роль "${ROLE_LABELS[toRole as Role]}" (${toRole}). ` +
-    `Было: ${previousCount}, стало: ${copiedCount}. ` +
-    `Кэш инвалидирован для ${invalidationResult.invalidated}/${invalidationResult.total} пользователей`
-  )
+  // console.log(
+  //   `[Права] ✅ Администратор ${currentUser.name} (ID: ${currentUser.id}) ` +
+  //   `скопировал ${copiedCount} прав из роли "${ROLE_LABELS[fromRole as Role]}" (${fromRole}) ` +
+  //   `в роль "${ROLE_LABELS[toRole as Role]}" (${toRole}). ` +
+  //   `Было: ${previousCount}, стало: ${copiedCount}. ` +
+  //   `Кэш инвалидирован для ${invalidationResult.invalidated}/${invalidationResult.total} пользователей`
+  // )
 
   // ============================================
   // 9. 🆕 ПРИНУДИТЕЛЬНОЕ ОТКЛЮЧЕНИЕ ВСЕХ ПОЛЬЗОВАТЕЛЕЙ ЦЕЛЕВОЙ РОЛИ

@@ -248,11 +248,11 @@ export default defineEventHandler(async (event) => {
   // ============================================
   // 9. ЛОГИРОВАНИЕ
   // ============================================
-  console.log(
-    `[Права] ✅ Администратор ${currentUser.name} (ID: ${currentUser.id}) ` +
-    `удалил переопределение для пользователя "${targetUser.name}" (${ROLE_LABELS[targetRole]}, ID: ${targetUserId}), ` +
-    `страница "${pageSlug}". Критичное: ${wasCritical ? '✅' : '❌'}. Кэш инвалидирован.`
-  )
+  // console.log(
+  //   `[Права] ✅ Администратор ${currentUser.name} (ID: ${currentUser.id}) ` +
+  //   `удалил переопределение для пользователя "${targetUser.name}" (${ROLE_LABELS[targetRole]}, ID: ${targetUserId}), ` +
+  //   `страница "${pageSlug}". Критичное: ${wasCritical ? '✅' : '❌'}. Кэш инвалидирован.`
+  // )
 
   // ============================================
   // 10. 🆕 УВЕДОМЛЕНИЕ ПОЛЬЗОВАТЕЛЯ ЧЕРЕЗ СОКЕТ
