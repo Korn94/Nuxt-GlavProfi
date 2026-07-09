@@ -18,9 +18,21 @@ export const users = mysqlTable('users', {
     enum: ['master', 'worker', 'foreman']
   }),
   contractorId: int('contractor_id'),
+  
+  // ============================================
+  // 🆕 ПОЛЯ ДЛЯ БЕЗОПАСНОСТИ И СТАТУСА (P1.5 + P0.2)
+  // ============================================
+  isBlocked: boolean('is_blocked').default(false).notNull(), // Флаг блокировки аккаунта
+  deletedAt: datetime('deleted_at', { mode: 'string' }), // Soft-delete: если не null, пользователь "удалён"
+  lastSeenAt: datetime('last_seen_at', { mode: 'string' }), // Последняя активность (обновляется при disconnect)
+  
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: datetime('updated_at') .default(sql`CURRENT_TIMESTAMP`) .notNull() .$type<Date>()
-})
+  updatedAt: datetime('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull().$type<Date>()
+}, (table) => ({
+  // 🆕 Индексы для новых полей
+  blockedIndex: index('users_blocked_idx').on(table.isBlocked),
+  lastSeenIndex: index('users_last_seen_idx').on(table.lastSeenAt),
+}))
 
 // Таблица сессий пользователей для отслеживания онлайн-статуса
 export const userSessions = mysqlTable('user_sessions', {

@@ -24,10 +24,13 @@ function broadcastStatus(
     sessionId: options?.sessionId
   }
 
+  // ✅ ИСПРАВЛЕНО (P2.10 + bug #5): socket.to('user:{id}') исключает отправителя,
+  // поэтому событие не дублируется для инициатора
+  // Другие вкладки пользователя получат событие через комнату
+  socket.to(`user:${userId}`).emit('user:status', eventData)
+  
+  // ✅ Отправляем всем остальным (исключая пользователя)
   socket.broadcast.emit('user:status', eventData)
-
-  // Отправляем всем кроме самого пользователя
-  // io.emit('user:status', eventData)
   
   console.log(`[Status] Broadcast: ${userName} is now ${status}`)
 }

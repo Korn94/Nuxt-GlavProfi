@@ -29,7 +29,7 @@ function getDeviceType(userAgent?: string): 'desktop' | 'mobile' | 'unknown' {
 /**
  * Форматирование даты для MySQL (локальное время МСК)
  */
-function formatMySQLDate(date: Date): string {
+export function formatMySQLDate(date: Date): string {
   const pad = (n: number) => n.toString().padStart(2, '0')
   const year = date.getFullYear()
   const month = pad(date.getMonth() + 1)
@@ -87,7 +87,9 @@ export async function createSession(
 
 /**
  * Обновление статуса и данных сессии
- * ✅ ИСПРАВЛЕНО: При статусе 'offline' теперь ставится endedAt
+ * ❌ ИЗМЕНЕНО: При статусе 'offline' больше НЕ ставится endedAt
+ * endedAt устанавливается только cleanup-процессом через 15 минут бездействия
+ * Это предотвращает спам сессий при F5 (см. P0.3)
  */
 export async function updateSessionStatus(
   sessionId: string,
@@ -104,10 +106,11 @@ export async function updateSessionStatus(
     lastActivity: formatMySQLDate(new Date())
   }
 
-  // ✅ КРИТИЧНО: При статусе offline ставим endedAt
-  if (status === 'offline') {
-    updateData.endedAt = formatMySQLDate(new Date())
-  }
+  // ❌ Больше НЕ ставим endedAt при offline — это ломало мультивкладочность
+  // и создавало спам сессий при F5. endedAt ставится только cleanup-процессом.
+  // if (status === 'offline') {
+  //   updateData.endedAt = formatMySQLDate(new Date())
+  // }
 
   // Обновляем только переданные поля
   if (updates) {
@@ -269,15 +272,16 @@ export async function closeZombieSessions(userId: number, excludeSessionId?: str
 
 /**
  * Получение онлайн-пользователей с агрегацией по пользователю
- * ✅ УЛУЧШЕНИЯ:
+ * ✅ УЛУЧШЕНИЯ (P0.2):
+ * - Отфильтрованы только online/afk сессии (offline больше не выгружаются в память)
+ * - Для "был в сети" использовать users.lastSeenAt (отдельная колонка)
  * - Авто-определение AFK по lastActivity (>5 мин бездействия)
- * - Offline-пользователи показываются всегда (с последним временем активности)
  * - Умный выбор лучшей сессии (активная > неактивная, при равенстве — свежее)
  */
 export async function getOnlineUsers() {
   const AFK_THRESHOLD_MS = 5 * 60 * 1000 // 5 минут
 
-  // Получаем все сессии: online, afk + offline (для отображения последнего времени активности)
+  // ТОЛЬКО online и afk сессии — offline не нужны для виджета "Кто онлайн"
   const allSessions = await db
     .select({
       sessionId: userSessions.sessionId,
@@ -300,8 +304,7 @@ export async function getOnlineUsers() {
     .where(
       or(
         eq(userSessions.status, 'online'),
-        eq(userSessions.status, 'afk'),
-        eq(userSessions.status, 'offline')
+        eq(userSessions.status, 'afk')
       )
     )
     .orderBy(desc(userSessions.lastActivity))
@@ -329,12 +332,12 @@ export async function getOnlineUsers() {
 
     const userData = usersMap.get(session.userId)!
 
-    // ✅ Выбираем лучшую сессию: online > afk > offline, при равенстве — по свежести
+    // ✅ Выбираем лучшую сессию: online > afk, при равенстве — по свежести
     if (!userData.bestSession) {
       userData.bestSession = session
     } else {
-      const sessionPriority = session.status === 'online' ? 0 : session.status === 'afk' ? 1 : 2
-      const bestPriority = userData.bestSession.status === 'online' ? 0 : userData.bestSession.status === 'afk' ? 1 : 2
+      const sessionPriority = session.status === 'online' ? 0 : 1
+      const bestPriority = userData.bestSession.status === 'online' ? 0 : 1
 
       if (sessionPriority < bestPriority) {
         userData.bestSession = session
@@ -357,7 +360,6 @@ export async function getOnlineUsers() {
     if (!best) return null
 
     // ✅ Авто-определение AFK: если статус online, но нет активности >5 мин
-    // Для offline-пользователей оставляем статус как есть
     let status = best.status
     if (status === 'online' && best.lastActivity) {
       const lastActivityTime = new Date(best.lastActivity).getTime()
@@ -371,7 +373,7 @@ export async function getOnlineUsers() {
       userId: userData.userId,
       user: userData.user,
       activePath: best.currentPath || null,
-      status: status as 'online' | 'afk' | 'offline',
+      status: status as 'online' | 'afk',
       lastActivity: best.lastActivity || now.toISOString(),
       startedAt: best.startedAt || now.toISOString(),
       endedAt: best.endedAt || null,
@@ -380,20 +382,14 @@ export async function getOnlineUsers() {
     }
   }).filter((u): u is NonNullable<typeof u> => u !== null)
 
-  // Сортировка: online → afk → offline, затем по активности (для offline — по endedAt/lastActivity)
-  const order: Record<string, number> = { online: 0, afk: 1, offline: 2 }
+  // Сортировка: online → afk, затем по активности
+  const order: Record<string, number> = { online: 0, afk: 1 }
   return result.sort((a, b) => {
-    const diff = (order[a.status] ?? 2) - (order[b.status] ?? 2)
+    const diff = (order[a.status] ?? 1) - (order[b.status] ?? 1)
     if (diff !== 0) return diff
 
-    // Для offline-пользователей используем endedAt если есть, иначе lastActivity
-    const aTime = a.status === 'offline' && a.endedAt
-      ? new Date(a.endedAt).getTime()
-      : new Date(a.lastActivity).getTime()
-    const bTime = b.status === 'offline' && b.endedAt
-      ? new Date(b.endedAt).getTime()
-      : new Date(b.lastActivity).getTime()
-
+    const aTime = new Date(a.lastActivity).getTime()
+    const bTime = new Date(b.lastActivity).getTime()
     return bTime - aTime
   })
 }

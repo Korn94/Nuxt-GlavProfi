@@ -18,9 +18,9 @@
 import { Socket } from 'socket.io'
 import { db } from '../../db'
 import { users, userSessions } from '../../db/schema'
-import { eq, and, or, desc, ne, isNull } from 'drizzle-orm'
+import { eq, and, or, desc, ne, isNull, sql } from 'drizzle-orm'
 import type { Server } from 'socket.io'
-import { createSession, updateSessionStatus, getOnlineUsers, closeZombieSessions } from '../../utils/sessions'
+import { createSession, updateSessionStatus, getOnlineUsers, closeZombieSessions, formatMySQLDate } from '../../utils/sessions'
 import { broadcastStatus } from './status'
 import { invalidatePermissionsCache } from '../../utils/permissions'
 import { invalidateOnlineCache } from '../../api/online.get'
@@ -58,11 +58,10 @@ export async function notifyUserPermissionsChanged(
     requireRelogin?: boolean
   }
 ): Promise<void> {
-  // Ищем активный сокет пользователя
-  const sockets = await io.fetchSockets()
-  const userSocket = sockets.find(s => s.data.userId === userId)
+  // ✅ ИСПРАВЛЕНО: используем комнату user:{id} для поиска сокетов (O(1), а не O(n))
+  const sockets = await io.in(`user:${userId}`).fetchSockets()
 
-  if (!userSocket) {
+  if (sockets.length === 0) {
     console.log(`[UserHandler] ⚠️ User ${userId} не подключён, уведомление не отправлено`)
     return
   }
@@ -70,15 +69,15 @@ export async function notifyUserPermissionsChanged(
   // Инвалидируем кэш прав на сервере
   invalidatePermissionsCache(userId)
 
-  // Отправляем уведомление
-  userSocket.emit('permissions:changed', {
+  // ✅ Отправляем ВСЕМ сокетам пользователя через комнату (мульти-вкладочность)
+  io.to(`user:${userId}`).emit('permissions:changed', {
     reason: details.reason,
     changedPages: details.changedPages || [],
     requireRelogin: details.requireRelogin || false,
     timestamp: new Date().toISOString()
   })
 
-  console.log(`[UserHandler] 📣 Отправлено уведомление об изменении прав user=${userId}: ${details.reason}`)
+  console.log(`[UserHandler] 📣 Уведомление отправлено ${sockets.length} сокетам user=${userId}: ${details.reason}`)
 }
 
 /**
@@ -97,24 +96,25 @@ export async function forceDisconnectUserWithReason(
   userId: number,
   reason: string
 ): Promise<void> {
-  const sockets = await io.fetchSockets()
-  const userSocket = sockets.find(s => s.data.userId === userId)
+  // ✅ ИСПРАВЛЕНО: io.sockets.sockets — Map с ключом socketId (строка), не userId
+  // Используем комнату user:{id} для поиска ВСЕХ сокетов пользователя
+  const sockets = await io.in(`user:${userId}`).fetchSockets()
 
-  if (!userSocket) {
+  if (sockets.length === 0) {
     console.log(`[UserHandler] ⚠️ User ${userId} не подключён, отключение не требуется`)
     return
   }
 
-  // Отправляем уведомление с причиной
-  userSocket.emit('force:disconnect', {
-    reason,
-    timestamp: new Date().toISOString()
-  })
+  // ✅ Отключаем ВСЕ сокеты пользователя (мульти-вкладочность!)
+  for (const socket of sockets) {
+    socket.emit('force:disconnect', {
+      reason,
+      timestamp: new Date().toISOString()
+    })
+    socket.disconnect(true)
+  }
 
-  // Разрываем соединение
-  userSocket.disconnect(true)
-
-  console.log(`[UserHandler] 🔌 Принудительно отключён user=${userId}: ${reason}`)
+  console.log(`[UserHandler] 🔌 Принудительно отключено ${sockets.length} сокетов user=${userId}: ${reason}`)
 }
 
 // ============================================
@@ -150,20 +150,26 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
       const userAgent = socket.handshake.headers['user-agent'] || 'Unknown'
 
       // ============================================
-      // ✅ ИЩЕМ АКТИВНУЮ ВКЛАДКУ ПОЛЬЗОВАТЕЛЯ
+      // ✅ ИЩЕМ СЕССИЮ ДЛЯ ВОССТАНОВЛЕНИЯ (Grace Period)
       // ============================================
+      // Ищем: online/afk сессии без endedAt (активные)
+      // ИЛИ offline сессии без endedAt с lastActivity < 15 минут (Grace Period для F5)
+      const GRACE_PERIOD_MS = 15 * 60 * 1000 // 15 минут
       const [activeSession] = await db
         .select()
         .from(userSessions)
         .where(
           and(
             eq(userSessions.userId, user.id),
+            isNull(userSessions.endedAt),
             or(
               eq(userSessions.status, 'online'),
-              eq(userSessions.status, 'afk')
-            ),
-            // ✅ ДОБАВЬ: Исключаем сессии с endedAt (явно закрытые)
-            isNull(userSessions.endedAt)
+              eq(userSessions.status, 'afk'),
+              and(
+                eq(userSessions.status, 'offline'),
+                sql`${userSessions.lastActivity} > DATE_SUB(NOW(), INTERVAL 15 MINUTE)`
+              )
+            )
           )
         )
         .orderBy(desc(userSessions.lastActivity))
@@ -172,18 +178,18 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
       let session = null
       let isRestored = false
 
-      // Проверяем, была ли сессия активна недавно (в последние 5 минут)
+      // ✅ Проверяем, была ли сессия активна недавно (в пределах Grace Period — 15 минут)
       if (activeSession) {
         const lastActivityTime = activeSession.lastActivity
           ? new Date(activeSession.lastActivity).getTime()
           : 0
         const now = Date.now()
         const timeDiff = now - lastActivityTime
-        const FIVE_MINUTES = 5 * 60 * 1000
 
-        // Если сессия была активна недавно - восстанавливаем её
-        if (timeDiff < FIVE_MINUTES) {
-          console.log(`   ✅ Восстанавливаем сессию: ${activeSession.sessionId}`)
+        // ✅ ИСПРАВЛЕНО: используем GRACE_PERIOD_MS (15 минут) вместо FIVE_MINUTES
+        // Сессии с lastActivity от 5 до 15 минут назад теперь корректно восстанавливаются
+        if (timeDiff < GRACE_PERIOD_MS) {
+          console.log(`   ✅ Восстанавливаем сессию: ${activeSession.sessionId} (статус: ${activeSession.status})`)
           
           session = await updateSessionStatus(activeSession.sessionId, 'online', {
             ipAddress,
@@ -193,7 +199,7 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
           
           isRestored = true
         } else {
-          console.log(`   ⏰ Сессия устарела (${Math.round(timeDiff / 1000)}с), создаём новую`)
+          console.log(`   ⏰ Сессия устарела (${Math.round(timeDiff / 1000)}с > ${GRACE_PERIOD_MS / 1000}с), создаём новую`)
         }
       }
 
@@ -352,21 +358,38 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
       const sessionId = (socket as any).sessionId
 
       if (sessionId) {
-        console.log(`   Помечаю сессию ${sessionId} как оффлайн...`)
+        // ✅ ИСПРАВЛЕНО: используем комнату user:{id} вместо io.fetchSockets() (O(1) вместо O(n))
+        const userSockets = await io.in(`user:${user.id}`).fetchSockets()
+        const hasOtherConnections = userSockets.some(s => s.id !== socket.id)
 
-        await updateSessionStatus(sessionId, 'offline')
+        if (hasOtherConnections) {
+          console.log(`   👥 У пользователя ${user.id} остались активные сокеты, сессия НЕ закрывается`)
+          // Просто обновляем lastActivity, без смены статуса
+          await updateSessionStatus(sessionId, 'online', {
+            isActiveTab: false
+          })
+        } else {
+          console.log(`   Помечаю сессию ${sessionId} как оффлайн (без endedAt)...`)
 
-        console.log(`   ✅ Сессия ${sessionId} помечена как оффлайн (endedAt установлен)`)
+          // ❌ НЕ ставим endedAt при обычном disconnect — это предотвращает спам сессий при F5
+          await updateSessionStatus(sessionId, 'offline')
 
-        // ✅ НЕМЕДЛЕННАЯ ОТПРАВКА (вход/выход — критичные события)
-        const { immediateOnlineBroadcast } = await import('../../utils/online-broadcast')
-        await immediateOnlineBroadcast(io)
+          // ✅ Обновляем lastSeenAt в таблице users (P0.2)
+          await db
+            .update(users)
+            .set({ lastSeenAt: formatMySQLDate(new Date()) })
+            .where(eq(users.id, user.id))
 
-        broadcastStatus(io, socket, user.id, userName, 'offline', {
-          sessionId
-        })
+          // ✅ НЕМЕДЛЕННАЯ ОТПРАВКА (вход/выход — критичные события)
+          const { immediateOnlineBroadcast } = await import('../../utils/online-broadcast')
+          await immediateOnlineBroadcast(io)
 
-        console.log(`   📡 Список отправлен`)
+          broadcastStatus(io, socket, user.id, userName, 'offline', {
+            sessionId
+          })
+        }
+
+        console.log(`   📡 Обработка отключения завершена`)
       } else {
         console.warn('   ID сессии не найден для отключившегося пользователя')
       }

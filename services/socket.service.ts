@@ -102,6 +102,8 @@ export class SocketService {
   private readonly ACTIVITY_INTERVAL = 1000 * 60 * 2 // 2 минуты
   private activityListenersAdded = false
   private sessionId: string | null = null
+  // ✅ Сохраняем ссылку на обработчик для корректного removeEventListener (P2.7)
+  private boundEmitActivity: (() => void) | null = null
 
   constructor(config: SocketServiceConfig = {}) {
     this.config = {
@@ -181,7 +183,7 @@ export class SocketService {
 
       this.socket = io(socketUrl, {
         path: this.config.path,
-        transports: ['polling', 'websocket'],
+        transports: this.config.transports, // ✅ используем конфиг (P2.9)
         autoConnect: this.config.autoConnect,
         reconnection: this.config.reconnection,
         reconnectionAttempts: this.config.reconnectionAttempts,
@@ -360,8 +362,8 @@ export class SocketService {
   private startActivityTracking(): void {
     if (!process.client || this.activityListenersAdded) return
     
-    // Функция отправки активности с throttle
-    const emitActivity = () => {
+    // ✅ Сохраняем ссылку на функцию для корректного removeEventListener (P2.7)
+    this.boundEmitActivity = () => {
       if (this.activityThrottle) return
       
       if (this.socket?.connected && this.sessionId) {
@@ -378,13 +380,13 @@ export class SocketService {
     }
     
     // Отправляем сразу при загрузке
-    emitActivity()
+    this.boundEmitActivity()
     
     // Слушаем реальную активность пользователя
-    window.addEventListener('mousemove', emitActivity, { passive: true })
-    window.addEventListener('keydown', emitActivity, { passive: true })
-    window.addEventListener('click', emitActivity, { passive: true })
-    window.addEventListener('scroll', emitActivity, { passive: true })
+    window.addEventListener('mousemove', this.boundEmitActivity, { passive: true })
+    window.addEventListener('keydown', this.boundEmitActivity, { passive: true })
+    window.addEventListener('click', this.boundEmitActivity, { passive: true })
+    window.addEventListener('scroll', this.boundEmitActivity, { passive: true })
     
     this.activityListenersAdded = true
     console.log('[SocketService] 🎯 Activity tracking запущен (интервал: 2мин)')
@@ -392,6 +394,7 @@ export class SocketService {
   
   /**
    * Остановка отслеживания активности
+   * ✅ ИСПРАВЛЕНО (P2.7): теперь удаляет window event listeners
    */
   private stopActivityTracking(): void {
     if (!process.client) return
@@ -399,6 +402,15 @@ export class SocketService {
     if (this.activityThrottle) {
       clearTimeout(this.activityThrottle)
       this.activityThrottle = null
+    }
+    
+    // ✅ Удаляем window listeners, чтобы избежать утечки памяти (P2.7)
+    if (this.boundEmitActivity) {
+      window.removeEventListener('mousemove', this.boundEmitActivity)
+      window.removeEventListener('keydown', this.boundEmitActivity)
+      window.removeEventListener('click', this.boundEmitActivity)
+      window.removeEventListener('scroll', this.boundEmitActivity)
+      this.boundEmitActivity = null
     }
     
     this.activityListenersAdded = false
@@ -781,7 +793,7 @@ export class SocketService {
 // ============================================
 export const socketService = new SocketService({
   path: '/socket.io',
-  transports: ['polling', 'websocket'],
+  transports: ['websocket', 'polling'], // ✅ WebSocket первым (P2.9)
   reconnection: true,
   reconnectionAttempts: 5,
   reconnectionDelay: 1000

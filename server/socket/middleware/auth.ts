@@ -52,12 +52,15 @@ export async function authenticateUser(token: string): Promise<SocketUser> {
     console.log(`[SocketAuth] ✅ Токен валиден, userId: ${payload.id}`)
     
     // Проверяем существование пользователя в БД
+    // ✅ ДОБАВЛЕНО (P1.5): проверка на блокировку и удаление пользователя
     const [user] = await db
       .select({
         id: users.id,
         login: users.login,
         name: users.name,
         role: users.role,
+        isBlocked: users.isBlocked,
+        deletedAt: users.deletedAt,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt
       })
@@ -68,6 +71,18 @@ export async function authenticateUser(token: string): Promise<SocketUser> {
     if (!user) {
       console.warn(`[SocketAuth] ❌ Пользователь ${payload.id} не найден в БД`)
       throw new Error('User not found')
+    }
+    
+    // ✅ ПРОВЕРКА НА БЛОКИРОВКУ
+    if (user.isBlocked) {
+      console.warn(`[SocketAuth] ❌ Пользователь ${payload.id} заблокирован`)
+      throw new Error('Account is blocked')
+    }
+    
+    // ✅ ПРОВЕРКА НА SOFT-DELETE
+    if (user.deletedAt) {
+      console.warn(`[SocketAuth] ❌ Пользователь ${payload.id} удалён (soft-delete)`)
+      throw new Error('Account deleted')
     }
     
     console.log(`[SocketAuth] ✅ Пользователь аутентифицирован: ${user.login}`)
@@ -88,6 +103,20 @@ export async function authenticateUser(token: string): Promise<SocketUser> {
       throw createError({
         statusCode: 404,
         statusMessage: 'Пользователь не найден'
+      })
+    }
+    
+    if (error instanceof Error && error.message === 'Account is blocked') {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Аккаунт заблокирован'
+      })
+    }
+    
+    if (error instanceof Error && error.message === 'Account deleted') {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Аккаунт удалён'
       })
     }
     

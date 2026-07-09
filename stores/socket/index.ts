@@ -8,6 +8,8 @@
  * - Предоставляет удобные обёртки для компонентов
  * - 🆕 Обрабатывает уведомления об изменении прав
  * - 🆕 Обрабатывает принудительное отключение
+ *
+ * ❌ Heartbeat удалён (P2.8) — дублирует Activity Tracking в SocketService
  */
 
 import { defineStore } from 'pinia'
@@ -44,7 +46,6 @@ export const useSocketStore = defineStore('socket', () => {
   const error = ref<string | null>(null)
   const reconnectAttempts = ref(0)
   const maxReconnectAttempts = ref(5)
-  const heartbeatInterval = ref<NodeJS.Timeout | null>(null)
   const tabId = ref<string | null>(null)
   const messageQueue = ref<Array<{
     event: string
@@ -117,11 +118,6 @@ export const useSocketStore = defineStore('socket', () => {
       isConnected.value = false
       isConnecting.value = false
       userId.value = null
-
-      if (heartbeatInterval.value) {
-        clearInterval(heartbeatInterval.value)
-        heartbeatInterval.value = null
-      }
     })
 
     // ✅ ПОПЫТКА ПЕРЕПОДКЛЮЧЕНИЯ
@@ -334,37 +330,11 @@ export const useSocketStore = defineStore('socket', () => {
   }
 
   // ============================================
-  // ACTIONS — Heartbeat
-  // ============================================
-
-  function startHeartbeat(intervalMs: number = 30000) {
-    if (heartbeatInterval.value) {
-      clearInterval(heartbeatInterval.value)
-    }
-
-    console.log(`[SocketStore] 💓 Запуск heartbeat каждые ${intervalMs}мс`)
-    heartbeatInterval.value = setInterval(() => {
-      if (isConnected.value) {
-        socketService.emit('heartbeat', { timestamp: Date.now() }).catch(() => {})
-      }
-    }, intervalMs)
-  }
-
-  function stopHeartbeat() {
-    if (heartbeatInterval.value) {
-      console.log('[SocketStore] 💓 Остановка heartbeat')
-      clearInterval(heartbeatInterval.value)
-      heartbeatInterval.value = null
-    }
-  }
-
-  // ============================================
   // ACTIONS — Утилиты
   // ============================================
 
   function clearState() {
     console.log('[SocketStore] 🧹 Очистка состояния')
-    stopHeartbeat()
     clearMessageQueue()
     isConnected.value = false
     isConnecting.value = false
@@ -413,10 +383,6 @@ export const useSocketStore = defineStore('socket', () => {
     queueMessage,
     sendQueuedMessages,
     clearMessageQueue,
-
-    // Actions — Heartbeat
-    startHeartbeat,
-    stopHeartbeat,
 
     // Actions — Утилиты
     clearState,

@@ -18,9 +18,6 @@
 
 import { eventHandler, createError } from 'h3'
 import { getOnlineUsers } from '../utils/sessions'
-import { db } from '../db'
-import { users } from '../db/schema'
-import { eq } from 'drizzle-orm'
 
 // ============================================
 // КЭШИРОВАНИЕ (на 2 секунды)
@@ -65,38 +62,13 @@ export default eventHandler(async (event) => {
     // 2. ПОЛУЧЕНИЕ ДАННЫХ ИЗ БД
     // ============================================
     // ✅ Авторизация уже проверена мидлваром!
-    // Если нужен текущий пользователь:
-    // const currentUser = event.context.user
     
-    // Получаем агрегированные сессии (онлайн-статусы)
+    // ✅ getOnlineUsers() уже возвращает user через INNER JOIN (userName, userRole, userLogin)
+    // ❌ УБРАН N+1 запрос (P1.6): каждый session.user уже содержит данные пользователя
     const sessions = await getOnlineUsers()
     
     // ✅ Гарантируем, что сессии всегда массив (защита от null/undefined)
-    const sessionsArray = sessions || []
-    
-    // Обогащаем сессии данными пользователей из БД
-    const sessionsWithUsers = await Promise.all(
-      sessionsArray.map(async (session) => {
-        const [user] = await db
-          .select({
-            name: users.name,
-            role: users.role,
-            login: users.login
-          })
-          .from(users)
-          .where(eq(users.id, session.userId))
-        
-        return {
-          ...session,
-          user: user || undefined
-        }
-      })
-    )
-    
-    // ✅ Фильтруем сессии без пользователя (защита от «битых» данных)
-    const validSessions = sessionsWithUsers.filter(
-      (session) => session.user !== undefined && session.user !== null
-    )
+    const validSessions = sessions || []
     
     // ============================================
     // 3. ФОРМИРОВАНИЕ ОТВЕТА
@@ -127,7 +99,6 @@ export default eventHandler(async (event) => {
     console.error('[API/Online] ❌ Ошибка получения онлайн-пользователей:', error)
     
     // ❌ Выбрасываем 500, так как это внутренняя ошибка сервера
-    // (не 401/403 — авторизация уже проверена мидлваром)
     throw createError({
       statusCode: 500,
       statusMessage: 'Не удалось загрузить список онлайн-пользователей'
