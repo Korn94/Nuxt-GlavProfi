@@ -1,6 +1,6 @@
 <!-- app\components\pages\public\prices\PriceCategory.vue -->
 <template>
-  <div class="category-block">
+  <div class="category-block" :id="'category-' + category.id">
     <!-- Заголовок категории -->
     <div class="category-header">
       <div>
@@ -89,6 +89,7 @@ const editStore = usePriceEditStore()
 
 <style lang="scss" scoped>
 .category-block {
+  scroll-margin-top: 9em;
   margin-bottom: 20px;
   border-bottom: 1px solid #ddd;
 

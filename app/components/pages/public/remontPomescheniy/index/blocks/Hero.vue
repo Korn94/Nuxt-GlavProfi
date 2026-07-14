@@ -36,9 +36,9 @@
         <!-- CTA блок -->
         <div class="hero__actions fade-in-up">
           <!-- 👇 Кнопка теперь открывает модальное окно -->
-          <button class="hero__btn" @click="openModal">
+          <UiButtonsPrimary variant="blue" @click="openModal">
             Получить коммерческое предложение
-          </button>
+          </UiButtonsPrimary>
           <p class="hero__disclaimer">
             Расчет стоимости в течение 24 часов. Не является публичной офертой.
           </p>
@@ -282,34 +282,6 @@ const benefits = [
     border-top: 1px solid rgba(255, 255, 255, 0.08);
   }
 
-  // === Кнопка ===
-  &__btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 12px 28px;
-    background: $blue-gradient;
-    color: $text-dark;
-    font-family: 'Rubik', sans-serif;
-    font-weight: 600;
-    font-size: 1rem;
-    border-radius: 50px;
-    border: none;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(0, 195, 245, 0.3);
-
-    &:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 8px 25px rgba(0, 195, 245, 0.45);
-    }
-
-    &:active {
-      transform: translateY(-1px);
-    }
-  }
-
   // === Подпись под кнопкой ===
   &__disclaimer {
     font-size: 0.8rem;
@@ -383,11 +355,6 @@ const benefits = [
 
     &__actions {
       align-items: stretch;
-    }
-
-    &__btn {
-      width: 100%;
-      justify-content: center;
     }
   }
 }

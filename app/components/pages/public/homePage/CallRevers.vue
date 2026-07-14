@@ -14,9 +14,9 @@
       <form class="form" @submit.prevent="openConsentModal">
         <input type="text" class="input" placeholder="Имя" v-model="name" @input="textFilter" required />
         <input type="tel" class="input" placeholder="Телефон" v-phone-format v-model="phoneNumber" required :class="{ 'error-border': phoneError }"/>
-        <UiButtonsSecondary type="submit" :disabled="isSubmitting">
+        <UiButtonsPrimary type="submit" :disabled="isSubmitting">
           {{ isSubmitting ? 'Отправка...' : 'Отправить' }}
-        </UiButtonsSecondary>
+        </UiButtonsPrimary>
       </form>
     </div>
 

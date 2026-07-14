@@ -5,6 +5,34 @@
       <!-- Заголовок -->
       <h1>Актуальные цены на <span>{{ activeCategoryTitle }}</span> - 2026 год</h1>
 
+      <!-- Оглавление по категориям (анкорные ссылки) -->
+      <nav v-if="filteredWorks.length" class="toc" itemscope itemtype="https://schema.org/ItemList">
+        <meta itemprop="numberOfItems" :content="String(filteredWorks.length)" />
+        <div class="toc__header">
+          <Icon name="mdi:format-list-bulleted" class="toc__icon" size="20" />
+          <span class="toc__title">Содержание:</span>
+        </div>
+        <ul class="toc__list">
+          <li
+            v-for="(category, index) in filteredWorks"
+            :key="'toc-' + category.id"
+            class="toc__item"
+            itemprop="itemListElement"
+            itemscope
+            itemtype="https://schema.org/ListItem"
+          >
+            <a
+              :href="'#category-' + category.id"
+              class="toc__link"
+              itemprop="item"
+            >
+              <span itemprop="name">{{ category.name }}</span>
+            </a>
+            <meta itemprop="position" :content="String(index + 1)" />
+          </li>
+        </ul>
+      </nav>
+
       <!-- Навигация -->
       <PagesPublicPricesUiNavigation
         :categories="props.categories"
@@ -276,7 +304,89 @@ h1 {
   font-size: 1.7rem;
 
   @media (max-width: 768px) {
-    font-size: 1.2rem;
+    font-size: 1.4rem;
+  }
+}
+
+/* ======================================== */
+/* Оглавление (toc)                         */
+/* ======================================== */
+.toc {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 2em;
+  padding: 1.2em 1.5em;
+  background: #f8f9fa;
+  border: 1px solid $border-color;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+.toc__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed #ddd; // Визуально отделяет заголовок от списка
+}
+
+.toc__icon {
+  color: $blue;
+}
+
+.toc__title {
+  font-weight: 700;
+  font-size: 1rem;
+  color: $text-dark;
+}
+
+.toc__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  
+  /* Мультиколоночная верстка: заполнение сверху вниз */
+  column-width: 400px; // минимальная ширина колонки (авто-адаптив)
+  column-gap: 24px; // расстояние между колонками
+}
+
+.toc__item {
+  /* Предотвращает разрыв элемента между колонками */
+  break-inside: avoid;
+  margin-bottom: 6px; // вертикальный отступ между пунктами
+  display: block;
+}
+
+.toc__link {
+  display: block;
+  width: 100%;
+  font-size: 0.9rem;
+  color: $text-dark;
+  text-decoration: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+
+  &::before {
+    content: '•';
+    color: $blue;
+    font-weight: bold;
+    margin-right: 8px;
+    font-size: 1.2em;
+    line-height: 1;
+    transition: transform 0.2s ease;
+  }
+
+  &:hover {
+    background: #fff;
+    border-color: $blue;
+    color: $blue;
+    text-decoration: none;
+    
+    &::before {
+      transform: translateX(4px);
+    }
   }
 }
 

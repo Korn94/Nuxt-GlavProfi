@@ -3,9 +3,9 @@
   <section class="offer">
     <p class="title">{{ title }}</p>
     <p>{{ description }}</p>
-    <button class="gradient-button large-button" @click="openModal">
+    <UiButtonsPrimary variant="blue" @click="openModal">
       {{ buttonText }}
-    </button>
+    </UiButtonsPrimary>
 
     <!-- v-if на самом Teleport: когда showModal=false, Teleport не создаётся вообще.
          Это гарантирует идентичную DOM-структуру на сервере и клиенте. -->
@@ -80,19 +80,7 @@ const isMobileDevice = () => {
   }
 
   button {
-    padding: 10px 20px;
-    min-width: 150px;
     margin: 1.5em auto 0;
-    background: linear-gradient(to right, #00c3f5, #00a3d3);
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background 0.3s ease;
-
-    &:hover {
-      background: #00a3d3;
-    }
   }
 }
 </style>

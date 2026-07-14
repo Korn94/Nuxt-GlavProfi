@@ -21,7 +21,7 @@
 
       <div class="section-btn">
         <router-link to="/projects">
-          <UiButtonsPrimary class="openbtn" text="Показать еще" />
+          <UiButtonsPrimary class="openbtn" text="Показать еще" variant="outline-dark"></UiButtonsPrimary>
         </router-link>
       </div>
     </div>

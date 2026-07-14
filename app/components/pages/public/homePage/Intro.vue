@@ -10,7 +10,7 @@
           зная, что мы предлагаем надежное качество и четкое выполнение сроков.
         </p>
         <NuxtLink to="/about">
-          <UiButtonsPrimary text="Подробнее" />
+          <UiButtonsPrimary text="Подробнее" variant="outline-dark" />
         </NuxtLink>
       </div>
       <img

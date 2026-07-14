@@ -13,8 +13,6 @@
       <UiButtonsPrimary 
         class="btn"
         text="Позвонить"
-        color="#fff"
-        textColor="#111"
         @click="handleButtonClick"
       />
       <teleport to="body">

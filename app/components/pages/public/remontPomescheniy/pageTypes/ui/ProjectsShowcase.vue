@@ -302,7 +302,7 @@ span {
     background: transparent;
     border: 1px solid $red;
     color: $red;
-    border-radius: 50px;
+    border-radius: var(--border-radius, 6px);
     font-family: 'Rubik', sans-serif;
     font-weight: 500;
     font-size: 0.9rem;
@@ -449,7 +449,7 @@ span {
     font-family: 'Rubik', sans-serif;
     font-weight: 600;
     font-size: 1rem;
-    border-radius: 50px;
+    border-radius: var(--border-radius, 6px);
     text-decoration: none;
     box-shadow: 0 6px 20px rgba(0, 195, 245, 0.3);
     transition: all 0.3s ease;

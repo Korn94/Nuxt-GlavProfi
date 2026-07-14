@@ -61,7 +61,7 @@
         <p>
           Свяжитесь с нами для получения подробной консультации или расчета стоимости вашего проекта!
         </p>
-        <button @click="openModal">Связаться с нами</button>
+        <UiButtonsPrimary variant="blue" @click="openModal">Связаться с нами</UiButtonsPrimary>
         <UiFormsContactForm v-if="showModal" @close="closeModal" @formSubmitted="handleFormSubmitted" />
       </section>
     </div>
@@ -140,18 +140,7 @@ const handleFormSubmitted = (formData) => {
       }
 
       button {
-        padding: 10px 20px;
-        background-color: #00c3f5;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        font-size: 1rem;
-        transition: background-color 0.3s ease;
-
-        &:hover {
-          background-color: #00c3f5;
-        }
+        margin-top: 1em;
       }
     }
   }

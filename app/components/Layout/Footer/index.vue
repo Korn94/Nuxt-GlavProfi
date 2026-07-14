@@ -57,9 +57,9 @@
             :class="{ 'error-border': phoneError }"
             :disabled="isSubmitting"
           />
-          <UiButtonsSecondary type="button" @click="openConsentModal" :disabled="isSubmitting">
+          <UiButtonsPrimary type="button" @click="openConsentModal" :disabled="isSubmitting">
             {{ isSubmitting ? '...' : 'Отправить' }}
-          </UiButtonsSecondary>
+          </UiButtonsPrimary>
         </form>
 
         <div class="social-icons">

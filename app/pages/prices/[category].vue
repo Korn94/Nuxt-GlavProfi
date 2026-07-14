@@ -1,5 +1,8 @@
 <!-- app\pages\prices\[category].vue -->
 <template>
+  <PagesPublicRemontPomescheniyPageTypesUiBreadcrumbs
+    :items="breadcrumbItems"
+  />
   <div class="wrap">
     <PagesPublicPrices
       :categories="categories"
@@ -63,6 +66,18 @@ const categories = computed(() =>
 )
 
 // ========================================
+// 🍞 ХЛЕБНЫЕ КРОШКИ
+// ========================================
+const breadcrumbItems = computed(() => {
+  const currentCategory = categories.value.find(c => c.slug === currentSlug.value)
+  return [
+    { label: 'Главная', to: '/' },
+    { label: 'Цены', to: '/prices/otdelochnye-raboty' },
+    { label: currentCategory?.name ?? 'Цены' },
+  ]
+})
+
+// ========================================
 // 🔍 SEO (остаётся без изменений)
 // ========================================
 usePriceSeo(currentSlug.value, pricePayload, pagesData)
@@ -72,10 +87,10 @@ usePriceSeo(currentSlug.value, pricePayload, pagesData)
 @use '@/assets/styles/variables' as *;
 
 .wrap {
-  margin: 8em 5px 0;
+  margin: 3em 5px 0;
 
   @media (max-width: 840px) {
-    margin: 5em 5px 0;
+    margin: 2em 5px 0;
   }
 
   h1 {

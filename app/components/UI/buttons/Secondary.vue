@@ -1,3 +1,4 @@
+<!-- app\components\ui\buttons\Secondary.vue -->
 <template>
   <button
     class="secondary-button"

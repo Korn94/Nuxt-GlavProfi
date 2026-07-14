@@ -10,7 +10,7 @@
     <div>
       <textarea id="comment" v-model="comment" placeholder="Комментарий (не обязательно)"></textarea>
     </div>
-    <button buttonText="Отправить" width="100%" type="submit">Отправить</button>
+    <UiButtonsPrimary buttonText="Отправить" variant="blue" type="submit">Отправить</UiButtonsPrimary>
     <div class="consent">
       <input type="checkbox" id="agree" v-model="agreed" required />
       <label for="agree">
@@ -186,27 +186,6 @@ form {
     &:focus {
       border-color: $primary-color;
       box-shadow: 0 0 5px rgba(0, 195, 245, 0.5);
-    }
-  }
-
-  button {
-    padding: 12px;
-    background: linear-gradient(to right, #00c3f5, #00a3d3);
-    color: white;
-    border: none;
-    border-radius: 5px;
-    font-weight: bold;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    margin: 0;
-
-    &:hover {
-      opacity: 0.9;
-    }
-
-    &:active {
-      transform: scale(0.98);
     }
   }
 

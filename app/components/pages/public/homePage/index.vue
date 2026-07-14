@@ -30,9 +30,9 @@
         </h1>
 
         <div class="buttons">
-          <UiButtonsPrimary text="Получить КП" color="#fff" textColor="#111" @click="openModal" />
+          <UiButtonsPrimary text="Получить КП / Смету" @click="openModal" />
           <NuxtLink to="/prices/otdelochnye-raboty">
-            <UiButtonsPrimary text="Прайс-лист" color="#fff" textColor="#111" :reverseEffect="true" />
+            <UiButtonsPrimary text="Прайс-лист" variant="outline" />
           </NuxtLink>
         </div>
 

@@ -29,7 +29,7 @@
     </div>
 
     <router-link to="/projects">
-      <UiButtonsPrimary class="openbtn" text="Показать еще"></UiButtonsPrimary>
+      <UiButtonsPrimary class="openbtn" text="Показать еще" variant="outline-dark"></UiButtonsPrimary>
     </router-link>
   </div>
 </template>
@@ -85,6 +85,7 @@ onMounted(() => {
   max-width: 1200px;
   margin: 6em auto;
   padding: 0 5px;
+  text-align: center;
 }
 
 .featured-title {
@@ -166,9 +167,5 @@ onMounted(() => {
       line-height: 1.3;
     }
   }
-}
-
-.openbtn {
-  margin: auto;
 }
 </style>

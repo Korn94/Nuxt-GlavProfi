@@ -1,3 +1,4 @@
+<!-- app\pages\cabinet\online.vue -->
 <template>
   <div class="online-page">
     <PagesCabinetUiLayoutPageTitle title="Онлайн" icon="mdi:account-group-outline">
@@ -100,13 +101,16 @@
               </div>
 
               <div class="online-user__meta" v-if="showDetails && user.status === 'offline'">
-                <span class="kv__k">Вышел:</span>
-                <span class="kv__v">
-                  {{ formatTimeAgo(user.endedAt || user.lastActivity) }}
-                  <span class="kv__v--muted">({{ formatFullDateTime(user.endedAt || user.lastActivity) }})</span>
-                </span>
-                <span class="kv__k">Был на:</span>
-                <span class="kv__v kv__v--truncate">{{ formatPath(user.activePath) }}</span>
+                <template v-if="user.lastActivity">
+                  <span class="kv__k">Вышел:</span>
+                  <span class="kv__v">
+                    {{ formatTimeAgo(user.endedAt || user.lastActivity) }}
+                    <span class="kv__v--muted">({{ formatFullDateTime(user.endedAt || user.lastActivity) }})</span>
+                  </span>
+                  <span class="kv__k">Был на:</span>
+                  <span class="kv__v kv__v--truncate">{{ formatPath(user.activePath) }}</span>
+                </template>
+                <span v-else class="kv__v">не заходил</span>
               </div>
 
               <div class="online-user__path" v-if="showDetails && user.status !== 'offline'">
@@ -190,7 +194,7 @@ const afkCount     = computed(() => allUsers.value.filter(u => u.status === 'afk
 const offlineCount = computed(() => allUsers.value.filter(u => u.status === 'offline').length)
 
 function formatTimeAgo(dateStr: string | null | undefined): string {
-  if (!dateStr) return '—'
+  if (!dateStr) return 'не заходил'
   const diff = currentTime.value - new Date(dateStr).getTime()
   const s = Math.floor(diff / 1000)
   const m = Math.floor(s / 60)

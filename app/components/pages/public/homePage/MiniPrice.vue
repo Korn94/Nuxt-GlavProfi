@@ -7,7 +7,7 @@
         <span class="promo-label">Прайс-лист 2026</span>
         <h2 class="promo-title">Ремонт и отделка коммерческих помещений под ключ</h2>
         <NuxtLink to="/prices/otdelochnye-raboty">
-          <button class="promo-btn">Смотреть цены →</button>
+          <UiButtonsPrimary text="Смотреть цены →" />
         </NuxtLink>
       </div>
 
@@ -109,25 +109,6 @@ const categories = [
   font-weight: 500;
   color: $text-light;
   line-height: 1.35;
-}
-
-.promo-btn {
-  margin-top: auto;
-  display: inline-block;
-  padding: 9px 18px;
-  background: #fff;
-  color: $text-dark;
-  border: none;
-  border-radius: $border-radius;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  width: fit-content;
-  transition: opacity 0.15s;
-
-  &:hover {
-    opacity: 0.88;
-  }
 }
 
 /* Статистика */

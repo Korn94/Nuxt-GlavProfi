@@ -36,92 +36,146 @@
 
           <!-- Список в режиме LIST (вертикальные блоки) -->
           <div v-if="viewMode === 'list'" class="premises-grid__list--list">
-            <div v-for="item in groupedItems[catKey]" :key="item.slug"
-              :class="['premises-grid__item--list', { 'item-visible': animatedSlugs.has(item.slug) }]">
-              
-              <!-- Контент (текст) -->
-              <div class="premises-grid__item-content">
-                <h3 class="premises-grid__item-title">{{ item.title }}</h3>
-                <p v-if="item.subtitle" class="premises-grid__item-subtitle">{{ item.subtitle }}</p>
-                <p class="premises-grid__item-desc">{{ item.description }}</p>
-              </div>
-
-              <!-- Сайдбар (цены + ссылка) -->
-              <div class="premises-grid__item-sidebar">
-                <div class="premises-grid__item-prices">
-                  <span class="premises-grid__price-main">{{ item.price }}</span>
-                  <span class="premises-grid__price-example" v-if="item.priceExample">{{ item.priceExample }}</span>
+            <template v-for="item in groupedItems[catKey]" :key="item.slug">
+              <!-- 🔗 SEO: готовая карточка = NuxtLink (prefetch + <a href>) -->
+              <NuxtLink
+                v-if="item.isReady"
+                :to="getPageLink(item.slug)"
+                :class="['premises-grid__item--list', { 
+                  'item-visible': animatedSlugs.has(item.slug),
+                  'is-clickable': true
+                }]"
+              >
+                <!-- Контент (текст) -->
+                <div class="premises-grid__item-content">
+                  <h3 class="premises-grid__item-title">{{ item.title }}</h3>
+                  <p v-if="item.subtitle" class="premises-grid__item-subtitle">{{ item.subtitle }}</p>
+                  <p class="premises-grid__item-desc">{{ item.description }}</p>
                 </div>
-                
-                <!-- 🔗 Условная ссылка / индикатор разработки (Список) -->
-                <!-- Если готово: NuxtLink с классом ссылки. Если нет: span с классом disabled -->
-                <NuxtLink 
-                  v-if="item.isReady"
-                  :to="getPageLink(item.slug)"
-                  class="premises-grid__item-link"
-                >
-                  Подробнее →
-                </NuxtLink>
-                <span 
-                  v-else
-                  class="premises-grid__item-link premises-grid__item-link--disabled"
-                  title="Страница в разработке"
-                >
-                  <Icon name="mdi:link-off" size="14" style="vertical-align: middle; margin-left: 4px;" />
-                  Страница в разработке
-                </span>
-              </div>
 
-              <!-- Изображение (третий блок справа) -->
-              <div class="premises-grid__item-image">
-                <img :src="item.image" :alt="item.title" loading="lazy" class="premises-grid__img">
-              </div>
-
-            </div>
-          </div>
-
-          <!-- Список в режиме GRID (сетка карточек) -->
-          <div v-else class="premises-grid__list--grid">
-            <div v-for="item in groupedItems[catKey]" :key="item.slug"
-              :class="['premises-grid__item--grid', { 'item-visible': animatedSlugs.has(item.slug) }]">
-              
-              <!-- Изображение с наложенным текстом -->
-              <div class="premises-grid__card-image">
-                <img :src="item.image" :alt="item.title" loading="lazy" class="premises-grid__img">
-                <div class="premises-grid__card-overlay">
-                  <h3 class="premises-grid__card-title--overlay">{{ item.title }}</h3>
-                  <p v-if="item.subtitle" class="premises-grid__card-subtitle--overlay">{{ item.subtitle }}</p>
-                </div>
-              </div>
-
-              <!-- Контент под изображением -->
-              <div class="premises-grid__card-body">
-                <p class="premises-grid__card-desc">{{ item.description }}</p>
-
-                <div class="premises-grid__prices">
-                  <span class="premises-grid__price-main">{{ item.price }}</span>
-                  <span class="premises-grid__price-example" v-if="item.priceExample">{{ item.priceExample }}</span>
+                <!-- Сайдбар (цены + индикатор ссылки) -->
+                <div class="premises-grid__item-sidebar">
+                  <div class="premises-grid__item-prices">
+                    <span class="premises-grid__price-main">{{ item.price }}</span>
+                    <span class="premises-grid__price-example" v-if="item.priceExample">{{ item.priceExample }}</span>
+                  </div>
                   
-                  <!-- 🔗 Условная ссылка / индикатор разработки (Сетка) -->
-                  <NuxtLink 
-                    v-if="item.isReady"
-                    :to="getPageLink(item.slug)"
-                    class="premises-grid__card-link"
-                  >
+                  <span class="premises-grid__item-link">
                     Подробнее →
-                  </NuxtLink>
-                  <span 
-                    v-else
-                    class="premises-grid__card-link premises-grid__card-link--disabled"
-                    title="Страница в разработке"
-                  >
-                  <Icon name="mdi:link-off" size="14" style="vertical-align: middle; margin-left: 4px;" />
+                  </span>
+                </div>
+
+                <!-- Изображение -->
+                <div class="premises-grid__item-image">
+                  <img :src="item.image" :alt="item.title" loading="lazy" class="premises-grid__img">
+                </div>
+              </NuxtLink>
+
+              <!-- 🔗 Неготовая карточка = div -->
+              <div
+                v-else
+                :class="['premises-grid__item--list', { 
+                  'item-visible': animatedSlugs.has(item.slug),
+                  'is-clickable': false
+                }]"
+              >
+                <!-- Контент (текст) -->
+                <div class="premises-grid__item-content">
+                  <h3 class="premises-grid__item-title">{{ item.title }}</h3>
+                  <p v-if="item.subtitle" class="premises-grid__item-subtitle">{{ item.subtitle }}</p>
+                  <p class="premises-grid__item-desc">{{ item.description }}</p>
+                </div>
+
+                <!-- Сайдбар (цены + индикатор разработки) -->
+                <div class="premises-grid__item-sidebar">
+                  <div class="premises-grid__item-prices">
+                    <span class="premises-grid__price-main">{{ item.price }}</span>
+                    <span class="premises-grid__price-example" v-if="item.priceExample">{{ item.priceExample }}</span>
+                  </div>
+                  
+                  <span class="premises-grid__item-link premises-grid__item-link--disabled" title="Страница в разработке">
+                    <Icon name="mdi:link-off" size="14" style="vertical-align: middle; margin-left: 4px;" />
                     Страница в разработке
                   </span>
                 </div>
 
+                <!-- Изображение -->
+                <div class="premises-grid__item-image">
+                  <img :src="item.image" :alt="item.title" loading="lazy" class="premises-grid__img">
+                </div>
               </div>
-            </div>
+            </template>
+          </div>
+
+          <!-- Список в режиме GRID (сетка карточек) -->
+          <div v-else class="premises-grid__list--grid">
+            <template v-for="item in groupedItems[catKey]" :key="item.slug">
+              <!-- 🔗 SEO: готовая карточка = NuxtLink -->
+              <NuxtLink
+                v-if="item.isReady"
+                :to="getPageLink(item.slug)"
+                :class="['premises-grid__item--grid', { 
+                  'item-visible': animatedSlugs.has(item.slug),
+                  'is-clickable': true
+                }]"
+              >
+                <!-- Изображение с наложенным текстом -->
+                <div class="premises-grid__card-image">
+                  <img :src="item.image" :alt="item.title" loading="lazy" class="premises-grid__img">
+                  <div class="premises-grid__card-overlay">
+                    <h3 class="premises-grid__card-title--overlay">{{ item.title }}</h3>
+                    <p v-if="item.subtitle" class="premises-grid__card-subtitle--overlay">{{ item.subtitle }}</p>
+                  </div>
+                </div>
+
+                <!-- Контент под изображением -->
+                <div class="premises-grid__card-body">
+                  <p class="premises-grid__card-desc">{{ item.description }}</p>
+
+                  <div class="premises-grid__prices">
+                    <span class="premises-grid__price-main">{{ item.price }}</span>
+                    <span class="premises-grid__price-example" v-if="item.priceExample">{{ item.priceExample }}</span>
+                    
+                    <span class="premises-grid__card-link">
+                      Подробнее →
+                    </span>
+                  </div>
+                </div>
+              </NuxtLink>
+
+              <!-- 🔗 Неготовая карточка = div -->
+              <div
+                v-else
+                :class="['premises-grid__item--grid', { 
+                  'item-visible': animatedSlugs.has(item.slug),
+                  'is-clickable': false
+                }]"
+              >
+                <!-- Изображение с наложенным текстом -->
+                <div class="premises-grid__card-image">
+                  <img :src="item.image" :alt="item.title" loading="lazy" class="premises-grid__img">
+                  <div class="premises-grid__card-overlay">
+                    <h3 class="premises-grid__card-title--overlay">{{ item.title }}</h3>
+                    <p v-if="item.subtitle" class="premises-grid__card-subtitle--overlay">{{ item.subtitle }}</p>
+                  </div>
+                </div>
+
+                <!-- Контент под изображением -->
+                <div class="premises-grid__card-body">
+                  <p class="premises-grid__card-desc">{{ item.description }}</p>
+
+                  <div class="premises-grid__prices">
+                    <span class="premises-grid__price-main">{{ item.price }}</span>
+                    <span class="premises-grid__price-example" v-if="item.priceExample">{{ item.priceExample }}</span>
+                    
+                    <span class="premises-grid__card-link premises-grid__card-link--disabled" title="Страница в разработке">
+                      <Icon name="mdi:link-off" size="14" style="vertical-align: middle; margin-left: 4px;" />
+                      Страница в разработке
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </template>
           </div>
 
           <!-- Разделитель между категориями -->
@@ -131,7 +185,7 @@
 
       <!-- Кнопка "Показать ещё" -->
       <div v-if="canShowMore" class="premises-grid__footer">
-        <button class="premises-grid__btn-show-more" @click="showAll = true">Показать ещё</button>
+        <UiButtonsPrimary text="Показать ещё" variant="outline" @click="showAll = true" />
       </div>
     </div>
   </section>
@@ -143,7 +197,7 @@ import { ref, computed, watch, nextTick } from 'vue';
 const sectionRef = ref(null);
 const activeTab = ref('all');
 const showAll = ref(false);
-const viewMode = ref('list');
+const viewMode = ref('grid');
 const INITIAL_LIMIT = 3;
 
 const tabs = [
@@ -294,7 +348,7 @@ $services-text-secondary: $text-gray;
     border: 1px solid rgba($text-light, 0.2);
     color: rgba($text-light, 0.7);
     padding: 0.6rem 1.4rem;
-    border-radius: 50px;
+    border-radius: var(--border-radius, 6px);
     font-family: 'Rubik', sans-serif;
     font-weight: 500;
     font-size: 0.95rem;
@@ -323,7 +377,7 @@ $services-text-secondary: $text-gray;
     border: 1px solid rgba($text-light, 0.2);
     color: $text-light;
     padding: 0.6rem 1.4rem;
-    border-radius: 50px;
+    border-radius: var(--border-radius, 6px);
     font-family: 'Rubik', sans-serif;
     font-weight: 500;
     font-size: 0.9rem;
@@ -384,6 +438,8 @@ $services-text-secondary: $text-gray;
     transition: all 0.35s ease;
     opacity: 0;
     transform: translateX(-20px);
+    text-decoration: none;
+    color: inherit;
 
     &.item-visible {
       opacity: 1;
@@ -391,10 +447,15 @@ $services-text-secondary: $text-gray;
       transition: opacity 0.6s ease, transform 0.6s ease;
     }
 
-    &:hover {
+    &.is-clickable:hover {
       border-color: $blue;
       background: rgba(0, 195, 245, 0.06);
       box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+      cursor: pointer;
+    }
+
+    &.is-clickable:hover &__item-image img {
+      transform: scale(1.05);
     }
 
     @media (max-width: 900px) {
@@ -482,36 +543,30 @@ $services-text-secondary: $text-gray;
     color: rgba($text-light, 0.5);
   }
 
-  // === ССЫЛКА (Список) - Оригинальные стили + модификатор disabled ===
   &__item-link {
     color: $blue;
     font-weight: 500;
     font-size: 0.95rem;
     transition: color 0.3s ease;
-    text-decoration: none;
     white-space: nowrap;
     display: inline-flex;
     align-items: center;
     gap: 0.3rem;
 
-    &:hover { 
-      color: $blue-light; 
+    .is-clickable:hover & {
+      color: $blue-light;
     }
 
-    // Стили для состояния "В разработке"
     &--disabled {
       color: rgba($text-light, 0.4);
-      cursor: not-allowed;
-      pointer-events: none;
       font-weight: 400;
       
-      &:hover {
-        color: rgba($text-light, 0.4); // Фикс цвета при ховере
+      .is-clickable:hover & {
+        color: rgba($text-light, 0.4);
       }
     }
   }
 
-  // === Изображение в режиме списка ===
   &__item-image {
     flex-shrink: 0;
     width: 220px;
@@ -533,10 +588,6 @@ $services-text-secondary: $text-gray;
       border-bottom-left-radius: $border-radius;
       border-bottom-right-radius: $border-radius;
     }
-  }
-
-  &__item--list:hover &__item-image img {
-    transform: scale(1.05);
   }
 
   &__item-image img {
@@ -566,6 +617,8 @@ $services-text-secondary: $text-gray;
     opacity: 0;
     transform: translateY(20px);
     will-change: opacity, transform;
+    text-decoration: none;
+    color: inherit;
 
     &.item-visible {
       opacity: 1;
@@ -573,11 +626,16 @@ $services-text-secondary: $text-gray;
       transition: opacity 0.5s ease, transform 0.5s ease;
     }
 
-    &:hover {
+    &.is-clickable:hover {
       transform: translateY(-6px);
       box-shadow: 0 12px 25px rgba(0, 0, 0, 0.3);
       border-color: $blue;
       background: rgba(0, 195, 245, 0.06);
+      cursor: pointer;
+    }
+
+    &.is-clickable:hover &__img {
+      transform: scale(1.05);
     }
   }
 
@@ -594,10 +652,6 @@ $services-text-secondary: $text-gray;
     height: 100%;
     object-fit: cover;
     transition: transform 0.4s ease;
-  }
-
-  &__item--grid:hover &__img {
-    transform: scale(1.05);
   }
 
   &__card-overlay {
@@ -649,37 +703,31 @@ $services-text-secondary: $text-gray;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
   }
 
-  // === ССЫЛКА (Сетка) - Оригинальные стили + модификатор disabled ===
   &__card-link {
     color: $blue;
     font-weight: 500;
     font-size: 0.95rem;
     transition: color 0.3s ease;
-    text-decoration: none;
     align-self: flex-start;
     display: inline-flex;
     align-items: center;
     gap: 0.3rem;
+    margin-top: 1em;
     
-    &:hover { 
+    .is-clickable:hover & {
       color: $blue-light; 
     }
-    margin-top: 1em;
 
-    // Стили для состояния "В разработке"
     &--disabled {
       color: rgba($text-light, 0.4);
-      cursor: not-allowed;
-      pointer-events: none;
       font-weight: 400;
       
-      &:hover {
+      .is-clickable:hover & {
         color: rgba($text-light, 0.4);
       }
     }
   }
 
-  // === Разделитель ===
   &__divider {
     border: none;
     height: 1px;
@@ -687,33 +735,13 @@ $services-text-secondary: $text-gray;
     margin: 3rem 0 0;
   }
 
-  // === Кнопка "Показать ещё" ===
   &__footer {
     display: flex;
     justify-content: center;
     padding-top: 1rem;
   }
-
-  &__btn-show-more {
-    background: transparent;
-    border: 1px solid rgba($text-light, 0.3);
-    color: $text-light;
-    padding: 0.8rem 2rem;
-    border-radius: 50px;
-    font-family: 'Rubik', sans-serif;
-    font-weight: 500;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    &:hover {
-      border-color: $blue;
-      color: $blue-light;
-      box-shadow: 0 4px 15px rgba(0, 195, 245, 0.2);
-    }
-  }
 }
 
-// Адаптив
 @media (max-width: 768px) {
   .premises-grid {
     padding: 3rem 0;
