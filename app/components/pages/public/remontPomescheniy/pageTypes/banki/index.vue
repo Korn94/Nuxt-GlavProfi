@@ -307,7 +307,7 @@ const riskGroups: RiskGroup[] = [
 ]
 
 // === Проекты ===
-const projectSlugs = ['ddx']
+const projectSlugs = ['fora-bank']
 
 // === FAQ ===
 const faqItems: FAQItem[] = [

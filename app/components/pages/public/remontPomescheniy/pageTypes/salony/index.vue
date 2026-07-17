@@ -107,6 +107,14 @@
       />
     </section>
 
+    <section id="before-after" class="page-section">
+      <BeforeAfterGallery :slugs="projectSlugs" />
+    </section>
+
+    <section id="brands" class="page-section">
+      <PagesPublicHomePageBrands />
+    </section>
+
     <!-- ==================== БЛОК 6: ПРОЕКТЫ ==================== -->
     <section id="projects" class="page-section">
       <ProjectsShowcase
@@ -319,7 +327,7 @@ const riskGroups: RiskGroup[] = [
 ]
 
 // === Проекты ===
-const projectSlugs = ['salon-krasoty', 'barbershop']
+const projectSlugs = ['']
 
 // === FAQ ===
 const faqItems: FAQItem[] = [
