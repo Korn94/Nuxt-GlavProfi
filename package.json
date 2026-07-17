@@ -8,17 +8,14 @@
     "preview": "nuxt preview",
     "start": "node .output/server/index.mjs",
     "postinstall": "nuxt prepare",
-
     "migrate": "npx drizzle-kit --config=drizzle.config.ts migrate",
     "migrate:generate": "npx drizzle-kit --config=drizzle.config.ts generate",
     "migrate:push": "npx drizzle-kit --config=drizzle.config.ts push",
     "migrate:all": "npm run migrate:generate && npm run migrate",
-
     "seed": "tsx server/db/seed.ts",
     "seed:pages": "tsx server/db/seed.ts --pages",
     "seed:roles": "tsx server/db/seed.ts --roles",
     "seed:force": "FORCE_SEED=true tsx server/db/seed.ts",
-
     "db:setup": "npm run migrate && npm run seed",
     "db:reset-roles": "npm run seed:roles"
   },
@@ -57,12 +54,13 @@
     "@types/jsonwebtoken": "^9.0.9",
     "@types/node-telegram-bot-api": "^0.64.14",
     "@types/nodemailer": "^8.0.0",
+    "@typescript/native-preview": "^7.0.0-dev.20260707.2",
     "drizzle-kit": "^0.31.1",
     "drizzle-orm": "^0.44.4",
     "mysql2": "^3.14.1",
     "sass": "^1.83.0",
     "tsx": "^4.19.2",
-    "typescript": "^5.8.3",
+    "typescript": "^7.0.2",
     "vite-tsconfig-paths": "^6.0.5",
     "vue-tsc": "^3.0.6"
   },

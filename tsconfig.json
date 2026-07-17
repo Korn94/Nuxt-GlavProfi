@@ -10,8 +10,7 @@
   "exclude": ["node_modules", ".nuxt", "dist", ".git", ".output"],
   "compilerOptions": {
     "types": ["nuxt", "vite/client"],
-    "baseUrl": ".",
-    "ignoreDeprecations": "6.0", // игнорируем предеупреждении о том что baseUrl устаревает в TS 7.0
+    "baseUrl": "./",
     "paths": {
       "~/*": ["./app/*"],
       "@/*": ["./app/*"],

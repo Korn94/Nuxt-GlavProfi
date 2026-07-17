@@ -107,6 +107,10 @@
       />
     </section>
 
+    <section id="before-after" class="page-section">
+      <BeforeAfterGallery :slugs="projectSlugs" />
+    </section>
+
     <section id="brands" class="page-section">
       <PagesPublicHomePageBrands />
     </section>
@@ -153,6 +157,7 @@ import MiniEstimateForm from '../ui/MiniEstimateForm.vue'
 import RepairTypes from '../ui/RepairTypes.vue'
 import PriceFactors from '../ui/PriceFactors.vue'
 import RisksSection from '../ui/RisksSection.vue'
+import BeforeAfterGallery from '../ui/BeforeAfterGallery.vue'
 import ProjectsShowcase from '../ui/ProjectsShowcase.vue'
 import FAQBlock from '../ui/FAQBlock.vue'
 import ApplicationCTA from '../ui/ApplicationCTA.vue'
@@ -171,6 +176,7 @@ const navItems: StickyNavItem[] = [
   { id: 'repair-types', label: 'Варианты ремонта', icon: 'mdi:format-paint' },
   { id: 'calculator', label: 'Калькулятор сметы', icon: 'mdi:calculator' },
   { id: 'risks', label: 'Риски', icon: 'mdi:alert-circle-outline' },
+  { id: 'before-after', label: 'Фото до/после', icon: 'mdi:image-multiple-outline' },
   { id: 'projects', label: 'Проекты', icon: 'mdi:briefcase-outline' },
   { id: 'cta', label: 'Оставить заявку', icon: 'mdi:send-outline' },
   { id: 'faq', label: 'Вопросы', icon: 'mdi:help-circle-outline' },
