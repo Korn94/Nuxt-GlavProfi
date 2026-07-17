@@ -330,7 +330,7 @@ const riskGroups: RiskGroup[] = [
 ]
 
 // === Проекты ===
-const projectSlugs = ['']
+const projectSlugs = []
 
 // === FAQ ===
 const faqItems: FAQItem[] = [
