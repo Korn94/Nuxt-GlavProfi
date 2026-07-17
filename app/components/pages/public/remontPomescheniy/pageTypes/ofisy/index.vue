@@ -8,8 +8,8 @@
     >
       <template #background>
         <BeforeAfterSlider
-          before-image="/main/1.jpg"
-          after-image="/main/1-1.jpg"
+          before-image="/main/2.jpg"
+          after-image="/main/2-1.jpg"
           before-alt="Офис до ремонта"
           after-alt="Офис после ремонта"
           :dimming="true"

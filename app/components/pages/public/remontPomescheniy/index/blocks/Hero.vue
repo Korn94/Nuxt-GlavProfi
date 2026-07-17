@@ -335,7 +335,7 @@ const benefits = [
 
     &__benefit-card {
       padding: 1.25rem;
-      flex-direction: row;
+      flex-direction: column;
       align-items: center;
       gap: 1rem;
     }

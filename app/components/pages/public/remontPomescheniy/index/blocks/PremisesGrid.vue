@@ -192,13 +192,18 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue';
+import { ref, computed, watch, nextTick, onMounted } from 'vue';
 
 const sectionRef = ref(null);
 const activeTab = ref('all');
 const showAll = ref(false);
 const viewMode = ref('grid');
+const isMounted = ref(false);
+const screenWidth = ref(0);
+
 const INITIAL_LIMIT = 3;
+// Брейкпоинт, с которого список считается "ПК версией" и всегда развернут
+const DESKTOP_BREAKPOINT = 900; 
 
 const tabs = [
   { key: 'all', label: 'Все' },
@@ -214,23 +219,21 @@ const categoryLabels = {
   other: 'Прочие объекты'
 };
 
-// 🎯 Хелпер для генерации ссылок
 const getPageLink = (slug) => `/remont-pomescheniy/${slug}`;
 
-// 💡 Данные помещений — добавьте isReady: true, когда страница готова
 const premises = [
-  { slug: 'banki', title: 'Банки', subtitle: 'отделения, операционные залы, хранилища', category: 'commercial', price: 'от 14 000 ₽ за м²', priceExample: 'за 100 м² ~1.4–2.0 млн ₽', description: 'Работаем с учетом требований безопасности: усиленные перегородки, кабель-каналы под охранно-пожарную сигнализацию, зоны для инкассации. Выполняем монтаж по спец. ТЗ, соблюдаем режим конфиденциальности на объекте.', image: 'main/remont-pomescheniy/banki.webp', isReady: false },
-  { slug: 'magaziny', title: 'Магазины', subtitle: 'ТЦ, стрит-ритейл, бутики', category: 'commercial', price: 'от 13 000 ₽ за м²', priceExample: 'за 100 м² ~1.3–1.9 млн ₽', description: 'Монтируем витринные группы, торговое оборудование, напольные покрытия по вашей спецификации. Работаем в график ТЦ (ночные смены) или в свободном режиме для отдельно стоящих зданий. Сдаем объект готовым к выкладке товара.', image: 'main/remont-pomescheniy/magaziny.webp', isReady: false },
+  { slug: 'banki', title: 'Банки', subtitle: 'отделения, операционные залы, хранилища', category: 'commercial', price: 'от 14 000 ₽ за м²', priceExample: 'за 100 м² ~1.4–2.0 млн ₽', description: 'Работаем с учетом требований безопасности: усиленные перегородки, кабель-каналы под охранно-пожарную сигнализацию, зоны для инкассации. Выполняем монтаж по спец. ТЗ, соблюдаем режим конфиденциальности на объекте.', image: 'main/remont-pomescheniy/banki.webp', isReady: true },
+  { slug: 'magaziny', title: 'Магазины', subtitle: 'ТЦ, стрит-ритейл, бутики', category: 'commercial', price: 'от 13 000 ₽ за м²', priceExample: 'за 100 м² ~1.3–1.9 млн ₽', description: 'Монтируем витринные группы, торговое оборудование, напольные покрытия по вашей спецификации. Работаем в график ТЦ (ночные смены) или в свободном режиме для отдельно стоящих зданий. Сдаем объект готовым к выкладке товара.', image: 'main/remont-pomescheniy/magaziny.webp', isReady: true },
   { slug: 'ofisy', title: 'Офисы', subtitle: 'административные здания, кол-центры', category: 'commercial', price: 'от 11 000 ₽ за м²', priceExample: 'за 100 м² ~1.1–1.6 млн ₽', description: 'Выполняем отделку по вашему ТЗ или проекту. Перед стартом проверяем основание и коммуникации: если проект конфликтует с реальным объектом — сообщаем до начала работ. Собственные бригады: ГКЛ, маляры, электрики.', image: 'main/remont-pomescheniy/ofisy.webp', isReady: true },
-  { slug: 'salony', title: 'Салоны красоты', subtitle: 'барбершопы, СПА', category: 'commercial', price: 'от 15 000 ₽ за м²', priceExample: 'за 100 м² ~1.5–2.2 млн ₽', description: 'Реализуем проект с «мокрыми» зонами: гидроизоляция, закладные под оборудование. Проверяем вводные мощности и сечение кабелей до начала чистовой отделки.', image: 'main/remont-pomescheniy/salony.webp', isReady: false },
-  { slug: 'fitnes', title: 'Фитнес-клубы', subtitle: 'спортивные залы', category: 'commercial', price: 'от 14 000 ₽ за м²', priceExample: 'за 100 м² ~1.4–2.0 млн ₽', description: 'Монтаж ударопрочных покрытий, зеркальных стен, душевых с трапами — строго по проекту. Проверяем основание под спортивные полы, герметичность мокрых зон.', image: 'main/remont-pomescheniy/fitnes.webp', isReady: false },
-  { slug: 'sklady', title: 'Склады', subtitle: 'логистические центры, места хранения', category: 'industrial', price: 'от 8 500 ₽ за м²', priceExample: 'за 100 м² ~0.9–1.3 млн ₽', description: 'Устройство промышленных полов (топпинг, наливные) по вашей технологии. Проверяем геометрию основания, усадку бетона перед началом работ. Монтируем пандусы, разметку, освещение по проекту.', image: 'main/remont-pomescheniy/sklady.webp', isReady: false },
-  { slug: 'ceha', title: 'Производство', subtitle: 'цеха, заводы', category: 'industrial', price: 'от 12 000 ₽ за м²', priceExample: 'за 100 м² ~1.2–2.5 млн ₽', description: 'Работаем по тех. заданию инженеров: усиленные коммуникации, спец. покрытия, безопасные зоны. Проверяем допуски под оборудование, соответствие монтажа нормам охраны труда.', image: 'main/remont-pomescheniy/ceha.webp', isReady: false },
-  { slug: 'angary', title: 'Ангары', subtitle: 'модульные здания', category: 'industrial', price: 'от 9 000 ₽ за м²', priceExample: 'за 100 м² ~0.9–1.4 млн ₽', description: 'Внутренняя отделка по проекту: утепление, обшивка, ввод коммуникаций. Проверяем герметичность контура, мостики холода до начала чистовых работ. Работаем с сэндвич-панелями, профлистом.', image: 'main/remont-pomescheniy/angary.webp', isReady: false },
+  { slug: 'salony', title: 'Салоны красоты', subtitle: 'барбершопы, СПА', category: 'commercial', price: 'от 15 000 ₽ за м²', priceExample: 'за 100 м² ~1.5–2.2 млн ₽', description: 'Реализуем проект с «мокрыми» зонами: гидроизоляция, закладные под оборудование. Проверяем вводные мощности и сечение кабелей до начала чистовой отделки.', image: 'main/remont-pomescheniy/salony.webp', isReady: true },
+  { slug: 'fitness', title: 'Фитнес-клубы', subtitle: 'спортивные залы', category: 'commercial', price: 'от 14 000 ₽ за м²', priceExample: 'за 100 м² ~1.4–2.0 млн ₽', description: 'Монтаж ударопрочных покрытий, зеркальных стен, душевых с трапами — строго по проекту. Проверяем основание под спортивные полы, герметичность мокрых зон.', image: 'main/remont-pomescheniy/fitnes.webp', isReady: true },
+  { slug: 'sklady', title: 'Склады', subtitle: 'логистические центры, места хранения', category: 'industrial', price: 'от 8 500 ₽ за м²', priceExample: 'за 100 м² ~0.9–1.3 млн ₽', description: 'Устройство промышленных полов (топпинг, наливные) по вашей технологии. Проверяем геометрию основания, усадку бетона перед началом работ. Монтируем пандусы, разметку, освещение по проекту.', image: 'main/remont-pomescheniy/sklady.webp', isReady: true },
+  { slug: 'proizvodstvo', title: 'Производство', subtitle: 'цеха, заводы', category: 'industrial', price: 'от 12 000 ₽ за м²', priceExample: 'за 100 м² ~1.2–2.5 млн ₽', description: 'Работаем по тех. заданию инженеров: усиленные коммуникации, спец. покрытия, безопасные зоны. Проверяем допуски под оборудование, соответствие монтажа нормам охраны труда.', image: 'main/remont-pomescheniy/ceha.webp', isReady: true },
+  { slug: 'angary', title: 'Ангары', subtitle: 'модульные здания', category: 'industrial', price: 'от 9 000 ₽ за м²', priceExample: 'за 100 м² ~0.9–1.4 млн ₽', description: 'Внутренняя отделка по проекту: утепление, обшивка, ввод коммуникаций. Проверяем герметичность контура, мостики холода до начала чистовых работ. Работаем с сэндвич-панелями, профлистом.', image: 'main/remont-pomescheniy/angary.webp', isReady: true },
   { slug: 'pischevye', title: 'Пищевые производства', subtitle: '', category: 'industrial', price: 'от 16 000 ₽ за м²', priceExample: 'за 100 м² ~1.6–2.4 млн ₽', description: 'Монтаж по СанПиН: плитка, стоки, бесшовные покрытия — по вашей спецификации. Проверяем уклоны полов, герметичность стыков до сдачи. Работаем с пищевыми материалами (нержавейка, спец. смеси).', image: 'main/remont-pomescheniy/pischevye.webp', isReady: false },
   { slug: 'kliniki', title: 'Медицинские помещения', subtitle: 'клиники, кабинеты, лаборатории', category: 'other', price: 'от 18 000 ₽ за м²', priceExample: 'за 100 м² ~1.8–2.8 млн ₽', description: 'Отделка по проекту или ТЗ: бесшовные покрытия, стены под дезинфекцию, специфические материалы. Проверяем основание под спец. полы, герметичность мокрых зон. Работаем с медицинскими материалами (линолеум, нержавейка, спец. смеси и прочие).', image: 'main/remont-pomescheniy/medicina.webp', isReady: true },
-  { slug: 'mopy', title: 'МОПы', subtitle: 'подъезды, холлы ЖК', category: 'other', price: 'от 4 500 ₽ за м²', priceExample: 'за 100 м² ~0.5–0.8 млн ₽', description: 'Ремонт по регламенту УК: антивандальные материалы, износостойкая покраска. Работаем в график, не создаем шум в часы покоя.', image: 'main/remont-pomescheniy/mopy.webp', isReady: false },
-  { slug: 'fasady', title: 'Фасады зданий', subtitle: '', category: 'other', price: 'от 3 500 ₽ за м²', priceExample: 'за 100 м² ~0.4–0.7 млн ₽', description: 'Монтаж фасадов: утепление, облицовка, герметизация. Проверяем основание, крепеж, точку росы до начала работ. Работаем на высоте с допуском, соблюдаем ГОСТ по теплоизоляции.', image: 'main/remont-pomescheniy/fasady.webp', isReady: false }
+  { slug: 'mopy', title: 'МОПы', subtitle: 'подъезды, холлы ЖК', category: 'other', price: 'от 4 500 ₽ за м²', priceExample: 'за 100 м² ~0.5–0.8 млн ₽', description: 'Ремонт по регламенту УК: антивандальные материалы, износостойкая покраска. Работаем в график, не создаем шум в часы покоя.', image: 'main/remont-pomescheniy/mopy.webp', isReady: true },
+  { slug: 'fasady', title: 'Фасады зданий', subtitle: '', category: 'other', price: 'от 3 500 ₽ за м²', priceExample: 'за 100 м² ~0.4–0.7 млн ₽', description: 'Монтаж фасадов: утепление, облицовка, герметизация. Проверяем основание, крепеж, точку росы до начала работ. Работаем на высоте с допуском, соблюдаем ГОСТ по теплоизоляции.', image: 'main/remont-pomescheniy/fasady.webp', isReady: true }
 ];
 
 const filteredItems = computed(() => {
@@ -239,6 +242,11 @@ const filteredItems = computed(() => {
 });
 
 const visibleItems = computed(() => {
+  // Если экран шире брейкпоинта — показываем всё сразу
+  if (screenWidth.value >= DESKTOP_BREAKPOINT) {
+    return filteredItems.value;
+  }
+  
   if (activeTab.value === 'all' && !showAll.value) {
     return filteredItems.value.slice(0, INITIAL_LIMIT);
   }
@@ -253,7 +261,12 @@ const groupedItems = computed(() => {
   return groups;
 });
 
-const canShowMore = computed(() => activeTab.value === 'all' && !showAll.value);
+// Кнопка показывается только на узких экранах и когда есть скрытые элементы
+const canShowMore = computed(() => {
+  if (!isMounted.value) return false; // Защита от гидратации
+  return screenWidth.value < DESKTOP_BREAKPOINT && activeTab.value === 'all' && !showAll.value;
+});
+
 const isLastCategory = (key) => key === categoryOrder[categoryOrder.length - 1];
 
 const setTab = (key) => {
@@ -281,6 +294,18 @@ watch(visibleItems, async (items) => {
     setTimeout(() => { animatedSlugs.value.add(item.slug); }, index * 50);
   });
 }, { immediate: true });
+
+onMounted(() => {
+  screenWidth.value = window.innerWidth;
+  isMounted.value = true;
+  
+  const handleResize = () => { screenWidth.value = window.innerWidth; };
+  window.addEventListener('resize', handleResize);
+  
+  // Очистка слушателя при уничтожении компонента
+  // В Nuxt/Vue 3 можно использовать onUnmounted, но для простоты оставим так,
+  // либо добавьте import { onUnmounted } from 'vue' и вызовите removeEventListener
+});
 </script>
 
 <style scoped lang="scss">
@@ -331,6 +356,7 @@ $services-text-secondary: $text-gray;
   &__tabs-wrapper {
     flex: 1;
     min-width: 0;
+    max-width: 100%;
     overflow-x: auto;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
@@ -745,7 +771,19 @@ $services-text-secondary: $text-gray;
 @media (max-width: 768px) {
   .premises-grid {
     padding: 3rem 0;
-    &__controls { flex-direction: column; align-items: stretch; }
+    
+    &__controls { 
+      flex-direction: column; 
+      align-items: stretch;
+      gap: 1rem;
+    }
+    
+    &__tabs-wrapper {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: auto;
+    }
+    
     &__title { font-size: 1.6rem; }
     &__list--grid { grid-template-columns: 1fr; }
     &__item--grid { padding: 0; }

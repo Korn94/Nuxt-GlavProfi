@@ -123,19 +123,10 @@
         phone="+7 (910) 909-69-47"
         telegram="@glavprofii"
         max="https://max.ru/u/f9LHodD0cOLfbBSpAeCwHBcJ83SJtKVj9mVKY7K8OLd6OwYB0gH6g3XE_Cs"
-        source-label="Ремонт клиник в Рязани — CTA"
-        subject-title="Заявка на смету ремонта клиники"
-      >
-        <!-- Переопределяем форму: добавляем поле "Профиль клиники" -->
-        <template #form="{ form, errors, status }">
-          <KlinikiCtaForm
-            :parent-form="form"
-            :parent-errors="errors"
-            :parent-status="status"
-            submit-url="/api/leads"
-          />
-        </template>
-      </ApplicationCTA>
+        id-prefix="kliniki-cta"
+        :custom-fields="customFields"
+        :message-config="messageConfig"
+      />
     </section>
 
     <!-- ==================== БЛОК 7: FAQ ==================== -->
@@ -163,9 +154,6 @@ import FAQBlock from '../ui/FAQBlock.vue'
 import ApplicationCTA from '../ui/ApplicationCTA.vue'
 import Breadcrumbs from '../ui/Breadcrumbs.vue'
 import NavBreadcrumbsRow from '../ui/NavBreadcrumbsRow.vue'
-
-// === Локальный компонент страницы клиник ===
-import KlinikiCtaForm from './CtaForm.vue'
 
 // === Типы данных ===
 import type { RepairVariant } from '../ui/RepairTypes.vue'
@@ -358,6 +346,28 @@ const faqItems: FAQItem[] = [
     answer: 'Да. Можем выполнить ремонт одного кабинета или группы помещений в действующей клинике: с защитой, инженерией под конкретное оборудование и сдачей под ключ. Это частый запрос при расширении или переоборудовании.',
   },
 ]
+
+const customFields = [
+  {
+    name: 'clinicProfile',
+    label: 'Профиль клиники',
+    type: 'tiles' as const,
+    options: [
+      { value: 'stomatology', label: 'Стоматология', icon: 'mdi:tooth-outline' },
+      { value: 'multidisciplinary', label: 'Многопрофильная', icon: 'mdi:hospital-building' },
+      { value: 'cosmetology', label: 'Косметология', icon: 'mdi:face-woman-shimmer' },
+      { value: 'laboratory', label: 'Лаборатория', icon: 'mdi:test-tube' },
+      { value: 'other', label: 'Другое', icon: 'mdi:dots-horizontal' },
+    ],
+  },
+]
+
+const messageConfig = {
+  emoji: '🏥',
+  title: 'Заявка на ремонт клиники',
+  sourceLabel: 'Ремонт клиник в Рязани — CTA',
+  fieldLabels: { clinicProfile: 'Профиль клиники' },
+}
 
 // === Аналитика ===
 const onMiniFormSubmit = (data: unknown) => {
