@@ -3,7 +3,7 @@
   <section class="before-after-gallery">
     <div class="container">
       <header class="before-after-gallery__header">
-        <h2 class="before-after-gallery__title">Фото банков <span>до и после</span> ремонта</h2>
+        <h2 class="before-after-gallery__title" v-html="title" />
       </header>
 
       <!-- Состояния загрузки / ошибки / пусто -->
@@ -70,6 +70,17 @@
           </div>
         </div>
       </template>
+
+      <!-- Футер с кнопкой -->
+      <div
+        v-if="!loading && !error && (beforeImages.length > 0 || afterImages.length > 0)"
+        class="before-after-gallery__footer"
+      >
+        <NuxtLink :to="footerLink" class="before-after-gallery__footer-link">
+          <span>{{ footerLabel }}</span>
+          <Icon name="mdi:arrow-right" size="20" />
+        </NuxtLink>
+      </div>
     </div>
 
     <!-- Lightbox -->
@@ -126,9 +137,15 @@ const props = withDefaults(
     slugs?: string[]
     /** URL API для загрузки */
     fetchUrl?: string
+    /** Заголовок секции */
+    title?: string
+    /** Ссылка на страницу со всеми проектами */
+    allProjectsLink?: string
   }>(),
   {
+    title: 'Фото <span>до и после</span> ремонта',
     fetchUrl: '/api/portfolio',
+    allProjectsLink: '/projects',
   }
 )
 
@@ -185,6 +202,25 @@ const allImagesForLightbox = computed(() => [
   ...afterImages.value.map((img) => ({ ...img, type: 'after' as const })),
   ...beforeImages.value.map((img) => ({ ...img, type: 'before' as const })),
 ])
+
+// ---- Футер ----
+const validSlugs = computed<string[]>(() => {
+  return (props.slugs || []).filter((s) => s && s.trim() !== '')
+})
+
+const footerLink = computed(() => {
+  if (validSlugs.value.length === 1) {
+    return `/projects/${validSlugs.value[0]}`
+  }
+  return props.allProjectsLink
+})
+
+const footerLabel = computed(() => {
+  if (validSlugs.value.length === 1) {
+    return 'Смотреть проект'
+  }
+  return 'Смотреть все проекты'
+})
 
 // ---- Lightbox ----
 const lightboxVisible = ref(false)
@@ -410,6 +446,39 @@ onUnmounted(() => {
 
     @media (max-width: 576px) {
       grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  // === Футер ===
+  &__footer {
+    margin-top: 2.5rem;
+    display: flex;
+    justify-content: center;
+  }
+
+  &__footer-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.9rem 2rem;
+    background: $blue-gradient;
+    color: $background-dark;
+    font-family: 'Rubik', sans-serif;
+    font-weight: 600;
+    font-size: 1rem;
+    border-radius: 6px;
+    text-decoration: none;
+    box-shadow: 0 6px 20px rgba(0, 195, 245, 0.3);
+    transition: all 0.3s ease;
+
+    &:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 28px rgba(0, 195, 245, 0.45);
+      color: $background-dark;
+    }
+
+    &:active {
+      transform: translateY(-1px);
     }
   }
 

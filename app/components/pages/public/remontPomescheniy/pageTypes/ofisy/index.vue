@@ -108,7 +108,10 @@
     </section>
 
     <section id="before-after" class="page-section">
-      <BeforeAfterGallery :slugs="projectSlugs" />
+      <BeforeAfterGallery
+        :slugs="projectSlugs"
+        title="Фото <span>до и после</span> ремонта"
+      />
     </section>
 
     <section id="brands" class="page-section">
