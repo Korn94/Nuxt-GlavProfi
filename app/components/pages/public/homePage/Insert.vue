@@ -1,5 +1,6 @@
 <template>
   <div class="box">
+    <h2 class="visually-hidden">Наши работы</h2>
     <p>Все обещают качественно и в срок?</p>
     <UiAnimationsBlockAnimator offset="-50%" class="text"><p><span>Мы это делаем</span></p></UiAnimationsBlockAnimator>
     <UiAnimationsBlockAnimator offset="-65%" class="text arrow"><p>посмотрите объекты которые реализовали</p></UiAnimationsBlockAnimator>

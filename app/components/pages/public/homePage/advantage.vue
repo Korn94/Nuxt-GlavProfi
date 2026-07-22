@@ -1,5 +1,6 @@
 <template>
   <section class="benefits-section">
+    <h2 class="visually-hidden">Наши преимущества</h2>
     <div class="container">
       <div class="benefit-item" v-for="(benefit, index) in benefits" :key="index" :style="{ '--delay': index * 0.1 + 's' }">
         <div class="icon-wrapper">

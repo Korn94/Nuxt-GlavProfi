@@ -1,6 +1,7 @@
 <!-- app\components\pages\public\homePage\CallRevers.vue -->
 <template>
   <div class="container">
+    <h2 class="visually-hidden">Заказать обратный звонок</h2>
     <div class="content">
       <div class="textbox">
         <p class="title">

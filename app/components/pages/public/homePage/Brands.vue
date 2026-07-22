@@ -1,5 +1,6 @@
 <template>
   <div class="container">
+    <h2 class="visually-hidden">Наши проекты и бренды</h2>
     <div class="content">
       <p class="title">За <span>11 лет</span> выполнено<br> более <span>250+</span> проектов по<br> ремонту <span>коммерческих</span> объектов</p>
       <p class="brands">Среди них — помещения известных и премиальных брендов.</p>

@@ -1,5 +1,6 @@
 <template>
   <div class="container">
+    <h2 class="visually-hidden">Обсудить проект</h2>
     <div class="content">
       <div class="textbox">
         <p class="title">

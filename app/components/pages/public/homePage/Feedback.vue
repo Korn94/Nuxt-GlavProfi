@@ -1,5 +1,6 @@
 <template>
   <div class="container">
+    <h2 class="visually-hidden">Отзывы о компании ГлавПрофи</h2>
     <div class="feedback">
       <iframe class="feedback-iframe" src="https://yandex.ru/maps-reviews-widget/187227784297?comments"></iframe>
       <a class="feedback-link" href="https://yandex.ru/maps/org/glavprofi/187227784297/" target="_blank">ГлавПрофи на карте Рязани — Яндекс Карты</a>

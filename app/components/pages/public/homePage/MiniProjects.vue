@@ -1,7 +1,7 @@
 <!-- app\components\pages\public\homePage\MiniProjects.vue -->
 <template>
   <div class="featured-projects">
-    <!-- <h2 class="featured-title">Лучшие проекты</h2> -->
+    <h2 class="visually-hidden">Наши проекты</h2>
 
     <div class="featured-grid">
       <router-link

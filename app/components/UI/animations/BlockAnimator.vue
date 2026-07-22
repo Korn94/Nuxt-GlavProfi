@@ -1,7 +1,7 @@
 <!-- components/elements/BlockAnimator.vue -->
 <template>
-  <div 
-    :class="{'animate__animated': isVisible, 'animate__fadeIn': isVisible, 'invisible': !isVisible}" 
+  <div
+    :class="{ 'animate__animated': isVisible, 'animate__fadeIn': isVisible, 'before-enter': !isVisible }"
     ref="element"
   >
     <slot></slot>
@@ -11,11 +11,10 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 
-// Добавляем props с дефолтным значением
 const props = defineProps({
   offset: {
     type: String,
-    default: '-30%' // Стандартное значение rootMargin
+    default: '-30%'
   }
 });
 
@@ -32,7 +31,6 @@ onMounted(() => {
       });
     };
 
-    // Используем переданный offset или стандартное значение
     const observer = new IntersectionObserver(callback, {
       threshold: 0.1,
       rootMargin: `0px 0px ${props.offset} 0px`,
@@ -48,17 +46,20 @@ onMounted(() => {
       }
     });
   } else {
-    // Если IntersectionObserver недоступен, сразу показываем элементы
     isVisible.value = true;
   }
 });
 </script>
 
 <style scoped>
-.animate__animated {
-  visibility: visible !important;
+/* Начальное состояние — прозрачно, но занимает место (не visibility: hidden) */
+.before-enter {
+  opacity: 0;
+  /* Не анимируем при SSR — на сервере opacity не применяется,
+     а на клиенте плавно проявится, когда попадёт в viewport */
 }
-.invisible {
-  visibility: hidden;
+
+.animate__animated {
+  opacity: 1;
 }
 </style>

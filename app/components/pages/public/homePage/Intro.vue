@@ -1,5 +1,6 @@
 <template>
   <div class="intro">
+    <h2 class="visually-hidden">О компании ГлавПрофи</h2>
     <div class="content">
       <div class="text">
         <h4>О нас</h4>

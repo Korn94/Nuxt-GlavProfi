@@ -11,11 +11,10 @@
         muted
         loop
         playsinline
-        preload="auto"
+        preload="none"
+        poster="/main/video/main-poster.jpg"
       >
         <source :src="videoSrc" type="video/mp4" />
-        <!-- Можно добавить резервный формат, например WebM -->
-        <!-- <source :src="videoSrc.replace('.mp4', '.webm')" type="video/webm" /> -->
         Ваш браузер не поддерживает видео.
       </video>
     </div>
@@ -61,52 +60,59 @@ export default {
   setup() {
     const isDesktop = ref(false);
     const showModal = ref(false);
-    const videoRef = ref(null); // Ссылка на видео для ручного управления
+    const videoRef = ref(null);
+    const shouldLoadVideo = ref(false);
 
-    // Определяем, какое видео использовать
+    // На мобильных видео не показываем — только poster
     const videoSrc = computed(() => {
       return isDesktop.value
         ? '/main/video/main-pk.mp4'
-        : '/main/video/main-pk.mp4';
-        // : '/main/video/main-mobile.mp4';
+        : null;
     });
 
-    // Открытие модального окна
     const openModal = () => {
       showModal.value = true;
     };
 
-    // Закрытие модального окна
     const closeModal = () => {
       showModal.value = false;
     };
 
-    // Обработка отправки формы
     const handleFormSubmitted = (formData) => {
       console.log('Форма отправлена:', formData);
       closeModal();
     };
 
-    // Проверка размера экрана
     const checkScreenSize = () => {
       isDesktop.value = window.innerWidth > 768;
     };
 
     onMounted(() => {
-      checkScreenSize(); // Определяем устройство при загрузке
+      checkScreenSize();
       window.addEventListener('resize', checkScreenSize);
+
+      // Lazy-load видео только на desktop: начинаем загрузку, когда секция попадает в viewport
+      if (isDesktop.value && videoRef.value) {
+        const observer = new IntersectionObserver(
+          ([entry]) => {
+            if (entry.isIntersecting) {
+              shouldLoadVideo.value = true;
+              const videoEl = videoRef.value;
+              if (videoEl) {
+                videoEl.preload = 'auto';
+                videoEl.load();
+              }
+              observer.disconnect();
+            }
+          },
+          { rootMargin: '200px' }
+        );
+        observer.observe(videoRef.value);
+      }
     });
 
     onBeforeUnmount(() => {
       window.removeEventListener('resize', checkScreenSize);
-    });
-
-    // При смене видео — перезагружаем элемент, чтобы браузер подтянул новый src
-    watch(videoSrc, () => {
-      const videoEl = videoRef.value;
-      if (videoEl) {
-        videoEl.load(); // Перезагружает видео с новым источником
-      }
     });
 
     return {

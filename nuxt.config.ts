@@ -55,7 +55,7 @@ export default defineNuxtConfig({
   // Глобальные стили
   css: [
     './app/assets/styles/index.scss', // Основные стили
-    './node_modules/animate.css/animate.min.css', // Анимации
+    './app/assets/styles/animations-custom.scss', // Кастомные анимации (вместо animate.css)
   ],
 
   vite: {
@@ -140,7 +140,6 @@ export default defineNuxtConfig({
     routes: [
       '/',
       '/about',
-      // '/services',
       '/contacts',
       // Кейсы
       '/projects',
@@ -155,6 +154,18 @@ export default defineNuxtConfig({
       '/prices/otdelochnye-raboty',
       '/prices/plumbing',
       '/prices/electricity',
+      // Типы помещений
+      '/remont-pomescheniy/ofisy',
+      '/remont-pomescheniy/magaziny',
+      '/remont-pomescheniy/sklady',
+      '/remont-pomescheniy/angary',
+      '/remont-pomescheniy/kliniki',
+      '/remont-pomescheniy/fasady',
+      '/remont-pomescheniy/fitness',
+      '/remont-pomescheniy/proizvodstvo',
+      '/remont-pomescheniy/salony',
+      '/remont-pomescheniy/mopy',
+      '/remont-pomescheniy/banki',
     ],
   },
   
@@ -231,6 +242,7 @@ export default defineNuxtConfig({
   // Настройка плагинов
   plugins: [
     '~/plugins/yandexMetrica.js', // Подключение Яндекс.Метрики
+    '~/plugins/analytics.client.ts', // Ленивая загрузка Google Analytics
     '~/plugins/telegram.client.ts',
     '~/plugins/socket.client.ts',
     '~/plugins/buffer.client.ts',
