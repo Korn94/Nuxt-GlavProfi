@@ -301,6 +301,10 @@ onUnmounted(() => {
 <style lang="scss" scoped>
 @use '@/assets/styles/variables' as *;
 
+span {
+  color: unset;
+}
+
 .before-after-gallery {
   padding: 5rem 0;
   background: $background-light;

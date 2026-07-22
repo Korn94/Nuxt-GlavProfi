@@ -12,7 +12,7 @@
         loop
         playsinline
         preload="none"
-        poster="/main/video/main-poster.jpg"
+        poster="/main/video/main-poster.webp"
       >
         <source :src="videoSrc" type="video/mp4" />
         Ваш браузер не поддерживает видео.
