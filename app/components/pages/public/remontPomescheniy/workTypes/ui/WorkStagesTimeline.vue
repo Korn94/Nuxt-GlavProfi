@@ -56,6 +56,10 @@ defineProps<{
 <style lang="scss" scoped>
 @use '@/assets/styles/variables' as *;
 
+span {
+  color: unset;
+}
+
 .work-stages {
   padding: 5rem 0;
   background: $background-dark;
@@ -113,7 +117,7 @@ defineProps<{
   &::before {
     content: '';
     position: absolute;
-    left: 24px;
+    left: -10px;
     top: 0;
     bottom: 0;
     width: 2px;
@@ -136,7 +140,7 @@ defineProps<{
   height: 50px;
   background: rgba(0, 195, 245, 0.12);
   border: 2px solid $blue;
-  border-radius: 50%;
+  border-radius: $border-radius;
   display: flex;
   flex-direction: column;
   align-items: center;
