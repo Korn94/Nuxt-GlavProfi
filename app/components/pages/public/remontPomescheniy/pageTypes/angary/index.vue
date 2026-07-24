@@ -155,25 +155,25 @@
 
 <script setup lang="ts">
 // === UI-компоненты pageTypes ===
-import PageHero from '../ui/PageHero.vue'
-import StickyNav from '../ui/StickyNav.vue'
-import BeforeAfterSlider from '../ui/BeforeAfterSlider.vue'
-import MiniEstimateForm from '../ui/MiniEstimateForm.vue'
+import PageHero from '../../ui/PageHero.vue'
+import StickyNav from '../../ui/StickyNav.vue'
+import BeforeAfterSlider from '../../ui/BeforeAfterSlider.vue'
+import MiniEstimateForm from '../../ui/MiniEstimateForm.vue'
 import RepairTypes from '../ui/RepairTypes.vue'
-import PriceFactors from '../ui/PriceFactors.vue'
+import PriceFactors from '../../ui/PriceFactors.vue'
 import RisksSection from '../ui/RisksSection.vue'
 import ProjectsShowcase from '../ui/ProjectsShowcase.vue'
-import FAQBlock from '../ui/FAQBlock.vue'
-import ApplicationCTA from '../ui/ApplicationCTA.vue'
-import Breadcrumbs from '../ui/Breadcrumbs.vue'
-import NavBreadcrumbsRow from '../ui/NavBreadcrumbsRow.vue'
+import FAQBlock from '../../ui/FAQBlock.vue'
+import ApplicationCTA from '../../ui/ApplicationCTA.vue'
+import Breadcrumbs from '../../ui/Breadcrumbs.vue'
+import NavBreadcrumbsRow from '../../ui/NavBreadcrumbsRow.vue'
 
 // === Типы данных ===
 import type { RepairVariant } from '../ui/RepairTypes.vue'
-import type { PriceFactor } from '../ui/PriceFactors.vue'
+import type { PriceFactor } from '../../ui/PriceFactors.vue'
 import type { RiskGroup } from '../ui/RisksSection.vue'
-import type { FAQItem } from '../ui/FAQBlock.vue'
-import type { StickyNavItem } from '../ui/StickyNav.vue'
+import type { FAQItem } from '../../ui/FAQBlock.vue'
+import type { StickyNavItem } from '../../ui/StickyNav.vue'
 
 // === Навигация ===
 const navItems: StickyNavItem[] = [

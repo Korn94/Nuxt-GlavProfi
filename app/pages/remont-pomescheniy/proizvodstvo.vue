@@ -27,7 +27,7 @@
 
 <script setup lang="ts">
 import ProizvodstvoPage from '~/components/pages/public/remontPomescheniy/pageTypes/proizvodstvo/index.vue'
-import { usePageSeo } from '~/components/pages/public/remontPomescheniy/pageTypes/composables/usePageSeo'
+import { usePageSeo } from '~/components/pages/public/remontPomescheniy/composables/usePageSeo'
 
 usePageSeo({
   type: 'proizvodstvo',

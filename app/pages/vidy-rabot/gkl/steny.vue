@@ -8,7 +8,7 @@
 
 <script setup lang="ts">
 import GklStenyPage from '~/components/pages/public/remontPomescheniy/workTypes/gkl/steny.vue'
-import { useWorkTypeSeo } from '~/components/pages/public/remontPomescheniy/workTypes/composables/useWorkTypeSeo'
+import { useWorkTypeSeo } from '~/components/pages/public/remontPomescheniy/composables/useWorkTypeSeo'
 
 // === SEO для страницы вида работ ===
 useWorkTypeSeo({

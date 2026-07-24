@@ -27,7 +27,7 @@
 
 <script setup lang="ts">
 import FasadyPage from '~/components/pages/public/remontPomescheniy/pageTypes/fasady/index.vue'
-import { usePageSeo } from '~/components/pages/public/remontPomescheniy/pageTypes/composables/usePageSeo'
+import { usePageSeo } from '~/components/pages/public/remontPomescheniy/composables/usePageSeo'
 
 usePageSeo({
   type: 'fasady',

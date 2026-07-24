@@ -27,7 +27,7 @@
 
 <script setup lang="ts">
 import FitnessPage from '~/components/pages/public/remontPomescheniy/pageTypes/fitness/index.vue'
-import { usePageSeo } from '~/components/pages/public/remontPomescheniy/pageTypes/composables/usePageSeo'
+import { usePageSeo } from '~/components/pages/public/remontPomescheniy/composables/usePageSeo'
 
 usePageSeo({
   type: 'fitness',

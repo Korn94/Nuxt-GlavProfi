@@ -202,17 +202,17 @@ import WorkStagesTimeline from '../ui/WorkStagesTimeline.vue'
 import GuaranteesGrid from '../ui/GuaranteesGrid.vue'
 import CrossSalesBlock from '../ui/CrossSalesBlock.vue'
 
-// === UI-компоненты: общие для всех страниц (из pageTypes) ===
-import PageHero from '../../pageTypes/ui/PageHero.vue'
-import StickyNav from '../../pageTypes/ui/StickyNav.vue'
-import Breadcrumbs from '../../pageTypes/ui/Breadcrumbs.vue'
-import NavBreadcrumbsRow from '../../pageTypes/ui/NavBreadcrumbsRow.vue'
-import MiniEstimateForm from '../../pageTypes/ui/MiniEstimateForm.vue'
-import BeforeAfterSlider from '../../pageTypes/ui/BeforeAfterSlider.vue'
-import BeforeAfterGallery from '../../pageTypes/ui/BeforeAfterGallery.vue'
-import PriceFactors from '../../pageTypes/ui/PriceFactors.vue'
-import FAQBlock from '../../pageTypes/ui/FAQBlock.vue'
-import ApplicationCTA from '../../pageTypes/ui/ApplicationCTA.vue'
+// === UI-компоненты: общие для всех страниц (из ui/) ===
+import PageHero from '../../ui/PageHero.vue'
+import StickyNav from '../../ui/StickyNav.vue'
+import Breadcrumbs from '../../ui/Breadcrumbs.vue'
+import NavBreadcrumbsRow from '../../ui/NavBreadcrumbsRow.vue'
+import MiniEstimateForm from '../../ui/MiniEstimateForm.vue'
+import BeforeAfterSlider from '../../ui/BeforeAfterSlider.vue'
+import BeforeAfterGallery from '../../ui/BeforeAfterGallery.vue'
+import PriceFactors from '../../ui/PriceFactors.vue'
+import FAQBlock from '../../ui/FAQBlock.vue'
+import ApplicationCTA from '../../ui/ApplicationCTA.vue'
 
 // === Типы ===
 import type { ServiceNavItem } from '../ui/ServiceNavigation.vue'
@@ -220,9 +220,9 @@ import type { CalculatorTab } from '../ui/PriceCalculatorTabs.vue'
 import type { WorkStage } from '../ui/WorkStagesTimeline.vue'
 import type { GuaranteeItem } from '../ui/GuaranteesGrid.vue'
 import type { CrossSalesItem } from '../ui/CrossSalesBlock.vue'
-import type { PriceFactor } from '../../pageTypes/ui/PriceFactors.vue'
-import type { FAQItem } from '../../pageTypes/ui/FAQBlock.vue'
-import type { StickyNavItem } from '../../pageTypes/ui/StickyNav.vue'
+import type { PriceFactor } from '../../ui/PriceFactors.vue'
+import type { FAQItem } from '../../ui/FAQBlock.vue'
+import type { StickyNavItem } from '../../ui/StickyNav.vue'
 
 // === SEO (переопределяется на уровне роутинг-страницы) ===
 // См. app/pages/vidy-rabot/gkl/steny.vue

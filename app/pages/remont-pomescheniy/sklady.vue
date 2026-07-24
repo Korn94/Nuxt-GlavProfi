@@ -27,7 +27,7 @@
 
 <script setup lang="ts">
 import SkladyPage from '~/components/pages/public/remontPomescheniy/pageTypes/sklady/index.vue'
-import { usePageSeo } from '~/components/pages/public/remontPomescheniy/pageTypes/composables/usePageSeo'
+import { usePageSeo } from '~/components/pages/public/remontPomescheniy/composables/usePageSeo'
 
 usePageSeo({
   type: 'sklady',

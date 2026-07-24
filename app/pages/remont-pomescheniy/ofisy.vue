@@ -6,7 +6,7 @@
 <script setup lang="ts">
 // Explicit import вместо auto-import
 import OfisyPage from '~/components/pages/public/remontPomescheniy/pageTypes/ofisy/index.vue'
-import { usePageSeo } from '~/components/pages/public/remontPomescheniy/pageTypes/composables/usePageSeo'
+import { usePageSeo } from '~/components/pages/public/remontPomescheniy/composables/usePageSeo'
 
 // === SEO: мета-теги + JSON-LD Schema.org ===
 usePageSeo({
