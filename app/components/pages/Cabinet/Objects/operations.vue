@@ -31,6 +31,49 @@
       </div>
     </div>
 
+    <!-- Фильтр по периоду -->
+    <div class="ops-filters">
+      <input type="date" class="filter-input" v-model="startDate" :max="endDate || ''" @change="fetchOperations" />
+      <span class="filter-sep">—</span>
+      <input type="date" class="filter-input" v-model="endDate" :min="startDate || ''" @change="fetchOperations" />
+      <button class="crm-btn crm-btn--ghost crm-btn--xs" @click="clearDateFilter" title="Сбросить период">
+        <Icon name="mdi:close" size="13" />
+      </button>
+    </div>
+
+    <!-- Сводка за период -->
+    <div v-if="startDate" class="ops-period-summary">
+      <div class="summary-card summary-card--period-income">
+        <div class="summary-card__icon">
+          <Icon name="mdi:arrow-bottom-left" size="16" />
+        </div>
+        <div class="summary-card__info">
+          <span class="summary-card__label">Приходы за период</span>
+          <span class="summary-card__value pos">{{ formatAmount(periodComingsTotal) }} ₽</span>
+        </div>
+      </div>
+      <div class="summary-card summary-card--period-expense">
+        <div class="summary-card__icon">
+          <Icon name="mdi:arrow-top-right" size="16" />
+        </div>
+        <div class="summary-card__info">
+          <span class="summary-card__label">Расходы за период</span>
+          <span class="summary-card__value neg">{{ formatAmount(periodWorksTotal) }} ₽</span>
+        </div>
+      </div>
+      <div class="summary-card summary-card--period-total">
+        <div class="summary-card__icon">
+          <Icon name="mdi:scale-balance" size="16" />
+        </div>
+        <div class="summary-card__info">
+          <span class="summary-card__label">Баланс за период</span>
+          <span class="summary-card__value" :class="periodBalance >= 0 ? 'pos' : 'neg'">
+            {{ formatAmount(periodBalance) }} ₽
+          </span>
+        </div>
+      </div>
+    </div>
+
     <!-- Кнопки добавления -->
     <div class="ops-actions">
       <button class="crm-btn crm-btn--income" @click="openComingModal">
@@ -50,10 +93,10 @@
           <Icon name="mdi:arrow-bottom-left" size="16" class="ops-section__icon ops-section__icon--income" />
           Приходы
         </div>
-        <span class="ops-section__count">{{ comings.length }}</span>
+        <span class="ops-section__count">{{ filteredComings.length }}</span>
       </div>
 
-      <div v-if="!comings.length" class="ops-empty">
+      <div v-if="!filteredComings.length" class="ops-empty">
         <Icon name="mdi:cash-plus" size="24" />
         <span>Нет приходов</span>
       </div>
@@ -68,7 +111,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(c, idx) in sortByDateDesc(comings)" :key="c.id" :class="{ 'tr--alt': idx % 2 === 1 }">
+            <tr v-for="(c, idx) in sortByDateDesc(filteredComings)" :key="c.id" :class="{ 'tr--alt': idx % 2 === 1 }">
               <td class="td--date">{{ formatDate(c.operationDate) }}</td>
               <td class="td--amount pos">+{{ formatAmount(c.amount) }} ₽</td>
               <td class="td--comment">{{ c.comment || '—' }}</td>
@@ -85,13 +128,13 @@
           <Icon name="mdi:hammer" size="16" class="ops-section__icon ops-section__icon--work" />
           Работы
         </div>
-        <span class="ops-section__count">{{ works.length }}</span>
+        <span class="ops-section__count">{{ filteredWorks.length }}</span>
         <button class="crm-btn crm-btn--ghost crm-btn--xs" @click="fetchOperations">
           <Icon name="mdi:refresh" size="13" />
         </button>
       </div>
 
-      <div v-if="!works.length" class="ops-empty">
+      <div v-if="!filteredWorks.length" class="ops-empty">
         <Icon name="mdi:briefcase-outline" size="24" />
         <span>Нет работ</span>
       </div>
@@ -112,7 +155,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(w, idx) in sortByDateDesc(works)" :key="w.id"
+            <tr v-for="(w, idx) in sortByDateDesc(filteredWorks)" :key="w.id"
               :class="['ops-work-row', { 'tr--alt': idx % 2 === 1, 'ops-work-row--paid': w.paid }]">
               <td class="td--date">{{ formatDate(w.operationDate) }}</td>
               <td class="td--amount">
@@ -298,6 +341,10 @@ const works = ref < any[] > ([])
 const contractors = ref < any[] > ([])
 const foremans = ref < any[] > ([])
 
+// ── Фильтр по периоду ────────────────────────────────────────────────
+const startDate = ref('')
+const endDate = ref('')
+
 // ── Модалки ──────────────────────────────────────────────────────────
 const isComingModalOpen = ref(false)
 const isWorkModalOpen = ref(false)
@@ -354,6 +401,36 @@ const isWorkValid = computed(() =>
   newWork.value.contractorId !== null &&
   newWork.value.workType !== ''
 )
+
+// ── Фильтрация по периоду ────────────────────────────────────────────
+const filteredComings = computed(() => {
+  let list = [...comings.value]
+  if (startDate.value) list = list.filter(c => new Date(c.operationDate) >= new Date(startDate.value))
+  if (endDate.value) list = list.filter(c => new Date(c.operationDate) <= new Date(endDate.value))
+  return list
+})
+
+const filteredWorks = computed(() => {
+  let list = [...works.value]
+  if (startDate.value) list = list.filter(w => new Date(w.operationDate) >= new Date(startDate.value))
+  if (endDate.value) list = list.filter(w => new Date(w.operationDate) <= new Date(endDate.value))
+  return list
+})
+
+// Сводка за период
+const periodComingsTotal = computed(() =>
+  filteredComings.value.reduce((s, c) => s + Number(c.amount), 0)
+)
+const periodWorksTotal = computed(() =>
+  filteredWorks.value.reduce((s, w) => s + Number(w.workerAmount || w.amount || 0), 0)
+)
+const periodBalance = computed(() => periodComingsTotal.value - periodWorksTotal.value)
+
+function clearDateFilter() {
+  startDate.value = ''
+  endDate.value = ''
+  fetchOperations()
+}
 
 // ── Форматирование суммы ─────────────────────────────────────────────
 function formatAmount(v: any) {
@@ -667,6 +744,72 @@ onMounted(async () => {
     background: var(--crm-warning-dim);
     color: var(--crm-warning);
   }
+}
+
+// ── Фильтр по периоду ────────────────────────────────────────────────
+.ops-filters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filter-input {
+  background: var(--crm-bg-elevated);
+  border: 1px solid var(--crm-border-hover);
+  border-radius: var(--crm-radius-md);
+  color: var(--crm-text-primary);
+  font-size: var(--crm-text-sm);
+  font-family: var(--crm-font-sans);
+  padding: 5px 10px;
+  outline: none;
+  transition: var(--crm-transition);
+  color-scheme: dark;
+
+  &:focus {
+    border-color: var(--crm-accent);
+    box-shadow: 0 0 0 3px var(--crm-accent-dim);
+  }
+}
+
+.filter-sep {
+  color: var(--crm-text-disabled);
+  font-size: var(--crm-text-sm);
+}
+
+// ── Сводка за период ─────────────────────────────────────────────────
+.ops-period-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-card__icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .summary-card__value {
+    font-size: var(--crm-text-lg);
+  }
+}
+
+.summary-card--period-income .summary-card__icon {
+  background: var(--crm-success-dim);
+  color: var(--crm-success);
+}
+
+.summary-card--period-expense .summary-card__icon {
+  background: var(--crm-danger-dim);
+  color: var(--crm-danger);
+}
+
+.summary-card--period-total .summary-card__icon {
+  background: var(--crm-accent-dim);
+  color: var(--crm-accent);
 }
 
 // ── Кнопки добавления ────────────────────────────────────────────────

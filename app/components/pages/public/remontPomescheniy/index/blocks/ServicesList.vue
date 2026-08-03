@@ -30,7 +30,7 @@ const services = [
     slug: 'peregorodki',
     title: 'Перегородки и стены',
     description: 'Монтаж ГКЛ, пазогребневых плит, кирпича, штукатурка, шпаклёвка.',
-    link: '/vidy-rabot/peregorodki'
+    link: '/vidy-rabot/gkl/steny'
   },
   {
     slug: 'poly',
