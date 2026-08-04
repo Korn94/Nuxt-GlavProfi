@@ -72,7 +72,6 @@ import { ref, computed, onMounted } from 'vue'
 import { useApi } from '~/composables/useApi'
 import { navigateTo } from '#app'
 import type { ContractorDTO, ContractorType } from '~/types/contractors'
-import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
 import { useHead } from 'nuxt/app'
 
 definePageMeta({

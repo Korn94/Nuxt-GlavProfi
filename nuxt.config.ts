@@ -290,6 +290,8 @@ export default defineNuxtConfig({
 
   alias: {
   'shared': '~~/shared',
+  'stores': '~~/stores',
+  'services': '~~/services',
   },
 
   devtools: {

@@ -202,7 +202,6 @@ import { useRouter } from 'vue-router'
 import { useApi } from '~/composables/useApi'
 import { usePermissions } from '~/composables/usePermissions'
 import { useNotifications } from '~/composables/useNotifications'
-import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
 
 // ============================================
 // ИНИЦИАЛИЗАЦИЯ

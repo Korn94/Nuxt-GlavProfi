@@ -149,6 +149,14 @@
 
       </div>
 
+      <!-- Договорённости (всегда видимый блок) -->
+      <div class="agreements-block">
+        <PagesCabinetObjectsAgreements
+          :object-id="objectId"
+          @changed="refreshObjectData"
+        />
+      </div>
+
       <!-- Вкладки -->
       <div class="tabs-card">
         <div class="tabs-nav">
@@ -180,7 +188,6 @@
 </template>
 
 <script setup lang="ts">
-import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
 import { useHead } from 'nuxt/app'
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -588,6 +595,14 @@ useHead(() => ({
 }
 
 // ── Вкладки ─────────────────────────────────────────────────────────
+.agreements-block {
+  background: var(--crm-bg-surface);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-lg);
+  overflow: hidden;
+  padding: 16px;
+}
+
 .tabs-card {
   background: var(--crm-bg-surface);
   border: 1px solid var(--crm-border);

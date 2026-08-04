@@ -14,7 +14,6 @@ import { computed } from 'vue'
 import { useHead } from 'nuxt/app'
 import DailyWork from '~/components/pages/cabinet/DailyWork/index.vue'
 import { usePermissions } from '~/composables/usePermissions'
-import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
 
 definePageMeta({
   layout: 'cabinet',

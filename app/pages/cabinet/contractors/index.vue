@@ -157,7 +157,6 @@
 </template>
 
 <script setup lang="ts">
-import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import PageTitle from '~/components/pages/cabinet/ui/layout/PageTitle.vue'

@@ -4,7 +4,6 @@
 </template>
 
 <script setup lang="ts">
-import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime';
 import { useHead } from 'nuxt/app'
 
 // ============================================

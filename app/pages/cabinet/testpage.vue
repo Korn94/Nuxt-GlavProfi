@@ -218,7 +218,6 @@ import { useSocketStore } from '../../../stores/socket'
 import { useOnlineStore } from '../../../stores/online'
 import { socketService } from 'services/socket.service'
 import { useCookie } from 'nuxt/app'
-import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
 
 definePageMeta({
   layout: 'cabinet',

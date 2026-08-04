@@ -177,7 +177,8 @@ import { useNotifications } from '~/composables/useNotifications'
  * когда у мастера и рабочего совпадают ID
  */
 const MULTI_WORKERS = [
-  { type: 'worker', id: 15, id:1 },  // "Разнорабочие"
+  { type: 'worker', id: 15 },  // "Разнорабочие"
+  { type: 'worker', id: 1 },   // "Разнорабочие" (дополнительный ID)
   { type: 'master', id: 5 },   // например, "Бригада плиточников"
 ] as const
 

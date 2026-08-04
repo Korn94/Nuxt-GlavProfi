@@ -175,7 +175,6 @@
 </template>
 
 <script setup lang="ts">
-import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
 import { createError, useRoute, useRouter } from 'nuxt/app'
 import { ref, computed, onMounted } from 'vue'
 import { useContractors } from '~/composables/useContractors'

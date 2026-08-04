@@ -95,7 +95,6 @@ import UserPasswordModal from '~/components/pages/cabinet/Admin/Users/Modals/Use
 import { useUsersStore } from 'stores/users'
 import { useUserActions } from '~/composables/useUserActions'
 import type { User } from 'stores/users'
-import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
 
 definePageMeta({
   layout: 'cabinet',

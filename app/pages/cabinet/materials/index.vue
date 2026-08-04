@@ -243,7 +243,6 @@
 </template>
 
 <script setup lang="ts">
-import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
 import { useHead } from 'nuxt/app'
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useApi } from '~/composables/useApi'

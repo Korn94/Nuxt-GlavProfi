@@ -10,7 +10,6 @@
 import { onMounted } from 'vue'
 import { navigateTo, useHead, useRouter } from 'nuxt/app'
 import { useAuthStore } from 'stores/auth'
-import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
 
 const authStore = useAuthStore()
 const router = useRouter()

@@ -1,4 +1,3 @@
-// server/middleware/auth.ts
 /**
  * 🛡️ Централизованный middleware для проверки авторизации и прав доступа на сервере
  *
@@ -40,26 +39,23 @@ export interface PathRequirement {
   type: 'page' | 'role' | 'custom'
   value: string | ((user: DbUser) => boolean | Promise<boolean>)
   action?: PageAction   // Только для type: 'page'
+  methods?: string[]    // 👈 HTTP-методы, к которым применяется (GET, POST, PATCH, PUT, DELETE)
   message?: string      // Кастомное сообщение об ошибке (для 403)
 }
 
 // ============================================
 // 2. БЕЛЫЙ СПИСОК ПУБЛИЧНЫХ ENDPOINT'ОВ
 // ============================================
-// Эти пути НЕ требуют авторизации и пропускаются middleware'ом
 
 const PUBLIC_PATHS = [
-  // 🔓 Авторизация
   '/api/auth/login',
   '/api/auth/telegram',
   '/api/auth/check',
   '/api/auth/logout',
 
-  // 🔓 Получение прав (сам проверяет токен через extractJwt)
   '/api/permissions',
   '/api/me',
 
-  // 🔓 Публичный прайс-лист (для калькулятора на сайте)
   '/api/price/list',
   '/api/price/list/',
   '/api/price/calc/',
@@ -70,11 +66,9 @@ const PUBLIC_PATHS = [
   '/api/price/details',
   '/api/price/dopworks',
 
-  // 🔓 Публичная страница портфолио (для сайта)
   '/api/portfolio',
   '/api/portfolio/**',
 
-  // 🔓 Служебные
   '/api/send-message',
   '/api/_nuxt_icon',
   '/api/_nuxt_icon/**',
@@ -85,13 +79,9 @@ const PUBLIC_PATHS = [
 // ============================================
 // 3. КОНФИГУРАЦИЯ ПРАВ ПО ENDPOINT'АМ
 // ============================================
-// Каждая запись — требование к конкретному URL-паттерну.
-// Поддерживаются placeholders:
-//   [id]      — один сегмент пути (например, /api/users/[id])
-//   [entity]  — один сегмент пути (например, /api/price/[entity])
-//   **        — любое количество сегментов (например, /api/admin/**)
 
-const PROTECTED_PATHS: Record<string, PathRequirement> = {
+// ✅ Исправлено: тип теперь допускает массив требований для разных HTTP-методов
+const PROTECTED_PATHS: Record<string, PathRequirement | PathRequirement[]> = {
   // ═══════════════════════════════════════════════════════════════
   // 🔐 АВТОРИЗАЦИЯ
   // ═══════════════════════════════════════════════════════════════
@@ -116,23 +106,19 @@ const PROTECTED_PATHS: Record<string, PathRequirement> = {
   '/api/objects/[id]/expenses': { type: 'page', value: 'objects', action: 'view' },
   '/api/objects/contract/[id]': { type: 'page', value: 'objects', action: 'edit' },
 
-  // Смета (budget) — часть объектов
   '/api/objects/[id]/budget': { type: 'page', value: 'objects', action: 'view' },
   '/api/objects/budget/[id]': { type: 'page', value: 'objects', action: 'edit' },
   '/api/objects/budget/[id]/status': { type: 'page', value: 'objects', action: 'edit' },
 
-  // Акты (acts) — часть объектов
   '/api/objects/[id]/acts': { type: 'page', value: 'objects', action: 'view' },
   '/api/objects/acts/[id]': { type: 'page', value: 'objects', action: 'edit' },
 
-  // Счета (invoices) — часть объектов
   '/api/objects/[id]/invoices': { type: 'page', value: 'objects', action: 'view' },
   '/api/objects/invoices/[id]': { type: 'page', value: 'objects', action: 'edit' },
 
   // ═══════════════════════════════════════════════════════════════
   // 💰 ФИНАНСОВЫЕ ОПЕРАЦИИ (operations = comings + expenses)
   // ═══════════════════════════════════════════════════════════════
-  // В новой системе прав comings и expenses объединены в 'operations'
   '/api/comings': { type: 'page', value: 'operations', action: 'view' },
   '/api/comings/[id]': { type: 'page', value: 'operations', action: 'view' },
   '/api/expenses': { type: 'page', value: 'operations', action: 'view' },
@@ -158,11 +144,27 @@ const PROTECTED_PATHS: Record<string, PathRequirement> = {
   '/api/works/daily-work/workers-with-daily-rate': { type: 'page', value: 'works', action: 'view' },
   '/api/works/daily-work/bulk': { type: 'page', value: 'works', action: 'create' },
 
-  // Специфичные операции (hasSpecial)
   '/api/works/accept/[id]': { type: 'page', value: 'works', action: 'special' },
   '/api/works/reject/[id]': { type: 'page', value: 'works', action: 'special' },
   '/api/works/pay-work/[id]': { type: 'page', value: 'works', action: 'special' },
   '/api/works/create-and-pay': { type: 'page', value: 'works', action: 'special' },
+
+  // Договорённости (agreements) — привязаны к objects
+  // ✅ Теперь разные методы проверяются по разным правилам
+  '/api/works/agreements': [
+    { type: 'page', value: 'objects', action: 'view', methods: ['GET'] },
+    { type: 'page', value: 'objects', action: 'create', methods: ['POST'] }
+  ],
+  '/api/works/agreements/[id]': [
+    { type: 'page', value: 'objects', action: 'view', methods: ['GET'] },
+    { type: 'page', value: 'objects', action: 'edit', methods: ['PATCH', 'PUT'] },
+    { type: 'page', value: 'objects', action: 'delete', methods: ['DELETE'] }
+  ],
+  '/api/works/agreements/[id]/accept': { 
+    type: 'page', 
+    value: 'objects', 
+    action: 'special' 
+  },
 
   // ═══════════════════════════════════════════════════════════════
   // 👥 КОНТРАГЕНТЫ (contractors)
@@ -189,7 +191,7 @@ const PROTECTED_PATHS: Record<string, PathRequirement> = {
   '/api/portfolio/[slug]/size': { type: 'page', value: 'portfolio', action: 'view' },
 
   // ═══════════════════════════════════════════════════════════════
-  // 📋 ДОСКИ ЗАДАЧ (boards) — привязаны к dashboard/objects
+  // 📋 ДОСКИ ЗАДАЧ (boards)
   // ═══════════════════════════════════════════════════════════════
   '/api/boards': { type: 'page', value: 'dashboard', action: 'view' },
   '/api/boards/folders': { type: 'page', value: 'dashboard', action: 'view' },
@@ -211,7 +213,6 @@ const PROTECTED_PATHS: Record<string, PathRequirement> = {
   '/api/boards/subtasks/[id]/complete': { type: 'page', value: 'dashboard', action: 'view' },
   '/api/boards/subtasks/[id]/reorder': { type: 'page', value: 'objects', action: 'edit' },
 
-  // 📎 Вложения и комментарии
   '/api/attachments': { type: 'page', value: 'dashboard', action: 'view' },
   '/api/comments': { type: 'page', value: 'dashboard', action: 'view' },
 
@@ -236,12 +237,12 @@ const PROTECTED_PATHS: Record<string, PathRequirement> = {
   '/api/permissions/init': { type: 'role', value: 'admin' },
 
   // ═══════════════════════════════════════════════════════════════
-  // 🟢 ОНЛАЙН (online) — привязан к users.canView
+  // 🟢 ОНЛАЙН (online)
   // ═══════════════════════════════════════════════════════════════
   '/api/online': { type: 'page', value: 'users', action: 'view' },
 
   // ═══════════════════════════════════════════════════════════════
-  // 🛡️ АДМИН-ПАНЕЛЬ (для всех /api/admin/**)
+  // 🛡️ АДМИН-ПАНЕЛЬ
   // ═══════════════════════════════════════════════════════════════
   '/api/admin/**': { type: 'role', value: 'manager' },
 }
@@ -250,39 +251,23 @@ const PROTECTED_PATHS: Record<string, PathRequirement> = {
 // 4. ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ РОУТИНГА
 // ============================================
 
-/**
- * Убрать query-string из пути (для сравнения с паттернами)
- */
 function getPathWithoutQuery(path: string): string {
   return path.split('?')[0] || ''
 }
 
-/**
- * Проверить, что путь соответствует паттерну.
- * Поддерживает:
- * - Точные совпадения: '/api/users' === '/api/users'
- * - Placeholders [param]: '/api/users/[id]' совпадёт с '/api/users/123'
- * - Wildcard **: '/api/admin/**' совпадёт с '/api/admin/anything/deep/nested'
- * - Префиксные матчи: '/api/portfolio' совпадёт с '/api/portfolio/some-slug'
- */
 function matchPath(pattern: string, path: string): boolean {
-  // Быстрый путь: без плейсхолдеров и wildcard
   if (!pattern.includes('**') && !pattern.includes('[')) {
     return path === pattern || path.startsWith(pattern + '/') || path.startsWith(pattern)
   }
 
-  // Медленный путь: компилируем паттерн в RegExp
   let escaped = pattern.replace(/[-\/\\^$+?.()|{}]/g, '\\$&')
-  escaped = escaped.replace(/\[[^\]]+\]/g, '[^/]+') // [param] → [^/]+
-  escaped = escaped.replace(/\*\*/g, '.*')          // ** → .*
+  escaped = escaped.replace(/\[[^\]]+\]/g, '[^/]+')
+  escaped = escaped.replace(/\*\*/g, '.*')
 
   const regex = new RegExp(`^${escaped}$`)
   return regex.test(path)
 }
 
-/**
- * Проверить, является ли путь публичным (в белом списке)
- */
 function isPublicPath(path: string): boolean {
   for (const publicPath of PUBLIC_PATHS) {
     if (publicPath.includes('**')) {
@@ -300,14 +285,22 @@ function isPublicPath(path: string): boolean {
   return false
 }
 
-/**
- * Найти требование к пути в PROTECTED_PATHS
- * Возвращает null, если путь не защищён
- */
-function getRequirementForPath(path: string): PathRequirement | null {
+// ✅ Исправлено: принимает method и корректно обрабатывает массивы
+function getRequirementForPath(path: string, method: string): PathRequirement | null {
   for (const [pattern, requirement] of Object.entries(PROTECTED_PATHS)) {
-    if (matchPath(pattern, path)) {
-      return requirement
+    if (!matchPath(pattern, path)) continue
+
+    // Если requirement — массив, ищем подходящий по методу
+    if (Array.isArray(requirement)) {
+      const matched = requirement.find(r => 
+        !r.methods || r.methods.includes(method.toUpperCase())
+      )
+      if (matched) return matched
+    } else {
+      // Если не массив и нет restrictions по методам — подходит
+      if (!requirement.methods || requirement.methods.includes(method.toUpperCase())) {
+        return requirement
+      }
     }
   }
   return null
@@ -319,8 +312,8 @@ function getRequirementForPath(path: string): PathRequirement | null {
 
 export default defineEventHandler(async (event) => {
   const path = getPathWithoutQuery(event.path)
+  const method = event.method
 
-  // Логируем только запросы к /api/permissions/* (для диагностики системы прав)
   const isPermissionsPath = path.startsWith('/api/permissions')
 
   // Пропускаем не-API запросы (страницы, статика, etc.)
@@ -328,7 +321,7 @@ export default defineEventHandler(async (event) => {
     return
   }
 
-  // Пропускаем публичные эндпоинты (логин, публичный прайс, etc.)
+  // Пропускаем публичные эндпоинты
   if (isPublicPath(path)) {
     if (isPermissionsPath) {
       console.log(`[AuthMiddleware] ⏭️  Пропущен как публичный: ${path}`)
@@ -336,22 +329,24 @@ export default defineEventHandler(async (event) => {
     return
   }
 
+  // ✅ Исправлено: убран дублирующий вызов до try
+  // ✅ Исправлено: передаётся method
+  const requirement = getRequirementForPath(path, method)
+
   try {
     // ============================================
-    // 1. ПРОВЕРКА АВТОРИЗАЦИИ (извлечение JWT + верификация)
+    // 1. ПРОВЕРКА АВТОРИЗАЦИИ
     // ============================================
-    // Делегируем в verifyAuth — он сам извлекает токен и находит user в БД
     const user = await verifyAuth(event)
     event.context.user = user
 
     if (isPermissionsPath) {
-      console.log(`[AuthMiddleware] 🔐 Запрос: ${path} | User: ID=${user.id}, роль=${user.role}`)
+      console.log(`[AuthMiddleware] 🔐 Запрос: ${path} [${method}] | User: ID=${user.id}, роль=${user.role}`)
     }
 
     // ============================================
-    // 2. ПОИСК ТРЕБОВАНИЯ К ПУТИ
+    // 2. ПРОВЕРКА НАЛИЧИЯ ТРЕБОВАНИЙ
     // ============================================
-    const requirement = getRequirementForPath(path)
 
     // Если требований нет — доступ разрешён (эндпоинт не защищён правами)
     if (!requirement) {
@@ -368,7 +363,6 @@ export default defineEventHandler(async (event) => {
       const pageSlug = requirement.value as string
       const action = requirement.action || 'view'
 
-      // ✅ Делегируем проверку в hasUserPermission (единая функция в utils)
       const hasAccess = await hasUserPermission(user, pageSlug, action)
 
       if (isPermissionsPath) {
@@ -385,7 +379,6 @@ export default defineEventHandler(async (event) => {
     else if (requirement.type === 'role') {
       const requiredRole = requirement.value as Role
 
-      // ✅ Делегируем проверку в hasRequiredRoleLevel из shared
       if (!hasRequiredRoleLevel(user.role, requiredRole)) {
         if (isPermissionsPath) {
           const userLevel = ROLE_LEVELS[user.role as Role] ?? 0
@@ -415,7 +408,6 @@ export default defineEventHandler(async (event) => {
     }
   }
   catch (error: any) {
-    // Диагностические логи только для /api/permissions/*
     if (isPermissionsPath) {
       console.error(`[AuthMiddleware] ❌ Ошибка:`, {
         statusCode: error.statusCode,
@@ -423,14 +415,12 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Пробрасываем наши 401/403 как есть
     if (error instanceof Error && 'statusCode' in error) {
       if (error.statusCode === 401 || error.statusCode === 403) {
         throw error
       }
     }
 
-    // Неожиданные ошибки маскируем под 401 (не раскрываем детали)
     console.error('[AuthMiddleware] Непредвиденная ошибка:', error)
     throw createError({
       statusCode: 401,

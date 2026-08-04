@@ -165,7 +165,6 @@
 </template>
 
 <script setup lang="ts">
-import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
 import { ref, computed, onMounted } from 'vue'
 import { useApi } from '~/composables/useApi'
 

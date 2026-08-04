@@ -381,6 +381,151 @@ export const works = mysqlTable('works', {
   updatedAt: datetime('updated_at') .default(sql`CURRENT_TIMESTAMP`) .notNull() .$type<Date>()
 })
 
+// ============================================
+// Договорённости с рабочими/мастерами
+// ============================================
+
+export const workAgreements = mysqlTable('work_agreements', {
+  id: serial('id').primaryKey(),
+
+  objectId: bigint('object_id', { mode: 'number', unsigned: true })
+    .notNull()
+    .references(() => objects.id, { onDelete: 'cascade' }),
+
+  title: varchar('title', { length: 255 }).notNull(),
+
+  workType: varchar('work_type', {
+    length: 50,
+    enum: [
+      'Отделка',
+      'Электрика',
+      'Плитка',
+      'Сантехника',
+      'Перегородки ГКЛ',
+      'Потолок',
+      'Сварка',
+      'Бетонные работы',
+      'Кровля',
+      'Фасад',
+      'Перегородки Камень',
+      'Демонтаж',
+      'Мусор',
+      'Разнорабочий',
+      'Смежники',
+      'Подневка',
+      'Прочее'
+    ]
+  }).default('Прочее').notNull(),
+
+  volume: decimal('volume', { precision: 12, scale: 3 }).notNull(),
+
+  unit: varchar('unit', {
+    length: 20,
+    enum: [
+      'm2',
+      'm3',
+      'm',
+      'pcs',
+      'hour',
+      'shift',
+      'service',
+      'custom'
+    ]
+  }).default('m2').notNull(),
+
+  unitCustom: varchar('unit_custom', { length: 50 }),
+
+  priceMode: varchar('price_mode', {
+    length: 10,
+    enum: ['unit', 'fixed']
+  }).default('unit').notNull(),
+
+  unitPrice: decimal('unit_price', { precision: 12, scale: 2 }),
+
+  fixedTotal: decimal('fixed_total', { precision: 12, scale: 2 }),
+
+  agreedAmount: decimal('agreed_amount', { precision: 12, scale: 2 }).notNull(),
+
+  acceptedVolume: decimal('accepted_volume', { precision: 12, scale: 3 })
+    .default('0.000')
+    .notNull(),
+
+  acceptedAmount: decimal('accepted_amount', { precision: 12, scale: 2 })
+    .default('0.00')
+    .notNull(),
+
+  contractorType: varchar('contractor_type', {
+    length: 20,
+    enum: ['master', 'worker']
+  }),
+
+  contractorId: int('contractor_id'),
+
+  foremanId: int('foreman_id'),
+
+  publicComment: text('public_comment'),
+
+  adminComment: text('admin_comment'),
+
+  status: varchar('status', {
+    length: 20,
+    enum: ['active', 'cancelled']
+  }).default('active').notNull(),
+
+  createdBy: bigint('created_by', { mode: 'number', unsigned: true })
+    .references(() => users.id, { onDelete: 'set null' }),
+
+  updatedBy: bigint('updated_by', { mode: 'number', unsigned: true })
+    .references(() => users.id, { onDelete: 'set null' }),
+
+  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
+
+  updatedAt: datetime('updated_at')
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull()
+    .$type<Date>()
+}, (table) => ({
+  objectIndex: index('work_agreements_object_idx').on(table.objectId),
+  contractorIndex: index('work_agreements_contractor_idx').on(table.contractorType, table.contractorId),
+  statusIndex: index('work_agreements_status_idx').on(table.status)
+}))
+
+// ============================================
+// Приёмки по договорённостям
+// ============================================
+
+export const workAgreementAcceptances = mysqlTable('work_agreement_acceptances', {
+  id: serial('id').primaryKey(),
+
+  agreementId: bigint('agreement_id', { mode: 'number', unsigned: true })
+    .notNull()
+    .references(() => workAgreements.id, { onDelete: 'cascade' }),
+
+  workId: bigint('work_id', { mode: 'number', unsigned: true })
+    .references(() => works.id, { onDelete: 'set null' }),
+
+  acceptedVolume: decimal('accepted_volume', { precision: 12, scale: 3 }).notNull(),
+
+  acceptedAmount: decimal('accepted_amount', { precision: 12, scale: 2 }).notNull(),
+
+  contractorType: varchar('contractor_type', {
+    length: 20,
+    enum: ['master', 'worker']
+  }).notNull(),
+
+  contractorId: int('contractor_id').notNull(),
+
+  comment: text('comment'),
+
+  createdBy: bigint('created_by', { mode: 'number', unsigned: true })
+    .references(() => users.id, { onDelete: 'set null' }),
+
+  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`)
+}, (table) => ({
+  agreementIndex: index('work_agreement_acceptances_agreement_idx').on(table.agreementId),
+  workIndex: index('work_agreement_acceptances_work_idx').on(table.workId)
+}))
+
 // Таблица мастеров
 export const masters = mysqlTable('masters', {
   id: serial('id').primaryKey(),

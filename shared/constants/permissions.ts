@@ -159,7 +159,7 @@ export const ACTION_DESCRIPTIONS: Record<PageAction, string> = {
  */
 export const PAGE_SUPPORTED_ACTIONS: Record<PageSlug, PageAction[]> = {
   dashboard: ['view'],
-  objects: ['view', 'create', 'edit', 'delete'],
+  objects: ['view', 'create', 'edit', 'delete', 'special'], // special: приёмка работ по договорённостям
   operations: ['view', 'create', 'edit', 'delete'],
   materials: ['view', 'create', 'edit', 'delete', 'special'], // special: toggle-check
   works: ['view', 'create', 'edit', 'delete', 'special'],     // special: accept/reject/pay

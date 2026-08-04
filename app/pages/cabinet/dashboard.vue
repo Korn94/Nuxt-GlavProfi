@@ -14,7 +14,6 @@
 import { computed, defineAsyncComponent, ref, onMounted } from 'vue'
 import { useAuthStore } from 'stores/auth'
 import { useHead } from 'nuxt/app'
-import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
 
 const authStore = useAuthStore()
 const isLoading = ref(true)

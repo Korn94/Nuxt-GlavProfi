@@ -140,7 +140,6 @@ import { useOnlineStore } from '../../../stores/online'
 import { useAuthStore } from '../../../stores/auth'
 import { socketService } from 'services/socket.service'
 import type { OnlineUser } from '~/types'
-import { definePageMeta } from 'node_modules/nuxt/dist/pages/runtime'
 
 definePageMeta({
   layout: 'cabinet',
