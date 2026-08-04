@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { db } from '../../../db'
 import { workAgreements } from '../../../db/schema'
 import {
-  canManageWorkAgreements,
+  canEditWorkAgreements,
   calcAgreementAmount,
   round2,
   round3
@@ -139,7 +139,7 @@ const updateWorkAgreementSchema = z
   })
 
 export default defineEventHandler(async (event) => {
-  if (!await canManageWorkAgreements(event)) {
+  if (!await canEditWorkAgreements(event)) {
     throw createError({
       statusCode: 403,
       message: 'Недостаточно прав для редактирования договорённости'

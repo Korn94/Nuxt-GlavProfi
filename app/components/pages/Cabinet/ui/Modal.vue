@@ -1,8 +1,8 @@
 <!-- app/components/pages/cabinet/ui/Modal.vue -->
 <template>
   <Teleport to="body">
-    <Transition name="modal">
-      <div v-if="visible" class="modal-overlay" @click.self="handleOverlayClick">
+    <Transition v-if="visible" name="modal">
+      <div class="modal-overlay" @click.self="handleOverlayClick">
         <div class="modal" :class="{
           'modal--sm': size === 'sm',
           'modal--md': size === 'md',

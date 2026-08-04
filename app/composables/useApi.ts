@@ -1,13 +1,14 @@
 // app/composables/useApi.ts
 /**
  * Глобальный HTTP-клиент для API
- * 
+ *
  * ✅ Автоматически подставляет JWT из authStore
  * ✅ Глобально обрабатывает 401 (выход из системы) и 403 (уведомление)
  * ✅ Безопасен для SSR (интерцепторы работают только на клиенте)
+ * ✅ Проксирует cookie браузера в серверные API-запросы (SSR)
  * ✅ Упрощённая типизация, совместимая с Nuxt 3/4
  */
-import { useRuntimeConfig } from 'nuxt/app'
+import { useRequestHeaders, useRuntimeConfig } from 'nuxt/app'
 import { useAuthStore } from '../../stores/auth'
 import { useNotifications } from '~/composables/useNotifications'
 
@@ -16,9 +17,21 @@ export const useApi = () => {
   const notifications = useNotifications()
   const config = useRuntimeConfig()
 
+  // На SSR передаём cookie браузера, чтобы API-сервер видел сессию.
+  // Иначе $fetch на сервере не авторизуется (нет куки auth_token).
+  // ⚠️ useRequestHeaders — авто-импорт Nuxt 4 (доступен после `nuxt prepare`)
+  let serverHeaders: Record<string, string> = {}
+  if (process.server) {
+    const requestHeaders = useRequestHeaders(['cookie'])
+    serverHeaders = {
+      cookie: requestHeaders.cookie || '',
+    }
+  }
+
   const fetcher = $fetch.create({
     baseURL: (config.public.apiBase as string) || '',
     credentials: 'include',
+    headers: serverHeaders,
 
     onRequest({ options }) {
       const token = authStore.token

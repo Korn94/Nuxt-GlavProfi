@@ -16,6 +16,54 @@
       </button>
     </div>
 
+    <!-- Сводка по суммам и контрагентам -->
+    <div v-if="!loading && agreements.length > 0" class="agreements__summary">
+      <div class="summary-card">
+        <div class="summary-card__header">Общая сумма работ</div>
+        <div class="summary-card__total">
+          {{ formatCurrency(totalAgreedAmount) }}
+        </div>
+        <div class="summary-card__sub">
+          <span>
+            Принято: <strong class="text-pos">{{ formatCurrency(totalAcceptedAmount) }}</strong>
+          </span>
+          <span class="summary-card__divider">·</span>
+          <span>
+            Осталось: <strong class="text-neg">{{ formatCurrency(totalRemainingAmount) }}</strong>
+          </span>
+        </div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-card__header">Расшифровка по контрагентам</div>
+
+        <div v-if="contractorBreakdown.length === 0" class="summary-card__empty">
+          Исполнители не назначены
+        </div>
+
+        <div v-else class="contractor-list">
+          <div
+            v-for="item in contractorBreakdown"
+            :key="item.key"
+            class="contractor-item"
+          >
+            <div class="contractor-item__info">
+              <span class="contractor-item__name">{{ item.name }}</span>
+              <span class="contractor-item__type">{{ item.typeLabel }}</span>
+            </div>
+            <div class="contractor-item__amounts">
+              <span class="contractor-item__agreed">
+                {{ formatCurrency(item.agreed) }}
+              </span>
+              <span class="contractor-item__accepted">
+                принято: {{ formatCurrency(item.accepted) }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div v-if="loading" class="agreements__empty">
       Загрузка...
     </div>
@@ -163,6 +211,15 @@ interface WorkAgreement {
   updatedAt: string
 }
 
+interface ContractorBreakdownItem {
+  key: string
+  name: string
+  typeLabel: string
+  agreed: number
+  accepted: number
+  remaining: number
+}
+
 const props = defineProps<{
   objectId: number
 }>()
@@ -191,6 +248,65 @@ const canAccept = computed(() => can(PERMISSION_PAGE, 'special'))
 
 const isAdmin = computed(() => hasRole('admin'))
 
+// ── Сводка ────────────────────────────────────────────────────────
+const totalAgreedAmount = computed(() =>
+  agreements.value.reduce((sum, a) => sum + Number(a.agreedAmount || 0), 0)
+)
+
+const totalAcceptedAmount = computed(() =>
+  agreements.value.reduce((sum, a) => sum + Number(a.acceptedAmount || 0), 0)
+)
+
+const totalRemainingAmount = computed(() =>
+  totalAgreedAmount.value - totalAcceptedAmount.value
+)
+
+const contractorBreakdown = computed<ContractorBreakdownItem[]>(() => {
+  const map = new Map<string, ContractorBreakdownItem>()
+
+  for (const a of agreements.value) {
+    const contractorType = a.contractorType
+    const contractorId = a.contractorId
+    const contractorName = a.contractorName
+
+    let key: string
+    let name: string
+    let typeLabel: string
+
+    if (contractorType && contractorId) {
+      key = `${contractorType}-${contractorId}`
+      name = contractorName || (contractorType === 'master' ? 'Мастер' : 'Рабочий')
+      typeLabel = contractorType === 'master' ? 'Мастер' : 'Рабочий'
+    } else {
+      key = 'unassigned'
+      name = 'Без исполнителя'
+      typeLabel = '—'
+    }
+
+    const agreed = Number(a.agreedAmount || 0)
+    const accepted = Number(a.acceptedAmount || 0)
+
+    if (map.has(key)) {
+      const item = map.get(key)!
+      item.agreed += agreed
+      item.accepted += accepted
+      item.remaining += agreed - accepted
+    } else {
+      map.set(key, {
+        key,
+        name,
+        typeLabel,
+        agreed,
+        accepted,
+        remaining: agreed - accepted
+      })
+    }
+  }
+
+  return Array.from(map.values()).sort((a, b) => b.agreed - a.agreed)
+})
+
+// ── API ───────────────────────────────────────────────────────────
 async function loadAgreements() {
   loading.value = true
 
@@ -320,13 +436,160 @@ onMounted(() => {
     background: var(--crm-bg-surface);
   }
 
-  &__list {
-    display: flex;
-    flex-direction: column;
+  &__summary {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 12px;
+
+    @media (max-width: 900px) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  &__list {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+
+    @media (max-width: 1200px) {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    @media (max-width: 900px) {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    @media (max-width: 600px) {
+      grid-template-columns: 1fr;
+    }
   }
 }
 
+// ── Сводка ─────────────────────────────────────────────────────
+.summary-card {
+  background: var(--crm-bg-surface);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-lg);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  &__header {
+    font-size: var(--crm-text-xs);
+    font-weight: 600;
+    color: var(--crm-text-muted);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+
+  &__total {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--crm-text-primary);
+    line-height: 1;
+  }
+
+  &__sub {
+    font-size: var(--crm-text-sm);
+    color: var(--crm-text-secondary);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+
+    strong {
+      font-weight: 600;
+    }
+  }
+
+  &__divider {
+    color: var(--crm-text-disabled);
+  }
+
+  &__empty {
+    font-size: var(--crm-text-sm);
+    color: var(--crm-text-muted);
+    padding: 8px 0;
+  }
+}
+
+.contractor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 4px;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: var(--crm-bg-elevated);
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--crm-border-hover);
+    border-radius: 3px;
+  }
+}
+
+.contractor-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  background: var(--crm-bg-elevated);
+  border-radius: var(--crm-radius-md);
+  border: 1px solid var(--crm-border);
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  &__name {
+    font-size: var(--crm-text-sm);
+    font-weight: 500;
+    color: var(--crm-text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__type {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+  }
+
+  &__amounts {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+
+  &__agreed {
+    font-size: var(--crm-text-sm);
+    font-weight: 600;
+    color: var(--crm-text-primary);
+  }
+
+  &__accepted {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+  }
+}
+
+// ── Карточка договорённости ────────────────────────────────────
 .agreement-card {
   border: 1px solid var(--crm-border);
   border-radius: var(--crm-radius-lg);
@@ -335,6 +598,8 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  height: 100%;
+  min-height: 220px;
 
   &--done {
     opacity: 0.65;
@@ -347,17 +612,28 @@ onMounted(() => {
     gap: 12px;
   }
 
+  &__title-block {
+    min-width: 0;
+    flex: 1;
+  }
+
   &__title {
     margin: 0;
     font-size: var(--crm-text-md);
     font-weight: 600;
     color: var(--crm-text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   &__meta {
     margin-top: 2px;
     font-size: var(--crm-text-xs);
     color: var(--crm-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   &__amount {
@@ -365,6 +641,7 @@ onMounted(() => {
     font-weight: 700;
     color: var(--crm-text-primary);
     white-space: nowrap;
+    flex-shrink: 0;
   }
 
   &__volume {
@@ -377,6 +654,10 @@ onMounted(() => {
     color: var(--crm-text-secondary);
     white-space: pre-wrap;
     word-break: break-word;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 
     &--admin {
       color: var(--crm-warning);
@@ -384,6 +665,7 @@ onMounted(() => {
   }
 
   &__progress {
+    margin-top: auto;
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -398,6 +680,9 @@ onMounted(() => {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+    padding-top: 4px;
+    border-top: 1px solid var(--crm-border);
+    margin-top: 4px;
   }
 }
 
@@ -415,6 +700,16 @@ onMounted(() => {
   }
 }
 
+// ── Цветовые акценты ──────────────────────────────────────────
+.text-pos {
+  color: var(--crm-success) !important;
+}
+
+.text-neg {
+  color: var(--crm-danger) !important;
+}
+
+// ── Кнопки ────────────────────────────────────────────────────
 .crm-btn--danger {
   background: var(--crm-danger-dim);
   border: 1px solid rgba(242, 95, 92, 0.3);
@@ -423,6 +718,56 @@ onMounted(() => {
   &:hover {
     background: var(--crm-danger);
     color: white;
+  }
+}
+
+.crm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: var(--crm-radius-md);
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--crm-transition);
+  white-space: nowrap;
+
+  padding: 8px 14px;
+  font-size: var(--crm-text-sm);
+
+  &:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+  }
+
+  &--primary {
+    background: var(--crm-success-dim);
+    border: 1px solid rgba(61, 214, 140, .35);
+    color: var(--crm-success);
+
+    &:hover:not(:disabled) {
+      background: rgba(61, 214, 140, .25);
+    }
+  }
+
+  &--ghost {
+    background: var(--crm-bg-elevated);
+    border: 1px solid var(--crm-border-hover);
+    color: var(--crm-text-secondary);
+
+    &:hover {
+      background: var(--crm-bg-overlay);
+      color: var(--crm-text-primary);
+    }
+  }
+}
+
+@media (max-width: 600px) {
+  .agreements__summary {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-card__total {
+    font-size: 20px;
   }
 }
 </style>

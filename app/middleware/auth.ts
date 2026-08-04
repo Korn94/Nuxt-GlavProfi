@@ -18,6 +18,16 @@ export default defineNuxtRouteMiddleware(async (to: RouteLocationNormalized) => 
         query: to.fullPath !== '/cabinet' ? { redirect: to.fullPath } : undefined
       })
     }
+
+    // ✅ SSR-инициализация прав: загружаем пользователя и права на сервере,
+    //    чтобы SSR-разметка совпадала с клиентской (кнопки, v-if, etc.)
+    //    Гидратация Pinia на сервере не вызывается — ставим token вручную из cookie.
+    if (hasCookie && authStore.isChecking) {
+      const raw = useCookie('auth_token').value
+      authStore.token = extractToken(raw)
+      await authStore.init()
+    }
+
     return
   }
   
@@ -78,4 +88,21 @@ function hasValidAuthCookie(): boolean {
   } catch {
     return raw.length > 20
   }
+}
+
+/**
+ * Извлечь JWT из cookie (поддерживает новый plain и старый JSON форматы)
+ */
+function extractToken(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  // Старый формат: JSON { token, userId, role }
+  if (raw.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(raw)
+      return parsed.token || null
+    } catch {
+      return null
+    }
+  }
+  return raw.length > 20 ? raw : null
 }

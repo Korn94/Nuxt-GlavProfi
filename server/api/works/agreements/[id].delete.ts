@@ -6,10 +6,10 @@ import {
   workAgreements,
   workAgreementAcceptances
 } from '../../../db/schema'
-import { canManageWorkAgreements } from '../../../utils/workAgreements'
+import { canDeleteWorkAgreements } from '../../../utils/workAgreements'
 
 export default defineEventHandler(async (event) => {
-  if (!await canManageWorkAgreements(event)) {
+  if (!await canDeleteWorkAgreements(event)) {
     throw createError({
       statusCode: 403,
       message: 'Недостаточно прав для удаления договорённости'

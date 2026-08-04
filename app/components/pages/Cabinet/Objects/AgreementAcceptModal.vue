@@ -367,22 +367,16 @@ function close() {
   show.value = false
 }
 
-watch(
-  () => props.modelValue,
-  (value) => {
-    if (value) {
-      resetForm()
-      loadContractors()
-    }
+watch(() => props.modelValue, (value) => {
+  if (value) {
+    resetForm()
+    loadContractors()
   }
-)
+})
 
-watch(
-  () => form.contractorType,
-  () => {
-    form.contractorId = null
-  }
-)
+watch(() => form.contractorType, () => {
+  form.contractorId = null
+})
 
 onMounted(() => {
   if (show.value) {

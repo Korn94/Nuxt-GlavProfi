@@ -1,8 +1,16 @@
 <!-- components/ui/notifications/Container.vue -->
 <template>
-  <!-- Позиция снизу справа, как в Toast, но работа через store -->
+  <!-- Позиция снизу справа, как в Toast, но работа через store
+       ⚠️ TransitionGroup на SSR с пустым списком рендерит пустой комментарий,
+       а на клиенте — <div>. Чтобы гидратация совпадала, рендерим контейнер
+       только когда есть уведомления (на SSR их нет → пусто и там, и там). -->
   <Teleport to="body">
-    <TransitionGroup name="notif" tag="div" class="notif-container">
+    <TransitionGroup
+      v-if="notificationStore.notifications.length > 0"
+      name="notif"
+      tag="div"
+      class="notif-container"
+    >
       <div
         v-for="n in notificationStore.notifications"
         :key="n.id"

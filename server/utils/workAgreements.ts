@@ -105,14 +105,22 @@ export async function canViewWorkAgreements(event: H3Event): Promise<boolean> {
 /**
  * Создание/редактирование/удаление договорённостей — право 'objects.create'
  */
-export async function canManageWorkAgreements(event: H3Event): Promise<boolean> {
+export async function canCreateWorkAgreements(event: H3Event): Promise<boolean> {
   const user = event.context.user as any
-
-  if (!user) {
-    return false
-  }
-
+  if (!user) return false
   return hasUserPermission(user, 'objects', 'create')
+}
+
+export async function canEditWorkAgreements(event: H3Event): Promise<boolean> {
+  const user = event.context.user as any
+  if (!user) return false
+  return hasUserPermission(user, 'objects', 'edit')
+}
+
+export async function canDeleteWorkAgreements(event: H3Event): Promise<boolean> {
+  const user = event.context.user as any
+  if (!user) return false
+  return hasUserPermission(user, 'objects', 'delete')
 }
 
 /**

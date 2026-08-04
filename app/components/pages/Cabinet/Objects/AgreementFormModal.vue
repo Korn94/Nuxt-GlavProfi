@@ -480,6 +480,12 @@ watch(
   }
 )
 
+watch(() => form.unit, (newVal) => {
+  if (newVal !== 'custom') {
+    form.unitCustom = ''
+  }
+})
+
 onMounted(() => {
   if (show.value) {
     resetForm()
@@ -528,6 +534,19 @@ onMounted(() => {
     background: transparent;
     cursor: pointer;
     color: var(--crm-text-muted);
+    font-size: 18px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--crm-radius-md);
+    transition: var(--crm-transition);
+
+    &:hover {
+      background: var(--crm-bg-elevated);
+      color: var(--crm-text-primary);
+    }
   }
 
   &__body {
@@ -567,6 +586,12 @@ onMounted(() => {
     color: var(--crm-text-muted);
   }
 
+  strong {
+    font-size: var(--crm-text-md);
+    font-weight: 700;
+    color: var(--crm-text-primary);
+  }
+
   input,
   select,
   textarea {
@@ -577,6 +602,7 @@ onMounted(() => {
     background: var(--crm-bg-elevated);
     color: var(--crm-text-primary);
     outline: none;
+    transition: var(--crm-transition);
 
     &:focus {
       border-color: var(--crm-accent);
@@ -597,5 +623,64 @@ onMounted(() => {
   border: 1px solid rgba(242, 95, 92, 0.3);
   color: var(--crm-danger);
   font-size: var(--crm-text-sm);
+}
+
+// ── Кнопки ────────────────────────────────────────────────────
+.crm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: var(--crm-radius-md);
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--crm-transition);
+  white-space: nowrap;
+  border: 1px solid transparent;
+
+  padding: 8px 14px;
+  font-size: var(--crm-text-sm);
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &--sm {
+    padding: 6px 12px;
+    font-size: var(--crm-text-sm);
+  }
+
+  &--primary {
+    background: var(--crm-success-dim);
+    border: 1px solid rgba(61, 214, 140, .35);
+    color: var(--crm-success);
+
+    &:hover:not(:disabled) {
+      background: rgba(61, 214, 140, .25);
+    }
+  }
+
+  &--ghost {
+    background: transparent;
+    border: 1px solid var(--crm-border-hover);
+    color: var(--crm-text-secondary);
+
+    &:hover:not(:disabled) {
+      background: var(--crm-bg-elevated);
+      color: var(--crm-text-primary);
+    }
+  }
+
+  &--danger {
+    background: var(--crm-danger-dim);
+    border: 1px solid rgba(242, 95, 92, 0.3);
+    color: var(--crm-danger);
+
+    &:hover:not(:disabled) {
+      background: var(--crm-danger);
+      color: white;
+    }
+  }
 }
 </style>

@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { db } from '../../../db'
 import { workAgreements } from '../../../db/schema'
 import {
-  canManageWorkAgreements,
+  canCreateWorkAgreements,
   calcAgreementAmount,
   round2
 } from '../../../utils/workAgreements'
@@ -156,7 +156,7 @@ const createWorkAgreementSchema = z
   })
 
 export default defineEventHandler(async (event) => {
-  if (!await canManageWorkAgreements(event)) {
+  if (!await canCreateWorkAgreements(event)) {
     throw createError({
       statusCode: 403,
       message: 'Недостаточно прав для создания договорённости'
