@@ -169,7 +169,7 @@
         <div class="tabs-content">
           <PagesCabinetObjectsOperations v-if="currentTab === 'Операции'" :object-id="objectId" :operations="operations"
             @add-coming="handleComingAdded" @add-expense="handleExpenseAdded" @add-work="handleWorkAdded"
-            @delete-work="handleWorkDeleted" />
+            @delete-work="handleWorkDeleted" @update-coming="handleComingUpdated" @update-work="handleWorkUpdated" />
           <PagesCabinetObjectsMaterials v-else-if="currentTab === 'Материалы'" :materials="materials"
             :object-id="objectId" @add="handleMaterialAdded" @update="handleMaterialUpdated"
             @delete="handleMaterialDeleted" />
@@ -328,6 +328,16 @@ function handleMaterialDeleted(id: number) {
 function handleComingAdded(c: any) { operations.value.push({ ...c, type: 'coming', amount: Number(c.amount) }); refreshObjectData() }
 function handleExpenseAdded(e: any) { operations.value.push({ ...e, type: 'expense', amount: Number(e.amount) }); refreshObjectData() }
 function handleWorkAdded(w: any) { operations.value.push({ ...w, type: 'work', amount: Number(w.amount) }); refreshObjectData() }
+function handleComingUpdated(c: any) {
+  const idx = operations.value.findIndex(o => o.id === c.id && o.type === 'coming')
+  if (idx !== -1) operations.value.splice(idx, 1, { ...c, type: 'coming', amount: Number(c.amount) })
+  refreshObjectData()
+}
+function handleWorkUpdated(w: any) {
+  const idx = operations.value.findIndex(o => o.id === w.id && o.type === 'work')
+  if (idx !== -1) operations.value.splice(idx, 1, { ...w, type: 'work', amount: Number(w.workerAmount || w.amount) })
+  refreshObjectData()
+}
 function handleWorkDeleted(id: number) {
   operations.value = operations.value.filter(o => o.id !== id)
   refreshObjectData()

@@ -108,6 +108,7 @@
               <th>Дата</th>
               <th>Сумма</th>
               <th>Комментарий</th>
+              <th>Действия</th>
             </tr>
           </thead>
           <tbody>
@@ -115,6 +116,11 @@
               <td class="td--date">{{ formatDate(c.operationDate) }}</td>
               <td class="td--amount pos">+{{ formatAmount(c.amount) }} ₽</td>
               <td class="td--comment">{{ c.comment || '—' }}</td>
+              <td class="td--actions">
+                <button class="action-btn action-btn--edit" @click="openEditComingModal(c)" title="Редактировать">
+                  <Icon name="mdi:pencil-outline" size="13" />
+                </button>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -191,6 +197,9 @@
                   title="Закрыть">
                   <Icon name="mdi:currency-rub" size="13" />
                 </button>
+                <button class="action-btn action-btn--edit" @click="openEditWorkModal(w)" title="Редактировать">
+                  <Icon name="mdi:pencil-outline" size="13" />
+                </button>
                 <button class="action-btn action-btn--delete" @click="deleteWork(w.id, w.paid)" title="Удалить">
                   <Icon name="mdi:trash-can-outline" size="13" />
                 </button>
@@ -225,6 +234,115 @@
         <button class="crm-btn crm-btn--income" :disabled="!isComingValid || loadingComing" @click="addComing">
           <Icon v-if="loadingComing" name="mdi:loading" class="spin" size="14" />
           {{ loadingComing ? 'Сохранение...' : 'Добавить приход' }}
+        </button>
+      </template>
+    </PagesCabinetUiModal>
+
+    <!-- Модалка: Редактировать приход -->
+    <PagesCabinetUiModal :visible="isEditComingModalOpen" title="Редактировать приход" size="md" closable
+      @update:visible="closeModals" @close="closeModals">
+      <div class="modal-form">
+        <div class="field">
+          <label class="field__label">Сумма <span class="field__req">*</span></label>
+          <input type="text" class="field__input" :class="{ 'field__input--error': formErrors.editComing }"
+            v-model="editComingDisplayAmount" placeholder="0" @blur="formatEditComingOnBlur" @focus="unformatEditComingOnFocus"
+            @input="syncEditComingAmount" />
+          <span v-if="formErrors.editComing" class="field__error">{{ formErrors.editComing }}</span>
+        </div>
+
+        <div class="field">
+          <label class="field__label">Дата операции</label>
+          <input type="date" class="field__input" v-model="editComing.operationDate" />
+        </div>
+
+        <div class="field">
+          <label class="field__label">Комментарий</label>
+          <textarea class="field__input field__input--textarea" v-model="editComing.comment"
+            placeholder="Дополнительная информация..." rows="2" />
+        </div>
+      </div>
+
+      <template #footer>
+        <button class="crm-btn crm-btn--ghost" @click="closeModals">Отмена</button>
+        <button class="crm-btn crm-btn--income" :disabled="!isEditComingValid || loadingEditComing" @click="saveEditComing">
+          <Icon v-if="loadingEditComing" name="mdi:loading" class="spin" size="14" />
+          {{ loadingEditComing ? 'Сохранение...' : 'Сохранить' }}
+        </button>
+      </template>
+    </PagesCabinetUiModal>
+
+    <!-- Модалка: Редактировать работу -->
+    <PagesCabinetUiModal :visible="isEditWorkModalOpen" title="Редактировать работу" size="lg" closable
+      @update:visible="closeModals" @close="closeModals">
+      <div class="modal-form">
+
+        <div class="field-row">
+          <div class="field">
+            <label class="field__label">Сумма работ (мастеру) <span class="field__req">*</span></label>
+            <input type="text" class="field__input" :class="{ 'field__input--error': formErrors.editWork }"
+              v-model="editWorkDisplayAmount" placeholder="0" @blur="formatEditWorkOnBlur" @focus="unformatEditWorkOnFocus"
+              @input="syncEditWorkAmount" />
+            <span v-if="formErrors.editWork" class="field__error">{{ formErrors.editWork }}</span>
+          </div>
+
+          <div class="field">
+            <label class="field__label">Дата операции</label>
+            <input type="date" class="field__input" v-model="editWork.operationDate" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label class="field__label">Категория</label>
+            <select class="field__input" v-model="editSelectedCategory">
+              <option value="">— Выберите —</option>
+              <option value="master">Мастера</option>
+              <option value="worker">Рабочие</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label class="field__label">Контрагент <span class="field__req">*</span></label>
+            <select class="field__input" v-model="editWork.contractorId" :disabled="!editSelectedCategory">
+              <option value="">— Выберите —</option>
+              <option v-for="c in editFilteredContractors" :key="c.id" :value="c.id">
+                {{ c.name }} ({{ formatAmount(c.balance) }} ₽)
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label class="field__label">Вид работы <span class="field__req">*</span></label>
+            <select class="field__input" v-model="editWork.workType">
+              <option value="">— Выберите —</option>
+              <option v-for="t in workTypes" :key="t" :value="t">{{ t }}</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label class="field__label">Прораб</label>
+            <select class="field__input" v-model="editWork.supervisorId">
+              <option :value="null">— Без прораба —</option>
+              <option v-for="f in foremans" :key="f.id" :value="f.id">{{ f.name }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="field__label">Комментарий</label>
+          <textarea class="field__input field__input--textarea" v-model="editWork.comment"
+            placeholder="Комментарий к работе..." rows="2" />
+        </div>
+
+      </div>
+
+      <template #footer>
+        <button class="crm-btn crm-btn--ghost" @click="closeModals">Отмена</button>
+        <button class="crm-btn crm-btn--work" :disabled="!isEditWorkValid || loadingEditWork" @click="saveEditWork">
+          <Icon v-if="loadingEditWork" name="mdi:loading" class="spin" size="14" />
+          {{ loadingEditWork ? 'Сохранение...' : 'Сохранить' }}
         </button>
       </template>
     </PagesCabinetUiModal>
@@ -330,6 +448,8 @@ const emit = defineEmits < {
   'add-expense': [op: any]
   'add-work': [op: any]
   'delete-work': [id: number]
+  'update-coming': [op: any]
+  'update-work': [op: any]
 } > ()
 
 const route = useRoute()
@@ -348,8 +468,12 @@ const endDate = ref('')
 // ── Модалки ──────────────────────────────────────────────────────────
 const isComingModalOpen = ref(false)
 const isWorkModalOpen = ref(false)
+const isEditComingModalOpen = ref(false)
+const isEditWorkModalOpen = ref(false)
 const loadingComing = ref(false)
 const loadingWork = ref(false)
+const loadingEditComing = ref(false)
+const loadingEditWork = ref(false)
 const formErrors = ref < Record < string, string>> ({})
 
 // ── Формы ────────────────────────────────────────────────────────────
@@ -365,6 +489,16 @@ const newWork = ref < any > ({
 const selectedCategory = ref('')
 const localComingValue = ref('')
 const localWorkValue = ref('')
+
+// ── Формы редактирования ─────────────────────────────────────────────
+const editComing = ref < any > ({ id: null, amount: null, comment: '', operationDate: '' })
+const editWork = ref < any > ({
+  id: null, amount: null, contractorId: null, comment: '',
+  operationDate: '', workType: '', supervisorId: null, contractorType: ''
+})
+const editSelectedCategory = ref('')
+const localEditComingValue = ref('')
+const localEditWorkValue = ref('')
 
 const workTypes = [
     'Отделка', 'Электрика', 'Плитка', 'Сантехника', 'Перегородки ГКЛ', 'Потолок',
@@ -401,6 +535,36 @@ const isWorkValid = computed(() =>
   newWork.value.contractorId !== null &&
   newWork.value.workType !== ''
 )
+
+// ── Computed для редактирования ──────────────────────────────────────
+const editFilteredContractors = computed(() =>
+  contractors.value.filter(c => c.type === editSelectedCategory.value)
+)
+
+const isEditComingValid = computed(() => Number(editComing.value.amount) > 0)
+
+const isEditWorkValid = computed(() =>
+  Number(editWork.value.amount) > 0 &&
+  editWork.value.contractorId !== null &&
+  editWork.value.workType !== ''
+)
+
+// ── Форматирование суммы для редактирования ─────────────────────────
+const editComingDisplayAmount = computed({
+  get() { return editComing.value.amount === null ? '' : new Intl.NumberFormat('ru-RU').format(editComing.value.amount) },
+  set(v: string) { localEditComingValue.value = v }
+})
+function unformatEditComingOnFocus() { localEditComingValue.value = editComing.value.amount !== null ? String(editComing.value.amount) : '' }
+function formatEditComingOnBlur() { const n = parseNumber(localEditComingValue.value); if (!isNaN(n) && n >= 0) editComing.value.amount = n }
+function syncEditComingAmount() { const n = parseNumber(localEditComingValue.value); if (!isNaN(n)) editComing.value.amount = n; else if (!localEditComingValue.value) editComing.value.amount = null }
+
+const editWorkDisplayAmount = computed({
+  get() { return editWork.value.amount === null ? '' : new Intl.NumberFormat('ru-RU').format(editWork.value.amount) },
+  set(v: string) { localEditWorkValue.value = v }
+})
+function unformatEditWorkOnFocus() { localEditWorkValue.value = editWork.value.amount !== null ? String(editWork.value.amount) : '' }
+function formatEditWorkOnBlur() { const n = parseNumber(localEditWorkValue.value); if (!isNaN(n) && n >= 0) editWork.value.amount = n }
+function syncEditWorkAmount() { const n = parseNumber(localEditWorkValue.value); if (!isNaN(n)) editWork.value.amount = n; else if (!localEditWorkValue.value) editWork.value.amount = null }
 
 // ── Фильтрация по периоду ────────────────────────────────────────────
 const filteredComings = computed(() => {
@@ -533,6 +697,8 @@ function openWorkModal() { formErrors.value = {}; isWorkModalOpen.value = true }
 function closeModals() {
   isComingModalOpen.value = false
   isWorkModalOpen.value = false
+  isEditComingModalOpen.value = false
+  isEditWorkModalOpen.value = false
   resetForm()
 }
 
@@ -548,6 +714,114 @@ function resetForm() {
   selectedCategory.value = ''
   localComingValue.value = ''
   localWorkValue.value = ''
+  editComing.value = { id: null, amount: null, comment: '', operationDate: '' }
+  editWork.value = {
+    id: null, amount: null, contractorId: null, comment: '',
+    operationDate: '', workType: '', supervisorId: null, contractorType: ''
+  }
+  editSelectedCategory.value = ''
+  localEditComingValue.value = ''
+  localEditWorkValue.value = ''
+}
+
+// ── Редактирование прихода ───────────────────────────────────────────
+function openEditComingModal(c: any) {
+  formErrors.value = {}
+  editComing.value = {
+    id: c.id,
+    amount: Number(c.amount),
+    comment: c.comment || '',
+    operationDate: c.operationDate ? new Date(c.operationDate).toISOString().split('T')[0] : '',
+  }
+  localEditComingValue.value = ''
+  isEditComingModalOpen.value = true
+}
+
+async function saveEditComing() {
+  formErrors.value = {}
+  if (!isEditComingValid.value) { formErrors.value.editComing = 'Сумма должна быть больше нуля'; return }
+
+  loadingEditComing.value = true
+  try {
+    const payload: any = { amount: Number(editComing.value.amount) }
+    if (editComing.value.comment !== undefined) payload.comment = editComing.value.comment
+    if (editComing.value.operationDate) {
+      payload.operationDate = new Date(editComing.value.operationDate).toISOString()
+    }
+
+    const updated = await api.put<any>(`/api/comings/${editComing.value.id}`, payload)
+    const idx = comings.value.findIndex(x => x.id === editComing.value.id)
+    if (idx !== -1) comings.value.splice(idx, 1, { ...updated, amount: Number(updated.amount) })
+    emit('update-coming', { ...updated, amount: Number(updated.amount) })
+    closeModals()
+  } catch (e) {
+    console.error('[Операции] Ошибка редактирования прихода:', e)
+    alert('Не удалось сохранить изменения')
+  } finally {
+    loadingEditComing.value = false
+  }
+}
+
+// ── Редактирование работы ────────────────────────────────────────────
+function openEditWorkModal(w: any) {
+  formErrors.value = {}
+  editWork.value = {
+    id: w.id,
+    amount: Number(w.workerAmount || w.amount || 0),
+    contractorId: w.contractorId || null,
+    comment: w.comment || '',
+    operationDate: w.operationDate ? new Date(w.operationDate).toISOString().split('T')[0] : '',
+    workType: w.workType || '',
+    supervisorId: w.supervisorId || null,
+    contractorType: w.contractorType || '',
+  }
+  editSelectedCategory.value = w.contractorType || ''
+  localEditWorkValue.value = ''
+  isEditWorkModalOpen.value = true
+}
+
+async function saveEditWork() {
+  formErrors.value = {}
+  if (!isEditWorkValid.value) {
+    formErrors.value.editWork = 'Заполните все обязательные поля'
+    return
+  }
+
+  loadingEditWork.value = true
+  try {
+    const payload: any = {
+      workerAmount: Number(editWork.value.amount),
+      contractorId: editWork.value.contractorId,
+      contractorType: editSelectedCategory.value,
+      workTypes: editWork.value.workType,
+      foremanId: editWork.value.supervisorId || null,
+      comment: editWork.value.comment || '',
+    }
+    if (editWork.value.operationDate) {
+      payload.operationDate = new Date(editWork.value.operationDate).toISOString()
+    }
+
+    const updated = await api.put<any>(`/api/works/${editWork.value.id}`, payload)
+    const idx = works.value.findIndex(x => x.id === editWork.value.id)
+    if (idx !== -1) {
+      works.value.splice(idx, 1, {
+        ...works.value[idx],
+        ...updated,
+        workerAmount: Number(updated.workerAmount || 0),
+        amount: Number(updated.workerAmount || 0),
+        workType: updated.workTypes || editWork.value.workType,
+        supervisorId: updated.foremanId || editWork.value.supervisorId,
+        contractorType: updated.contractorType || editSelectedCategory.value,
+      })
+    }
+    emit('update-work', { ...updated, workerAmount: Number(updated.workerAmount || 0) })
+    closeModals()
+  } catch (e) {
+    console.error('[Операции] Ошибка редактирования работы:', e)
+    alert('Не удалось сохранить изменения')
+  } finally {
+    loadingEditWork.value = false
+  }
 }
 
 async function addComing() {
@@ -1011,6 +1285,12 @@ onMounted(async () => {
   }
 
   &--pay:hover {
+    background: var(--crm-accent-dim);
+    border-color: var(--crm-accent-border);
+    color: var(--crm-accent);
+  }
+
+  &--edit:hover {
     background: var(--crm-accent-dim);
     border-color: var(--crm-accent-border);
     color: var(--crm-accent);
