@@ -50,7 +50,7 @@
               v-model.number="form.volume"
               type="number"
               min="0"
-              step="0.001"
+              step="1"
               :disabled="isLocked"
             />
           </label>

@@ -47,7 +47,7 @@
               v-model.number="form.volume"
               type="number"
               min="0"
-              step="0.001"
+              step="1"
             />
           </label>
 
@@ -417,6 +417,7 @@ onMounted(() => {
 
   &__title {
     margin: 0;
+    color: var(--crm-text-primary);
     font-size: var(--crm-text-md);
     font-weight: 600;
   }
@@ -482,6 +483,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  color: var(--crm-success);
 
   &--wide {
     grid-column: 1 / -1;
@@ -532,5 +534,53 @@ onMounted(() => {
   border: 1px solid rgba(242, 95, 92, 0.3);
   color: var(--crm-danger);
   font-size: var(--crm-text-sm);
+}
+
+// ── Кнопки ────────────────────────────────────────────────────
+.crm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: var(--crm-radius-md);
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--crm-transition);
+  white-space: nowrap;
+  border: 1px solid transparent;
+
+  padding: 8px 14px;
+  font-size: var(--crm-text-sm);
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &--sm {
+    padding: 6px 12px;
+    font-size: var(--crm-text-sm);
+  }
+
+  &--primary {
+    background: var(--crm-success-dim);
+    border: 1px solid rgba(61, 214, 140, .35);
+    color: var(--crm-success);
+
+    &:hover:not(:disabled) {
+      background: rgba(61, 214, 140, .25);
+    }
+  }
+
+  &--ghost {
+    background: transparent;
+    border: 1px solid var(--crm-border-hover);
+    color: var(--crm-text-secondary);
+
+    &:hover:not(:disabled) {
+      background: var(--crm-bg-elevated);
+      color: var(--crm-text-primary);
+    }
+  }
 }
 </style>

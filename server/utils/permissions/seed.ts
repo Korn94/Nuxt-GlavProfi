@@ -120,7 +120,7 @@ export const PERMISSIONS_PAGES_SEED: PageSeedData[] = VALID_PAGE_SLUGS.map(slug 
 export const ROLE_PERMISSIONS_SEED: RolePermissionsSeed = {
   admin: {
     dashboard: { canView: true },
-    objects: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    objects: { canView: true, canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
     operations: { canView: true, canCreate: true, canEdit: true, canDelete: true },
     materials: { canView: true, canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
     works: { canView: true, canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
@@ -135,7 +135,7 @@ export const ROLE_PERMISSIONS_SEED: RolePermissionsSeed = {
   },
   manager: {
     dashboard: { canView: true },
-    objects: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    objects: { canView: true, canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
     operations: { canView: true, canCreate: true, canEdit: true, canDelete: true },
     materials: { canView: true, canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
     works: { canView: true, canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
@@ -145,32 +145,27 @@ export const ROLE_PERMISSIONS_SEED: RolePermissionsSeed = {
     price: { canView: true, canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
     users: { canView: true, canCreate: true, canEdit: true, canDelete: true },
     online: { canView: true }
-    // settings — нет прав, значит не виден
-    // test — нет прав, значит не виден
   },
   foreman: {
     dashboard: { canView: true },
-    objects: { canView: true, canCreate: true, canEdit: true },
-    operations: { canView: true }, // только просмотр
+    objects: { canView: true, canCreate: true, canEdit: true, canSpecial: true },
+    operations: { canView: true },
     materials: { canView: true, canCreate: true, canEdit: true, canSpecial: true },
     works: { canView: true, canCreate: true, canEdit: true, canSpecial: true },
     'daily-work': { canView: true, canCreate: true, canEdit: true, canSpecial: true },
     contractors: { canView: true, canEdit: true },
     online: { canView: true }
-    // portfolio, price, users, settings, test — нет прав
   },
   master: {
     dashboard: { canView: true },
     objects: { canView: true, canEdit: true },
     materials: { canView: true, canCreate: true, canEdit: true },
     works: { canView: true, canCreate: true, canEdit: true },
-    contractors: { canView: true } // только просмотр (видит себя)
-    // всё остальное — нет прав
+    contractors: { canView: true }
   },
   worker: {
     dashboard: { canView: true },
-    objects: { canView: true }, // только просмотр
-    works: { canView: true } // только просмотр
-    // всё остальное — нет прав
+    objects: { canView: true },
+    works: { canView: true }
   }
 }

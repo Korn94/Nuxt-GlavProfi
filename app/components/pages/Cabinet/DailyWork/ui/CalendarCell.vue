@@ -372,9 +372,9 @@ const cellEvents = computed(() => ({
     min-width: 16px;
     height: 16px;
     padding: 0 4px;
-    background: var(--crm-accent);
+    background: var(--crm-bg-base);
     color: #fff;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 700;
     border-radius: 8px;
     display: flex;

@@ -289,7 +289,7 @@ span {
 
 .container {
   max-width: 1200px;
-  margin: auto;
+  margin: 5em auto 0;
   border-radius: 5px;
 
   @media (max-width: 768px) {
