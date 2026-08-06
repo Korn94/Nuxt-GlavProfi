@@ -1,4 +1,4 @@
-// app/components/pages/cabinet/dashboards/master/StatsCard.vue
+<!-- app/components/pages/cabinet/dashboards/master/StatsCard.vue -->
 <template>
   <div class="stats-card">
     <!-- Заголовок -->
@@ -7,7 +7,26 @@
         <Icon name="mdi:calendar-clock" size="20" />
         <span>Подневка</span>
       </div>
-      <div class="stats-card__subtitle">Последние 3 месяца</div>
+      <div class="stats-card__subtitle">{{ periodLabel }}</div>
+    </div>
+
+    <!-- Фильтр периода -->
+    <div class="stats-card__filters">
+      <select v-model="preset" class="filter-select" @change="handlePresetChange">
+        <option value="">Все время</option>
+        <option value="week">Неделя</option>
+        <option value="month">Месяц</option>
+        <option value="quarter">Квартал</option>
+        <option value="year">Год</option>
+      </select>
+      <div class="filter-dates">
+        <input type="date" class="filter-date" v-model="dateFrom" :max="dateTo || undefined" @change="handleDateChange" />
+        <span class="filter-sep">—</span>
+        <input type="date" class="filter-date" v-model="dateTo" :min="dateFrom || undefined" @change="handleDateChange" />
+      </div>
+      <button class="filter-reset" @click="resetFilters" title="Сбросить период">
+        <Icon name="mdi:close" size="13" />
+      </button>
     </div>
 
     <!-- Загрузка -->
@@ -54,7 +73,7 @@
       <div class="total-info">
         <Icon name="mdi:information-outline" size="14" />
         <span>
-          Всего за 3 месяца: 
+          Всего за период: 
           <strong>{{ formatDays(totalDays) }}</strong> 
           {{ getDaysLabel(totalDays) }}
         </span>
@@ -64,7 +83,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
+import { useApi } from '~/composables/useApi'
+import type { ContractorType } from '~/types/contractors'
 
 interface MonthStats {
   month: string
@@ -75,9 +96,96 @@ interface MonthStats {
 }
 
 const props = defineProps<{
-  stats: MonthStats[]
-  loading?: boolean
+  contractorId: number
+  contractorType: ContractorType
 }>()
+
+const api = useApi()
+
+// ── Состояние ────────────────────────────────────────────────────────
+const stats = ref<MonthStats[]>([])
+const loading = ref(false)
+
+// Фильтры
+const preset = ref('')
+const dateFrom = ref('')
+const dateTo = ref('')
+
+// ── Computed ─────────────────────────────────────────────────────────
+const periodLabel = computed(() => {
+  if (dateFrom.value || dateTo.value) {
+    const from = dateFrom.value ? formatDateShort(dateFrom.value) : 'начало'
+    const to = dateTo.value ? formatDateShort(dateTo.value) : 'сегодня'
+    return `Период: ${from} — ${to}`
+  }
+  switch (preset.value) {
+    case 'week': return 'Последняя неделя'
+    case 'month': return 'Последний месяц'
+    case 'quarter': return 'Последний квартал'
+    case 'year': return 'Последний год'
+    default: return 'Все время'
+  }
+})
+
+const totalDays = computed(() => {
+  return stats.value.reduce((sum, month) => sum + month.days, 0)
+})
+
+// ── Загрузка данных ──────────────────────────────────────────────────
+async function loadStats() {
+  if (!props.contractorId) return
+
+  loading.value = true
+  try {
+    // Строим query-параметры
+    const params = new URLSearchParams()
+    if (preset.value) params.set('preset', preset.value)
+    if (dateFrom.value) params.set('from', dateFrom.value)
+    if (dateTo.value) params.set('to', dateTo.value)
+
+    const queryString = params.toString()
+    const url = `/api/contractors/${props.contractorType}/${props.contractorId}/daily-stats${queryString ? `?${queryString}` : ''}`
+
+    const response = await api.get<MonthStats[]>(url)
+    stats.value = response
+  } catch (error: any) {
+    console.error('[StatsCard] Ошибка загрузки статистики:', error)
+    stats.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+// ── Обработчики фильтров ─────────────────────────────────────────────
+function handlePresetChange() {
+  // При выборе пресета сбрасываем произвольные даты
+  dateFrom.value = ''
+  dateTo.value = ''
+  loadStats()
+}
+
+function handleDateChange() {
+  // При выборе произвольных дат сбрасываем пресет
+  preset.value = ''
+  loadStats()
+}
+
+function resetFilters() {
+  preset.value = ''
+  dateFrom.value = ''
+  dateTo.value = ''
+  loadStats()
+}
+
+// ── Вспомогательные функции ──────────────────────────────────────────
+function formatDateShort(dateStr: string): string {
+  try {
+    const date = new Date(dateStr)
+    return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  } catch {
+    return dateStr
+  }
+}
 
 /**
  * Правильное склонение слова "день"
@@ -116,9 +224,14 @@ function getBarWidth(days: number): number {
   return Math.min((days / maxDays) * 100, 100)
 }
 
-// Общее количество "человеко-дней" за 3 месяца
-const totalDays = computed(() => {
-  return props.stats.reduce((sum, month) => sum + month.days, 0)
+// ── Lifecycle ────────────────────────────────────────────────────────
+onMounted(() => {
+  loadStats()
+})
+
+// Перезагружаем при смене контрагента
+watch(() => [props.contractorId, props.contractorType], () => {
+  loadStats()
 })
 </script>
 
@@ -130,7 +243,7 @@ const totalDays = computed(() => {
   padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   height: 100%;
 }
 
@@ -153,6 +266,73 @@ const totalDays = computed(() => {
   font-size: var(--crm-text-xs);
   color: var(--crm-text-muted);
   margin-left: 30px;
+}
+
+// ── Фильтры ──────────────────────────────────────────────────────────
+.stats-card__filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-select {
+  padding: 6px 10px;
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-md);
+  background: var(--crm-bg-elevated);
+  color: var(--crm-text-primary);
+  font-size: var(--crm-text-xs);
+  cursor: pointer;
+  outline: none;
+
+  &:focus {
+    border-color: var(--crm-accent);
+  }
+}
+
+.filter-dates {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.filter-date {
+  padding: 5px 8px;
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-md);
+  background: var(--crm-bg-elevated);
+  color: var(--crm-text-primary);
+  font-size: var(--crm-text-xs);
+  outline: none;
+
+  &:focus {
+    border-color: var(--crm-accent);
+  }
+}
+
+.filter-sep {
+  color: var(--crm-text-muted);
+  font-size: var(--crm-text-xs);
+}
+
+.filter-reset {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-md);
+  background: var(--crm-bg-elevated);
+  color: var(--crm-text-muted);
+  cursor: pointer;
+  transition: var(--crm-transition);
+
+  &:hover {
+    color: var(--crm-danger);
+    border-color: var(--crm-danger);
+  }
 }
 
 .stats-card__skeleton {
@@ -194,6 +374,7 @@ const totalDays = computed(() => {
   display: flex;
   // flex-direction: column;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .month-block {
@@ -205,6 +386,8 @@ const totalDays = computed(() => {
   flex-direction: column;
   gap: 8px;
   width: 100%;
+  min-width: 150px;
+  flex: 1;
 
   &__header {
     display: flex;

@@ -28,8 +28,8 @@
 
         <div class="dashboard-widget dashboard-widget--stats">
           <PagesCabinetDashboardsMasterStatsCard 
-            :stats="stats" 
-            :loading="loadingStats" 
+            :contractor-id="contractorId" 
+            :contractor-type="contractorType"
           />
         </div>
 
@@ -117,12 +117,6 @@ interface ExpenseOperation {
   paymentDate?: string
 }
 
-interface MonthStats {
-  month: string
-  monthName: string
-  year: number
-  days: number
-}
 
 // ── Константы ────────────────────────────────────────────────────────
 const contractorTypeMap: Record<string, ContractorType> = {
@@ -156,10 +150,7 @@ const balance = ref({
   expense: 0
 })
 
-const stats = ref<MonthStats[]>([])
-
 const loadingBalance = ref(false)
-const loadingStats = ref(false)
 
 // ── Персонализация заголовка ─────────────────────────────────────────
 function getTimeOfDay(): string {
@@ -257,24 +248,6 @@ async function loadBalance() {
   }
 }
 
-// ── Загрузка статистики подневки ─────────────────────────────────────
-async function loadStats() {
-  if (!contractorId.value) return
-
-  loadingStats.value = true
-  try {
-    const response = await api.get<MonthStats[]>(
-      `/api/contractors/${contractorType.value}/${contractorId.value}/daily-stats`
-    )
-    stats.value = response
-  } catch (error: any) {
-    console.error('[MasterDashboard] Ошибка загрузки статистики:', error)
-    stats.value = []
-  } finally {
-    loadingStats.value = false
-  }
-}
-
 // ── Проверка наличия данных подневки за 14 дней ──────────────────────
 async function checkDailyData() {
   if (!contractorId.value) return
@@ -291,7 +264,6 @@ async function checkDailyData() {
 // ── Обработчик изменения баланса ─────────────────────────────────────
 function handleBalanceChanged() {
   loadBalance()
-  loadStats()
   checkDailyData()
 }
 
@@ -304,7 +276,6 @@ onMounted(async () => {
   if (contractorId.value) {
     await Promise.all([
       loadBalance(),
-      loadStats(),
       checkDailyData()
     ])
   }

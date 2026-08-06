@@ -166,6 +166,14 @@
 
     </div>
 
+    <!-- Статистика подневки (только для мастера и рабочего) -->
+    <div v-if="['master', 'worker'].includes(type)" class="contractor-detail__stats">
+      <PagesCabinetDashboardsMasterStatsCard
+        :contractor-id="id"
+        :contractor-type="type"
+      />
+    </div>
+
     <PagesCabinetContractorsContractorOperations 
       :contractor-id="id"
       :contractor-type="type"
