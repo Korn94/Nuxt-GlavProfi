@@ -143,8 +143,9 @@ async function loadStats() {
     if (dateFrom.value) params.set('from', dateFrom.value)
     if (dateTo.value) params.set('to', dateTo.value)
 
+    // ✅ Self-эндпоинт «только свои данные» (id/type определяется на сервере)
     const queryString = params.toString()
-    const url = `/api/contractors/${props.contractorType}/${props.contractorId}/daily-stats${queryString ? `?${queryString}` : ''}`
+    const url = `/api/contractors/me/daily-stats${queryString ? `?${queryString}` : ''}`
 
     const response = await api.get<MonthStats[]>(url)
     stats.value = response

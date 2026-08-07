@@ -291,12 +291,13 @@ async function loadOperations() {
   error.value = null
 
   try {
+    // ✅ Self-эндпоинты «только свои данные» (id/type определяется на сервере)
     const [expensesResponse, incomesResponse] = await Promise.all([
       api.get<ExpenseOperation[]>(
-        `/api/contractors/${props.contractorType}/${props.contractorId}/expenses`
+        `/api/contractors/me/expenses`
       ),
       api.get<IncomeOperation[]>(
-        `/api/contractors/${props.contractorType}/${props.contractorId}/incomes`
+        `/api/contractors/me/incomes`
       )
     ])
 

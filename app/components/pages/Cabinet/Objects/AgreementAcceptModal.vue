@@ -8,7 +8,7 @@
     <div class="modal">
       <div class="modal__header">
         <h3 class="modal__title">
-          Приёмка объёма
+          {{ isSubmitMode ? 'Сдача объёма' : 'Приёмка объёма' }}
         </h3>
 
         <button class="modal__close" @click="close">
@@ -80,7 +80,7 @@
             <strong>{{ formatCurrency(previewAmount) }}</strong>
           </div>
 
-          <template v-if="!agreement.contractorType || !agreement.contractorId">
+          <template v-if="!isSubmitMode && (!agreement.contractorType || !agreement.contractorId)">
             <label class="form-field">
               <span>Тип исполнителя</span>
               <select v-model="form.contractorType">
@@ -158,7 +158,11 @@
           :disabled="saving"
           @click="submit"
         >
-          {{ saving ? 'Принятие...' : 'Принять' }}
+          {{
+            saving
+              ? (isSubmitMode ? 'Сдача...' : 'Принятие...')
+              : (isSubmitMode ? 'Сдать' : 'Принять')
+          }}
         </button>
       </div>
     </div>
@@ -172,6 +176,8 @@ import { useApi } from '~/composables/useApi'
 const props = defineProps<{
   modelValue: boolean
   agreement?: any
+  mode?: 'accept' | 'submit'
+  fixedContractor?: { contractorType: 'master' | 'worker', contractorId: number }
 }>()
 
 const emit = defineEmits<{
@@ -189,6 +195,9 @@ const show = computed({
     emit('update:modelValue', value)
   }
 })
+
+// Режим «сдача» (для мастера/рабочего): исполнитель фиксируется самим пользователем
+const isSubmitMode = computed(() => props.mode === 'submit')
 
 const masters = ref<any[]>([])
 const workers = ref<any[]>([])
@@ -268,7 +277,10 @@ function resetForm() {
   form.amount = null
   form.comment = ''
 
-  if (props.agreement.contractorType && props.agreement.contractorId) {
+  if (props.mode === 'submit' && props.fixedContractor) {
+    form.contractorType = props.fixedContractor.contractorType
+    form.contractorId = props.fixedContractor.contractorId
+  } else if (props.agreement.contractorType && props.agreement.contractorId) {
     form.contractorType = props.agreement.contractorType
     form.contractorId = props.agreement.contractorId
   } else {
@@ -316,7 +328,7 @@ function validate() {
     return false
   }
 
-  if (!form.contractorType || !form.contractorId) {
+  if (props.mode !== 'submit' && (!form.contractorType || !form.contractorId)) {
     errorMessage.value = 'Выберите исполнителя'
     return false
   }
@@ -370,7 +382,11 @@ function close() {
 watch(() => props.modelValue, (value) => {
   if (value) {
     resetForm()
-    loadContractors()
+
+    // В режиме «сдача» исполнитель фиксирован — списки не загружаем
+    if (props.mode !== 'submit') {
+      loadContractors()
+    }
   }
 })
 
@@ -381,7 +397,10 @@ watch(() => form.contractorType, () => {
 onMounted(() => {
   if (show.value) {
     resetForm()
-    loadContractors()
+
+    if (props.mode !== 'submit') {
+      loadContractors()
+    }
   }
 })
 </script>

@@ -80,6 +80,29 @@ const PUBLIC_PATHS = [
 // 3. КОНФИГУРАЦИЯ ПРАВ ПО ENDPOINT'АМ
 // ============================================
 
+/**
+ * Является ли пользователь контрагентом (мастер/рабочий/прораб со своей записью).
+ * Используется для доступа к self-эндпоинтам «только свои данные»:
+ * владелец определяется на сервере по event.context.user, а не по URL,
+ * поэтому подставить чужой contractorId невозможно.
+ */
+function isContractor(user: DbUser): boolean {
+  return Boolean(
+    user &&
+    ['master', 'worker', 'foreman'].includes(user.contractorType || '') &&
+    Number(user.contractorId || 0) > 0
+  )
+}
+
+/**
+ * Доступ к «Моим договорённостям»: контрагент (свои данные) ИЛИ
+ * пользователь с правом objects.view (админ/менеджер — сохраняем прежнее поведение).
+ */
+async function hasMineAgreementsAccess(user: DbUser): Promise<boolean> {
+  if (isContractor(user)) return true
+  return hasUserPermission(user, 'objects', 'view')
+}
+
 // ✅ Исправлено: тип теперь допускает массив требований для разных HTTP-методов
 const PROTECTED_PATHS: Record<string, PathRequirement | PathRequirement[]> = {
   // ═══════════════════════════════════════════════════════════════
@@ -137,6 +160,13 @@ const PROTECTED_PATHS: Record<string, PathRequirement | PathRequirement[]> = {
   // ═══════════════════════════════════════════════════════════════
   // 🔨 РАБОТЫ (works)
   // ═══════════════════════════════════════════════════════════════
+  // ✅ Self-эндпоинт «Мои договорённости» (только свои данные): контрагент
+  //    получает доступ по isContractor (ID определяется на сервере), а админ/менеджер —
+  //    по праву objects.view (как раньше). ВАЖНО: этот паттерн ДОЛЖЕН идти ДО `/api/works`,
+  //    т.к. `/api/works` матчит любой вложенный путь через startsWith
+  //    (иначе `/api/works/agreements/mine` попадёт под требование `works.view`).
+  '/api/works/agreements/mine': { type: 'custom', value: hasMineAgreementsAccess, methods: ['GET'] },
+
   '/api/works': { type: 'page', value: 'works', action: 'view' },
   '/api/works/[id]': { type: 'page', value: 'works', action: 'view' },
   '/api/works/daily-work/active-objects': { type: 'page', value: 'works', action: 'view' },
@@ -169,6 +199,16 @@ const PROTECTED_PATHS: Record<string, PathRequirement | PathRequirement[]> = {
   // ═══════════════════════════════════════════════════════════════
   // 👥 КОНТРАГЕНТЫ (contractors)
   // ═══════════════════════════════════════════════════════════════
+  // ✅ Self-эндпоинты «только свои данные»: доступ для контрагента (master/worker/foreman).
+  //    id/type определяются на сервере из авторизованного пользователя, а не из URL,
+  //    поэтому дать доступ к ним безопасно и без широких прав `contractors.view`.
+  //    ВАЖНО: эти записи должны идти ДО `/api/contractors/[type]`, т.к. первый match выигрывает.
+  '/api/contractors/me': { type: 'custom', value: isContractor },
+  '/api/contractors/me/incomes': { type: 'custom', value: isContractor },
+  '/api/contractors/me/expenses': { type: 'custom', value: isContractor },
+  '/api/contractors/me/daily-stats': { type: 'custom', value: isContractor },
+  '/api/contractors/me/daily-recent': { type: 'custom', value: isContractor },
+
   '/api/contractors/[type]': { type: 'page', value: 'contractors', action: 'view' },
   '/api/contractors/[type]/[id]': { type: 'page', value: 'contractors', action: 'view' },
   '/api/contractors/[type]/[id]/expenses': { type: 'page', value: 'contractors', action: 'view' },

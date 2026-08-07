@@ -117,6 +117,17 @@ export const PERMISSIONS_PAGES_SEED: PageSeedData[] = VALID_PAGE_SLUGS.map(slug 
  * - users → Пользователи (админка)
  * - settings → Настройки
  */
+/**
+ * Матрица прав ролей по умолчанию.
+ * 
+ * Логика:
+ * - admin: полный доступ ко всему функционалу.
+ * - foreman: доступ только к подневке (daily-work) для учёта смен.
+ * - manager, master, worker: доступ закрыт ко всем разделам.
+ * 
+ * Если раздел отсутствует в объекте роли, все права (canView, canCreate и т.д.) 
+ * по умолчанию считаются false, и раздел автоматически скрывается из меню.
+ */
 export const ROLE_PERMISSIONS_SEED: RolePermissionsSeed = {
   admin: {
     dashboard: { canView: true },
@@ -133,39 +144,15 @@ export const ROLE_PERMISSIONS_SEED: RolePermissionsSeed = {
     settings: { canView: true, canEdit: true },
     test: { canView: true }
   },
-  manager: {
-    dashboard: { canView: true },
-    objects: { canView: true, canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
-    operations: { canView: true, canCreate: true, canEdit: true, canDelete: true },
-    materials: { canView: true, canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
-    works: { canView: true, canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
-    'daily-work': { canView: true, canCreate: true, canEdit: true, canSpecial: true },
-    contractors: { canView: true, canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
-    portfolio: { canView: true, canCreate: true, canEdit: true, canDelete: true },
-    price: { canView: true, canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
-    users: { canView: true, canCreate: true, canEdit: true, canDelete: true },
-    online: { canView: true }
-  },
+  
+  manager: {}, // Доступ закрыт ко всему
+  
   foreman: {
-    dashboard: { canView: true },
-    objects: { canView: true, canCreate: true, canEdit: true, canSpecial: true },
-    operations: { canView: true },
-    materials: { canView: true, canCreate: true, canEdit: true, canSpecial: true },
-    works: { canView: true, canCreate: true, canEdit: true, canSpecial: true },
-    'daily-work': { canView: true, canCreate: true, canEdit: true, canSpecial: true },
-    contractors: { canView: true, canEdit: true },
-    online: { canView: true }
+    // Прораб может только отмечать подневку (создавать, просматривать и редактировать)
+    'daily-work': { canView: true, canCreate: true, canEdit: true, canSpecial: true }
   },
-  master: {
-    dashboard: { canView: true },
-    objects: { canView: true, canEdit: true },
-    materials: { canView: true, canCreate: true, canEdit: true },
-    works: { canView: true, canCreate: true, canEdit: true },
-    contractors: { canView: true }
-  },
-  worker: {
-    dashboard: { canView: true },
-    objects: { canView: true },
-    works: { canView: true }
-  }
+  
+  master: {}, // Доступ закрыт ко всему
+  
+  worker: {}  // Доступ закрыт ко всему
 }

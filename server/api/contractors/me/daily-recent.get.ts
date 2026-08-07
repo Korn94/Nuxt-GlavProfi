@@ -18,36 +18,70 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, message: 'Пользователь не авторизован' })
   }
 
-  // Ищем мастера по userId
-  const [masterRecord] = await db
-    .select()
-    .from(masters)
-    .where(eq(masters.userId, user.id))
-    .limit(1)
-
-  // Если не мастер - ищем рабочего
+  // Определяем контрагента. Приоритет — прямые поля пользователя (contractorType/contractorId),
+  // иначе (обратная совместимость) ищем по userId.
   let contractorRecord: any = null
   let contractorType: 'master' | 'worker' = 'master'
   let dailyRate = 0
 
-  if (masterRecord) {
-    contractorRecord = masterRecord
-    contractorType = 'master'
-    dailyRate = parseFloat(String(masterRecord.dailyRate || 0))
-  } else {
-    const [workerRecord] = await db
+  const userContractorType = user.contractorType as 'master' | 'worker' | undefined
+  const userContractorId = Number(user.contractorId || 0)
+
+  if (userContractorType && userContractorId) {
+    if (userContractorType === 'master') {
+      const [m] = await db
+        .select()
+        .from(masters)
+        .where(eq(masters.id, userContractorId))
+        .limit(1)
+      if (m) {
+        contractorRecord = m
+        contractorType = 'master'
+        dailyRate = parseFloat(String(m.dailyRate || 0))
+      }
+    } else if (userContractorType === 'worker') {
+      const [w] = await db
+        .select()
+        .from(workers)
+        .where(eq(workers.id, userContractorId))
+        .limit(1)
+      if (w) {
+        contractorRecord = w
+        contractorType = 'worker'
+        dailyRate = parseFloat(String(w.dailyRate || 0))
+      }
+    }
+  }
+
+  // Фолбэк: пробуем найти по userId (старый способ привязки)
+  if (!contractorRecord) {
+    const [masterRecord] = await db
       .select()
-      .from(workers)
-      .where(eq(workers.userId, user.id))
+      .from(masters)
+      .where(eq(masters.userId, user.id))
       .limit(1)
 
-    if (!workerRecord) {
-      throw createError({ statusCode: 404, message: 'Контрагент не найден' })
-    }
+    if (masterRecord) {
+      contractorRecord = masterRecord
+      contractorType = 'master'
+      dailyRate = parseFloat(String(masterRecord.dailyRate || 0))
+    } else {
+      const [workerRecord] = await db
+        .select()
+        .from(workers)
+        .where(eq(workers.userId, user.id))
+        .limit(1)
 
-    contractorRecord = workerRecord
-    contractorType = 'worker'
-    dailyRate = parseFloat(String(workerRecord.dailyRate || 0))
+      if (workerRecord) {
+        contractorRecord = workerRecord
+        contractorType = 'worker'
+        dailyRate = parseFloat(String(workerRecord.dailyRate || 0))
+      }
+    }
+  }
+
+  if (!contractorRecord) {
+    throw createError({ statusCode: 404, message: 'Контрагент не найден' })
   }
 
   // Вычисляем дату 14 дней назад

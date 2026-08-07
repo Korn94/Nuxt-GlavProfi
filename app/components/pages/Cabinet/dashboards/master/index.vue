@@ -47,12 +47,11 @@
           />
         </div>
 
-        <!-- Строка 4: Placeholder -->
-        <div class="dashboard-widget dashboard-widget--placeholder">
-          <PagesCabinetDashboardsMasterComingSoonWidget 
-            title="Активные объекты" 
-            icon="mdi:map-marker-multiple-outline"
-            message="Скоро здесь появятся ваши активные объекты" 
+        <!-- Строка 4: Мои договорённости -->
+        <div class="dashboard-widget dashboard-widget--agreements">
+          <PagesCabinetDashboardsMasterAgreementsWidget 
+            :contractor-id="contractorId" 
+            :contractor-type="'master'"
           />
         </div>
       </div>
@@ -213,16 +212,17 @@ async function loadBalance() {
 
   loadingBalance.value = true
   try {
+    // ✅ Self-эндпоинты «только свои данные» (id/type определяется на сервере)
     const contractorResponse = await api.get<ContractorDTO>(
-      `/api/contractors/${contractorType.value}/${contractorId.value}`
+      `/api/contractors/me`
     )
 
     const [incomesResponse, expensesResponse] = await Promise.all([
       api.get<IncomeOperation[]>(
-        `/api/contractors/${contractorType.value}/${contractorId.value}/incomes`
+        `/api/contractors/me/incomes`
       ),
       api.get<ExpenseOperation[]>(
-        `/api/contractors/${contractorType.value}/${contractorId.value}/expenses`
+        `/api/contractors/me/expenses`
       )
     ])
 
@@ -397,6 +397,7 @@ useHead({
   // Строка 2-4: широкие блоки (занимают обе колонки)
   &--daily-schedule,
   &--operations,
+  &--agreements,
   &--placeholder {
     grid-column: 1 / -1;
   }
