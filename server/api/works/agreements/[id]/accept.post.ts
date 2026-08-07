@@ -1,17 +1,12 @@
 // server/api/works/agreements/[id]/accept.post.ts
 import { defineEventHandler, readBody, createError, getRouterParam } from 'h3'
-import { eq, sql } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../../../../db'
-import {
-  workAgreements,
-  workAgreementAcceptances,
-  works
-} from '../../../../db/schema'
+import { workAgreements } from '../../../../db/schema'
 import {
   canAcceptWorkAgreements,
-  calcAcceptAmount,
-  round2,
+  createWorkAgreementAcceptance,
   round3
 } from '../../../../utils/workAgreements'
 
@@ -78,27 +73,9 @@ export default defineEventHandler(async (event) => {
 
   const totalVolume = Number(agreement.volume || 0)
   const acceptedVolumeBefore = Number(agreement.acceptedVolume || 0)
-  const acceptedAmountBefore = Number(agreement.acceptedAmount || 0)
-  const agreedAmount = Number(agreement.agreedAmount || 0)
-
   const remainingVolume = round3(totalVolume - acceptedVolumeBefore)
-  const remainingAmount = round2(agreedAmount - acceptedAmountBefore)
 
   const acceptedVolume = payload.volume ?? remainingVolume
-
-  if (acceptedVolume <= 0) {
-    throw createError({
-      statusCode: 400,
-      message: 'Некорректный объём приёмки'
-    })
-  }
-
-  if (acceptedVolume > remainingVolume + 0.0001) {
-    throw createError({
-      statusCode: 400,
-      message: 'Нельзя принять больше оставшегося объёма'
-    })
-  }
 
   const contractorType = payload.contractorType || agreement.contractorType
   const contractorId = payload.contractorId || agreement.contractorId
@@ -110,79 +87,17 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  let acceptedAmount = payload.amount
-
-  if (acceptedAmount == null) {
-    acceptedAmount = calcAcceptAmount({
-      priceMode: agreement.priceMode as 'unit' | 'fixed',
-      totalVolume,
-      acceptedVolume,
-      unitPrice: agreement.unitPrice ? Number(agreement.unitPrice) : null,
-      fixedTotal: agreement.fixedTotal ? Number(agreement.fixedTotal) : null,
-      agreedAmount
-    })
-  } else {
-    acceptedAmount = round2(acceptedAmount)
-  }
-
-  if (acceptedAmount > remainingAmount + 0.01) {
-    throw createError({
-      statusCode: 400,
-      message: 'Сумма приёмки превышает оставшуюся сумму договорённости'
-    })
-  }
-
   const user = event.context.user as any
-  const now = new Date()
 
-  await db.transaction(async (tx) => {
-    const [newWork] = await tx
-      .insert(works)
-      .values({
-        workerAmount: String(acceptedAmount),
-        comment: `Принято по договорённости «${agreement.title}»`,
-        contractorId,
-        contractorType,
-        workTypes: agreement.workType,
-        workSource: 'volume',
-        foremanId: agreement.foremanId,
-        accepted: true,
-        acceptedDate: now,
-        rejectedReason: null,
-        paid: false,
-        paymentDate: null,
-        operationDate: now,
-        objectId: Number(agreement.objectId),
-        createdAt: now,
-        updatedAt: now
-      })
-      .$returningId()
-
-    if (!newWork) {
-      throw new Error('Не удалось создать запись работы')
-    }
-
-    await tx.insert(workAgreementAcceptances).values({
-      agreementId: agreement.id,
-      workId: newWork.id,
-      acceptedVolume: String(round3(acceptedVolume)),
-      acceptedAmount: String(acceptedAmount),
-      contractorType,
-      contractorId,
-      comment: payload.comment || null,
-      createdBy: user?.id || null,
-      createdAt: now
-    })
-
-    await tx
-      .update(workAgreements)
-      .set({
-        acceptedVolume: sql`${workAgreements.acceptedVolume} + ${acceptedVolume}`,
-        acceptedAmount: sql`${workAgreements.acceptedAmount} + ${acceptedAmount}`,
-        updatedAt: now,
-        updatedBy: user?.id || null
-      })
-      .where(eq(workAgreements.id, agreement.id))
+  await createWorkAgreementAcceptance({
+    agreement,
+    volume: acceptedVolume,
+    amount: payload.amount,
+    contractorType: contractorType as 'master' | 'worker',
+    contractorId,
+    comment: payload.comment,
+    accepted: true,
+    user
   })
 
   return {

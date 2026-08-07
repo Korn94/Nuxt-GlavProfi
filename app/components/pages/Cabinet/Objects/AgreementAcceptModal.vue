@@ -360,10 +360,11 @@ async function submit() {
       payload.amount = Number(form.amount || 0)
     }
 
-    await api.post(
-      `/api/works/agreements/${props.agreement.id}/accept`,
-      payload
-    )
+    const url = isSubmitMode.value
+      ? `/api/contractors/me/agreements/${props.agreement.id}/submit`
+      : `/api/works/agreements/${props.agreement.id}/accept`
+
+    await api.post(url, payload)
 
     emit('saved')
     close()
