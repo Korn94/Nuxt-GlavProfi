@@ -83,7 +83,10 @@
           <template v-if="!isSubmitMode && (!agreement.contractorType || !agreement.contractorId)">
             <label class="form-field">
               <span>Тип исполнителя</span>
-              <select v-model="form.contractorType">
+              <select
+                v-model="form.contractorType"
+                @change="() => (form.contractorId = null)"
+              >
                 <option :value="null">
                   Выберите тип
                 </option>
@@ -389,10 +392,6 @@ watch(() => props.modelValue, (value) => {
       loadContractors()
     }
   }
-})
-
-watch(() => form.contractorType, () => {
-  form.contractorId = null
 })
 
 onMounted(() => {

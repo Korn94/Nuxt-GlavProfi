@@ -111,13 +111,13 @@
     <div v-if="filteredOperations.length > 0" class="operations-widget__footer">
       <div class="operations-summary">
         <div class="summary-item">
-          <span class="summary-item__label">Приходы</span>
+          <span class="summary-item__label">Выполнено работ</span>
           <span class="summary-item__value summary-item__value--income">
             +{{ formatCurrency(totals.incomes) }}
           </span>
         </div>
         <div class="summary-item">
-          <span class="summary-item__label">Расходы</span>
+          <span class="summary-item__label">Деньги получил</span>
           <span class="summary-item__value summary-item__value--expense">
             −{{ formatCurrency(totals.expenses) }}
           </span>
@@ -245,7 +245,7 @@ const totals = computed(() => {
 // ✅ Кастомный заголовок для операций
 function getDisplayTitle(operation: Operation): string {
   if (operation.type === 'expense') {
-    return 'Оплачено'
+    return 'Деньги получил'
   }
   // Для income оставляем существующий title
   return operation.title

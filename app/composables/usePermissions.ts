@@ -45,10 +45,10 @@ export function usePermissions() {
    * Проверить право пользователя на действие для страницы
    *
    * Логика (с canView = Read-Only Access):
-   * - view — страница видима если canView=true ИЛИ есть любое CRUD-действие
-   * - create/edit/delete/special — страница видима + соответствующий флаг
+   * - view — чтение данных требует явного canView (НЕ подразумевается CRUD/special-флагами)
+   * - create/edit/delete/special — требуют соответствующий флаг
    *
-   * isVisible = canView || canCreate || canEdit || canDelete || canSpecial
+   * Видимость страницы в меню (isPageVisible) — отдельно: наличие любого действия.
    */
   function can(page: PageSlug, action: PageAction): boolean {
     const pagePerms = authStore.pages?.[page]
@@ -56,15 +56,10 @@ export function usePermissions() {
     // Если страницы нет в правах — она невидима, доступ запрещён
     if (!pagePerms) return false
 
-    // Для просмотра — страница видима если canView ИЛИ есть любое действие
+    // Для просмотра — чтение данных требует явного canView (Read-Only access),
+    // CRUD/special-флаги НЕ дают автоматического чтения
     if (action === 'view') {
-      return (
-        pagePerms.canView ||
-        pagePerms.canCreate ||
-        pagePerms.canEdit ||
-        pagePerms.canDelete ||
-        pagePerms.canSpecial
-      )
+      return pagePerms.canView
     }
 
     // Для действий — проверяем соответствующий флаг

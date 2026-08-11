@@ -410,8 +410,10 @@ export async function getUserPagePermissions(
  * Проверить, имеет ли пользователь право на действие
  *
  * Логика:
- * - view — страница видима если canView=true ИЛИ есть любое CRUD-действие
- * - create/edit/delete/special — страница видима + соответствующий флаг
+ * - view — чтение данных требует явного права canView (Read-Only access);
+ *   canSpecial/CRUD-флаги НЕ дают автоматического чтения страницы
+ * - create/edit/delete/special — требуют соответствующий флаг
+ *   (special — спец-операция и НЕ подразумевает просмотр данных страницы)
  *
  * Используется в middleware для проверки прав на endpoint.
  */
@@ -459,14 +461,9 @@ export async function hasUserPermission(
   const permissions = await getUserPagePermissions(user, pageSlug)
 
   if (action === 'view') {
-    // Страница видима если есть canView ИЛИ любое CRUD-действие
-    return (
-      permissions.canView ||
-      permissions.canCreate ||
-      permissions.canEdit ||
-      permissions.canDelete ||
-      permissions.canSpecial
-    )
+    // Чтение данных требует явного права canView (Read-Only access).
+    // Спец-операции (special) или CRUD-флаги больше НЕ дают автоматического чтения страницы.
+    return permissions.canView
   }
 
   // Для действий нужен соответствующий флаг

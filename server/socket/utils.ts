@@ -155,8 +155,8 @@ export async function requireSpecial(
 /**
  * Проверить право просмотра страницы.
  *
- * В новой модели (без canView) — страница видима если есть хотя бы одно действие.
- * hasUserPermission('view') вернёт true если страница есть в правах пользователя.
+ * view = только canView (чтение данных). canSpecial/CRUD-флаги
+ * НЕ дают автоматического доступа к чтению страницы.
  */
 export async function requireView(
   socket: Socket,

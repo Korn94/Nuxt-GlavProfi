@@ -192,6 +192,7 @@ import { useHead } from 'nuxt/app'
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useApi } from '~/composables/useApi'
+import { usePermissions } from '~/composables/usePermissions'
 
 // ── Мета ─────────────────────────────────────────────────────────────
 definePageMeta({
@@ -204,6 +205,7 @@ definePageMeta({
 const route = useRoute()
 const router = useRouter()
 const api = useApi()
+const { can } = usePermissions()
 const objectId = Number(route.params.id)
 
 if (isNaN(objectId)) {
@@ -345,6 +347,11 @@ function handleWorkDeleted(id: number) {
 
 // ── Lifecycle ─────────────────────────────────────────────────────────
 onMounted(async () => {
+  // 🔒 При прямом заходе по ссылке без права чтения объектов — доступ запрещён
+  if (!can('objects', 'view')) {
+    await router.push('/access-denied')
+    return
+  }
   try {
     const me = await api.get<any>('/api/me')
     isAdmin.value = me?.user?.role === 'admin'

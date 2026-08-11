@@ -134,7 +134,10 @@
 
           <label class="form-field">
             <span>Тип исполнителя</span>
-            <select v-model="form.contractorType">
+            <select
+              v-model="form.contractorType"
+              @change="() => (form.contractorId = null)"
+            >
               <option :value="null">
                 Не назначен
               </option>
@@ -470,13 +473,6 @@ watch(
       resetForm()
       loadContractors()
     }
-  }
-)
-
-watch(
-  () => form.contractorType,
-  () => {
-    form.contractorId = null
   }
 )
 

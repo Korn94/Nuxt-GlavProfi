@@ -364,7 +364,7 @@ onMounted(() => {
     gap: 6px;
     font-size: var(--crm-text-md);
     font-weight: 600;
-    color: var(--crm-text-secondary);
+    color: var(--crm-warning);
     padding-bottom: 6px;
     border-bottom: 1px solid var(--crm-border);
   }
