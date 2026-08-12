@@ -1,53 +1,13 @@
-<!-- app\components\pages\public\remontPomescheniy\workTypes\gkl\steny.vue -->
 <template>
   <div class="page-gkl-steny">
-    <!-- ==================== БЛОК 1: HERO ==================== -->
-    <PageHero
-      title="Монтаж гипсокартона на стены <span>под ключ в Рязани</span>"
-      subtitle="Ровные стены за 1-3 дня. Монтаж на каркас или клей. Скрываем проводку, утепляем, готовим под обои или плитку. Гарантия 3 года на все работы."
-    >
-      <template #background>
-        <BeforeAfterSlider
-          before-image="/main/1.jpg"
-          after-image="/main/1-1.jpg"
-          before-alt="Стена до монтажа ГКЛ"
-          after-alt="Стена после монтажа ГКЛ"
-          :dimming="true"
-          :duration="8000"
-          :pause-at-edges="2000"
-        />
-      </template>
-      <template #price>
-        <span class="price-main">от 650 ₽/м²</span>
-        <span class="price-example">Комната 15 м²: ~9 750 ₽</span>
-        <span class="price-note">Без учёта материалов</span>
-      </template>
-      <template #form>
-        <MiniEstimateForm
-          room-type="gkl-steny"
-          :default-area="20"
-          :repair-types="repairTypes"
-          id-prefix="gkl-steny-mini"
-          @submit="onMiniFormSubmit"
-        />
-      </template>
-      <template #triggers>
-        <span class="trigger-item">
-          <Icon name="mdi:shield-check-outline" class="trigger-icon" size="18" />
-          Гарантия 3 года на монтаж
-        </span>
-        <span class="trigger-item">
-          <Icon name="mdi:clock-fast" class="trigger-icon" size="18" />
-          За 1-3 дня без задержек
-        </span>
-        <span class="trigger-item">
-          <Icon name="mdi:cash-multiple" class="trigger-icon" size="18" />
-          Цена фиксируется в договоре
-        </span>
-      </template>
-    </PageHero>
+    <!-- ==================== БЛОК 3: Навигация по видам ГКЛ работ (белый фон) ==================== -->
+    <WorkTypeNavigator
+      title="Виды <span>гипсокартонных работ</span>"
+      subtitle="Выберите нужный тип — на каждой странице подробное описание, цены и калькулятор."
+      :items="gklWorkTypes"
+    />
 
-    <!-- ==================== БЛОК: ХЛЕБНЫЕ КРОШКИ + НАВИГАЦИЯ ==================== -->
+    <!-- ==================== БЛОК 2: Хлебные крошки + StickyNav ==================== -->
     <NavBreadcrumbsRow>
       <template #breadcrumbs>
         <Breadcrumbs
@@ -64,31 +24,16 @@
       </template>
     </NavBreadcrumbsRow>
 
-    <!-- ==================== БЛОК 2: Контекстная навигация ==================== -->
-    <section id="about" class="page-section">
-      <ServiceNavigation
-        title="Гипсокартонные <span>работы</span>"
-        :items="serviceNavItems"
-      />
-    </section>
-
-    <!-- ==================== ПЕРЕКЛЮЧАТЕЛЬ ПОДВИДОВ ==================== -->
-    <SubServiceSwitcher
-      label="Виды гипсокартонных работ"
-      title="Что именно <span>вам нужно?</span>"
-      :items="subServiceItems"
-    />
-
-    <!-- ==================== БЛОК 3: Описание услуги ==================== -->
-    <section id="service-info" class="page-section page-section--light">
-      <ServiceDescription
-        title="Что такое <span>монтаж ГКЛ на стены</span>"
-        lead="Гипсокартон (ГКЛ) — это готовые листы из гипса в картонной оболочке, которые крепятся на металлический каркас или специальный клей. За 1–3 дня мы получаем идеально ровную поверхность без штукатурки и длительных сроков высыхания."
-        :highlights="descriptionHighlights"
-        :results="descriptionResults"
-        @consult="scrollToCta"
-      >
-        <!-- Текст с NuxtLink — через default slot, чтобы ссылки работали -->
+    <!-- ==================== БЛОК 1: Описание категории + перелинковка ==================== -->
+    <WorkTypeOverview
+      category-label="Гипсокартонные работы"
+      category-icon="mdi:wall"
+      title="Монтаж гипсокартона <span>на стены</span>"
+      description="Гипсокартон (ГКЛ) — это готовые листы из гипса в картонной оболочке, которые крепятся на металлический каркас или специальный клей. За 1–3 дня получаем идеально ровную поверхность без штукатурки и длительных сроков высыхания."
+      :advantages="categoryAdvantages"
+    >
+      <!-- Расширенное описание с перелинковкой -->
+      <template #details>
         <p>
           В отличие от штукатурки, монтаж на каркас позволяет скрыть электропроводку,
           трубы отопления и вентиляции внутри стены. Это особенно актуально при
@@ -107,14 +52,39 @@
           производителей (Knauf, Gyproc). Это исключает ржавчину, скрипы и деформацию
           каркаса со временем, а значит — и трещины по швам.
         </p>
-      </ServiceDescription>
+      </template>
+    </WorkTypeOverview>
+
+    <!-- БЛОК: До / После (вместо Hero-фона) -->
+    <section id="before-after" class="page-section">
+      <BeforeAfterShowcase
+        title="Результат <span>до и после</span>"
+        :items="[
+          { beforeImage: '/main/1-1.jpg', afterImage: '/main/1.jpg' },
+          { beforeImage: '/main/2-1.jpg', afterImage: '/main/2.jpg' },
+          { beforeImage: '/main/5.jpg', afterImage: '/main/6.jpg' },
+        ]"
+      />
     </section>
 
-    <!-- ==================== БЛОК 7: Портфолио ==================== -->
-    <section id="portfolio" class="page-section">
-      <BeforeAfterGallery
-        :slugs="['gkl-steny-1', 'gkl-steny-2']"
-        title="Наши работы: <span>стены из ГКЛ</span>"
+    <!-- БЛОК: Что выбрать? -->
+    <section id="methods" class="page-section page-section--light">
+      <MethodComparison
+        title="Что <span>выбрать</span>: клей, каркас или штукатурку?"
+        subtitle="Каждый способ подходит для разных задач. Разберём плюсы, минусы и сценарии применения."
+        :methods="comparisonMethods"
+        summary="Не уверены, что подойдёт именно вам? <strong>Инженер бесплатно приедет на замер</strong>, оценит кривизну стен и предложит оптимальный вариант по цене и срокам."
+      />
+    </section>
+
+    <!-- БЛОК: Типы материалов -->
+    <section id="materials" class="page-section">
+      <MaterialsGuide
+        title="Какой <span>гипсокартон</span> выбрать: типы и различия"
+        subtitle="Не все листы одинаковы. Рассказываем, какой материал подойдёт под вашу задачу — и когда стоит переплатить за ГВЛ."
+        :materials="gklMaterials"
+        :thicknesses="gklThicknesses"
+        summary="Для офисов и жилых комнат достаточно <strong>ГКЛ 12,5 мм</strong>. Для санузлов и кухонь — <strong>ГКЛВ</strong>. Если планируете вешать тяжёлые шкафы или делать пол — берите <strong>ГВЛ</strong>: он дороже, но в разы прочнее. Точную комплектацию инженер посчитает на бесплатном замере."
       />
     </section>
 
@@ -127,19 +97,19 @@
       />
     </section>
 
-    <!-- ==================== БЛОК 4: КАЛЬКУЛЯТОР С ТАБАМИ ==================== -->
+    <!-- ==================== БЛОК 6: Калькулятор ==================== -->
     <section id="calculator" class="page-section page-section--light">
       <PriceCalculatorTabs
         title="Калькулятор <span>стоимости</span> монтажа ГКЛ"
-        subtitle="Выберите тип монтажа и площадь — получите предварительную смету за 30 секунд."
+        subtitle="Выберите тип монтажа и площадь — получите предварительную смету сразу."
         :tabs="calculatorTabs"
         :default-area="20"
         @order-estimate="scrollToCta"
       />
     </section>
 
-    <!-- ==================== БЛОК 6: Этапы работ ==================== -->
-    <section id="stages" class="page-section page-section--light">
+    <!-- ==================== БЛОК 7: Этапы работ ==================== -->
+    <section id="stages" class="page-section">
       <WorkStagesTimeline
         title="Как <span>мы работаем</span>: 6 этапов"
         subtitle="От звонка до сдачи готовых стен под отделку"
@@ -161,15 +131,7 @@
       />
     </section>
 
-    <!-- ==================== БЛОК 10: Популярные услуги ==================== -->
-    <section id="popular" class="page-section page-section--light">
-      <ServiceNavigation
-        title="Также <span>популярно</span>"
-        :items="popularServices"
-      />
-    </section>
-
-    <!-- ==================== БЛОК 11: Кросс-продажи ==================== -->
+    <!-- ==================== БЛОК 10: Кросс-продажи ==================== -->
     <section id="related" class="page-section">
       <CrossSalesBlock
         title="С этим <span>часто заказывают</span>"
@@ -178,8 +140,8 @@
       />
     </section>
 
-    <!-- ==================== БЛОК 12: CTA ==================== -->
-    <section id="cta" class="page-section page-section--light">
+    <!-- ==================== БЛОК 11: CTA ==================== -->
+    <section id="cta" class="page-section">
       <ApplicationCTA
         title="Рассчитайте <span>точную стоимость</span> вашего объекта"
         subtitle="Оставьте заявку — инженер бесплатно приедет на замер, оценит кривизну стен и подготовит детальную смету."
@@ -194,28 +156,30 @@
 </template>
 
 <script setup lang="ts">
-// === UI-компоненты: специфичные для workTypes ===
-import SubServiceSwitcher from '../ui/SubServiceSwitcher.vue'
-import ServiceDescription from '../ui/ServiceDescription.vue'
+// === UI: workTypes (новые компоненты) ===
+import WorkTypeOverview from '../ui/WorkTypeOverview.vue'
+import WorkTypeNavigator from '../ui/WorkTypeNavigator.vue'
 import PriceCalculatorTabs from '../ui/PriceCalculatorTabs.vue'
 import WorkStagesTimeline from '../ui/WorkStagesTimeline.vue'
 import GuaranteesGrid from '../ui/GuaranteesGrid.vue'
 import CrossSalesBlock from '../ui/CrossSalesBlock.vue'
+import BeforeAfterShowcase from '../ui/BeforeAfterShowcase.vue'
+import MethodComparison from '../ui/MethodComparison.vue'
+import type { MethodOption } from '../ui/MethodComparison.vue'
+import MaterialsGuide from '../ui/MaterialsGuide.vue'
+import type { MaterialCardData, ThicknessOption } from '../ui/MaterialsGuide.vue'
 
-// === UI-компоненты: общие для всех страниц (из ui/) ===
-import PageHero from '../../ui/PageHero.vue'
+// === UI: общие ===
 import StickyNav from '../../ui/StickyNav.vue'
 import Breadcrumbs from '../../ui/Breadcrumbs.vue'
 import NavBreadcrumbsRow from '../../ui/NavBreadcrumbsRow.vue'
-import MiniEstimateForm from '../../ui/MiniEstimateForm.vue'
-import BeforeAfterSlider from '../../ui/BeforeAfterSlider.vue'
-import BeforeAfterGallery from '../../ui/BeforeAfterGallery.vue'
 import PriceFactors from '../../ui/PriceFactors.vue'
 import FAQBlock from '../../ui/FAQBlock.vue'
 import ApplicationCTA from '../../ui/ApplicationCTA.vue'
 
 // === Типы ===
-import type { ServiceNavItem } from '../ui/ServiceNavigation.vue'
+import type { OverviewAdvantage } from '../ui/WorkTypeOverview.vue'
+import type { WorkTypeNavItem } from '../ui/WorkTypeNavigator.vue'
 import type { CalculatorTab } from '../ui/PriceCalculatorTabs.vue'
 import type { WorkStage } from '../ui/WorkStagesTimeline.vue'
 import type { GuaranteeItem } from '../ui/GuaranteesGrid.vue'
@@ -224,76 +188,256 @@ import type { PriceFactor } from '../../ui/PriceFactors.vue'
 import type { FAQItem } from '../../ui/FAQBlock.vue'
 import type { StickyNavItem } from '../../ui/StickyNav.vue'
 
-// === SEO (переопределяется на уровне роутинг-страницы) ===
-// См. app/pages/vidy-rabot/gkl/steny.vue
-
-// === Навигация по секциям ===
+// ============================================================
+// НАВИГАЦИЯ ПО СЕКЦИЯМ (StickyNav)
+// ============================================================
 const navItems: StickyNavItem[] = [
-  { id: 'about', label: 'Об услуге', icon: 'mdi:information-outline' },
-  { id: 'calculator', label: 'Калькулятор', icon: 'mdi:calculator' },
-  { id: 'price-factors', label: 'Цена', icon: 'mdi:cash-multiple' },
-  { id: 'stages', label: 'Этапы работ', icon: 'mdi:timeline-clock' },
+  { id: 'before-after', label: 'До и после', icon: 'mdi:compare-horizontal' },
   { id: 'portfolio', label: 'Портфолио', icon: 'mdi:image-multiple' },
+  { id: 'price-factors', label: 'Цена', icon: 'mdi:cash-multiple' },
+  { id: 'calculator', label: 'Калькулятор', icon: 'mdi:calculator' },
+  { id: 'stages', label: 'Этапы работ', icon: 'mdi:timeline-clock' },
   { id: 'guarantees', label: 'Гарантии', icon: 'mdi:shield-check' },
   { id: 'faq', label: 'Вопросы', icon: 'mdi:help-circle-outline' },
-  { id: 'popular', label: 'Похожие услуги', icon: 'mdi:view-grid' },
   { id: 'related', label: 'Заказывают вместе', icon: 'mdi:puzzle' },
   { id: 'cta', label: 'Заказать', icon: 'mdi:send-outline' },
 ]
 
-// === Мини-форма в Hero: варианты монтажа ===
-const repairTypes = [
-  { value: 'frame', label: 'На каркас', icon: 'mdi:frame' },
-  { value: 'glue', label: 'На клей', icon: 'mdi:glue' },
-  { value: 'complex', label: 'Комплексно', icon: 'mdi:wrench' },
+// ============================================================
+// БЛОК 1: WorkTypeOverview — преимущества категории
+// ============================================================
+const categoryAdvantages: OverviewAdvantage[] = [
+  {
+    title: 'Быстрый монтаж',
+    description: 'Стены готовы за 1-3 дня без «мокрых» процессов',
+    icon: 'mdi:clock-fast',
+  },
+  {
+    title: 'Скрытие коммуникаций',
+    description: 'Проводка, трубы и вентиляция внутри каркаса',
+    icon: 'mdi:pipe',
+  },
+  {
+    title: 'Звукоизоляция',
+    description: 'Снижение шума на 15-25 дБ с минватой',
+    icon: 'mdi:volume-off',
+  },
 ]
 
-// === Переключатель подвидов ГКЛ ===
-const subServiceItems = [
+// ============================================================
+// БЛОК 3: WorkTypeNavigator — виды ГКЛ работ
+// ============================================================
+const gklWorkTypes: WorkTypeNavItem[] = [
   {
     title: 'Обшивка стен ГКЛ',
     to: '/vidy-rabot/gkl/steny',
     icon: 'mdi:wall',
     priceFrom: 650,
     active: true,
-    description:
-      'Выравнивание любых стен гипсокартоном на каркас или клей. Скрываем проводку, утепляем, готовим под обои или плитку.',
+    description: 'Выравнивание стен на каркас или клей',
   },
   {
-    title: 'Перегородка из ГКЛ',
+    title: 'Перегородки из ГКЛ',
     to: '/vidy-rabot/gkl/peregorodki',
-    icon: 'mdi:room-divider',
+    icon: 'mdi:door-closed',
     priceFrom: 850,
-    description:
-      'Зонирование пространства лёгкими конструкциями. Одно- и двухслойные, с шумоизоляцией и закладными под двери.',
+    description: 'Зонирование с шумоизоляцией',
   },
   {
     title: 'Потолки из ГКЛ',
     to: '/vidy-rabot/gkl/potolki',
     icon: 'mdi:ceiling-light',
     priceFrom: 950,
-    description:
-      'Одно- и многоуровневые потолки с нишами под подсветку, скрытыми карнизами и встроенными светильниками.',
+    description: 'Одно- и многоуровневые конструкции',
   },
 ]
 
-// === БЛОК 2: Контекстная навигация по услугам ГКЛ ===
-const descriptionHighlights = [
-  'Выравнивание стен любой кривизны без «мокрых» процессов',
-  'Скрытие электропроводки, труб и вентиляции внутри каркаса',
-  'Утепление и звукоизоляция помещения минватой',
-  'Создание ниш под встроенные шкафы и технику',
-  'Быстрый монтаж — без долгих сроков высыхания штукатурки',
+const comparisonMethods: MethodOption[] = [
+  {
+    title: 'ГКЛ на клей',
+    icon: 'mdi:glue',
+    priceFrom: 350,
+    whenToUse: [
+      'Перепад стен не более 2 см на 2 метра',
+      'Нужно сохранить максимум площади помещения',
+      'Быстрый и бюджетный ремонт',
+      'Стены из кирпича, бетона, пеноблока',
+    ],
+    pros: [
+      'Минимальная потеря площади (1-2 см)',
+      'Самая низкая стоимость',
+      'Быстрый монтаж — 1 день на комнату',
+      'Нет сверления и пыли от каркаса',
+    ],
+    cons: [
+      'Нельзя скрыть коммуникации',
+      'Не подходит для сильной кривизны',
+      'Требует ровного основания',
+    ],
+  },
+  {
+    title: 'ГКЛ на каркас',
+    icon: 'mdi:frame',
+    priceFrom: 650,
+    recommended: true,
+    whenToUse: [
+      'Перепад стен более 2 см',
+      'Нужно скрыть проводку, трубы, вентиляцию',
+      'Требуется звуко- или теплоизоляция',
+      'Планируются встроенные ниши или полки',
+    ],
+    pros: [
+      'Скрывает любые коммуникации',
+      'Идеально ровная поверхность при любой кривизне',
+      'Возможность утепления и шумоизоляции',
+      'Подходит для любых стен',
+    ],
+    cons: [
+      'Забирает 5-7 см от площади',
+      'Дороже клеевого способа',
+      'Монтаж занимает 2-3 дня',
+    ],
+  },
+  {
+    title: 'Штукатурка',
+    icon: 'mdi:format-paint',
+    priceFrom: 450,
+    whenToUse: [
+      'Перепад стен до 5 см',
+      'Влажные помещения (ванная, кухня)',
+      'Нужна максимальная прочность основания',
+      'Планируется укладка тяжёлой плитки',
+    ],
+    pros: [
+      'Максимальная прочность и долговечность',
+      'Не забирает площадь',
+      'Подходит для влажных помещений',
+      'Выдерживает тяжёлые нагрузки (плитка, камень)',
+    ],
+    cons: [
+      'Долго сохнет — 5-7 дней до финишной отделки',
+      'Грязный и пыльный процесс',
+      'Не скрывает коммуникации',
+      'Не подходит для перепадов более 5 см',
+    ],
+  },
 ]
 
-const descriptionResults = [
-  'Идеально ровные стены под обои, покраску или плитку',
-  'Тёплое и тихое помещение (снижение шума на 15–25 дБ)',
-  'Скрытые коммуникации — ничего не портит интерьер',
-  'Экономия времени: стены готовы за 1–3 дня',
+// === Типы ГКЛ / ГВЛ ===
+const gklMaterials: MaterialCardData[] = [
+  {
+    name: 'ГКЛ',
+    fullName: 'Гипсокартонный лист (стандартный)',
+    color: '#B0BEC5',
+    image: '/main/vidy-rabot/gkl/ГКЛ.png',
+    colorLabel: 'Серый лист с синей маркировкой',
+    badge: 'Базовый',
+    properties: [
+      { label: 'Сухие помещения', icon: 'mdi:home-outline' },
+      { label: 'Лёгкий', icon: 'mdi:feather' },
+    ],
+    useFor: [
+      'Стены и потолки в офисах, спальнях, гостиных',
+      'Перегородки без особых требований',
+      'Декоративные ниши и короба',
+    ],
+    avoidFor: ['Санузлы и кухни', 'Неотапливаемые помещения'],
+  },
+  {
+    name: 'ГКЛВ',
+    fullName: 'Влагостойкий гипсокартон',
+    color: '#66BB6A',
+    image: '/main/vidy-rabot/gkl/ГКЛВ.webp',
+    colorLabel: 'Зелёный лист',
+    badge: 'Для влажных зон',
+    properties: [
+      { label: 'Влагостойкость', icon: 'mdi:water-percent' },
+      { label: 'Антигрибок', icon: 'mdi:shield-bug' },
+    ],
+    useFor: [
+      'Санузлы, кухни, душевые',
+      'Прачечные и мокрые зоны',
+      'Откосы окон с конденсатом',
+    ],
+  },
+  {
+    name: 'ГКЛО',
+    fullName: 'Огнестойкий гипсокартон',
+    color: '#F06292',
+    image: '/main/vidy-rabot/gkl/ГКЛО.jpg',
+    colorLabel: 'Розовый лист с красной маркировкой',
+    properties: [
+      { label: 'Огнестойкость до 55 мин', icon: 'mdi:fire' },
+    ],
+    useFor: [
+      'Котельные и электрощитовые',
+      'Обшивка каминов и саун',
+      'Эвакуационные выходы (требования МЧС)',
+    ],
+  },
+  {
+    name: 'ГКЛВО',
+    fullName: 'Влаго- и огнестойкий гипсокартон',
+    image: '/main/vidy-rabot/gkl/ГКЛВО.png',
+    color: '#E8A0AC', // розовый акцент для аббревиатуры и бейджей
+    colorLabel: 'Бывает двух видов: бежевый лист с розовой кромкой или полностью розовый',
+    properties: [
+      { label: 'Влагостойкость', icon: 'mdi:water-percent' },
+      { label: 'Огнестойкость', icon: 'mdi:fire' },
+    ],
+    useFor: [
+      'Сауны и бани',
+      'Котельные с высокой влажностью',
+      'Производства со спецтребованиями',
+    ],
+  },
+  {
+    name: 'ГВЛ',
+    fullName: 'Гипсоволокнистый лист',
+    color: '#90A4AE',
+    image: '/main/vidy-rabot/gkl/ГВЛ.jpg',
+    colorLabel: 'Однородный серый лист без картона',
+    badge: 'Сверхпрочный',
+    properties: [
+      { label: 'В 5 раз прочнее ГКЛ', icon: 'mdi:arm-flex' },
+      { label: 'Держит саморезы без дюбелей', icon: 'mdi:screw' },
+      { label: 'Огнестойкий', icon: 'mdi:fire' },
+    ],
+    useFor: [
+      'Полы (сухая стяжка «Кнауф-суперпол»)',
+      'Стены под тяжёлые шкафы и технику',
+      'Огнестойкие конструкции',
+    ],
+    avoidFor: ['Сложные криволинейные формы — плохо гнётся'],
+  },
+  {
+    name: 'ГВЛВ',
+    fullName: 'Влагостойкий гипсоволокнистый лист',
+    color: '#78909C',
+    image: '/main/vidy-rabot/gkl/ГВЛВ.png',
+    colorLabel: 'Однородный серый лист без картона, отличим от ГВЛ маркировкой',
+    properties: [
+      { label: 'Прочность', icon: 'mdi:arm-flex' },
+      { label: 'Влагостойкость', icon: 'mdi:water-percent' },
+    ],
+    useFor: [
+      'Полы и стены в санузлах',
+      'Помещения с тяжёлой плиткой и керамогранитом',
+    ],
+  },
 ]
 
-// === БЛОК 4: Калькулятор ===
+// === Толщины ===
+const gklThicknesses: ThicknessOption[] = [
+  { value: '6,5 мм', purpose: 'Арки и криволинейные конструкции (арочный)' },
+  { value: '9,5 мм', purpose: 'Потолки — легче, меньше нагрузка на каркас' },
+  { value: '12,5 мм', purpose: 'Стены и перегородки — стандарт' },
+  { value: '15–25 мм', purpose: 'Огнестойкие и усиленные конструкции (в 2 слоя)' },
+]
+
+// ============================================================
+// БЛОК 6: Калькулятор
+// ============================================================
 const calculatorTabs: CalculatorTab[] = [
   {
     id: 'frame',
@@ -328,7 +472,9 @@ const calculatorTabs: CalculatorTab[] = [
   },
 ]
 
-// === БЛОК 5: Факторы цены ===
+// ============================================================
+// БЛОК 5: Факторы цены
+// ============================================================
 const priceFactors: PriceFactor[] = [
   {
     title: 'Кривизна стен',
@@ -350,8 +496,7 @@ const priceFactors: PriceFactor[] = [
   },
   {
     title: 'Объём работ',
-    description:
-      'При площади свыше 50 м² действуют оптовые скидки до 15%.',
+    description: 'При площади свыше 50 м² действуют оптовые скидки до 15%.',
     icon: 'mdi:ruler-square',
   },
   {
@@ -362,7 +507,9 @@ const priceFactors: PriceFactor[] = [
   },
 ]
 
-// === БЛОК 6: Этапы ===
+// ============================================================
+// БЛОК 7: Этапы работ
+// ============================================================
 const workStages: WorkStage[] = [
   {
     title: 'Заявка и замер',
@@ -374,22 +521,19 @@ const workStages: WorkStage[] = [
   },
   {
     title: 'Подписание договора',
-    description:
-      'Фиксируем цену, сроки, список работ. Предоплата только 30%.',
+    description: 'Фиксируем цену, сроки, список работ. Предоплата только 30%.',
     icon: 'mdi:file-sign',
     duration: '1 день',
   },
   {
     title: 'Доставка материалов',
-    description:
-      'Привозим ГКЛ, профили, крепёж. Все материалы с сертификатами.',
+    description: 'Привозим ГКЛ, профили, крепёж. Все материалы с сертификатами.',
     icon: 'mdi:truck-delivery',
     duration: '1-2 дня',
   },
   {
     title: 'Монтаж',
-    description:
-      'Собираем каркас, укладываем изоляцию, обшиваем листами.',
+    description: 'Собираем каркас, укладываем изоляцию, обшиваем листами.',
     icon: 'mdi:hammer-wrench',
     duration: '1-3 дня',
     highlighted: true,
@@ -397,8 +541,7 @@ const workStages: WorkStage[] = [
   },
   {
     title: 'Заделка швов',
-    description:
-      'Проклеиваем серпянку, наносим первый слой шпаклёвки.',
+    description: 'Проклеиваем серпянку, наносим первый слой шпаклёвки.',
     icon: 'mdi:format-paint',
     duration: '1 день',
   },
@@ -412,24 +555,23 @@ const workStages: WorkStage[] = [
   },
 ]
 
-// === БЛОК 8: Гарантии ===
+// ============================================================
+// БЛОК 8: Гарантии
+// ============================================================
 const guarantees: GuaranteeItem[] = [
   {
     title: 'Гарантия 3 года',
-    description:
-      'На все монтажные работы. Устраняем дефекты за свой счёт.',
+    description: 'На все монтажные работы. Устраняем дефекты за свой счёт.',
     icon: 'mdi:shield-check',
   },
   {
     title: 'Фиксированная цена',
-    description:
-      'Смета в договоре. Доп. работы — только через допсоглашение.',
+    description: 'Смета в договоре. Доп. работы — только через допсоглашение.',
     icon: 'mdi:cash-lock',
   },
   {
     title: 'Сроки по договору',
-    description:
-      'При просрочке — неустойка 0.1% в день от стоимости работ.',
+    description: 'При просрочке — неустойка 0.1% в день от стоимости работ.',
     icon: 'mdi:clock-check',
   },
   {
@@ -450,7 +592,9 @@ const guarantees: GuaranteeItem[] = [
   },
 ]
 
-// === БЛОК 9: FAQ ===
+// ============================================================
+// БЛОК 9: FAQ
+// ============================================================
 const faqItems: FAQItem[] = [
   {
     question: 'Какой гипсокартон выбрать для ванной?',
@@ -479,45 +623,20 @@ const faqItems: FAQItem[] = [
   },
 ]
 
-// === БЛОК 10: Популярные услуги ===
-const popularServices: ServiceNavItem[] = [
-  {
-    title: 'Шпаклёвка стен',
-    description: 'Подготовка ГКЛ под обои или покраску.',
-    to: '/vidy-rabot/shpaklevka-sten',
-    icon: 'mdi:format-paint',
-    priceFrom: 250,
-  },
-  {
-    title: 'Укладка плитки',
-    description: 'На ГКЛ, бетон, кирпич. Любые форматы.',
-    to: '/vidy-rabot/plitka',
-    icon: 'mdi:grid',
-    priceFrom: 850,
-  },
-  {
-    title: 'Натяжные потолки',
-    description: 'Матовые, глянцевые, с подсветкой.',
-    to: '/vidy-rabot/natyazhnye-potolki',
-    icon: 'mdi:ceiling-light',
-    priceFrom: 450,
-  },
-]
-
-// === БЛОК 11: Кросс-продажи ===
+// ============================================================
+// БЛОК 10: Кросс-продажи
+// ============================================================
 const crossSales: CrossSalesItem[] = [
   {
     title: 'Шпаклёвка и покраска',
-    description:
-      'Подготовка и финишная отделка стен после монтажа ГКЛ.',
+    description: 'Подготовка и финишная отделка стен после монтажа ГКЛ.',
     to: '/vidy-rabot/shpaklevka-pokraska',
     priceFrom: 450,
     image: '/services/shpaklevka.jpg',
   },
   {
     title: 'Разводка электрики',
-    description:
-      'Закладка в каркас ГКЛ: розетки, выключатели, LED-подсветка.',
+    description: 'Закладка в каркас ГКЛ: розетки, выключатели, LED-подсветка.',
     to: '/vidy-rabot/elektrika',
     priceFrom: 550,
     image: '/services/elektrika.jpg',
@@ -532,7 +651,9 @@ const crossSales: CrossSalesItem[] = [
   },
 ]
 
-// === CTA-форма: кастомные поля ===
+// ============================================================
+// БЛОК 11: CTA — кастомные поля
+// ============================================================
 const customFields = [
   {
     name: 'wallType',
@@ -554,17 +675,15 @@ const messageConfig = {
   fieldLabels: { wallType: 'Тип стены' },
 }
 
-// === Служебное ===
-const onMiniFormSubmit = (data: unknown) => {
-  console.log('[gkl/steny] Мини-форма отправлена:', data)
-}
-
+// ============================================================
+// Служебное
+// ============================================================
 const scrollToCta = () => {
   const el = document.getElementById('cta')
   el?.scrollIntoView({ behavior: 'smooth' })
 }
 
-// Экспортируем FAQ, чтобы роутинг-страница могла передать его в SEO
+// Экспортируем FAQ для SEO на роутинг-странице
 defineExpose({ faqItems })
 </script>
 
@@ -582,46 +701,6 @@ defineExpose({ faqItems })
   &--light {
     background: $background-light;
     color: $text-dark;
-  }
-}
-
-.description-wrap {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 5rem 2rem;
-
-  @media (max-width: 768px) {
-    padding: 3.5rem 1.2rem;
-  }
-
-  h2 {
-    font-family: 'Rubik', sans-serif;
-    font-size: 2rem;
-    font-weight: 700;
-    margin: 0 0 1.5rem;
-
-    :deep(.accent) {
-      background: $blue-gradient;
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-    }
-  }
-
-  p {
-    font-size: 1.05rem;
-    line-height: 1.7;
-    color: rgba($text-light, 0.85);
-    margin: 0 0 1rem;
-
-    a {
-      color: $blue-light;
-      text-decoration: underline;
-
-      &:hover {
-        color: $blue;
-      }
-    }
   }
 }
 </style>

@@ -10,20 +10,38 @@
           От косметического ремонта до полной реконструкции
         </p>
         <ul class="footer-details">
-          <li @click="copyToClipboard('622907683792')">
-            <strong>ИНН: </strong> 
+          <li 
+            role="button" 
+            tabindex="0" 
+            @click="copyToClipboard('622907683792')"
+            @keydown.enter="copyToClipboard('622907683792')"
+            title="Нажмите, чтобы скопировать ИНН"
+          >
+            <strong>ИНН: </strong>
             <span>622907683792</span>
           </li>
-          <li @click="openEmail">
-            <strong>Электронная почта: </strong> 
+          <li 
+            role="button" 
+            tabindex="0" 
+            @click="openEmail()"
+            @keydown.enter="openEmail()"
+            title="Нажмите, чтобы открыть почтовый клиент"
+          >
+            <strong>Электронная почта: </strong>
             <span>glavprofi@yandex.ru</span>
           </li>
-          <li @click="handlePhoneClick('+7 (910) 909-69-47')">
-            <strong>Телефон: </strong> 
+          <li 
+            role="button" 
+            tabindex="0" 
+            @click="handlePhoneClick('+7 (910) 909-69-47')"
+            @keydown.enter="handlePhoneClick('+7 (910) 909-69-47')"
+            title="Нажмите, чтобы скопировать номер телефона"
+          >
+            <strong>Телефон: </strong>
             <span>+7 (910) 909-69-47</span>
           </li>
           <li>
-            <strong>Наш офис: </strong> 
+            <strong>Наш офис: </strong>
             <span>г. Рязань, Право-Лыбедская ул., 40</span>
           </li>
         </ul>
@@ -33,13 +51,33 @@
       <div class="footer-links">
         <h3 class="footer-title">Полезные ссылки</h3>
         <ul class="footer-nav">
-          <li><NuxtLink href="/about">О компании</NuxtLink></li>
-          <li><NuxtLink href="/projects">Портфолио</NuxtLink></li>
-          <li><NuxtLink href="/contacts">Контакты</NuxtLink></li>
-          <li><NuxtLink href="/privacy-policy">Политика конфиденциальности</NuxtLink></li>
-          <li><NuxtLink href="/terms-of-service">Условия использования</NuxtLink></li>
-          <li><NuxtLink href="/login">Войти</NuxtLink></li>
-          <li><NuxtLink href="/telegram">Вход через ТГ</NuxtLink></li>
+          <li>
+            <NuxtLink href="/about">О компании</NuxtLink>
+          </li>
+          <li>
+            <NuxtLink href="/projects">Портфолио</NuxtLink>
+          </li>
+          <li>
+            <NuxtLink href="/remont-pomescheniy">Услуги</NuxtLink>
+          </li>
+          <li>
+            <NuxtLink href="/prices/otdelochnye-raboty">Прайс-лист</NuxtLink>
+          </li>
+          <li>
+            <NuxtLink href="/contacts">Контакты</NuxtLink>
+          </li>
+          <li>
+            <NuxtLink href="/privacy-policy">Политика конфиденциальности</NuxtLink>
+          </li>
+          <li>
+            <NuxtLink href="/terms-of-service">Условия использования</NuxtLink>
+          </li>
+          <li>
+            <NuxtLink href="/login">Войти</NuxtLink>
+          </li>
+          <!-- <li>
+            <NuxtLink href="/telegram">Вход через ТГ</NuxtLink>
+          </li> -->
         </ul>
       </div>
 
@@ -48,23 +86,20 @@
         <h3 class="footer-title">Обратный звонок</h3>
         <!-- Форма связи -->
         <form class="footer-contact-form" @submit.prevent="openConsentModal">
-          <input
-            type="tel"
-            v-model="phoneNumber"
-            v-phone-format 
-            placeholder="Обратный звонок"
-            required
-            :class="{ 'error-border': phoneError }"
-            :disabled="isSubmitting"
-          />
-          <UiButtonsPrimary type="button" @click="openConsentModal" :disabled="isSubmitting">
+          <input type="tel" v-model="phoneNumber" v-phone-format placeholder="Обратный звонок" required
+            :class="{ 'error-border': phoneError }" :disabled="isSubmitting" />
+          <!-- Изменили type="button" на type="submit" и убрали @click -->
+          <UiButtonsPrimary type="submit" :disabled="isSubmitting">
             {{ isSubmitting ? '...' : 'Отправить' }}
           </UiButtonsPrimary>
         </form>
 
         <div class="social-icons">
-          <NuxtLink href="https://max.ru/u/f9LHodD0cOLfbBSpAeCwHBcJ83SJtKVj9mVKY7K8OLd6OwYB0gH6g3XE_Cs" target="_blank"><img src="https://maxicons.ru/icons/Max_logo.svg" alt="MAX" width="22" height="22" class="ico" /></NuxtLink>
-          <NuxtLink href="tg://resolve?domain=glavprofii" target="_blank">
+          <NuxtLink href="https://max.ru/u/f9LHodD0cOLfbBSpAeCwHBcJ83SJtKVj9mVKY7K8OLd6OwYB0gH6g3XE_Cs" target="_blank"
+            aria-label="Наш Max">
+            <img src="https://maxicons.ru/icons/Max_logo.svg" alt="MAX" width="22" height="22" class="ico" />
+          </NuxtLink>
+          <NuxtLink href="tg://resolve?domain=glavprofii" target="_blank" aria-label="Наш Telegram">
             <Icon name="mdi:telegram" class="ico" size="28px" />
           </NuxtLink>
           <!-- <NuxtLink href=" https://vk.com/glavprofi " target="_blank">
@@ -77,7 +112,7 @@
             <Icon name="mdi:youtube" class="ico" size="28px" />
           </NuxtLink> -->
         </div>
-        
+
       </div>
     </div>
     <LayoutFooterLabel />
@@ -89,7 +124,7 @@
       </p>
     </div>
 
-    <UiFormsConsentModal v-model="showConsentModal" @accept="acceptConsent"/>
+    <UiFormsConsentModal v-model="showConsentModal" @accept="acceptConsent" />
 
     <!-- Компонент уведомлений -->
     <UiNotificationsContainer />
@@ -177,15 +212,15 @@ async function submitForm() {
 
     // ✅ Успех
     notifications.success('Заявка отправлена! Мы перезвоним.', 'Успех')
-    
+
     // Очистка поля
     phoneNumber.value = '+7 '
-    
+
     // Логируем статус каналов
     if (result.channels) {
       console.log('📊 Footer form status:', result.channels)
     }
-    
+
   } catch (error) {
     console.error('Ошибка при отправке формы:', error)
     notifications.error('Не удалось отправить. Попробуйте позже.', 'Ошибка')
@@ -254,16 +289,16 @@ $subtext-color: #bdc3c7;
       margin-bottom: 8px;
       color: $subtext-color;
       cursor: pointer;
-      
+
       &:hover span {
         color: $primary-color;
       }
     }
-    
+
     strong {
       color: $text-color;
     }
-    
+
     span {
       color: $subtext-color;
       transition: color 0.3s ease;
@@ -351,7 +386,7 @@ $subtext-color: #bdc3c7;
 
     button {
       padding: 10px 15px;
-      
+
       &:disabled {
         opacity: 0.6;
         cursor: not-allowed;
