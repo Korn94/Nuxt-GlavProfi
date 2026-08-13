@@ -8,7 +8,7 @@
     </div>
 
     <!-- Основной контент страницы -->
-    <PagesPublicRemontPomescheniyIndexBlocksServicesList />
+    <PagesPublicRemontPomescheniyIndexBlocksWorksGrid />
     <PagesPublicRemontPomescheniyIndexBlocksProcessTimeline />
     <PagesPublicRemontPomescheniyIndexBlocksCases />
     <PagesPublicRemontPomescheniyIndexBlocksFaqAccordion />

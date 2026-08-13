@@ -185,42 +185,36 @@
 
       <!-- Кнопка "Показать ещё" -->
       <div v-if="canShowMore" class="premises-grid__footer">
-        <UiButtonsPrimary text="Показать ещё" variant="outline" @click="showAll = true" />
+        <UiButtonsPrimary text="Показать ещё" variant="outline" @click="showAllItems" />
       </div>
     </div>
   </section>
 </template>
 
-<script setup>
-import { ref, computed, watch, nextTick, onMounted } from 'vue';
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import { useGridControls } from '../../composables/useGridControls'
 
-const sectionRef = ref(null);
-const activeTab = ref('all');
-const showAll = ref(false);
-const viewMode = ref('grid');
-const isMounted = ref(false);
-const screenWidth = ref(0);
+const sectionRef = ref(null)
 
-const INITIAL_LIMIT = 3;
-// Брейкпоинт, с которого список считается "ПК версией" и всегда развернут
-const DESKTOP_BREAKPOINT = 900; 
-
-const tabs = [
+// Табы для фильтрации помещений
+const premisesTabs = [
   { key: 'all', label: 'Все' },
   { key: 'commercial', label: 'Коммерческие' },
   { key: 'industrial', label: 'Производственные' },
   { key: 'other', label: 'Прочие' }
-];
+]
 
-const categoryOrder = ['commercial', 'industrial', 'other'];
-const categoryLabels = {
+const categoryOrder = ['commercial', 'industrial', 'other']
+const categoryLabels: Record<string, string> = {
   commercial: 'Коммерческие помещения',
   industrial: 'Производственные помещения',
   other: 'Прочие объекты'
-};
+}
 
-const getPageLink = (slug) => `/remont-pomescheniy/${slug}`;
+const getPageLink = (slug: string) => `/remont-pomescheniy/${slug}`
 
+// Данные помещений (с ценами)
 const premises = [
   { slug: 'banki', title: 'Банки', subtitle: 'отделения, операционные залы, хранилища', category: 'commercial', price: 'от 14 000 ₽ за м²', priceExample: 'за 100 м² ~1.4–2.0 млн ₽', description: 'Работаем с учетом требований безопасности: усиленные перегородки, кабель-каналы под охранно-пожарную сигнализацию, зоны для инкассации. Выполняем монтаж по спец. ТЗ, соблюдаем режим конфиденциальности на объекте.', image: 'main/remont-pomescheniy/banki.webp', isReady: true },
   { slug: 'magaziny', title: 'Магазины', subtitle: 'ТЦ, стрит-ритейл, бутики', category: 'commercial', price: 'от 13 000 ₽ за м²', priceExample: 'за 100 м² ~1.3–1.9 млн ₽', description: 'Монтируем витринные группы, торговое оборудование, напольные покрытия по вашей спецификации. Работаем в график ТЦ (ночные смены) или в свободном режиме для отдельно стоящих зданий. Сдаем объект готовым к выкладке товара.', image: 'main/remont-pomescheniy/magaziny.webp', isReady: true },
@@ -234,78 +228,39 @@ const premises = [
   { slug: 'kliniki', title: 'Медицинские помещения', subtitle: 'клиники, кабинеты, лаборатории', category: 'other', price: 'от 18 000 ₽ за м²', priceExample: 'за 100 м² ~1.8–2.8 млн ₽', description: 'Отделка по проекту или ТЗ: бесшовные покрытия, стены под дезинфекцию, специфические материалы. Проверяем основание под спец. полы, герметичность мокрых зон. Работаем с медицинскими материалами (линолеум, нержавейка, спец. смеси и прочие).', image: 'main/remont-pomescheniy/medicina.webp', isReady: true },
   { slug: 'mopy', title: 'МОПы', subtitle: 'подъезды, холлы ЖК', category: 'other', price: 'от 4 500 ₽ за м²', priceExample: 'за 100 м² ~0.5–0.8 млн ₽', description: 'Ремонт по регламенту УК: антивандальные материалы, износостойкая покраска. Работаем в график, не создаем шум в часы покоя.', image: 'main/remont-pomescheniy/mopy.webp', isReady: true },
   { slug: 'fasady', title: 'Фасады зданий', subtitle: '', category: 'other', price: 'от 3 500 ₽ за м²', priceExample: 'за 100 м² ~0.4–0.7 млн ₽', description: 'Монтаж фасадов: утепление, облицовка, герметизация. Проверяем основание, крепеж, точку росы до начала работ. Работаем на высоте с допуском, соблюдаем ГОСТ по теплоизоляции.', image: 'main/remont-pomescheniy/fasady.webp', isReady: true }
-];
+]
 
-const filteredItems = computed(() => {
-  if (activeTab.value === 'all') return premises;
-  return premises.filter(p => p.category === activeTab.value);
-});
+// Используем composable для управления гридом
+const {
+  activeTab,
+  viewMode,
+  showAll,
+  animatedSlugs,
+  filteredItems,
+  visibleItems,
+  canShowMore,
+  setTab,
+  toggleView,
+  showAllItems,
+  tabs
+} = useGridControls(() => premises, premisesTabs)
 
-const visibleItems = computed(() => {
-  // Если экран шире брейкпоинта — показываем всё сразу
-  if (screenWidth.value >= DESKTOP_BREAKPOINT) {
-    return filteredItems.value;
-  }
-  
-  if (activeTab.value === 'all' && !showAll.value) {
-    return filteredItems.value.slice(0, INITIAL_LIMIT);
-  }
-  return filteredItems.value;
-});
-
+// Группировка по категориям (специфично для PremisesGrid)
 const groupedItems = computed(() => {
-  const groups = { commercial: [], industrial: [], other: [] };
-  visibleItems.value.forEach(item => {
-    if (groups[item.category]) groups[item.category].push(item);
-  });
-  return groups;
-});
-
-// Кнопка показывается только на узких экранах и когда есть скрытые элементы
-const canShowMore = computed(() => {
-  if (!isMounted.value) return false; // Защита от гидратации
-  return screenWidth.value < DESKTOP_BREAKPOINT && activeTab.value === 'all' && !showAll.value;
-});
-
-const isLastCategory = (key) => key === categoryOrder[categoryOrder.length - 1];
-
-const setTab = (key) => {
-  if (activeTab.value === key) {
-    animatedSlugs.value = new Set();
-    visibleItems.value.forEach((item, index) => {
-      setTimeout(() => { animatedSlugs.value.add(item.slug); }, index * 50);
-    });
-    return;
+  const groups: Record<string, any[]> = { 
+    commercial: [], 
+    industrial: [], 
+    other: [] 
   }
-  activeTab.value = key;
-  showAll.value = false;
-  animatedSlugs.value = new Set();
-};
+  visibleItems.value.forEach(item => {
+    if (groups[item.category]) {
+      groups[item.category].push(item)
+    }
+  })
+  return groups
+})
 
-const toggleView = () => {
-  viewMode.value = viewMode.value === 'list' ? 'grid' : 'list';
-};
-
-const animatedSlugs = ref(new Set());
-
-watch(visibleItems, async (items) => {
-  await nextTick();
-  items.forEach((item, index) => {
-    setTimeout(() => { animatedSlugs.value.add(item.slug); }, index * 50);
-  });
-}, { immediate: true });
-
-onMounted(() => {
-  screenWidth.value = window.innerWidth;
-  isMounted.value = true;
-  
-  const handleResize = () => { screenWidth.value = window.innerWidth; };
-  window.addEventListener('resize', handleResize);
-  
-  // Очистка слушателя при уничтожении компонента
-  // В Nuxt/Vue 3 можно использовать onUnmounted, но для простоты оставим так,
-  // либо добавьте import { onUnmounted } from 'vue' и вызовите removeEventListener
-});
+const isLastCategory = (key: string) => key === categoryOrder[categoryOrder.length - 1]
 </script>
 
 <style scoped lang="scss">
