@@ -1,3 +1,4 @@
+<!-- app\components\pages\public\homePage\Brands.vue -->
 <template>
   <div class="container">
     <h2 class="visually-hidden">Наши проекты и бренды</h2>
@@ -5,7 +6,8 @@
       <p class="title">За <span>11 лет</span> выполнено<br> более <span>250+</span> проектов по<br> ремонту <span>коммерческих</span> объектов</p>
       <p class="brands">Среди них — помещения известных и премиальных брендов.</p>
     </div>
-    <hr class="line" style="max-width: 1200px; margin-top: 2em;">
+    <!-- УБРАЛИ inline-стили, всё теперь в классе .line -->
+    <hr class="line">
     <div class="imgbox">
       <img src="/brands/logo-sber.png" alt="ремонт сбербанка">
       <img src="/brands/ddx.png" alt="ремонт фитнес центра DDX">
@@ -18,46 +20,58 @@
 </template>
 
 <style lang="scss" scoped>
+@use '@/assets/styles/variables' as *;
+@use '@/assets/styles/mixins' as *;
+
 .container {
-  background: #18191b;
-  padding: 6em 1em;
-  
+  @include section-padding;
+  background: $background-dark;
+  color: $text-light;
+
+  .content {
+    @include section-container;
+    display: flex;
+    align-items: flex-end;
+
+    .title {
+      flex: 2;
+      font-family: 'Rubik', sans-serif;
+      font-size: 2.5rem;
+      font-weight: 700;
+      line-height: 1.2;
+      margin: 0;
+      color: $text-light;
+
+      span {
+        color: $blue;
+      }
+    }
+
+    .brands {
+      flex: 1;
+      margin: 0;
+      font-size: 1.1rem;
+      color: $text-light;
+    }
+  }
+
+  .line {
+    max-width: 1200px;
+    margin: 2rem auto;
+  }
 
   .imgbox {
+    max-width: 1200px;
+    margin: 1rem auto 0;
     display: flex;
     justify-content: center;
     align-items: center;
-    margin-top: 2em;
     gap: 2em;
     flex-wrap: wrap;
 
     img {
       height: 50px;
       width: auto;
-    }
-  }
-
-  .content {
-    margin: auto;
-    display: flex;
-    max-width: 1200px;
-    align-items: end;
-    text-align: left;
-
-    p {
-      color: #fff;
-      margin: 0.5rem 0;
-    }
-
-    .title {
-      font-size: 2.5rem;
-      font-weight: 700;
-      line-height: 1.2;
-      flex: 2;
-    }
-
-    .brands {
-      flex: 1;
     }
   }
 }
@@ -67,15 +81,14 @@
   .container {
     .content {
       flex-direction: column;
-      text-align: center;
-      align-items: center;
+      align-items: start;
 
       .title {
-        font-size: 2rem;
+        margin: 0 0 1rem;
       }
 
       .brands {
-        font-size: 1rem;
+        // font-size удален, теперь он остается 1.1rem на всех экранах
       }
     }
 
@@ -92,39 +105,19 @@
 // Адаптация для мобильных устройств
 @media (max-width: 768px) {
   .container {
-    .content {
-      .title {
-        font-size: 1.5rem;
-      }
-
-      .brands {
-        font-size: 0.9rem;
-      }
+    // Скрываем принудительные переносы строк на мобильных
+    br {
+      display: none;
     }
 
     .imgbox {
-      gap: 1em;
+      gap: 2em;
+      padding: 0 1.2rem;
 
       img {
         height: 30px;
       }
     }
-  }
-}
-
-@media (max-width: 460px) {
-  .container .content {
-      .title {
-        font-size: 1.3rem;
-      }
-
-      .brands {
-        font-size: .9rem;
-      }
-    }
-
-  .container .imgbox img {
-    height: 20px;
   }
 }
 </style>

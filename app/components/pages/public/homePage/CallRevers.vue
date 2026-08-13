@@ -115,71 +115,81 @@ async function acceptConsent() {
 </script>
 
 <style lang="scss" scoped>
+@use '@/assets/styles/variables' as *;
+@use '@/assets/styles/mixins' as *;
+
 .error-border {
-  border-color: red !important;
+  border-color: $red !important;
 }
 
 .container {
-  padding: 6em 1em;
-  background: #18191b;
+  @include section-padding;
+  background: $background-dark;
+  color: $text-light;
   position: relative;
 
-  p {
-    color: #fff;
-  }
-
-  p + p {
-    margin: 2em 0;
-
-    &:last-child {
-      margin: 0;
-    }
-  }
-
   .content {
-    max-width: 1200px;
-    margin: auto;
+    @include section-container;
     display: flex;
     align-items: center;
+    gap: 2rem;
 
     .textbox {
-      flex: 1;
+      flex: 3;
 
       .title {
+        font-family: 'Rubik', sans-serif;
         font-size: 2.5rem;
         font-weight: 700;
         line-height: 1.2;
+        margin: 0 0 1rem;
+        color: $text-light;
 
         span {
-          color: #00c3f5;
+          color: $blue;
+        }
+      }
+
+      p {
+        margin: 0 0 1rem;
+        line-height: 1.6;
+        color: rgba($text-light, 0.8);
+
+        &:last-child {
+          margin: 0;
         }
       }
 
       .dop {
-        color: #00c3f5;
+        color: $blue;
+        font-weight: 500;
       }
     }
 
     .form {
+      flex: 1;
       display: flex;
       flex-direction: column;
-      align-items: stretch;
       gap: 1em;
 
       .input {
         width: 100%;
         padding: 10px 15px;
-        border: 1px solid #ddd;
-        border-radius: 5px;
+        border: 1px solid $border-color;
+        border-radius: $border-radius;
         outline: none;
-        color: #fff;
+        color: $text-light;
+        background: $background-dark;
         transition: all 0.3s ease;
         box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.05);
-        background-color: #18191b;
+
+        &::placeholder {
+          color: rgba($text-light, 0.5);
+        }
 
         &:focus {
-          border-color: #00c3f5;
-          box-shadow: 0 0 5px rgba(0, 195, 245, 0.5);
+          border-color: $blue;
+          box-shadow: 0 0 0 3px rgba(0, 195, 245, 0.15);
         }
       }
     }
@@ -188,7 +198,6 @@ async function acceptConsent() {
 
 @media (max-width: 768px) {
   .container .content {
-    display: flex;
     flex-direction: column;
     align-items: center;
 

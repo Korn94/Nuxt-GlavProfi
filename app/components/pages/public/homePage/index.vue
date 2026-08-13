@@ -44,8 +44,8 @@
 
         <!-- Блок с информацией -->
         <div class="exp">
-          <p style="color: #fff;">
-            <span class="bold">Рязань</span> и <span class="bold">Область</span>
+          <p>
+            <span class="blue">Рязань</span> и <span class="blue">Область</span>
           </p>
         </div>
       </div>
@@ -129,6 +129,8 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+@use '@/assets/styles/variables' as *;
+
 .container {
   position: relative;
   width: 100%;
@@ -140,7 +142,7 @@ export default {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: #111; /* Фолбэк, если видео не загрузилось */
+    background-color: #111;
     z-index: -1;
   }
 
@@ -166,7 +168,6 @@ export default {
     pointer-events: none;
     user-select: none;
 
-    /* Оптимизация для мобильных */
     @media (max-width: 768px) {
       object-position: center;
     }
@@ -183,8 +184,16 @@ export default {
       z-index: 2;
 
       h1 {
+        font-family: 'Rubik', sans-serif;
         color: white;
         font-size: 2.5rem;
+        font-weight: 700;
+        line-height: 1.2;
+        margin: 0 0 2rem;
+
+        span {
+          color: $blue;
+        }
       }
 
       .buttons {
@@ -203,16 +212,17 @@ export default {
         p {
           margin: 0;
           font-size: 1rem;
+          color: rgba($text-light, 0.9);
         }
 
         .bold {
           font-weight: 600;
+          color: $text-light;
         }
       }
     }
   }
 
-  /* Адаптив для мобильных */
   @media (max-width: 768px) {
     .dark-overlay {
       background: rgba(0, 0, 0, 0.5);

@@ -207,6 +207,7 @@ header {
   nav ul li a,
   .phone p {
     color: $text-light;
+    margin-bottom: unset;
   }
 
   nav ul {

@@ -9,16 +9,20 @@
 </template>
 
 <style lang="scss" scoped>
+@use '@/assets/styles/variables' as *;
+@use '@/assets/styles/mixins' as *;
+
 .box {
-  background: #18191b;
+  @include section-padding;
+  background: $background-dark;
+  color: $text-light;
   position: relative;
-  padding: 3em 0;
   clip-path: polygon(
-    0% 0%,       /* Левый верхний угол */
-    100% 0%,     /* Правый верхний угол */
-    100% 70%,    /* Правый нижний угол (выше центра) */
-    50% 100%,    /* Нижний центральный угол (ниже центра) */
-    0% 70%       /* Левый нижний угол (выше центра) */
+    0% 0%,
+    100% 0%,
+    100% 70%,
+    50% 100%,
+    0% 70%
   );
 
   .arrow {
@@ -26,15 +30,15 @@
   }
 
   p {
+    font-family: 'Rubik', sans-serif;
     font-size: 1.5em;
     font-weight: 600;
     line-height: 1.5em;
     text-align: center;
-    color: #fff;
     margin: 0;
-    
-    .text {
-      color: #fff;
+
+    span {
+      color: $blue;
     }
 
     @media (max-width: 768px) {

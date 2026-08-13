@@ -7,7 +7,7 @@
         <div class="hero__content fade-in-up">
 
           <h1 class="hero__title">
-            Реализованные объекты коммерческой недвижимости
+            Реализованные объекты <span class="blue">коммерческой недвижимости</span>
           </h1>
 
           <!-- УТП в виде стеклянной плашки -->
@@ -145,14 +145,12 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 @use '@/assets/styles/variables' as *;
-
-span {
-  color: unset;
-}
+@use '@/assets/styles/mixins' as *;
 
 .portfolio-page {
   background: $background-dark;
-  padding-top: 8em;
+  color: $text-light;
+  padding-top: 3em;
   position: relative;
 
   &::before {
@@ -169,49 +167,26 @@ span {
 
 // === HERO СЕКЦИЯ ===
 .hero {
-  padding: 6rem 0 4rem;
+  @include section-padding;
   overflow: hidden;
   position: relative;
 
   .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 2rem;
-    position: relative;
-    z-index: 1;
+    @include section-container;
   }
 
   &__content {
+    @include dark-card;
     background: rgba(34, 34, 34, 0.6);
     backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: $border-radius;
     padding: 3.5rem;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
     position: relative;
   }
 
   &__title {
-    font-family: 'Rubik', sans-serif;
-    font-size: 2.3rem;
-    font-weight: 700;
-    margin-bottom: 1.8rem;
-    color: $text-light;
-    line-height: 1.3;
-    position: relative;
-    padding-bottom: 1rem;
-
-    &::after {
-      content: '';
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      width: 80px;
-      height: 4px;
-      background: $blue-gradient;
-      border-radius: 2px;
-      box-shadow: 0 0 10px $blue50;
-    }
+    @include section-title;
+    font-size: 2.3rem; // Чуть больше для hero
   }
 
   &__badge {
@@ -238,24 +213,19 @@ span {
   }
 
   &__benefit-card {
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: $border-radius;
+    @include dark-card;
     padding: 1.5rem;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     gap: 0.9rem;
-    transition: all 0.35s ease;
+    backdrop-filter: blur(8px);
 
     &:hover {
       box-shadow: 0 12px 25px rgba(0, 0, 0, 0.25);
-      border-color: $blue;
       background: rgba(0, 195, 245, 0.08);
     }
 
-    // Тач-эффект для мобильных
     &:active {
       transform: translateY(-2px);
       transition: transform 0.1s ease;
@@ -281,6 +251,7 @@ span {
   }
 
   &__benefit-title {
+    font-family: 'Rubik', sans-serif;
     font-size: 1.1rem;
     font-weight: 600;
     color: $text-light;
@@ -320,7 +291,7 @@ span {
     transition: color 0.3s ease;
     text-decoration: none;
     padding: 0.5rem 0;
-    min-height: 44px; // Touch target
+    min-height: 44px;
 
     &:hover {
       color: $blue-light;
@@ -334,44 +305,35 @@ span {
 
 // === СЕКЦИЯ С КЕЙСАМИ ===
 .portfolio-cases {
-  padding: 4rem 0;
+  @include section-padding;
   background: $color-light;
+  color: $text-dark;
   position: relative;
 
   .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 2rem;
+    @include section-container;
   }
 }
 
 // === P.S. БЛОК ===
 .ps {
-  padding: 3rem 0 5rem;
+  @include section-padding;
   background: $background-gray;
+  color: $text-light;
 
   .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 2rem;
+    @include section-container;
   }
 
   .ps-content {
+    @include summary-block(dark);
     max-width: 800px;
     margin: 0 auto;
-    padding: 2rem;
     background: rgba(2, 254, 255, 0.1);
-    border-radius: $border-radius;
     border: 1px solid $blue20;
-    display: flex;
-    gap: 1rem;
-    align-items: flex-start;
 
     p {
-      line-height: 1.8;
       font-size: 1.1rem;
-      color: $text-light;
-      margin: 0;
 
       strong {
         color: $blue;
@@ -405,8 +367,6 @@ span {
 // Планшеты и небольшие ноутбуки
 @media (max-width: 992px) {
   .hero {
-    padding: 4rem 0 3rem;
-
     &__content {
       padding: 2.5rem;
     }
@@ -415,25 +375,11 @@ span {
       font-size: 2rem;
     }
   }
-
-  .portfolio-cases {
-    padding: 3rem 0;
-  }
-
-  .ps {
-    padding: 2.5rem 0 4rem;
-  }
 }
 
 // Мобильные устройства
 @media (max-width: 768px) {
   .hero {
-    padding: 3rem 0 2rem;
-
-    .container {
-      padding: 0 1rem;
-    }
-
     &__content {
       padding: 1.5rem;
       border-radius: 8px;
@@ -473,7 +419,6 @@ span {
       gap: 1rem;
       border-radius: 8px;
 
-      // На мобильных делаем карточку в две строки
       .hero__row {
         flex: 1;
       }
@@ -531,21 +476,7 @@ span {
     }
   }
 
-  .portfolio-cases {
-    padding: 2.5rem 0;
-
-    .container {
-      padding: 0 1rem;
-    }
-  }
-
   .ps {
-    padding: 2rem 0 3rem;
-
-    .container {
-      padding: 0 1rem;
-    }
-
     .ps-content {
       padding: 1.25rem;
       flex-direction: column;
@@ -569,8 +500,6 @@ span {
 // Маленькие мобильные устройства
 @media (max-width: 480px) {
   .hero {
-    padding: 2rem 0 1.5rem;
-
     &__content {
       padding: 1.25rem;
     }

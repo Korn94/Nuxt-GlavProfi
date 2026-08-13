@@ -45,25 +45,58 @@
 </template>
 
 <style lang="scss" scoped>
+@use '@/assets/styles/variables' as *;
+@use '@/assets/styles/mixins' as *;
+
 .intro {
-  margin: 6em auto;
-  max-width: 1200px;
-  padding: 0 1em;
+  @include section-padding;
+  background: $background-light;
+  color: $text-dark;
 
   .content {
+    @include section-container;
     display: flex;
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
+    gap: 2rem;
 
     .text {
-      max-width: 500px;
+      max-width: 520px;
       width: 100%;
       margin-bottom: 1em;
 
+      h4 {
+        font-family: 'Rubik', sans-serif;
+        font-size: 0.875rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: $blue;
+        margin: 0 0 0.5rem;
+      }
+
+      h3 {
+        font-family: 'Rubik', sans-serif;
+        font-size: 2rem;
+        font-weight: 700;
+        line-height: 1.25;
+        margin: 0 0 1rem;
+        color: $text-dark;
+
+        span {
+          color: $blue;
+        }
+
+        @media (max-width: 768px) {
+          font-size: 1.5rem;
+        }
+      }
+
       p {
-        line-height: 1.5;
-        margin-bottom: 1em;
+        line-height: 1.6;
+        margin-bottom: 1.5rem;
+        color: $text-gray;
       }
     }
 
@@ -71,48 +104,51 @@
       width: 100%;
       max-width: 500px;
       height: auto;
+      border-radius: $border-radius;
     }
   }
 
   .exp {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    margin-top: 2em;
+    @include section-container;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-top: 3rem;
 
     .box {
+      @include light-card;
       position: relative;
-      flex-basis: calc(25% - 1em);
-      background: linear-gradient(to top, #ffffff, #f0f0f0);
-      border-radius: 12px;
-      padding: 20px 24px;
+      background: linear-gradient(to top, #ffffff, #f8f9fa);
+      padding: 2rem 1.5rem 1.5rem;
       text-align: center;
-      margin-bottom: 1em;
 
       .ico {
         position: absolute;
-        top: -25px;
+        top: -20px;
         left: 50%;
         transform: translateX(-50%);
-        background: #f0f0f0;
-        padding: .5em;
+        background: $background-light;
+        padding: 0.6rem;
         border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 
         .icon {
           width: 24px;
           height: 24px;
-          color: #18191b;
+          color: $background-dark;
         }
       }
 
       p {
-        font-size: 1rem;
+        font-size: 0.95rem;
+        line-height: 1.5;
+        color: $text-dark;
+        margin: 0;
       }
     }
   }
 }
 
-// Адаптация для планшетов
 @media (max-width: 1024px) {
   .intro {
     .content {
@@ -120,41 +156,30 @@
     }
 
     .exp {
-      .box {
-        p {
-          font-size: .8rem;
-        }
+      grid-template-columns: repeat(2, 1fr);
+
+      .box p {
+        font-size: 0.85rem;
       }
     }
   }
 }
 
-// Адаптация для мобильных устройств
 @media (max-width: 768px) {
   .intro {
-    .content {
-      .text {
-        h3 {
-          font-size: 1.5rem;
-        }
-      }
-    }
-
     .exp {
+      grid-template-columns: repeat(2, 1fr);
+
       .box {
-        margin: 2em 0;
-        flex-basis: calc(50% - 1em);
+        margin: 1em 0;
 
         .ico {
           margin: 0 auto;
-          background: #f8f8f8;
-          // padding: 0;
-          // border-radius: 12px;
+          background: #f8f9fa;
 
           .icon {
             width: 20px;
             height: 20px;
-            color: #18191b;
           }
         }
       }

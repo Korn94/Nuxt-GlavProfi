@@ -219,8 +219,8 @@ hr {
 }
 
 .line {
-  border-top: 1px solid currentColor;
-  opacity: 0.2;
+  border: none;
+  border-top: 1px solid $text-light; // белая линия
   margin: 2rem auto;
   max-width: 600px;
 }

@@ -1,3 +1,4 @@
+<!-- app\components\pages\public\homePage\Call.vue -->
 <template>
   <div class="container">
     <h2 class="visually-hidden">Обсудить проект</h2>
@@ -67,49 +68,56 @@ const isMobileDevice = () => {
 </script>
 
 <style lang="scss" scoped>
+@use '@/assets/styles/variables' as *;
+@use '@/assets/styles/mixins' as *;
+
 .container {
-  padding: 6em 1em;
-  background: #18191b;
+  @include section-padding;
+  background: $background-dark;
+  color: $text-light;
   position: relative;
 
-  img {
-    position: absolute;
-    width: 500px;
-    height: auto;
-    right: 205px;
-  }
-
-  p {
-    color: #fff;
-  }
-
-  p + p {
-    margin: 2em 0;
-
-    &:last-child {
-      margin: 0;
-    }
-  }
-
   .content {
-    max-width: 1200px;
-    margin: auto;
+    @include section-container;
     display: flex;
     align-items: end;
+    gap: 2rem;
 
     .textbox {
       flex: 2;
-      // max-width: 500px;
 
       .title {
+        font-family: 'Rubik', sans-serif;
         font-size: 2.5rem;
         font-weight: 700;
         line-height: 1.2;
+        margin: 0 0 1rem;
+        color: $text-light;
+
+        span {
+          color: $blue;
+        }
+      }
+
+      p {
+        margin: 0 0 1rem;
+        line-height: 1.6;
+        color: rgba($text-light, 0.8);
+
+        &:last-child {
+          margin: 0;
+        }
       }
 
       .dop {
-      cursor: pointer;
-        color: #00c3f5;
+        cursor: pointer;
+        color: $blue;
+        font-weight: 500;
+        transition: color 0.2s ease;
+
+        &:hover {
+          color: $blue-light;
+        }
       }
     }
 
@@ -121,7 +129,6 @@ const isMobileDevice = () => {
 
 @media (max-width: 768px) {
   .container .content {
-    display: flex;
     flex-direction: column;
     align-items: center;
 

@@ -30,7 +30,7 @@
 
   .wrap {
     background: $background-dark;
-    padding-top: 8em;
+    padding-top: 3em;
     position: relative;
     &::before {
       content: '';

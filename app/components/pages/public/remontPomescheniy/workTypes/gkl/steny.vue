@@ -16,7 +16,7 @@
             { label: 'Главная', to: '/' },
             { label: 'Виды работ', to: '/vidy-rabot' },
             { label: 'ГКЛ', to: '/vidy-rabot/gkl' },
-            { label: 'Стены' },
+            { label: 'Обшивка стен ГКЛ' },
           ]"
         />
       </template>

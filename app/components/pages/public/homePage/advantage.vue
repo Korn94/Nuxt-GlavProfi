@@ -1,3 +1,4 @@
+<!-- app\components\pages\public\homePage\advantage.vue -->
 <template>
   <section class="benefits-section">
     <h2 class="visually-hidden">Наши преимущества</h2>

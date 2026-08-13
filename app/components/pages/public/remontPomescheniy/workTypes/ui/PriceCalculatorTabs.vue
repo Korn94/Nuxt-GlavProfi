@@ -433,9 +433,16 @@ const decreaseArea = () => {
     font-weight: 700;
     color: $text-dark;
     outline: none;
+    
+    // Стандартное свойство должно быть указано для совместимости
+    appearance: none;
     -moz-appearance: textfield;
-    &::-webkit-outer-spin-button, &::-webkit-inner-spin-button {
+
+    &::-webkit-outer-spin-button,
+    &::-webkit-inner-spin-button {
       -webkit-appearance: none;
+      // Рекомендуется также добавлять стандартное свойство внутри псевдоэлементов
+      appearance: none; 
     }
   }
 }

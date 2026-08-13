@@ -9,14 +9,16 @@
 </template>
 
 <style lang="scss" scoped>
+@use '@/assets/styles/variables' as *;
+@use '@/assets/styles/mixins' as *;
+
 .container {
-  width: 100%;
-  height: auto;
-  margin: 6em auto;
+  @include section-padding;
+  background: $background-light;
 
   .feedback {
+    @include section-container;
     height: 800px;
-    width: 100%;
     overflow: hidden;
     position: relative;
     display: flex;
@@ -26,8 +28,8 @@
       width: 100%;
       max-width: 600px;
       height: 100%;
-      border: 1px solid #e6e6e6;
-      border-radius: 8px;
+      border: 1px solid $border-color;
+      border-radius: $border-radius;
       margin: 0 10px;
       box-sizing: border-box;
     }
@@ -35,10 +37,9 @@
     .feedback-link {
       box-sizing: border-box;
       text-decoration: none;
-      color: #b3b3b3;
+      color: $text-gray;
       font-size: 10px;
       font-family: 'YS Text', sans-serif;
-      padding: 0 20px;
       position: absolute;
       bottom: 8px;
       width: 100%;
@@ -50,6 +51,18 @@
       max-height: 14px;
       white-space: nowrap;
       padding: 0 16px;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    .feedback {
+      height: 600px;
+
+      .feedback-iframe {
+        max-width: 100%;
+      }
     }
   }
 }
