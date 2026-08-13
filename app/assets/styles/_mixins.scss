@@ -1,8 +1,10 @@
-// app/assets/styles/_mixins.scss (новый файл)
-
+// app/assets/styles/_mixins.scss
 @use 'variables' as *;
 
-// Адаптивные брейкпоинты
+// ========================================
+// АДАПТИВНЫЕ БРЕЙКПОИНТЫ
+// ========================================
+
 @mixin respond-to($breakpoint) {
   @if $breakpoint == sm {
     @media (min-width: 640px) { @content; }
@@ -15,17 +17,131 @@
   }
 }
 
-// Контейнер с отступами
+// ========================================
+// КОНТЕЙНЕРЫ И ОТСТУПЫ
+// ========================================
+
+// Стандартный контейнер с отступами
 @mixin container {
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 var(--spacing-md);
+  padding: 0 2rem;
   
-  @include respond-to(md) {
-    padding: 0 var(--spacing-lg);
+  @media (max-width: 768px) {
+    padding: 0 1.2rem;
   }
 }
+
+// Контейнер секции (с фиксированной шириной и отступами)
+@mixin section-container($max-width: 1200px) {
+  max-width: $max-width;
+  margin: 0 auto;
+  padding: 0 2rem;
+  position: relative;
+  z-index: 1;
+  
+  @media (max-width: 768px) {
+    padding: 0 1.2rem;
+  }
+}
+
+// Стандартные отступы секции
+@mixin section-padding {
+  padding: 5rem 0;
+  
+  @media (max-width: 768px) {
+    padding: 3.5rem 0;
+  }
+}
+
+// ========================================
+// ТИПОГРАФИКА: ЗАГОЛОВКИ СЕКЦИЙ
+// ========================================
+
+// H2 — стандартный заголовок секции
+// Используется во всех блоках: GuaranteesGrid, PriceCalculatorTabs, FAQBlock и т.д.
+@mixin section-title {
+  font-family: 'Rubik', sans-serif;
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: currentColor;
+  margin: 0 0 0.8rem;
+  line-height: 1.25;
+  position: relative;
+  padding-bottom: 1rem;
+  
+  // Градиентная полоска слева под заголовком
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 80px;
+    height: 4px;
+    background: $blue-gradient;
+    border-radius: 2px;
+  }
+  
+  // Акцентное слово через <span>
+  :deep(span),
+  :deep(.accent) {
+    background: $blue-gradient;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  
+  @media (max-width: 768px) {
+    font-size: 1.7rem;
+  }
+}
+
+// H2 — центрированный заголовок (для CTA, портфолио)
+@mixin section-title-centered {
+  @include section-title;
+  text-align: center;
+  
+  &::after {
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}
+
+// Подзаголовок секции
+@mixin section-subtitle {
+  font-size: 1.05rem;
+  line-height: 1.6;
+  margin: 0 0 2.5rem;
+  max-width: 720px;
+}
+
+// H1 — главный заголовок страницы (только для WorkTypeOverview)
+@mixin page-title {
+  font-family: 'Rubik', sans-serif;
+  font-size: 2.6rem;
+  font-weight: 700;
+  color: currentColor;
+  margin: 0 0 1.2rem;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  
+  :deep(span),
+  :deep(.accent) {
+    background: $blue-gradient;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  
+  @media (max-width: 768px) {
+    font-size: 1.9rem;
+  }
+}
+
+// ========================================
+// UI-КОМПОНЕНТЫ
+// ========================================
 
 // Кнопка в стиле бренда
 @mixin btn-primary {
@@ -57,10 +173,135 @@
   background: var(--bg-light);
   border-radius: var(--border-radius);
   box-shadow: var(--box-shadow);
-  padding: var(--spacing-lg);
+  padding: 2rem;
   transition: var(--transition);
   
   &:hover {
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
   }
 }
+
+// ========================================
+// ИНФО-БЛОКИ (SUMMARY)
+// ========================================
+
+// Блок с итоговой рекомендацией (используется в MethodComparison, MaterialsGuide, FAQBlock)
+@mixin summary-block($theme: dark) {
+  margin-top: 2.5rem;
+  padding: 1.5rem 1.8rem;
+  background: rgba(0, 195, 245, 0.06);
+  border: 1px solid rgba(0, 195, 245, 0.2);
+  border-left: 4px solid $blue;
+  border-radius: $border-radius;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  
+  @media (max-width: 640px) {
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  
+  .summary-icon {
+    color: $blue;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  
+  p {
+    font-size: 0.98rem;
+    line-height: 1.65;
+    margin: 0;
+    
+    @if $theme == dark {
+      color: rgba($text-light, 0.88);
+    } @else {
+      color: $text-dark;
+    }
+    
+    :deep(strong),
+    :deep(b) {
+      color: $blue;
+      font-weight: 600;
+    }
+    
+    :deep(a) {
+      color: $blue;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      
+      &:hover {
+        color: $blue-light;
+      }
+    }
+  }
+}
+
+// ========================================
+// КАРТОЧКИ
+// ========================================
+
+// Темная карточка (для темных секций)
+@mixin dark-card {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: translateY(-4px);
+    border-color: $blue;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+  }
+}
+
+// Светлая карточка (для светлых секций)
+@mixin light-card {
+  background: #fff;
+  border: 1px solid $border-color;
+  border-radius: 14px;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1);
+    border-color: $blue;
+  }
+}
+
+// ========================================
+// ДОКУМЕНТАЦИЯ ПО ИСПОЛЬЗОВАНИЮ
+// ========================================
+
+// Примеры:
+//
+// .section {
+//   @include section-padding;
+//   
+//   .container {
+//     @include section-container;
+//   }
+//   
+//   &__title {
+//     @include section-title;
+//   }
+//   
+//   &__subtitle {
+//     @include section-subtitle;
+//     color: rgba($text-light, 0.75);
+//   }
+// }
+//
+// Для центрированного заголовка:
+// .cta-section {
+//   &__title {
+//     @include section-title-centered;
+//   }
+// }
+//
+// Для H1 на странице услуги:
+// .work-type-overview {
+//   &__title {
+//     @include page-title;
+//   }
+// }

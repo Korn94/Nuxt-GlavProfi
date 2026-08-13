@@ -38,50 +38,24 @@ defineProps<{
 
 <style lang="scss" scoped>
 @use '@/assets/styles/variables' as *;
+@use '@/assets/styles/mixins' as *;
 
 .guarantees {
-  padding: 5rem 0;
+  @include section-padding;
   background: $background-light;
+  color: $text-dark;
 
   .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 2rem;
-    @media (max-width: 768px) { padding: 0 1.2rem; }
+    @include section-container;
   }
 
   &__title {
-    font-family: 'Rubik', sans-serif;
-    font-size: 2.2rem;
-    font-weight: 700;
-    color: $text-dark;
-    margin: 0 0 0.8rem;
-    line-height: 1.25;
-    position: relative;
-    padding-bottom: 1rem;
-    &::after {
-      content: '';
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      width: 80px;
-      height: 4px;
-      background: $blue-gradient;
-      border-radius: 2px;
-    }
-    :deep(span) {
-      background: $blue-gradient;
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-    }
+    @include section-title;
   }
 
   &__subtitle {
-    font-size: 1.05rem;
+    @include section-subtitle;
     color: $text-gray;
-    margin: 0 0 2.5rem;
-    max-width: 720px;
   }
 
   &__grid {
@@ -92,17 +66,8 @@ defineProps<{
 }
 
 .guarantee-card {
+  @include light-card;
   padding: 2rem;
-  background: #fff;
-  border: 1px solid $border-color;
-  border-radius: 14px;
-  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
-
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 30px rgba(0, 195, 245, 0.12);
-    border-color: $blue;
-  }
 
   &__icon {
     width: 60px;

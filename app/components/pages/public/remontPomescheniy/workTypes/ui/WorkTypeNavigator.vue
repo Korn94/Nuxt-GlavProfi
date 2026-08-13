@@ -1,47 +1,53 @@
 <!-- app\components\pages\public\remontPomescheniy\workTypes\ui\WorkTypeNavigator.vue -->
 <template>
   <section class="work-type-navigator">
-    <div class="container">
-      <!-- Заголовок (опциональный) -->
-      <header v-if="title" class="navigator-header">
+    <div class="navigator-container">
+      <!-- Заголовок (опциональный) — раскомментируй, если нужен -->
+      <!-- <header v-if="title" class="navigator-header">
+        <span class="navigator-header__label">
+          <Icon name="mdi:link-variant" size="16" />
+          {{ label }}
+        </span>
         <h2 class="navigator-header__title" v-html="title" />
         <p v-if="subtitle" class="navigator-header__subtitle">{{ subtitle }}</p>
-      </header>
+      </header> -->
 
-      <!-- Карточки навигации -->
-      <nav class="navigator-grid" :aria-label="navLabel">
+      <!-- Закладки навигации -->
+      <nav class="navigator-tabs" :aria-label="navLabel">
         <NuxtLink
-          v-for="item in items"
+          v-for="item in sortedItems"
           :key="item.to"
           :to="item.to"
-          class="nav-card"
-          :class="{ 'nav-card--active': item.active }"
+          class="tab"
+          :class="{ 'tab--active': item.active }"
           :aria-current="item.active ? 'page' : undefined"
         >
           <!-- Иконка -->
-          <div class="nav-card__icon">
-            <Icon :name="item.icon || 'mdi:circle'" size="26" />
+          <div class="tab__icon">
+            <Icon :name="item.icon || 'mdi:circle'" size="24" />
           </div>
 
           <!-- Контент -->
-          <div class="nav-card__content">
-            <span class="nav-card__title">{{ item.title }}</span>
-            <!-- <span v-if="item.description" class="nav-card__desc">
-              {{ item.description }}
-            </span> -->
-            <div class="nav-card__bottom">
-              <span v-if="item.priceFrom" class="nav-card__price">
+          <div class="tab__content">
+            <span class="tab__title">{{ item.title }}</span>
+            <div class="tab__bottom">
+              <span v-if="item.priceFrom" class="tab__price">
                 {{ item.priceFrom }} ₽/м²
               </span>
-              <span v-if="item.active" class="nav-card__badge">
+              <!-- Бейдж "Вы здесь" для активной -->
+              <span v-if="item.active" class="tab__badge">
                 <Icon name="mdi:check-circle" size="12" />
-                Текущая страница
+                Текущая
               </span>
             </div>
           </div>
 
-          <!-- Стрелка (только неактивные) -->
-          <div v-if="!item.active" class="nav-card__arrow" aria-hidden="true">
+          <!-- Индикатор перехода (только для неактивных) -->
+          <div
+            v-if="!item.active"
+            class="tab__link-indicator"
+            aria-hidden="true"
+          >
             <Icon name="mdi:arrow-top-right" size="20" />
           </div>
         </NuxtLink>
@@ -51,6 +57,8 @@
 </template>
 
 <script setup lang="ts">
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
+
 export interface WorkTypeNavItem {
   title: string
   to: string
@@ -60,50 +68,118 @@ export interface WorkTypeNavItem {
   active?: boolean
 }
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
-    /** Заголовок блока (опциональный) */
+    /** Подпись над заголовком */
+    label?: string
+    /** Заголовок блока */
     title?: string
     /** Подзаголовок */
     subtitle?: string
-    /** Карточки навигации */
+    /** Карточки-закладки */
     items: WorkTypeNavItem[]
     /** Aria-label */
     navLabel?: string
   }>(),
   {
+    label: 'Виды работ',
     navLabel: 'Виды работ в категории',
   }
 )
+
+// ============================================================
+// ДЕТЕКТ МОБИЛЬНОЙ ВЕРСИИ
+// Брейкпоинт совпадает с CSS: @media (max-width: 768px)
+// ============================================================
+const MOBILE_BREAKPOINT = 768
+const isMobile = ref(false)
+let mediaQuery: MediaQueryList | null = null
+
+const handleMediaChange = (e: MediaQueryListEvent | MediaQueryList) => {
+  isMobile.value = e.matches
+}
+
+onMounted(() => {
+  mediaQuery = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`)
+  handleMediaChange(mediaQuery)
+  // Реагируем на поворот экрана / ресайз окна
+  mediaQuery.addEventListener('change', handleMediaChange)
+})
+
+onBeforeUnmount(() => {
+  mediaQuery?.removeEventListener('change', handleMediaChange)
+})
+
+// ============================================================
+// ПОРЯДОК ТАБОВ
+// ПК  → всегда исходный порядок
+// Моб → активная вкладка в конце списка
+// ============================================================
+const sortedItems = computed(() => {
+  // ПК и SSR: возвращаем как есть
+  if (!isMobile.value) {
+    return props.items
+  }
+  // Мобильный: неактивные в исходном порядке, активная — последней
+  const active = props.items.filter((item) => item.active)
+  const rest = props.items.filter((item) => !item.active)
+  return [...rest, ...active]
+})
 </script>
 
 <style lang="scss" scoped>
 @use '@/assets/styles/variables' as *;
 
-span {
-  color: unset;
-}
+// УБРАЛИ костыль: span { color: unset; }
+// Теперь спаны наследуют цвет правильно
 
 .work-type-navigator {
-  padding: 5rem 0;
-  margin-top: 2em;
+  padding: 3rem 0 0;
   background: $background-light;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
 
-  .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 2rem;
-    @media (max-width: 768px) { padding: 0 1.2rem; }
+// === Контейнер на всю ширину ===
+.navigator-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+
+  @media (max-width: 768px) {
+    padding: 0 1.2rem;
   }
 }
 
-// === Заголовок ===
+// === Шапка ===
 .navigator-header {
   margin-bottom: 2rem;
+  text-align: center;
+
+  &__label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: 'Rubik', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: $blue;
+    margin-bottom: 0.6rem;
+    padding: 0.3rem 0.8rem;
+    background: rgba(0, 195, 245, 0.12);
+    border-radius: 50px;
+  }
 
   &__title {
     font-family: 'Rubik', sans-serif;
-    font-size: 1.6rem;
+    font-size: 1.8rem;
     font-weight: 700;
     color: $text-dark;
     margin: 0 0 0.5rem;
@@ -121,111 +197,153 @@ span {
   &__subtitle {
     font-size: 1rem;
     color: $text-gray;
-    margin: 0;
+    margin: 0 auto;
     max-width: 600px;
   }
 }
 
-// === Сетка карточек ===
-.navigator-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1rem;
+// === Панель закладок ===
+.navigator-tabs {
+  display: flex;
+  gap: 0.3rem;
+  align-items: flex-end;
+  margin-top: auto;
+  padding: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  @media (max-width: 640px) {
+    gap: 0.15rem;
+  }
 }
 
-// === Карточка ===
-.nav-card {
+// === Закладка ===
+.tab {
   position: relative;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 1rem;
-  padding: 1.5rem;
-  background: #fff;
-  border: 1px solid $border-color;
-  border-radius: 14px;
+  padding: 1.3rem 1.6rem;
+  background: #f0f2f5;
+  border: 1px solid #e2e8f0;
+  border-bottom: none;
+  border-radius: 10px 10px 0 0;
   text-decoration: none;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  min-width: 200px;
+  flex-shrink: 0;
+  flex: 1;
+  z-index: 1;
 
-  &:hover:not(.nav-card--active) {
-    transform: translateY(-4px);
+  // === Ховер (неактивная) ===
+  &:hover:not(.tab--active) {
+    background: #ffffff;
     border-color: $blue;
-    box-shadow: 0 10px 30px rgba(0, 195, 245, 0.12);
+    transform: translateY(-4px);
 
-    .nav-card__arrow {
+    .tab__icon {
+      background: rgba(0, 195, 245, 0.15);
+      color: $blue;
+    }
+
+    .tab__title {
+      color: $blue;
+    }
+
+    .tab__link-indicator {
       background: $blue;
       color: #fff;
       transform: translate(2px, -2px);
     }
-
-    .nav-card__title {
-      color: $blue;
-    }
   }
 
-  // === Активная карточка ===
+  // === Активная закладка ===
   &--active {
-    background: rgba(0, 195, 245, 0.06);
-    // border-color: $blue;
-    box-shadow: 0 0 0 1px $blue, 0 6px 20px rgba(0, 195, 245, 0.1);
+    background: $background-dark;
+    border-color: #2c2d30;
+    z-index: 2;
+    box-shadow: 0 -8px 24px rgba(0, 195, 245, 0.15);
+    transform: none;
 
-    .nav-card__icon {
+    .tab__icon {
+      background: rgba(0, 195, 245, 0.2);
+      color: $blue-light;
+    }
+
+    .tab__title {
+      color: #fff;
+      font-weight: 700;
+      white-space: normal;
+    }
+
+    .tab__price {
+      color: $blue-light;
+    }
+
+    .tab__badge {
       background: $blue-gradient;
       color: $background-dark;
+      box-shadow: 0 4px 12px rgba(0, 195, 245, 0.4);
     }
 
-    // .nav-card__title {
-    //   color: $blue;
-    // }
+    .tab__link-indicator {
+      display: none;
+    }
   }
 
+  // === Иконка ===
   &__icon {
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 52px;
-    height: 52px;
-    background: rgba(0, 195, 245, 0.1);
-    color: $blue;
-    border-radius: 12px;
+    width: 46px;
+    height: 46px;
+    background: #e9ecef;
+    color: $text-gray;
+    border-radius: 10px;
     transition: all 0.3s ease;
   }
 
+  // === Контент ===
   &__content {
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
+    gap: 0.3rem;
   }
 
   &__title {
     font-family: 'Rubik', sans-serif;
-    font-size: 1.1rem;
-    font-weight: 700;
+    font-size: 1.05rem;
+    font-weight: 600;
     color: $text-dark;
     line-height: 1.3;
     transition: color 0.2s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  &__desc {
-    font-size: 0.88rem;
-    line-height: 1.5;
-    color: $text-gray;
-  }
-
+  // === Нижняя строка: цена + бейдж ===
   &__bottom {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
+    gap: 0.5rem;
     flex-wrap: wrap;
-    margin-top: 0.3rem;
   }
 
   &__price {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: $blue;
+    font-size: 0.88rem;
+    color: $text-gray;
+    font-weight: 500;
   }
 
   &__badge {
@@ -233,47 +351,130 @@ span {
     align-items: center;
     gap: 0.3rem;
     padding: 0.2rem 0.6rem;
-    background: $blue-gradient;
-    color: $background-dark;
+    background: rgba(0, 195, 245, 0.15);
+    color: $blue;
     font-family: 'Rubik', sans-serif;
-    font-size: 0.7rem;
+    font-size: 0.72rem;
     font-weight: 700;
+    letter-spacing: 0.03em;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
     border-radius: 50px;
   }
 
-  &__arrow {
+  // === Индикатор перехода (стрелка) ===
+  &__link-indicator {
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     width: 34px;
     height: 34px;
-    background: #f0f2f5;
+    background: #e9ecef;
     color: $text-gray;
     border-radius: 50%;
     transition: all 0.3s ease;
-    margin-left: auto;
   }
 }
 
-// === Мобильный адаптив ===
+// ========================================
+// МОБИЛЬНАЯ ВЕРСИЯ: ВЕРТИКАЛЬНЫЙ СТЕК
+// ========================================
 @media (max-width: 768px) {
   .work-type-navigator {
-    padding: 2rem 0;
+    padding: 1rem 0;
   }
 
-  .navigator-header__title {
-    font-size: 1.3rem;
+  .navigator-header {
+    margin-bottom: 1.2rem;
+    text-align: left;
+
+    &__title {
+      font-size: 1.4rem;
+    }
   }
 
-  .navigator-grid {
-    grid-template-columns: 1fr;
+  // Табы становятся вертикальным списком
+  .navigator-tabs {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    overflow-x: visible;
   }
 
-  .nav-card {
-    padding: 1.2rem;
+  .tab {
+    min-width: 0;
+    width: 100%;
+    padding: 1rem 1.1rem;
+    gap: 0.9rem;
+    border-radius: 12px; // скругление со всех сторон
+    border: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0; // возвращаем нижнюю границу
+
+    // Убираем эффект «папки»
+    &--active {
+      transform: none;
+      box-shadow: 0 4px 16px rgba(0, 195, 245, 0.2);
+    }
+
+    &:hover:not(.tab--active) {
+      transform: none;
+    }
+
+    &__icon {
+      width: 42px;
+      height: 42px;
+      flex-shrink: 0;
+    }
+
+    &__title {
+      font-size: 0.98rem;
+      white-space: normal; // разрешаем перенос
+      overflow: visible;
+      text-overflow: clip;
+    }
+
+    &__bottom {
+      margin-top: 0.15rem;
+    }
+
+    &__price {
+      font-size: 0.85rem;
+    }
+
+    // Стрелку-индикатор делаем компактнее
+    &__link-indicator {
+      width: 30px;
+      height: 30px;
+      margin-left: auto;
+    }
+  }
+}
+
+// ========================================
+// ОЧЕНЬ УЗКИЕ ЭКРАНЫ (≤375px)
+// ========================================
+@media (max-width: 375px) {
+  .tab {
+    padding: 0.85rem 0.9rem;
+    gap: 0.7rem;
+
+    &__icon {
+      width: 38px;
+      height: 38px;
+    }
+
+    &__title {
+      font-size: 0.92rem;
+    }
+
+    &__price {
+      font-size: 0.82rem;
+    }
+
+    &__badge {
+      font-size: 0.68rem;
+      padding: 0.15rem 0.5rem;
+    }
   }
 }
 </style>

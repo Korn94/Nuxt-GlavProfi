@@ -1,204 +1,259 @@
 // app\assets\styles\index.scss
 @use 'variables';
 
-$primary-color: $blue;
-$background-color: #18191b;
-$text-color: #ffffff;
-$subtext-color: #bdc3c7;
+// ========================================
+// БАЗОВЫЕ СБРОСЫ И НАСТРОЙКИ
+// ========================================
 
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-
+  
   font-family: "Rubik", sans-serif;
   font-optical-sizing: auto;
   font-style: normal;
-
-  // font-family: "Comfortaa", sans-serif;
-}
-
-// input,
-// textarea {
-//   margin: 0;
-//   padding: 0;
-//   border: none;
-//   background: transparent;
-//   -webkit-appearance: none;
-//      -moz-appearance: none;
-//           appearance: none;
-// }
-
-input {
-  flex: 1;
-  padding: 5px 10px;
-  border: 1px solid $subtext-color;
-  border-radius: 5px;
-  font-size: 0.9rem;
-  outline: none;
-  // color: $text-color;
-  // background-color: $background-color;
-
-  &::placeholder {
-    color: $subtext-color;
-  }
-
-  &:focus {
-    border-color: $blue;
-    box-shadow: 0 0 5px rgba(0, 195, 245, 0.5);
-  }
 }
 
 span, p {
-    margin: 0;
-    padding: 0;
-    border: 0;
-    font-size: 100%;
-    font: inherit;
-    vertical-align: baseline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 100%;
+  font: inherit;
+  vertical-align: baseline;
 }
 
-span {
-  color: $blue;
+// ========================================
+// БАЗОВЫЕ СТИЛИ BODY
+// ========================================
+
+body {
+  // Наследуемый цвет текста по умолчанию
+  color: var(--text-primary, $text-dark);
+  background: var(--bg-light, $background-light);
+  line-height: 1.5;
+  font-size: 16px;
 }
 
-body, button {
-    line-height: 1.2;
+// ========================================
+// ТИПОГРАФИКА
+// ========================================
+
+// Заголовки
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Rubik', sans-serif;
+  font-weight: 700;
+  line-height: 1.25;
+  margin-bottom: 1rem;
+  color: currentColor; // наследуют цвет от родителя
 }
 
-p, a, div {
-  color: #333;
+h1 {
+  font-size: 2.6rem;
+  letter-spacing: -0.02em;
+  
+  @media (max-width: 768px) {
+    font-size: 1.9rem;
+  }
 }
 
-b, .bold {
-  font-weight: 500;
-}
-
-// h1, h2 ,h3 ,h4, h5  {
-//   color: #02feff;
-// }
-
-h1, h2, h3 ,h4, h5 + p {
-  margin-bottom: 1em;
+h2 {
+  font-size: 2.2rem;
+  
+  @media (max-width: 768px) {
+    font-size: 1.7rem;
+  }
 }
 
 h3 {
-  font-size: 20px;
+  font-size: 1.5rem;
 }
 
-.endh {
-  text-align: end;
-  color: $blue;
-  font-weight: 700;
-  margin-top: 1em;
+h4 {
+  font-size: 1.25rem;
 }
 
-::selection {
-  background-color: $blue; /* Цвет фона при выделении текста */
-  color: #333; /* Цвет текста при выделении */
+h5, h6 {
+  font-size: 1.1rem;
 }
 
-// Переменная для цвета фона body
-$background: #fff; // значение по умолчанию
-
-// Применяем переменную к body
-body {
-  background: var(--background, $background);
-  // margin-top: 80px;
+// Абзацы
+p {
+  line-height: 1.65;
+  margin-bottom: 1rem;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
 }
 
-ul {
-  margin: 0;
-  padding: 0;
-  list-style-type: none;
+// Жирный текст
+b, strong, .bold {
+  font-weight: 600;
 }
+
+// ========================================
+// ССЫЛКИ
+// ========================================
 
 a {
+  color: inherit;
   text-decoration: none;
+  transition: color 0.2s ease;
+  
+  &:hover {
+    color: $blue;
+  }
 }
 
-a:hover {
-  color: $blue;
+// ========================================
+// ФОРМЫ
+// ========================================
+
+input, textarea, select, button {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
 }
 
-:hover{
-  transition: .3s;
-}
-
-hr {
-  margin: 0 1em;
-  border: unset;
-  color: unset;
-  border-bottom: 1px solid #2f2f2f80;
-}
-
-.line {
-  border-top: 1px solid #fff;
-  // border-image: $gray-gradient;
-  border-image-slice: 1;
-  margin: 1em auto;
-  max-width: 600px;
+input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color, $border-color);
+  border-radius: var(--border-radius, 6px);
+  outline: none;
+  background: transparent;
+  color: inherit;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  
+  &::placeholder {
+    color: var(--text-secondary, $text-gray);
+  }
+  
+  &:focus {
+    border-color: $blue;
+    box-shadow: 0 0 0 3px rgba(0, 195, 245, 0.15);
+  }
 }
 
 button {
-  // padding: 12px 15px;
-  // cursor: pointer;
+  cursor: pointer;
   border: none;
-  // border-radius: 5px;
-  // font-weight: 600;
-  // transition: all 0.3s ease;
-  // display: flex;
-  // justify-content: center;
-  // gap: .1rem;
-  // border: 1px solid $color-light;
-
-  // &:hover {
-  //   border: 1px solid $blue50;
-  //   background: $blue50;
-  //   transform: translateY(-3px);
-  //   box-shadow: 0 5px 25px rgba(0, 195, 245, 0.4);
-  //   color: $text-light;
-  // }
+  background: transparent;
+  transition: all 0.2s ease;
 }
 
-.small {
-  color: #718096;
-  font-size: 0.9em;
+// ========================================
+// СПИСКИ
+// ========================================
+
+ul, ol {
+  margin: 0;
+  padding: 0;
 }
 
-.green {
-  color: $color-success;
+li {
+  list-style: none;
 }
 
-.red {
-  color: $red;
-}
-
-.yellow {
-  color: $yellow;
-}
+// ========================================
+// УТИЛИТЫ
+// ========================================
 
 .flex {
   display: flex;
-  gap: 1em;
+  gap: 1rem;
 }
 
-.flex-colomn {
+.flex-column {
   display: flex;
   flex-direction: column;
+  gap: 1rem;
 }
 
-// Статьи
-.article__subtitle { 
-  margin-bottom: 1rem;
-  border-bottom: 2px solid $border-color;
-  padding-bottom: 0.5rem;
-  color: $color-dark;
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-// @import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@300..700&family=LXGW+WenKai+TC&family=Mulish:ital,wght@0,200..1000;1,200..1000&family=Pacifico&family=Roboto+Condensed:ital,wght@0,100..900;1,100..900&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap" rel="stylesheet');
-// @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
-// @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&family=Nanum+Myeongjo&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&family=Rubik:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet');
+.text-center {
+  text-align: center;
+}
+
+// Цветовые классы
+.small {
+  font-size: 0.875rem;
+  color: var(--text-secondary, $text-gray);
+}
+
+.green {
+  color: var(--color-success, $green);
+}
+
+.red {
+  color: var(--color-danger, $red);
+}
+
+.yellow {
+  color: var(--color-warning, $yellow);
+}
+
+.blue {
+  color: $blue;
+}
+
+.blue-light {
+  color: $blue-light;
+}
+
+// ========================================
+// РАЗДЕЛИТЕЛИ
+// ========================================
+
+hr {
+  border: none;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  margin: 2rem 0;
+}
+
+.line {
+  border-top: 1px solid currentColor;
+  opacity: 0.2;
+  margin: 2rem auto;
+  max-width: 600px;
+}
+
+// ========================================
+// ВЫДЕЛЕНИЕ ТЕКСТА
+// ========================================
+
+::selection {
+  background-color: $blue;
+  color: #fff;
+}
+
+// ========================================
+// ПЕРЕХОДЫ
+// ========================================
+
+* {
+  transition-timing-function: ease;
+}
+
+// Отключаем transition для пользователей с prefers-reduced-motion
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+// ========================================
+// ШРИФТЫ
+// ========================================
 
 // === RUBIK ===
 @font-face {
@@ -241,7 +296,7 @@ button {
   src: url('/fonts/rubik/Rubik-Bold.woff2') format('woff2');
 }
 
-// === Comfortaa ===
+// === COMFORTAA ===
 @font-face {
   font-family: 'Comfortaa';
   font-style: normal;

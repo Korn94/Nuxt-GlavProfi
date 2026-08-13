@@ -1,24 +1,51 @@
 // app\assets\styles\_variables.scss
+// ========================================
+// ЦВЕТА БРЕНДА
+// ========================================
+
 $blue: #00c3f5;
 $blue-light: #02feff;
+$blue20: rgba(0, 195, 245, 0.2);
+$blue50: rgba(0, 195, 245, 0.5);
+
 $yellow: #FAB702;
-$blue20: #00c3f520;
-$blue50: #00c3f550;
 $green: #00A12A;
 $red: #A61300;
+
+// ========================================
+// ФОН
+// ========================================
+
 $background-dark: #18191b;
 $background-gray: #222;
 $background-light: #fff;
 
-$blue-gradient: linear-gradient(120deg, #00c3f5, #71E0FA);
-$gray-gradient: linear-gradient(90deg, #fff, #ffffff80);
+// ========================================
+// ТЕКСТ
+// ========================================
 
-$border-color: #ddd;
-$sub-item-bg: #f0f0f0;
 $text-dark: #333;
 $text-gray: #777;
 $text-light: #fff;
+
+// ========================================
+// ГРАДИЕНТЫ
+// ========================================
+
+$blue-gradient: linear-gradient(120deg, $blue, #71E0FA);
+$gray-gradient: linear-gradient(90deg, #fff, rgba(255, 255, 255, 0.5));
+
+// ========================================
+// UI ЭЛЕМЕНТЫ
+// ========================================
+
+$border-color: #ddd;
+$sub-item-bg: #f0f0f0;
 $shadow-color: rgba(0, 0, 0, 0.05);
+
+// ========================================
+// СЕМАНТИЧЕСКИЕ ЦВЕТА
+// ========================================
 
 $color-success: #28a745;
 $color-danger: #662828;
@@ -30,34 +57,45 @@ $color-pink: #e83e8c;
 $color-dark: #27282a;
 $color-light: #f8f9fa;
 
+// ========================================
+// РАЗМЕРЫ И ОТСТУПЫ
+// ========================================
+
 $border-radius: 6px;
 $box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
 $transition: all 0.3s ease;
 
+// ========================================
+// CSS ПЕРЕМЕННЫЕ (для JS и динамических тем)
+// ========================================
+
 :root {
-  // Colors
+  // Основные цвета
   --color-primary: #{$blue};
   --color-primary-light: #{$blue-light};
   --color-accent: #{$yellow};
   --color-success: #{$green};
   --color-danger: #{$red};
   
-  // Backgrounds
+  // Фоны
   --bg-dark: #{$background-dark};
   --bg-gray: #{$background-gray};
   --bg-light: #{$background-light};
   
-  // Text
+  // Текст
   --text-primary: #{$text-dark};
   --text-secondary: #{$text-gray};
   --text-light: #{$text-light};
+  
+  // Границы
+  --border-color: #{$border-color};
   
   // UI
   --border-radius: #{$border-radius};
   --box-shadow: #{$box-shadow};
   --transition: #{$transition};
   
-  // Gradients
+  // Градиенты
   --gradient-blue: #{$blue-gradient};
   --gradient-gray: #{$gray-gradient};
 }

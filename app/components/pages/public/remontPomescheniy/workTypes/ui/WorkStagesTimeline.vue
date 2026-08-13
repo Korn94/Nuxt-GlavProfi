@@ -55,58 +55,28 @@ defineProps<{
 
 <style lang="scss" scoped>
 @use '@/assets/styles/variables' as *;
+@use '@/assets/styles/mixins' as *;
 
-span {
-  color: unset;
-}
+// УБРАЛИ: span { color: unset; }
 
 .work-stages {
-  padding: 5rem 0;
+  @include section-padding;
   background: $background-dark;
+  color: $text-light;
   position: relative;
   overflow: hidden;
 
   .container {
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: 0 2rem;
-    position: relative;
-    z-index: 1;
-    @media (max-width: 768px) { padding: 0 1.2rem; }
+    @include section-container; // БЫЛО: max-width: 1000px, СТАЛО: 1200px
   }
 
   &__title {
-    font-family: 'Rubik', sans-serif;
-    font-size: 2.2rem;
-    font-weight: 700;
-    color: $text-light;
-    margin: 0 0 1rem;
-    line-height: 1.25;
-    position: relative;
-    padding-bottom: 1rem;
-    &::after {
-      content: '';
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      width: 80px;
-      height: 4px;
-      background: $blue-gradient;
-      border-radius: 2px;
-    }
-    :deep(span) {
-      background: $blue-gradient;
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-    }
+    @include section-title; // БЫЛО: 20 строк дублирования
   }
 
   &__subtitle {
-    font-size: 1.05rem;
+    @include section-subtitle;
     color: rgba($text-light, 0.75);
-    margin: 0 0 3rem;
-    max-width: 720px;
   }
 }
 
@@ -206,7 +176,6 @@ span {
 @media (max-width: 768px) {
   .timeline {
     padding-left: 50px;
-    &::before { left: 20px; }
   }
   .timeline-marker {
     left: -50px;

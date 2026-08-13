@@ -1,5 +1,5 @@
 <!-- app/components/pages/public/remontPomescheniy/workTypes/ui/MethodComparison.vue -->
- <template>
+<template>
   <section class="method-comparison">
     <div class="container">
       <!-- Заголовок -->
@@ -136,24 +136,19 @@ defineProps<{
 
 <style lang="scss" scoped>
 @use '@/assets/styles/variables' as *;
+@use '@/assets/styles/mixins' as *;
 
-span {
-  color: unset;
-}
+// УБРАЛИ костыль: span { color: unset; }
+// Теперь спаны наследуют цвет правильно
 
 .method-comparison {
-  padding: 5rem 0;
+  @include section-padding;
   background: $background-light;
+  color: $text-dark;
   position: relative;
 
   .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 2rem;
-
-    @media (max-width: 768px) {
-      padding: 0 1.2rem;
-    }
+    @include section-container;
   }
 
   // === Заголовок ===
@@ -163,31 +158,12 @@ span {
   }
 
   &__title {
-    font-family: 'Rubik', sans-serif;
-    font-size: 2.2rem;
-    font-weight: 700;
-    color: $text-dark;
-    margin: 0 0 0.8rem;
-    line-height: 1.25;
-
-    @media (max-width: 768px) {
-      font-size: 1.7rem;
-    }
-
-    :deep(span),
-    :deep(.accent) {
-      background: $blue-gradient;
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-    }
+    @include section-title; // БЫЛО: дублирование, СТАЛО: миксин
   }
 
   &__subtitle {
-    font-size: 1.05rem;
-    line-height: 1.6;
+    @include section-subtitle;
     color: $text-gray;
-    margin: 0;
   }
 
   // === Сетка карточек ===
@@ -203,68 +179,17 @@ span {
 
   // === Итоговая рекомендация ===
   &__summary {
-    margin-top: 2.5rem;
-    padding: 1.5rem 1.8rem;
-    background: rgba(0, 195, 245, 0.06);
-    border: 1px solid rgba(0, 195, 245, 0.2);
-    border-left: 4px solid $blue;
-    border-radius: $border-radius;
-    display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-
-    @media (max-width: 640px) {
-      flex-direction: column;
-      gap: 0.6rem;
-    }
-
-    .summary-icon {
-      color: $blue;
-      flex-shrink: 0;
-      margin-top: 2px;
-    }
-
-    p {
-      font-size: 0.98rem;
-      line-height: 1.65;
-      color: $text-dark;
-      margin: 0;
-
-      :deep(strong),
-      :deep(b) {
-        color: $blue;
-        font-weight: 600;
-      }
-
-      :deep(a) {
-        color: $blue;
-        text-decoration: underline;
-        text-underline-offset: 3px;
-
-        &:hover {
-          color: $blue-light;
-        }
-      }
-    }
+    @include summary-block(light); // Используем миксин для светлой темы
   }
 }
 
 // === Карточка метода ===
 .method-card {
+  @include light-card;
   position: relative;
   display: flex;
   flex-direction: column;
   padding: 1.8rem;
-  background: #fff;
-  border: 1px solid $border-color;
-  border-radius: 14px;
-  transition: all 0.3s ease;
-
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1);
-    border-color: $blue;
-  }
 
   // === Рекомендуемая карточка ===
   &--recommended {
@@ -315,7 +240,6 @@ span {
     width: 52px;
     height: 52px;
     background: rgba(0, 195, 245, 0.1);
-    color: $blue;
     border-radius: 12px;
     transition: all 0.3s ease;
   }
@@ -406,17 +330,6 @@ span {
     &--con .list-icon {
       color: $red;
     }
-  }
-}
-
-// === Мобильный адаптив ===
-@media (max-width: 768px) {
-  .method-comparison {
-    padding: 3.5rem 0;
-  }
-
-  .method-card {
-    padding: 1.4rem;
   }
 }
 </style>

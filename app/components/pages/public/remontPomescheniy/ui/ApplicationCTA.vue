@@ -262,14 +262,14 @@ const computedMessageConfig = computed<MessageConfig>(() => {
 
 <style lang="scss" scoped>
 @use '@/assets/styles/variables' as *;
+@use '@/assets/styles/mixins' as *;
 
-span {
-  color: unset;
-}
+// УБРАЛИ: span { color: unset; }
 
 .application-cta {
-  padding: 5rem 0;
+  @include section-padding; // БЫЛО: padding: 5rem 0;
   background: $background-dark;
+  color: $text-light; // ДОБАВИЛИ: наследование цвета
   position: relative;
   overflow: hidden;
 
@@ -298,22 +298,14 @@ span {
   }
 
   .container {
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 0 2rem;
-    position: relative;
-    z-index: 1;
-
-    @media (max-width: 768px) {
-      padding: 0 1.2rem;
-    }
+    @include section-container; // БЫЛО: max-width: 1100px, СТАЛО: 1200px
   }
 
   // === Карточка-обёртка ===
   &__card {
+    @include dark-card;
     background: rgba(34, 34, 34, 0.65);
     backdrop-filter: blur(14px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 16px;
     padding: 3.5rem;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
@@ -343,23 +335,11 @@ span {
   }
 
   &__title {
-    font-family: 'Rubik', sans-serif;
-    font-size: 2.3rem;
-    font-weight: 700;
-    color: $text-light;
-    margin: 0 0 1rem;
-    line-height: 1.2;
-
+    @include section-title-centered; // БЫЛО: 15 строк дублирования
+    font-size: 2.3rem; // Чуть больше для CTA
+    
     @media (max-width: 768px) {
       font-size: 1.7rem;
-    }
-
-    :deep(span),
-    :deep(.accent) {
-      background: $blue-gradient;
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
     }
   }
 
@@ -448,10 +428,8 @@ span {
 
 // === Альтернатива (контакты) ===
 .alternative-card {
-  background: rgba(255, 255, 255, 0.04);
+  @include dark-card;
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
   padding: 2rem;
 
   @media (max-width: 960px) {
@@ -563,25 +541,6 @@ span {
   100% {
     transform: scale(1);
     opacity: 1;
-  }
-}
-
-// === Адаптив ===
-@media (max-width: 768px) {
-  .application-cta {
-    padding: 3.5rem 0;
-
-    &__card {
-      padding: 1.8rem 1.3rem;
-    }
-
-    &__title {
-      font-size: 1.5rem;
-    }
-
-    &__subtitle {
-      font-size: 0.98rem;
-    }
   }
 }
 </style>

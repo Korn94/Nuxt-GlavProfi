@@ -157,18 +157,15 @@ const closeAll = () => {
 
 <style lang="scss" scoped>
 @use '@/assets/styles/variables' as *;
-
-span {
-  color: unset;
-}
+@use '@/assets/styles/mixins' as *;
 
 .faq-block {
-  padding: 5rem 0;
+  @include section-padding;
   background: $background-dark;
+  color: $text-light;
   position: relative;
   overflow: hidden;
 
-  // Мягкое свечение
   &::before {
     content: '';
     position: absolute;
@@ -182,15 +179,7 @@ span {
   }
 
   .container {
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 0 2rem;
-    position: relative;
-    z-index: 1;
-
-    @media (max-width: 768px) {
-      padding: 0 1.2rem;
-    }
+    @include section-container; // FAQ делаем уже для читаемости
   }
 
   // === Заголовок ===
@@ -199,46 +188,12 @@ span {
   }
 
   &__title {
-    font-family: 'Rubik', sans-serif;
-    font-size: 2.2rem;
-    font-weight: 700;
-    color: $text-light;
-    margin: 0 0 1rem;
-    line-height: 1.25;
-    position: relative;
-    padding-bottom: 1rem;
-
-    &::after {
-      content: '';
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      width: 80px;
-      height: 4px;
-      background: $blue-gradient;
-      border-radius: 2px;
-      box-shadow: 0 0 10px $blue50;
-    }
-
-    @media (max-width: 768px) {
-      font-size: 1.7rem;
-    }
-
-    :deep(span),
-    :deep(.accent) {
-      background: $blue-gradient;
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-    }
+    @include section-title; // Уже использует миксин
   }
 
   &__subtitle {
-    font-size: 1.08rem;
-    line-height: 1.65;
+    @include section-subtitle;
     color: rgba($text-light, 0.78);
-    margin: 1rem 0 0;
-    max-width: 720px;
   }
 
   // === Список ===
@@ -254,34 +209,8 @@ span {
   }
 
   &__footer-inner {
-    display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-    padding: 1.4rem 1.6rem;
-    background: rgba(0, 195, 245, 0.06);
-    border: 1px solid rgba(0, 195, 245, 0.2);
-    border-left: 4px solid $blue;
-    border-radius: $border-radius;
-
-    p {
-      font-size: 0.98rem;
-      line-height: 1.6;
-      color: rgba($text-light, 0.88);
-      margin: 0;
-
-      :deep(strong),
-      :deep(b) {
-        color: $blue-light;
-        font-weight: 600;
-      }
-
-      :deep(a) {
-        color: $blue;
-        text-decoration: none;
-        font-weight: 500;
-        &:hover { color: $blue-light; }
-      }
-    }
+    @include summary-block(dark);
+    margin-top: 0; // Убираем margin-top из миксина
   }
 
   &__footer-icon {
@@ -322,11 +251,8 @@ span {
 
 // === Элемент FAQ ===
 .faq-item {
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: $border-radius;
+  @include dark-card;
   overflow: hidden;
-  transition: border-color 0.3s ease, background 0.3s ease, box-shadow 0.3s ease;
 
   &:hover {
     border-color: rgba(0, 195, 245, 0.25);
@@ -460,9 +386,8 @@ span {
       }
 
       &:first-child {
-        padding-top: 0.5rem;
-        border-top: 1px solid rgba(255, 255, 255, 0.08);
         padding-top: 1rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
       }
     }
 
@@ -490,21 +415,6 @@ span {
       text-decoration: none;
       font-weight: 500;
       &:hover { color: $blue-light; }
-    }
-  }
-}
-
-// === Адаптив ===
-@media (max-width: 768px) {
-  .faq-block {
-    padding: 3.5rem 0;
-
-    &__header {
-      margin-bottom: 2rem;
-    }
-
-    &__list {
-      gap: 0.7rem;
     }
   }
 }

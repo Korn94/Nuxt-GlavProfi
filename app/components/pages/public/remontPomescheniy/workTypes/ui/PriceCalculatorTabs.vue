@@ -188,39 +188,24 @@ const decreaseArea = () => {
 
 <style lang="scss" scoped>
 @use '@/assets/styles/variables' as *;
+@use '@/assets/styles/mixins' as *;
 
 .price-calculator {
-  padding: 5rem 0;
+  @include section-padding;
   background: $background-light;
+  color: $text-dark;
 
   .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 2rem;
-    @media (max-width: 768px) { padding: 0 1.2rem; }
+    @include section-container;
   }
 
   &__title {
-    font-family: 'Rubik', sans-serif;
-    font-size: 2.2rem;
-    font-weight: 700;
-    color: $text-dark;
-    margin: 0 0 0.8rem;
-    line-height: 1.25;
-    :deep(span) {
-      background: $blue-gradient;
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-    }
+    @include section-title; // БЫЛО: 15 строк дублирования
   }
 
   &__subtitle {
-    font-size: 1.05rem;
-    line-height: 1.6;
+    @include section-subtitle;
     color: $text-gray;
-    margin: 0 0 2rem;
-    max-width: 720px;
   }
 }
 
@@ -259,6 +244,7 @@ const decreaseArea = () => {
   display: grid;
   grid-template-columns: 1fr 340px;
   gap: 2.5rem;
+  
   @media (max-width: 900px) {
     grid-template-columns: 1fr;
     gap: 1.5rem;
@@ -485,26 +471,8 @@ const decreaseArea = () => {
 }
 
 .side-cta {
+  @include btn-primary;
   width: 100%;
   padding: 1rem;
-  background: $blue-gradient;
-  color: $background-dark;
-  border: none;
-  border-radius: 10px;
-  font-family: 'Rubik', sans-serif;
-  font-size: 1rem;
-  font-weight: 700;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  box-shadow: 0 6px 20px rgba(0, 195, 245, 0.35);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 28px rgba(0, 195, 245, 0.5);
-  }
 }
 </style>

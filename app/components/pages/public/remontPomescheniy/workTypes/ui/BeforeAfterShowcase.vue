@@ -1,3 +1,4 @@
+<!-- app\components\pages\public\remontPomescheniy\workTypes\ui\BeforeAfterShowcase.vue -->
 <template>
   <section
     ref="sectionRef"
@@ -156,10 +157,12 @@ onBeforeUnmount(() => {
 
 <style lang="scss" scoped>
 @use '@/assets/styles/variables' as *;
+@use '@/assets/styles/mixins' as *;
 
 .before-after-showcase {
-  padding: 5rem 0;
+  @include section-padding;
   background: $background-dark;
+  color: $text-light;
   position: relative;
   overflow: hidden;
 
@@ -186,50 +189,23 @@ onBeforeUnmount(() => {
   }
 
   .container {
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 0 2rem;
-    position: relative;
-    z-index: 1;
-
-    @media (max-width: 768px) {
-      padding: 0 1.2rem;
-    }
+    @include section-container; // БЫЛО: max-width: 1100px, СТАЛО: 1200px
   }
 }
 
 // === Заголовок ===
 .showcase-header {
   margin-bottom: 2rem;
-  text-align: center;
+  // text-align: center;
 
   &__title {
-    font-family: 'Rubik', sans-serif;
-    font-size: 2.2rem;
-    font-weight: 700;
-    color: $text-light;
-    margin: 0 0 0.8rem;
-    line-height: 1.25;
-
-    @media (max-width: 768px) {
-      font-size: 1.7rem;
-    }
-
-    :deep(span),
-    :deep(.accent) {
-      background: $blue-gradient;
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-    }
+    @include section-title; // БЫЛО: дублирование стилей, СТАЛО: миксин
   }
 
   &__subtitle {
-    font-size: 1.05rem;
-    line-height: 1.6;
+    @include section-subtitle;
     color: rgba($text-light, 0.7);
     margin: 0 auto;
-    max-width: 640px;
   }
 }
 
@@ -344,7 +320,7 @@ onBeforeUnmount(() => {
 // === Миниатюры ===
 .showcase-thumbnails {
   display: flex;
-  justify-content: center;
+  // justify-content: center;
   gap: 0.8rem;
   margin-top: 1.5rem;
   flex-wrap: wrap;
@@ -417,7 +393,6 @@ onBeforeUnmount(() => {
 
     .thumbnail__overlay {
       opacity: 1;
-      background: rgba(0, 195, 245, 0.25);
       color: $blue-light;
     }
   }
@@ -425,14 +400,6 @@ onBeforeUnmount(() => {
 
 // === Мобильный адаптив ===
 @media (max-width: 768px) {
-  .before-after-showcase {
-    padding: 3.5rem 0;
-  }
-
-  .showcase-header {
-    margin-bottom: 1.5rem;
-  }
-
   .showcase-label {
     font-size: 0.78rem;
   }

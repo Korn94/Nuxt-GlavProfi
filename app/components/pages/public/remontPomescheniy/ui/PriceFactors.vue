@@ -69,14 +69,14 @@ defineProps<{
 
 <style lang="scss" scoped>
 @use '@/assets/styles/variables' as *;
+@use '@/assets/styles/mixins' as *;
 
-span {
-  color: unset;
-}
+// УБРАЛИ: span { color: unset; }
 
 .price-factors {
-  padding: 5rem 0;
+  @include section-padding; // БЫЛО: padding: 5rem 0;
   background: $background-dark;
+  color: $text-light; // ДОБАВИЛИ: наследование цвета
   position: relative;
   overflow: hidden;
 
@@ -94,59 +94,18 @@ span {
   }
 
   .container {
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: 0 2rem;
-    position: relative;
-    z-index: 1;
-
-    @media (max-width: 768px) {
-      padding: 0 1.2rem;
-    }
+    @include section-container; // БЫЛО: max-width: 1000px, СТАЛО: 1200px
   }
 
   // === Заголовок ===
   &__title {
-    font-family: 'Rubik', sans-serif;
-    font-size: 2rem;
-    font-weight: 700;
-    color: $text-light;
-    margin: 0 0 1rem;
-    line-height: 1.25;
-    position: relative;
-    padding-bottom: 1rem;
-
-    &::after {
-      content: '';
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      width: 70px;
-      height: 4px;
-      background: $blue-gradient;
-      border-radius: 2px;
-      box-shadow: 0 0 10px $blue50;
-    }
-
-    @media (max-width: 768px) {
-      font-size: 1.6rem;
-    }
-
-    :deep(span),
-    :deep(.accent) {
-      background: $blue-gradient;
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-    }
+    @include section-title; // БЫЛО: 30 строк дублирования, СТАЛО: 1 строка
   }
 
   &__subtitle {
-    font-size: 1.05rem;
-    line-height: 1.6;
+    @include section-subtitle;
     color: rgba($text-light, 0.75);
-    margin: 1.5rem 0 2.5rem;
-    max-width: 720px;
+    margin-top: 1.5rem; // специфика этого компонента
   }
 
   // === Список факторов ===
@@ -203,29 +162,25 @@ span {
 
 // === Фактор ===
 .price-factor {
+  @include dark-card; // БЫЛО: дублирование hover-эффектов
   position: relative;
   display: grid;
   grid-template-columns: auto auto 1fr;
   gap: 1.2rem 1.2rem;
   align-items: start;
   padding: 1.6rem 1.8rem;
-  background: rgba(255, 255, 255, 0.035);
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: $border-radius;
-  transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease, background 0.35s ease;
+
+  // Переопределяем hover из dark-card
+  &:hover {
+    box-shadow: 0 10px 28px rgba(0, 195, 245, 0.12);
+    background: rgba(0, 195, 245, 0.04);
+  }
 
   // Анимация появления
   opacity: 0;
   transform: translateY(16px);
   animation: fadeInUp 0.55s var(--delay, 0s) ease forwards;
-
-  &:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 10px 28px rgba(0, 195, 245, 0.12);
-    border-color: rgba(0, 195, 245, 0.3);
-    background: rgba(0, 195, 245, 0.04);
-  }
 
   // Номер
   &__number {
@@ -302,9 +257,7 @@ span {
 
 // === Адаптив ===
 @media (max-width: 640px) {
-  .price-factors {
-    padding: 3.5rem 0;
-  }
+  // УБРАЛИ: padding: 3.5rem 0; (уже в section-padding)
 
   .price-factor {
     grid-template-columns: auto 1fr;

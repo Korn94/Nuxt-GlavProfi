@@ -1,3 +1,4 @@
+<!-- app\components\pages\public\remontPomescheniy\workTypes\ui\WorkTypeOverview.vue -->
 <template>
   <section class="work-type-overview">
     <div class="container">
@@ -10,6 +11,10 @@
         <h1 class="overview-title" v-html="title" />
 
         <p v-if="description" class="overview-description">{{ description }}</p>
+        <!-- Расширенное описание с перелинковкой -->
+        <div v-if="$slots.details" class="overview-details">
+          <slot name="details" />
+        </div>
 
         <div v-if="advantages?.length" class="overview-advantages">
           <div
@@ -27,11 +32,6 @@
           </div>
         </div>
       </header>
-
-      <!-- Расширенное описание с перелинковкой -->
-      <div v-if="$slots.details" class="overview-details">
-        <slot name="details" />
-      </div>
     </div>
   </section>
 </template>
@@ -57,25 +57,16 @@ withDefaults(
 
 <style lang="scss" scoped>
 @use '@/assets/styles/variables' as *;
+@use '@/assets/styles/mixins' as *;
 
 .work-type-overview {
-  display: flex;
-  align-items: center;
+  @include section-padding; // БЫЛО: padding: 10rem 0 0;
   background: $background-dark;
-  min-height: 100vh;
+  color: $text-light;
   
   .container {
-    max-width: 1200px;
-    width: 100%;
-    margin: 0 auto;
-    padding: 0 2rem;
-    @media (max-width: 768px) { padding: 0 1.2rem; }
+    @include section-container;
   }
-}
-
-.overview-header {
-  margin-bottom: 2.5rem;
-  max-width: 800px;
 }
 
 .overview-category {
@@ -95,23 +86,7 @@ withDefaults(
 }
 
 .overview-title {
-  font-family: 'Rubik', sans-serif;
-  font-size: 2.6rem;
-  font-weight: 700;
-  color: $text-light;
-  margin: 0 0 1.2rem;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
-
-  @media (max-width: 768px) { font-size: 1.9rem; }
-
-  :deep(span),
-  :deep(.accent) {
-    background: $blue-gradient;
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
+  @include page-title;
 }
 
 .overview-description {
@@ -128,14 +103,11 @@ withDefaults(
 }
 
 .advantage-item {
+  @include dark-card;
   display: flex;
   align-items: flex-start;
   gap: 0.9rem;
   padding: 1.1rem 1.2rem;
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: $border-radius;
-  transition: border-color 0.3s ease, background 0.3s ease;
 
   &:hover {
     border-color: rgba(0, 195, 245, 0.3);
@@ -177,8 +149,8 @@ withDefaults(
 
 // === Расширенное описание ===
 .overview-details {
-  margin-bottom: 0;
   max-width: 800px;
+  margin: 0 0 2rem;
 
   :deep(p) {
     font-size: 1.02rem;
@@ -210,11 +182,8 @@ withDefaults(
   }
 }
 
+// === Мобильный адаптив ===
 @media (max-width: 768px) {
-  .work-type-overview {
-    padding: 2rem 0;
-  }
-
   .overview-header {
     margin-bottom: 2rem;
   }
