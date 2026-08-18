@@ -1,4 +1,4 @@
-// app/components/pages/cabinet/MasterDashboard/OperationsWidget.vue
+<!-- app/components/pages/cabinet/MasterDashboard/OperationsWidget.vue -->
 <template>
   <div class="operations-widget">
     <!-- Заголовок -->

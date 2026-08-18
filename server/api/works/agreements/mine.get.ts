@@ -10,9 +10,9 @@
  * @returns { agreements: WorkAgreement[] } — массив с полями объекта (objectId, objectName)
  */
 import { defineEventHandler, createError } from 'h3'
-import { eq, and, inArray } from 'drizzle-orm'
+import { eq, and, inArray, isNull } from 'drizzle-orm'
 import { db } from '../../../db'
-import { workAgreements, objects, masters, workers } from '../../../db/schema'
+import { workAgreements, workAgreementAcceptances, works, objects, masters, workers } from '../../../db/schema'
 import {
   getAgreementPercent,
   isAgreementFullyAccepted,
@@ -77,6 +77,40 @@ export default defineEventHandler(async (event) => {
   const masterMap = new Map(mastersList.map(m => [m.id, m.name]))
   const workerMap = new Map(workersList.map(w => [w.id, w.name]))
 
+  // Подсчёт «сданных, но ещё не принятых» сдач (pending) по каждой договорённости.
+  // Pending = связанная работа ещё не принята (accepted = false) и не отклонена
+  // (rejectedReason IS NULL) — т.е. ожидает утверждения администратором/прорабом.
+  const agreementIds = rows.map(r => Number(r.agreement.id))
+
+  const pendingRows = agreementIds.length > 0
+    ? await db
+        .select({
+          agreementId: workAgreementAcceptances.agreementId,
+          acceptedVolume: workAgreementAcceptances.acceptedVolume,
+          acceptedAmount: workAgreementAcceptances.acceptedAmount
+        })
+        .from(workAgreementAcceptances)
+        .leftJoin(works, eq(workAgreementAcceptances.workId, works.id))
+        .where(
+          and(
+            inArray(workAgreementAcceptances.agreementId, agreementIds),
+            eq(works.accepted, false),
+            isNull(works.rejectedReason)
+          )
+        )
+    : []
+
+  const pendingMap = new Map<number, { volume: number; amount: number; count: number }>()
+
+  for (const row of pendingRows) {
+    const id = Number(row.agreementId)
+    const entry = pendingMap.get(id) || { volume: 0, amount: 0, count: 0 }
+    entry.volume += Number(row.acceptedVolume || 0)
+    entry.amount += Number(row.acceptedAmount || 0)
+    entry.count += 1
+    pendingMap.set(id, entry)
+  }
+
   const agreements = rows.map(({ agreement, objectName }) => {
     const volume = Number(agreement.volume || 0)
     const acceptedVolume = Number(agreement.acceptedVolume || 0)
@@ -105,6 +139,11 @@ export default defineEventHandler(async (event) => {
       percent: getAgreementPercent({ volume, acceptedVolume }),
 
       isFullyAccepted: isAgreementFullyAccepted({ volume, acceptedVolume }),
+
+      // Ожидающие приёмки сдачи (сданные, но ещё не принятые/не отклонённые)
+      pendingVolume: round3(pendingMap.get(Number(agreement.id))?.volume || 0),
+      pendingAmount: round2(pendingMap.get(Number(agreement.id))?.amount || 0),
+      pendingCount: pendingMap.get(Number(agreement.id))?.count || 0,
 
       contractorName,
 

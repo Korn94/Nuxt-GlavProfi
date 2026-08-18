@@ -4,5 +4,6 @@
     <LayoutHeader />
     <NuxtPage />
     <LayoutFooter />
+    <UiScrollToTop />
   </div>
 </template>

@@ -33,6 +33,10 @@
         <span class="summary-item__label">Осталось</span>
         <strong class="summary-item__value summary-item__value--neg">{{ formatCurrency(totalRemaining) }}</strong>
       </div>
+      <div v-if="totalPending > 0" class="summary-item">
+        <span class="summary-item__label">Ожидает приёмки</span>
+        <strong class="summary-item__value summary-item__value--pending">{{ formatCurrency(totalPending) }}</strong>
+      </div>
     </div>
 
     <!-- Загрузка -->
@@ -82,6 +86,9 @@
 
             <div class="agreement-card__volume">
               Объём: {{ agreement.volume }} {{ unitLabel(agreement) }}
+              <template v-if="unitPrice(agreement) !== null">
+                · Цена: {{ unitPrice(agreement) }}/{{ unitLabel(agreement) }}
+              </template>
               <span v-if="agreement.remainingVolume > 0" class="agreement-card__remaining">
                 · осталось {{ agreement.remainingVolume }} {{ unitLabel(agreement) }}
               </span>
@@ -102,6 +109,20 @@
                 Сдано {{ agreement.acceptedVolume }} / {{ agreement.volume }}
                 {{ unitLabel(agreement) }} · {{ agreement.percent }}%
               </div>
+            </div>
+
+            <div
+              v-if="agreement.pendingCount > 0"
+              class="agreement-card__pending"
+            >
+              <Icon name="mdi:clock-outline" size="15" />
+              <span>
+                Ожидает приёмки:
+                {{ agreement.pendingVolume }} {{ unitLabel(agreement) }}
+                <template v-if="agreement.pendingAmount > 0">
+                  · {{ formatCurrency(agreement.pendingAmount) }}
+                </template>
+              </span>
             </div>
 
             <div class="agreement-card__actions">
@@ -153,6 +174,9 @@ interface WorkAgreement {
   isFullyAccepted: boolean
   publicComment?: string | null
   status: 'active' | 'cancelled'
+  pendingVolume: number
+  pendingAmount: number
+  pendingCount: number
 }
 
 interface ObjectGroup {
@@ -203,6 +227,10 @@ const totalAccepted = computed(() =>
 
 const totalRemaining = computed(() => totalAgreed.value - totalAccepted.value)
 
+const totalPending = computed(() =>
+  agreements.value.reduce((sum, a) => sum + Number(a.pendingAmount || 0), 0)
+)
+
 // ── API ────────────────────────────────────────────────────────────
 async function loadAgreements() {
   loading.value = true
@@ -240,6 +268,12 @@ function unitLabel(agreement: WorkAgreement) {
   }
 
   return labels[agreement.unit] || agreement.unit
+}
+
+function unitPrice(agreement: WorkAgreement) {
+  const volume = Number(agreement.volume || 0)
+  if (volume <= 0) return null
+  return formatCurrency(Number(agreement.agreedAmount || 0) / volume)
 }
 
 function canSubmit(agreement: WorkAgreement) {
@@ -348,6 +382,10 @@ onMounted(() => {
 
     &--neg {
       color: var(--crm-danger);
+    }
+
+    &--pending {
+      color: var(--crm-warning);
     }
   }
 }
@@ -464,6 +502,20 @@ onMounted(() => {
   &__progress-text {
     font-size: var(--crm-text-xs);
     color: var(--crm-text-muted);
+  }
+
+  &__pending {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    align-self: flex-start;
+    padding: 5px 10px;
+    font-size: var(--crm-text-xs);
+    font-weight: 500;
+    color: var(--crm-warning);
+    background: var(--crm-bg-elevated);
+    border: 1px solid rgba(240, 173, 78, 0.35);
+    border-radius: var(--crm-radius-md);
   }
 
   &__actions {
