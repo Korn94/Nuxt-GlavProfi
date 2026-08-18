@@ -32,7 +32,7 @@
             <div class="method-card__header-text">
               <h3 class="method-card__title">{{ method.title }}</h3>
               <span v-if="method.priceFrom" class="method-card__price">
-                от {{ method.priceFrom }} ₽/м²
+                {{ method.priceFrom }} ₽/м²
               </span>
             </div>
           </div>

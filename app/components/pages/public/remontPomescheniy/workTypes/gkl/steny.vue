@@ -41,17 +41,20 @@
         </p>
         <p>
           После обшивки поверхность готова под
+          <span class="blue">шпаклёвку</span>, покраску
+          или укладку <span class="blue">плитки</span>.
+          Для влажных помещений (санузел, кухня) мы используем влагостойкий ГКЛВ
+          зелёного цвета, для зон с повышенными требованиями пожарной безопасности —
+          огнестойкий ГКЛО розового цвета.
+        </p>
+        <!-- <p>
+          После обшивки поверхность готова под
           <NuxtLink to="/vidy-rabot/shpaklevka">шпаклёвку</NuxtLink>, покраску
           или укладку <NuxtLink to="/vidy-rabot/plitka">плитки</NuxtLink>.
           Для влажных помещений (санузел, кухня) мы используем влагостойкий ГКЛВ
           зелёного цвета, для зон с повышенными требованиями пожарной безопасности —
           огнестойкий ГКЛО розового цвета.
-        </p>
-        <p>
-          Все профили в нашей работе — с двойным цинкованием от проверенных
-          производителей (Knauf, Gyproc). Это исключает ржавчину, скрипы и деформацию
-          каркаса со временем, а значит — и трещины по швам.
-        </p>
+        </p> -->
       </template>
     </WorkTypeOverview>
 
@@ -94,7 +97,7 @@
         title="Зачем нужен <span>второй слой</span> гипсокартона"
         subtitle="Объясняем простыми словами, почему в большинстве случаев одного слоя недостаточно."
         :insights="technicalInsights"
-        summary="Второй слой добавляет <strong>~150 ₽/м²</strong> к стоимости работ, но это плата за стены, которые не треснут через год. Особенно важно для новостроек (усадка), офисов с высокой проходимостью и стен под покраску."
+        summary="Второй слой добавляет <strong>~200 ₽/м²</strong> к стоимости работ, но это плата за стены, которые не треснут через год. Особенно важно для новостроек (усадка), офисов с высокой проходимостью и стен под покраску."
       >
         <!-- Таблица сравнения -->
         <template #content>
@@ -127,8 +130,8 @@
             </div>
             <div class="comparison-row">
               <span>Цена работы</span>
-              <span data-label="1 слой">от 200 ₽/м²</span>
-              <span data-label="2 слоя" class="comparison-better">от 350 ₽/м²</span>
+              <span data-label="1 слой">1600 ₽/м²</span>
+              <span data-label="2 слоя" class="comparison-better">1800 ₽/м²</span>
             </div>
           </div>
         </template>
@@ -305,7 +308,7 @@ const gklWorkTypes: RelatedWorkTypeItem[] = [
     title: 'Обшивка стен ГКЛ',
     to: '/vidy-rabot/gkl/steny',
     icon: 'mdi:wall',
-    priceFrom: 650,
+    priceFrom: 1800,
     active: true,
     description: 'Выравнивание стен на каркас или клей',
     image: '/main/vidy-rabot/gkl/ГКЛ.png',
@@ -314,7 +317,7 @@ const gklWorkTypes: RelatedWorkTypeItem[] = [
     title: 'Перегородки из ГКЛ',
     to: '/vidy-rabot/gkl/peregorodki',
     icon: 'mdi:door-closed',
-    priceFrom: 850,
+    priceFrom: 2100,
     description: 'Зонирование с шумоизоляцией',
     image: '/main/vidy-rabot/gkl/ГКЛ.png',
   },
@@ -322,7 +325,7 @@ const gklWorkTypes: RelatedWorkTypeItem[] = [
     title: 'Потолки из ГКЛ',
     to: '/vidy-rabot/gkl/potolki',
     icon: 'mdi:ceiling-light',
-    priceFrom: 950,
+    priceFrom: 2200,
     description: 'Одно- и многоуровневые конструкции',
     image: '/main/vidy-rabot/gkl/ГКЛ.png',
   },
@@ -335,7 +338,7 @@ const comparisonMethods: MethodOption[] = [
   {
     title: 'ГКЛ на клей',
     icon: 'mdi:land-fields',
-    priceFrom: 350,
+    priceFrom: 1800,
     whenToUse: [
       'Перепад стен не более 2 см на 2 метра',
       'Нужно сохранить максимум площади помещения',
@@ -357,7 +360,7 @@ const comparisonMethods: MethodOption[] = [
   {
     title: 'ГКЛ на каркас',
     icon: 'mdi:frame',
-    priceFrom: 650,
+    priceFrom: 1800,
     recommended: true,
     whenToUse: [
       'Перепад стен более 2 см',
@@ -380,7 +383,7 @@ const comparisonMethods: MethodOption[] = [
   {
     title: 'Штукатурка',
     icon: 'mdi:format-paint',
-    priceFrom: 450,
+    priceFrom: 1200,
     whenToUse: [
       'Перепад стен до 5 см',
       'Влажные помещения (ванная, кухня)',
@@ -398,6 +401,7 @@ const comparisonMethods: MethodOption[] = [
       'Грязный и пыльный процесс',
       'Не скрывает коммуникации',
       'Не подходит для перепадов более 5 см',
+      'Требует дальнейшей отделки',
     ],
   },
 ]
@@ -555,15 +559,13 @@ const calculatorTabs: CalculatorTab[] = [
     label: 'На каркас',
     icon: 'mdi:frame',
     works: [
-      { name: 'Монтаж каркаса (профиль + подвесы)', price: 280 },
-      { name: 'Укладка утеплителя/звукоизоляции', price: 120 },
-      { name: 'Обшивка ГКЛ в 1 слой', price: 200 },
-      { name: 'Заделка швов серпянкой', price: 50 },
+      { name: 'Монтаж каркаса (профиль + подвесы)', price: 1000 },
+      { name: 'Обшивка ГКЛ в 1 слой', price: 600 },
     ],
     extras: [
-      { id: '2layers', name: 'Обшивка в 2 слоя', price: 150 },
-      { id: 'gklv', name: 'Влагостойкий ГКЛ (вместо обычного)', price: 40 },
-      { id: 'curved', name: 'Криволинейные участки', price: 200 },
+      { id: '2layers', name: 'Обшивка в 2 слоя (+1 слой)', price: 200 },
+      { id: 'gklv', name: 'Влагостойкий ГКЛ (вместо обычного)', price: 0 },
+      { id: 'curved', name: 'Укладка утеплителя/звукоизоляции', price: 380 },
     ],
   },
   {
@@ -571,14 +573,12 @@ const calculatorTabs: CalculatorTab[] = [
     label: 'На клей',
     icon: 'mdi:land-fields',
     works: [
-      { name: 'Грунтовка стены', price: 40 },
-      { name: 'Нанесение монтажного клея', price: 80 },
-      { name: 'Приклейка листов ГКЛ', price: 180 },
-      { name: 'Заделка швов', price: 50 },
+      { name: 'Грунтовка стены', price: 100 },
+      { name: 'Приклейка листов ГКЛ', price: 1200 },
     ],
     extras: [
-      { id: 'primer2', name: 'Двойная грунтовка', price: 30 },
-      { id: 'gklv', name: 'Влагостойкий ГКЛ', price: 40 },
+      { id: 'primer2', name: 'Двойная грунтовка', price: 40 },
+      { id: 'gklv', name: 'Влагостойкий ГКЛ', price: 0 },
     ],
   },
 ]
@@ -780,9 +780,9 @@ useWorkTypeSeo({
   slug: 'steny',
   title: 'Монтаж гипсокартона на стены',
   description:
-    'Монтаж ГКЛ на стены под ключ в Рязани: на каркас или клей. Выравнивание стен, утепление, звукоизоляция. Гарантия 3 года, фиксированная цена от 650 ₽/м².',
+    'Монтаж ГКЛ на стены под ключ в Рязани: на каркас или клей. Выравнивание стен, утепление, звукоизоляция. Гарантия 3 года, фиксированная цена от 1800 ₽/м².',
   city: 'Рязани',
-  priceFrom: 650,
+  priceFrom: 1800,
   serviceType: 'Монтаж гипсокартона',
   ogImage: 'https://glavprofi.ru/og-gkl-steny.jpg',
   faq: faqItems, // ← тот же массив, без дублирования
