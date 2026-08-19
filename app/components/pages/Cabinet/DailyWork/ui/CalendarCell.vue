@@ -45,16 +45,10 @@ const props = defineProps<{
   dailyRate: number
   assignments: DailyAssignment[]
   isEditable: boolean
-  isSelected: boolean
-  rangeType?: 'start' | 'middle' | 'end'
 }>()
 
 const emit = defineEmits<{
   click: []
-  mousedown: [event: MouseEvent]
-  mouseenter: []
-  touchstart: [event: TouchEvent]
-  touchmove: [event: TouchEvent]
 }>()
 
 const { formatCurrency } = useDailyAssignment()
@@ -129,11 +123,7 @@ const hasTooltipFooter = computed(() =>
 // ── Классы корня ─────────────────────────────────────────────────────
 const cellClasses = computed(() => ({
   'daily-cell': true,
-  'daily-cell--locked': !props.isEditable,
-  'daily-cell--selected': props.isSelected,
-  'daily-cell--range-start': props.rangeType === 'start',
-  'daily-cell--range-middle': props.rangeType === 'middle',
-  'daily-cell--range-end': props.rangeType === 'end'
+  'daily-cell--locked': !props.isEditable
 }))
 
 // ── Стили индикатора: conic-gradient с зазорами между сегментами ─────
@@ -175,11 +165,7 @@ const indicatorStyle = computed(() => {
 
 // ── События ячейки ───────────────────────────────────────────────────
 const cellEvents = computed(() => ({
-  click: (e: Event) => { e.stopPropagation(); emit('click') },
-  mousedown: (e: MouseEvent) => { e.stopPropagation(); emit('mousedown', e) },
-  mouseenter: () => emit('mouseenter'),
-  touchstart: (e: TouchEvent) => { emit('touchstart', e) },
-  touchmove: (e: TouchEvent) => { emit('touchmove', e) }
+  click: (e: Event) => { e.stopPropagation(); emit('click') }
 }))
 </script>
 
@@ -197,10 +183,6 @@ const cellEvents = computed(() => ({
   user-select: none;
   -webkit-tap-highlight-color: transparent;
   z-index: 1;
-
-  touch-action: none;
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
 
   &:hover:not(.daily-cell--locked) {
     background: var(--crm-bg-overlay);

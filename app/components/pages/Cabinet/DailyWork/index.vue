@@ -6,30 +6,17 @@
     <PagesCabinetUiLayoutPageTitle 
       :title="pageTitle"
       :icon="pageIcon"
-    >
-      <template #actions>
-        <slot name="header-actions">
-          <button class="btn-icon" @click="showHelp = !showHelp" title="Подсказка">?</button>
-        </slot>
-      </template>
-    </PagesCabinetUiLayoutPageTitle>
-    
+    />
+
     <!-- ❌ Нет прав на просмотр -->
     <UiAccessDeniedBlock v-if="isMounted && !canView" />
 
     <!-- ✅ Есть права — показываем контент -->
     <template v-else>
-      <!-- Подсказка -->
-      <div class="hint-wrapper">
-        <BulkSelectionHint :visible="showHelp" text="Зажми ячейку и веди пальцем, чтобы отметить смену на несколько дней сразу." @close="showHelp = false" />
-      </div>
-
       <!-- Навигация по датам -->
       <div class="date-nav-wrapper">
         <div class="date-nav">
-          <button class="btn-nav" @click="shiftDates(-7)"><Icon name="mdi:chevron-double-left" size="18" /></button>
           <span class="date-nav__current">{{ weekLabel }}</span>
-          <button class="btn-nav" @click="shiftDates(7)"><Icon name="mdi:chevron-double-right" size="18" /></button>
           <button class="btn-nav btn-nav--today" @click="resetDates">Сегодня</button>
         </div>
       </div>
@@ -51,8 +38,21 @@
       </div>
 
       <!-- ═══════════════════════════ MAIN GRID ═══════════════════════ -->
-      <div v-else class="grid-wrapper" ref="scrollContainer">
-        <div class="daily-grid">
+      <div v-else class="grid-wrapper" ref="scrollContainer"
+        @pointerdown="onPointerDown" @pointermove="onPointerMove"
+        @pointerup="onPointerUp" @pointercancel="onPointerUp">
+        <div class="daily-grid-scroll"
+          :class="{ 'is-settling': isSettling }"
+          :style="trackStyle">
+          <!-- Поле подгрузки при «потягивании» влево -->
+          <div class="pull-loader" v-if="pullX > 0 || isLoadingMore"
+            :style="{ width: pullX + 'px' }">
+            <div class="pull-loader__spinner"
+              :class="{ 'is-active': isLoadingMore }"
+              :style="{ opacity: Math.min(1, pullX / PULL_THRESHOLD) }"></div>
+          </div>
+
+          <div class="daily-grid" :style="gridStyle">
           <div class="grid-header">
             <div class="grid-header__sticky">{{ headerLabel }}</div>
             <div v-for="date in datesRange" :key="date" class="grid-header__cell"
@@ -89,14 +89,9 @@
               :daily-rate="worker.dailyRate"
               :assignments="getAssignments(worker.id, date)"
               :is-editable="isDateEditable(date) && canModify"
-              :is-selected="isDateSelected(worker.id, date)"
-              :range-type="getRangeType(worker.id, date)"
               @click="handleCellClick(worker, date)"
-              @mousedown="handleMouseDown(worker, date)"
-              @mouseenter="handleMouseEnter(date)"
-              @touchstart="(e) => handleTouchStart(worker, date, e)"
-              @touchmove="(e) => handleTouchMove(date, e)"
             />
+          </div>
           </div>
         </div>
       </div>
@@ -105,7 +100,7 @@
       <DailyAssignmentSheet 
         v-if="canModify"
         v-model="sheetOpen" 
-        :dates="datesToApply" 
+        :dates="sheetDates" 
         :daily-rate="selectedWorker?.dailyRate ?? 0"
         :contractor-id="selectedWorker?.id"
         :assignments="currentAssignments" 
@@ -133,16 +128,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useForemanDailyStore } from 'stores/foremanDaily'
-import { useBulkSelection } from '~/composables/daily-work/useBulkSelection'
 import { useDailyAssignment } from '~/composables/daily-work/useDailyAssignment'
 import { usePermissions } from '~/composables/usePermissions'
 import { useNotifications } from '~/composables/useNotifications'
 import type { DailyWorker, DailyAssignment } from '~/types/daily-assignments'
 import CalendarCell from './ui/CalendarCell.vue'
 import DailyAssignmentSheet from './DailyAssignmentSheet.vue'
-import BulkSelectionHint from './BulkSelectionHint.vue'
 
 // ── Пропсы для гибкости компонента ─────────────────────────────
 const props = defineProps<{
@@ -175,8 +168,7 @@ const {
   pageIcon = 'mdi:calendar-month-outline',
   headerLabel = 'Сотрудник',
   loadingText = 'Загрузка данных...',
-  autoLoad = true,
-  initialOffset = 0
+  autoLoad = true
 } = props
 
 // ── Стор и утилиты ────────────────────────────────────────────
@@ -205,31 +197,41 @@ const isAdminUser = computed(() => hasRole('admin'))
 const sheetOpen = ref(false)
 const selectedWorker = ref<DailyWorker | null>(null)
 const selectedDate = ref('')
-const selectedDatesForModal = ref<string[]>([])
 const showDeleteConfirm = ref(false)
-const showHelp = ref(false)
-const startOffset = ref(initialOffset)
-const selectedWorkerIdForBulk = ref<number | null>(null)
-const modalDates = ref<string[]>([])
 
 // ── Вычисляемые свойства (прокси к стору) ─────────────────────
 const todayStr = computed(() => store.todayStr)
-const minEditableDate = computed(() => store.minEditableDate)
 
-const datesRange = computed(() => {
-  const today = new Date()
-  const start = new Date(today)
-  start.setDate(today.getDate() - 12 + startOffset.value * 7)
-  const end = new Date(start)
-  end.setDate(start.getDate() + 13)
-  const dates: string[] = []
-  const current = new Date(start)
-  while (current <= end) {
-    dates.push(current.toISOString().slice(0, 10))
-    current.setDate(current.getDate() + 1)
-  }
-  return dates
-})
+// ── Бесконечная долистовка (накопление дней в прошлое) ─────────
+const INITIAL_DAYS = 14   // стартовый диапазон: последние 14 дней
+const LOAD_BATCH_DAYS = 7 // сколько дней грузим при долистывании
+const MAX_DAYS = 365      // верхний предел загружаемой истории
+const datesRange = ref<string[]>([])
+const isLoadingMore = ref(false)
+
+const canLoadMore = computed(() => datesRange.value.length < MAX_DAYS)
+
+// Количество колонок в сетке теперь динамическое
+const gridStyle = computed(() => ({
+  gridTemplateColumns: `140px repeat(${Math.max(datesRange.value.length, 1)}, 48px)`
+}))
+
+// ── Drag-перетаскивание и «потянуть-для-подгрузки» ──────────────
+const PULL_MAX = 90        // максимум упругого оттягивания, px
+const PULL_THRESHOLD = 60  // порог срабатывания загрузки, px
+const pullX = ref(0)       // текущее оттягивание влево, px
+const isSettling = ref(false)
+const isDragging = ref(false)
+let pointerId: number | null = null
+let dragStartX = 0
+let dragStartScrollLeft = 0
+let wasDragging = false
+let suppressCellClick = false
+
+// Сдвиг трека при «потягивании» влево (упругое поле с иконкой)
+const trackStyle = computed(() =>
+  pullX.value > 0 ? { transform: `translateX(${pullX.value}px)` } : undefined
+)
 
 const weekLabel = computed(() => {
   if (datesRange.value.length < 2) return ''
@@ -243,123 +245,188 @@ const currentAssignments = computed(() => {
   return store.getGroupByDate(selectedWorker.value.id, selectedDate.value)
 })
 
-const datesToApply = computed(() => {
-  return modalDates.value.length > 0 
-    ? modalDates.value 
-    : (selectedDatesForModal.value.length > 0 
-        ? selectedDatesForModal.value 
-        : (selectedDate.value ? [selectedDate.value] : [])
-      )
-})
+// Даты для модалки — всегда одна выбранная дата (мультивыбор дней убран)
+const sheetDates = computed(() => (selectedDate.value ? [selectedDate.value] : []))
 
-// ── Логика выделения ──────────────────────────────────────────
-let currentWorkerForBulk: DailyWorker | null = null
-
-const { bindCell, state: bulkState, isDragging } = useBulkSelection({
-  minDate: minEditableDate.value,
-  
-  onChange: (dates) => {
-    if (selectedWorkerIdForBulk.value === selectedWorker.value?.id) {
-      selectedDatesForModal.value = [...dates]
-    }
-  },
-  
-  onEnd: (dates) => {
-    if (dates.length > 0 && selectedWorker.value && canModify.value) {
-      console.log('[DailyWork] Выделение завершено, дней:', dates.length)
-      
-      selectedDate.value = dates[0]!
-      modalDates.value = [...dates]
-      
-      sheetOpen.value = true
-    }
-    
-    selectedDatesForModal.value = []
-    selectedWorkerIdForBulk.value = null
-    currentWorkerForBulk = null
-  }
-})
-
-// ── Логика скролла ────────────────────────────────────────────
+// ── Логика скролла и накопления истории ───────────────────────
 const scrollContainer = ref<HTMLElement | null>(null)
 
-function onScroll() {
-  if (!scrollContainer.value) return
-  const scrollX = scrollContainer.value.scrollLeft
-  if (scrollX > 10) {
-    scrollContainer.value.classList.add('scrolled')
-  } else {
-    scrollContainer.value.classList.remove('scrolled')
+/** Строит `count` дней подряд в возрастающем порядке, заканчиваясь на `endDate` */
+function buildDateList(endDate: Date, count: number): string[] {
+  const start = new Date(endDate)
+  start.setDate(endDate.getDate() - (count - 1))
+  const dates: string[] = []
+  const current = new Date(start)
+  while (current <= endDate) {
+    dates.push(current.toISOString().slice(0, 10))
+    current.setDate(current.getDate() + 1)
   }
+  return dates
+}
+
+/** Начальный диапазон: последние INITIAL_DAYS дней, «сегодня» справа */
+function initRange() {
+  datesRange.value = buildDateList(new Date(), INITIAL_DAYS)
+}
+
+/** Проматываем сетку к правому краю (к сегодняшнему дню) */
+function scrollToToday() {
+  nextTick(() => {
+    const el = scrollContainer.value
+    if (el) el.scrollLeft = el.scrollWidth
+  })
+}
+
+function onScroll() {
+  const el = scrollContainer.value
+  if (!el) return
+
+  // Только липкая колонка; загрузка новых дней — только жестом «потяни»
+  if (el.scrollLeft > 10) {
+    el.classList.add('scrolled')
+  } else {
+    el.classList.remove('scrolled')
+  }
+}
+
+// ── Обработчики перетаскивания (мышь + тач) ─────────────────────
+function onPointerDown(e: PointerEvent) {
+  if (e.pointerType === 'mouse' && e.button !== 0) return
+  const el = scrollContainer.value
+  if (!el) return
+
+  isDragging.value = true
+  wasDragging = false
+  suppressCellClick = false
+  isSettling.value = false
+  pointerId = e.pointerId
+  dragStartX = e.clientX
+  dragStartScrollLeft = el.scrollLeft
+
+  el.classList.add('grabbing')
+  el.setPointerCapture?.(e.pointerId)
+}
+
+function onPointerMove(e: PointerEvent) {
+  if (!isDragging.value || pointerId !== e.pointerId) return
+  const el = scrollContainer.value
+  if (!el) return
+
+  const delta = e.clientX - dragStartX
+
+  // Отличить клик от перетаскивания (порог движения)
+  if (!wasDragging && Math.abs(delta) > 6) {
+    wasDragging = true
+  }
+
+  const nextLeft = dragStartScrollLeft - delta
+
+  // Дотянули до левого края и тянем вправо → упругое поле подгрузки
+  if (nextLeft <= 0) {
+    pullX.value = Math.min(Math.abs(nextLeft), PULL_MAX)
+    el.scrollLeft = 0
+    return
+  }
+
+  // Обычное перетаскивание
+  pullX.value = 0
+  el.scrollLeft = Math.min(nextLeft, el.scrollWidth - el.clientWidth)
+}
+
+function onPointerUp(e: PointerEvent) {
+  if (!isDragging.value || pointerId !== e.pointerId) return
+
+  isDragging.value = false
+  pointerId = null
+  const el = scrollContainer.value
+  el?.classList.remove('grabbing')
+  try { el?.releasePointerCapture?.(e.pointerId) } catch { /* noop */ }
+
+  // Тап без перетаскивания — это клик по ячейке (открытие формы редактирования).
+  // Не полагаемся только на нативный click: из-за setPointerCapture он может не
+  // дойти до ячейки, поэтому эмулируем клик по элементу под курсором.
+  if (!wasDragging && pullX.value === 0) {
+    const hit = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null
+    const cell = hit?.closest('.daily-cell') as HTMLElement | null
+    if (cell) {
+      cell.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+      suppressCellClick = true // поглощаем последующий нативный click (чтобы не открыть дважды)
+    }
+  }
+
+  // Было «потягивание» за край
+  if (pullX.value > 0) {
+    if (pullX.value >= PULL_THRESHOLD && canLoadMore.value && !isLoadingMore.value) {
+      startPullLoad()
+    } else {
+      resetPull()
+    }
+  }
+}
+
+/** Упругий откат поля подгрузки */
+function resetPull() {
+  isSettling.value = true
+  pullX.value = 0
+  window.setTimeout(() => { isSettling.value = false }, 350)
+}
+
+/** Запуск подгрузки после дотягивания за порог */
+async function startPullLoad() {
+  if (!canLoadMore.value || isLoadingMore.value) { resetPull(); return }
+  isLoadingMore.value = true
+  try {
+    await loadMore()
+  } finally {
+    isLoadingMore.value = false
+    resetPull()
+  }
+}
+
+
+/** Подгрузка следующего (более старого) блока из LOAD_BATCH_DAYS дней */
+async function loadMore() {
+  if (!canLoadMore.value || datesRange.value.length === 0) return
+  if (store.workers.length === 0) return
+
+  const el = scrollContainer.value
+  const prevScrollLeft = el ? el.scrollLeft : 0
+  const prevWidth = el ? el.scrollWidth : 0
+
+  const oldest = new Date(datesRange.value[0]!)
+  oldest.setDate(oldest.getDate() - 1) // день перед самым старым загруженным
+
+  const olderBatch = buildDateList(oldest, LOAD_BATCH_DAYS)
+  if (olderBatch.length === 0) return
+
+  // Ставим блок в начало списка (старые дни слева)
+  datesRange.value = [...olderBatch, ...datesRange.value]
+
+  // Загружаем назначения только для нового блока
+  await loadAssignmentsForRange(olderBatch[0]!, olderBatch[olderBatch.length - 1]!)
+
+  // Сохраняем позицию: добавляем ширину нового блока, чтобы день не «прыгал»
+  await nextTick()
+  if (el) el.scrollLeft = prevScrollLeft + (el.scrollWidth - prevWidth)
 }
 
 // ── Обработчики событий ───────────────────────────────────────
-function handleMouseDown(worker: DailyWorker, date: string) {
-  if (!canModify.value) return
-  
-  selectedWorker.value = worker
-  selectedWorkerIdForBulk.value = worker.id
-  currentWorkerForBulk = worker
-  bindCell(date).mousedown({ button: 0 } as MouseEvent)
-}
-
-function handleMouseEnter(date: string) {
-  if (!bulkState.isActive || !currentWorkerForBulk || selectedWorker.value?.id !== currentWorkerForBulk.id) return
-  bindCell(date).mouseenter()
-}
-
-function handleTouchStart(worker: DailyWorker, date: string, event: TouchEvent) {
-  if (!canModify.value) return
-  
-  event.preventDefault()
-  
-  selectedWorker.value = worker
-  selectedWorkerIdForBulk.value = worker.id
-  currentWorkerForBulk = worker
-  
-  bindCell(date).touchstart(event)
-}
-
-function handleTouchMove(date: string, event: TouchEvent) {
-  if (!bulkState.isActive || !currentWorkerForBulk || selectedWorker.value?.id !== currentWorkerForBulk.id) return
-  
-  if (bulkState.isActive) {
-    event.preventDefault()
-  }
-  
-  bindCell(date).touchmove(event)
-}
-
 function handleCellClick(worker: DailyWorker, date: string) {
-  if (isDragging.value) return
+  // Клик сразу после перетаскивания — пропускаем (это был drag)
+  if (wasDragging) { wasDragging = false; return }
+  // Нативный click, следующий за эмулированным тапом — пропускаем (это то же открытие)
+  if (suppressCellClick) { suppressCellClick = false; return }
   if (!canModify.value) return
-  
+
   selectedWorker.value = worker
   selectedDate.value = date
-  selectedDatesForModal.value = [date]
   sheetOpen.value = true
-}
-
-function getRangeType(workerId: number, date: string): 'start' | 'middle' | 'end' | undefined {
-  if (selectedWorkerIdForBulk.value !== workerId) return undefined
-  
-  const dates = selectedDatesForModal.value
-  if (dates.length < 2) return undefined
-  if (dates[0] === date) return 'start'
-  if (dates[dates.length - 1] === date) return 'end'
-  if (dates.includes(date)) return 'middle'
-  return undefined
-}
-
-function isDateSelected(workerId: number, date: string) {
-  return selectedWorkerIdForBulk.value === workerId && selectedDatesForModal.value.includes(date)
 }
 
 function isDateEditable(date: string) { return store.isDateEditable(date) }
 function getAssignments(workerId: number, date: string) { return store.getGroupByDate(workerId, date) }
 
-function shiftDates(days: number) { startOffset.value += days / 7 }
-function resetDates() { startOffset.value = 0 }
+function resetDates() { scrollToToday() }
 function getDayOfWeek(date: string) { return new Date(date).toLocaleDateString('ru-RU', { weekday: 'short' }) }
 function getDayNumber(date: string) { return new Date(date).getDate().toString() }
 function isWeekend(date: string) { const d = new Date(date).getDay(); return d === 0 || d === 6 }
@@ -403,9 +470,6 @@ async function handleSave(data: { assignments: DailyAssignment[], dates: string[
     })
     
     sheetOpen.value = false
-    selectedDatesForModal.value = []
-    selectedWorkerIdForBulk.value = null
-    currentWorkerForBulk = null
   } catch (e: any) {
     console.error('[DailyWork] Ошибка сохранения:', e)
     
@@ -437,10 +501,8 @@ async function executeDelete() {
   console.log('[DailyWork] Удаление назначений...')
   
   try {
-    const datesToDelete = selectedDatesForModal.value.length > 0 
-      ? selectedDatesForModal.value 
-      : [selectedDate.value]
-    
+    const datesToDelete = [selectedDate.value]
+
     for (const date of datesToDelete) {
       const existing = store.getGroupByDate(selectedWorker.value.id, date)
       for (const item of existing) { if (item.id) await store.deleteAssignment(item.id) }
@@ -452,9 +514,6 @@ async function executeDelete() {
     })
     
     sheetOpen.value = false
-    selectedDatesForModal.value = []
-    selectedWorkerIdForBulk.value = null
-    currentWorkerForBulk = null
   } catch (e: any) {
     console.error('[DailyWork] Ошибка удаления:', e)
     
@@ -468,25 +527,20 @@ async function executeDelete() {
 }
 
 // ── Загрузка данных ───────────────────────────────────────────
-async function loadAssignmentsForRange() {
-  if (store.workers.length === 0 || datesRange.value.length < 2) return
-  
-  const from = datesRange.value[0]!
-  const to = datesRange.value[datesRange.value.length - 1]!
-  
+async function loadAssignmentsForRange(from?: string, to?: string) {
+  if (store.workers.length === 0 || datesRange.value.length === 0) return
+
+  // Без аргументов грузим весь текущий диапазон
+  const fromDate = from ?? datesRange.value[0]
+  const toDate = to ?? datesRange.value[datesRange.value.length - 1]
+  if (!fromDate || !toDate) return
+
   await Promise.allSettled(
     store.workers.map(w => 
-      store.fetchAssignments(w.id, w.contractorType, from, to)
+      store.fetchAssignments(w.id, w.contractorType, fromDate, toDate)
     )
   )
 }
-
-// 🔹 Автозагрузка при смене недели
-watch(datesRange, () => {
-  if (store.workers.length > 0) {
-    loadAssignmentsForRange()
-  }
-})
 
 /** Повторная загрузка данных при ошибке */
 async function retryLoad() {
@@ -516,7 +570,10 @@ async function retryLoad() {
 onMounted(async () => {
   // ✅ Устанавливаем флаг ПОСЛЕ монтирования
   isMounted.value = true
-  
+
+  // Заполняем начальный диапазон: последние 30 дней, «сегодня» справа
+  initRange()
+
   if (autoLoad && canView.value) {
     // 1. Инициализация данных
     store.error = null
@@ -539,11 +596,12 @@ onMounted(async () => {
     }
   }
   
-  // 3. Инициализация скролл-листенера
+  // 3. Инициализация скролл-листенера и автопрокрутка к сегодняшнему дню
   nextTick(() => {
     if (scrollContainer.value) {
       scrollContainer.value.addEventListener('scroll', onScroll, { passive: true })
       onScroll()
+      scrollToToday()
     }
   })
 })
@@ -564,7 +622,6 @@ defineExpose({
     }
     emit('loaded')
   },
-  shiftDates,
   resetDates
 })
 </script>
@@ -581,14 +638,6 @@ defineExpose({
   padding-bottom: 20px;
   display: flex;
   flex-direction: column;
-}
-
-.hint-wrapper {
-  padding: 0 24px;
-  
-  @media (max-width: 767.98px) {
-    padding: 0 16px;
-  }
 }
 
 .date-nav-wrapper {
@@ -752,12 +801,20 @@ defineExpose({
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
-  
+  touch-action: none;
+  cursor: grab;
+
   padding-left: 20px;
   padding-right: 20px;
   
   &.scrolled {
     padding-left: 0;
+  }
+
+  &.grabbing {
+    cursor: grabbing;
+    user-select: none;
+    -webkit-user-select: none;
   }
   
   @media (max-width: 767.98px) {
@@ -770,9 +827,43 @@ defineExpose({
   }
 }
 
+/* Трек для перетаскивания и упругого поля подгрузки */
+.daily-grid-scroll {
+  display: flex;
+  align-items: stretch;
+
+  &.is-settling {
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
+/* Поле подгрузки при «потягивании» влево */
+.pull-loader {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--crm-bg-elevated);
+  border-right: 1px solid var(--crm-border);
+  overflow: hidden;
+
+  &__spinner {
+    width: 22px;
+    height: 22px;
+    border: 3px solid var(--crm-border);
+    border-top-color: var(--crm-accent);
+    border-radius: 50%;
+    transition: opacity 0.15s ease;
+
+    &.is-active {
+      animation: spin 0.8s linear infinite;
+    }
+  }
+}
+
 .daily-grid {
   display: grid;
-  grid-template-columns: 140px repeat(14, 48px);
+  grid-template-columns: 140px repeat(14, 48px); /* резервный fallback; реальное значение задаётся inline-стилем */
   background: var(--crm-border);
   border: 1px solid var(--crm-border);
   border-radius: var(--crm-radius-md);

@@ -5,10 +5,10 @@
  * @returns { hasData: boolean, contractor: {...}, assignments: DailyAssignment[] }
  */
 
-import { defineEventHandler, createError } from 'h3'
+import { defineEventHandler, createError, getQuery } from 'h3'
 import { db } from '../../../db'
 import { masters, workers, works, objects } from '../../../db/schema'
-import { eq, and, gte, isNotNull } from 'drizzle-orm'
+import { eq, and, gte, lte, isNotNull } from 'drizzle-orm'
 import { sql } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
@@ -84,12 +84,26 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, message: 'Контрагент не найден' })
   }
 
-  // Вычисляем дату 14 дней назад
-  const twoWeeksAgo = new Date()
-  twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14)
-  twoWeeksAgo.setHours(0, 0, 0, 0)
+  // Диапазон дат: по умолчанию последние 14 дней, иначе — from/to из запроса
+  const query = getQuery(event)
+  const fromStr = query.from as string | undefined
+  const toStr = query.to as string | undefined
 
-  // Получаем подневные работы за последние 14 дней
+  let fromDate: Date
+  let toDate: Date
+
+  if (fromStr && toStr) {
+    fromDate = new Date(`${fromStr}T00:00:00`)
+    toDate = new Date(`${toStr}T23:59:59`)
+  } else {
+    toDate = new Date()
+    toDate.setHours(23, 59, 59, 999)
+    fromDate = new Date()
+    fromDate.setDate(fromDate.getDate() - 14)
+    fromDate.setHours(0, 0, 0, 0)
+  }
+
+  // Получаем подневные работы за указанный диапазон дат
   const rawAssignments = await db
     .select({
       id: works.id,
@@ -107,7 +121,8 @@ export default defineEventHandler(async (event) => {
         eq(works.workTypes, 'Подневка'),
         eq(works.workSource, 'daily'),
         isNotNull(works.operationDate),
-        gte(works.operationDate, twoWeeksAgo)
+        gte(works.operationDate, fromDate),
+        lte(works.operationDate, toDate)
       )
     )
     .orderBy(works.operationDate)
