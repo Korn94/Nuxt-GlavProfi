@@ -3,9 +3,30 @@
   <div class="daily-work-page">
     
     <!-- ═══════════════ UNIFIED PAGE TITLE ═══════════════ -->
-    <PagesCabinetUiLayoutPageTitle 
+        <PagesCabinetUiLayoutPageTitle
       :title="pageTitle"
       :icon="pageIcon"
+    >
+      <!-- Кнопка управления ставками только для админов -->
+      <template #actions>
+        <button
+          v-if="isMounted && isAdminUser"
+          type="button"
+          class="crm-btn crm-btn--ghost crm-btn--sm"
+          @click="rateModalOpen = true"
+          title="Управление ставками контрагентов"
+        >
+          <Icon name="mdi:tune-variant" size="14" />
+          <span>Ставки</span>
+        </button>
+      </template>
+    </PagesCabinetUiLayoutPageTitle>
+
+    <!-- Управление ставками контрагентов (только админ) -->
+    <RateManagementModal
+      :visible="rateModalOpen"
+      @update:visible="rateModalOpen = $event"
+      @updated="onRatesUpdated"
     />
 
     <!-- ❌ Нет прав на просмотр -->
@@ -136,6 +157,7 @@ import { useNotifications } from '~/composables/useNotifications'
 import type { DailyWorker, DailyAssignment } from '~/types/daily-assignments'
 import CalendarCell from './ui/CalendarCell.vue'
 import DailyAssignmentSheet from './DailyAssignmentSheet.vue'
+import RateManagementModal from './RateManagementModal.vue'
 
 // ── Пропсы для гибкости компонента ─────────────────────────────
 const props = defineProps<{
@@ -198,6 +220,7 @@ const sheetOpen = ref(false)
 const selectedWorker = ref<DailyWorker | null>(null)
 const selectedDate = ref('')
 const showDeleteConfirm = ref(false)
+const rateModalOpen = ref(false)
 
 // ── Вычисляемые свойства (прокси к стору) ─────────────────────
 const todayStr = computed(() => store.todayStr)
@@ -416,11 +439,19 @@ function handleCellClick(worker: DailyWorker, date: string) {
   if (wasDragging) { wasDragging = false; return }
   // Нативный click, следующий за эмулированным тапом — пропускаем (это то же открытие)
   if (suppressCellClick) { suppressCellClick = false; return }
-  if (!canModify.value) return
+    if (!canModify.value) return
 
   selectedWorker.value = worker
   selectedDate.value = date
   sheetOpen.value = true
+}
+
+// ════════════════════════════════════════════════════════════════
+// Управление ставками контрагентов (только админ)
+// ════════════════════════════════════════════════════════════════
+function onRatesUpdated() {
+  // Перезагружаем список — чтобы 0 / non-zero ставки сразу отражались в сетке
+  store.fetchWorkers()
 }
 
 function isDateEditable(date: string) { return store.isDateEditable(date) }

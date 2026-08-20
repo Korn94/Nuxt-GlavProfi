@@ -15,6 +15,7 @@ export interface ContractorModel {
   comment: string | null
   balance: string | number
   userId: number | null
+  dailyRate?: string | number // ₽/день (masters/workers); 0 = скрыт из подневки
   isActive: boolean
   createdAt: Date
   updatedAt: Date
@@ -33,7 +34,8 @@ export interface ContractorDTO {
   phone: string | null
   comment: string | null
   balance: string
-  userId: number | null
+    userId: number | null
+  dailyRate?: string // ₽/день (masters/workers); 0 = скрыт из подневки
   isActive: boolean
   createdAt: string
   updatedAt: string
@@ -52,6 +54,7 @@ export interface ContractorCreateInput {
   comment?: string | null
   balance?: string | number
   userId?: number | null
+  dailyRate?: string | number // ₽/день (masters/workers)
   isActive?: boolean
 }
 
@@ -62,6 +65,7 @@ export interface ContractorUpdateInput {
   comment?: string | null
   balance?: string | number
   userId?: number | null
+  dailyRate?: string | number // ₽/день (masters/workers); 0 = скрыть из подневки
   isActive?: boolean
 }
 

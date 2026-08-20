@@ -200,7 +200,7 @@ export class ContractorService {
     contractor: any,
     user: any = null
   ): ContractorDTO {
-    return {
+        return {
       id: contractor.id,
       type: contractor.type,
       name: contractor.name,
@@ -208,6 +208,7 @@ export class ContractorService {
       comment: contractor.comment || null,
       balance: String(contractor.balance || '0'),
       userId: contractor.userId || null,
+      dailyRate: String(contractor.dailyRate ?? 0), // ✅ Ставка (₽/день); 0 = скрыт из подневки
       isActive: contractor.isActive ?? true, // ✅ Добавляем в DTO
       createdAt: contractor.createdAt?.toISOString() || new Date().toISOString(),
       updatedAt: contractor.updatedAt?.toISOString() || new Date().toISOString(),

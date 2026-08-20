@@ -107,12 +107,13 @@ export class ContractorRepository {
       throw new Error('Contractor name is required')
     }
 
-    const data = {
+        const data = {
       name: input.name.trim(),
       phone: input.phone || null,
       comment: input.comment || null,
       balance: this.normalizeBalance(input.balance || '0'),
       userId: input.userId || null,
+      dailyRate: input.dailyRate !== undefined ? this.normalizeBalance(input.dailyRate) : undefined, // ✅ Ставка контрагента (₽/день)
       isActive: input.isActive ?? true // ✅ По умолчанию активен
     }
 
@@ -165,10 +166,11 @@ export class ContractorRepository {
       updates.name = nameStr.trim()
     }
     
-    if (input.phone !== undefined) updates.phone = input.phone
+        if (input.phone !== undefined) updates.phone = input.phone
     if (input.comment !== undefined) updates.comment = input.comment
     if (input.balance !== undefined) updates.balance = this.normalizeBalance(input.balance)
     if (input.userId !== undefined) updates.userId = input.userId
+    if (input.dailyRate !== undefined) updates.dailyRate = this.normalizeBalance(input.dailyRate) // ✅ Ставка контрагента (₽/день)
     if (input.isActive !== undefined) updates.isActive = input.isActive // ✅ Можно менять отдельно
 
     updates.updatedAt = new Date()
