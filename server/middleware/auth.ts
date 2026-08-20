@@ -118,6 +118,10 @@ const PROTECTED_PATHS: Record<string, PathRequirement | PathRequirement[]> = {
   // ═══════════════════════════════════════════════════════════════
   // 🏗️ ОБЪЕКТЫ (objects)
   // ═══════════════════════════════════════════════════════════════
+  // ✅ Специфичный маршрут должен идти ДО общих `/api/objects` и `/api/objects/[id]`,
+  //    т.к. первый match выигрывает (matchPath для `/api/objects` матчит любой вложенный путь).
+  '/api/objects/active': { type: 'page', value: 'objects', action: 'view' },
+
   '/api/objects': { type: 'page', value: 'objects', action: 'view' },
   '/api/objects/': { type: 'page', value: 'objects', action: 'create' },
   '/api/objects/[id]': { type: 'page', value: 'objects', action: 'view' },

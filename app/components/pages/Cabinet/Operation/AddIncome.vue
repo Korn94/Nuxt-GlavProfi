@@ -110,7 +110,7 @@ function syncAmount() {
 // ── Загрузка ────────────────────────────────────────────────────────
 async function loadData() {
   try {
-    objects.value = await api.get<any[]>('/api/objects') || []
+    objects.value = await api.get<any[]>('/api/objects/active') || []
   } catch (e) {
     console.error('[ДобавитьПриход] Ошибка загрузки объектов:', e)
   }
