@@ -189,7 +189,7 @@ async function loadData() {
       api.get<any>('/api/contractors/master'),
       api.get<any>('/api/contractors/foreman'),
       api.get<any>('/api/contractors/office'),
-      api.get<any[]>('/api/objects'),
+      api.get<any[]>('/api/objects/active'),
     ])
     
     // ✅ API возвращает { contractors: [], count: N }, обрабатываем это

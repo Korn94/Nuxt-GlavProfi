@@ -197,7 +197,7 @@ async function loadData() {
       api.get<any>('/api/contractors/master'),
       api.get<any>('/api/contractors/foreman'),
       api.get<any>('/api/contractors/office'),
-      api.get<any[]>('/api/objects'),
+      api.get<any[]>('/api/objects/active'),
     ])
 
     const workers = workerRes?.contractors || workerRes || []
@@ -234,6 +234,16 @@ async function loadExpenseData() {
     }
 
     selectedType.value = expense.expenseType || ''
+
+    // Если текущий объект расхода не входит в список активных
+    // (например, объект уже завершён/неактивен) — добавляем его вручную,
+    // чтобы выбранное значение не пропадало из <select>.
+    if (expense.objectId && !objects.value.some(o => o.id === expense.objectId)) {
+      objects.value.push({
+        id: expense.objectId,
+        name: expense.objectName || 'Объект #' + expense.objectId
+      })
+    }
   } catch (e) {
     console.error('[EditExpense] Ошибка загрузки расхода:', e)
     errors.value.form = 'Не удалось загрузить данные расхода'
