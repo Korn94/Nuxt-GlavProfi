@@ -52,24 +52,24 @@
 
           <!-- Ставка (редактируемая) -->
           <div class="rate-table__cell rate-table__cell--rate">
-            <input type="number" min="0" step="50" inputmode="numeric" :value="draftRate(c.id)"
-              @input="onInput(c.id, $event)" :class="{ 'is-zero': Number(draftRate(c.id)) === 0 }" placeholder="0" />
+            <input type="number" min="0" step="50" inputmode="numeric" :value="draftRate(cKey(c))"
+              @input="onInput(cKey(c), $event)" :class="{ 'is-zero': Number(draftRate(cKey(c))) === 0 }" placeholder="0" />
           </div>
 
           <!-- Статус -->
           <div class="rate-table__cell">
-            <span :class="Number(draftRate(c.id)) > 0
+            <span :class="Number(draftRate(cKey(c))) > 0
               ? 'status-badge status-badge--on'
               : 'status-badge status-badge--off'">
-              {{ Number(draftRate(c.id)) > 0 ? 'В подневке' : 'Скрыт' }}
+              {{ Number(draftRate(cKey(c))) > 0 ? 'В подневке' : 'Скрыт' }}
             </span>
           </div>
 
           <!-- Действия -->
           <div class="rate-table__cell rate-table__cell--actions">
             <button type="button" class="crm-btn crm-btn--ghost crm-btn--sm"
-              :disabled="!isDirty(c) || savingIds.has(c.id)" @click="saveRow(c)" title="Сохранить ставку">
-              <Icon v-if="savingIds.has(c.id)" name="mdi:loading" size="14" />
+              :disabled="!isDirty(c) || savingIds.has(cKey(c))" @click="saveRow(c)" title="Сохранить ставку">
+              <Icon v-if="savingIds.has(cKey(c))" name="mdi:loading" size="14" />
               <span v-else>✓</span>
             </button>
           </div>
@@ -92,7 +92,7 @@
         </button>
         <button type="button" class="crm-btn crm-btn--ghost crm-btn--sm" @click="handleClose(false)"
           :disabled="savingAll">
-          Готово
+          Отмена
         </button>
       </div>
     </template>
@@ -124,12 +124,16 @@ const contractorsApi = useContractors()
 
 // ── Состояние ────────────────────────────────────────────────────────
 const loading = ref(false)
-const savingIds = ref<Set<number>>(new Set())
+const savingIds = ref<Set<string>>(new Set())
 const savingAll = ref(false)
 
 // Список контрагентов (masters + workers) и черновики ставок
 const contractors = ref<ContractorDTO[]>([])
-const draftRates = ref<Map<number, string>>(new Map())
+const draftRates = ref<Map<string, string>>(new Map())
+// --- Составной ключ (type-id): id контрагентов не уникальны между masters и workers ---
+function cKey(c: { type: string; id: number }): string {
+  return c.type+String.fromCharCode(45)+c.id;
+}
 
 // ── Загрузка данных ──────────────────────────────────────────────────
 async function load() {
@@ -144,7 +148,7 @@ async function load() {
     contractors.value = [...masters, ...workers]
     draftRates.value = new Map()
     for (const c of contractors.value) {
-      draftRates.value.set(c.id, String(c.dailyRate ?? 0))
+      draftRates.value.set(cKey(c), String(c.dailyRate ?? 0))
     }
   } catch (e: any) {
     console.error('[RateManagementModal] Ошибка загрузки:', e)
@@ -167,41 +171,41 @@ onMounted(() => {
 })
 
 // ── Редактор ставок ─────────────────────────────────────────────────
-function draftRate(id: number): string {
-  return draftRates.value.get(id) ?? '0'
+function draftRate(key: string): string {
+  return draftRates.value.get(key) ?? '0'
 }
 
-function onInput(id: number, e: Event) {
+function onInput(key: string, e: Event) {
   const target = e.target as HTMLInputElement
   let val = target.value
   // Запрещаем вводить отрицательное
   if (val.startsWith('-')) val = val.slice(1)
-  draftRates.value.set(id, val)
+  draftRates.value.set(key, val)
 }
 
 function isDirty(c: ContractorDTO): boolean {
-  return String(c.dailyRate ?? 0) !== draftRate(c.id)
+  return String(c.dailyRate ?? 0) !== draftRate(cKey(c))
 }
 
 const hasUnsaved = computed(() => contractors.value.some(c => isDirty(c)))
 
 // Сохранить одну строку
 async function saveRow(c: ContractorDTO) {
-  const id = c.id
-  savingIds.value.add(id)
+  const key = cKey(c)
+  savingIds.value.add(key)
   try {
-    const rate = Number(draftRate(id)) || 0
-    const updated = await contractorsApi.update(c.type, id, { dailyRate: rate })
+    const rate = Number(draftRate(key)) || 0
+    const updated = await contractorsApi.update(c.type, c.id, { dailyRate: rate })
 
     // Обновляем локальный черновик и источник — чтобы убрать «грязность»
-    draftRates.value.set(id, String(updated.dailyRate ?? rate))
+    draftRates.value.set(key, String(updated.dailyRate ?? rate))
     c.dailyRate = String(updated.dailyRate ?? rate)
 
     emit('updated')
   } catch (e: any) {
     console.error('[RateManagementModal] Ошибка сохранения:', e)
   } finally {
-    savingIds.value.delete(id)
+    savingIds.value.delete(key)
   }
 }
 
@@ -338,6 +342,16 @@ function getBalanceClass(balance: string | number): string {
   border: 1px solid var(--crm-border);
   border-radius: var(--crm-radius-sm);
   text-align: right;
+
+  // Убираем нативные стрелки спиннера
+  -moz-appearance: textfield;
+  appearance: textfield;
+
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
 
   &:focus {
     outline: none;

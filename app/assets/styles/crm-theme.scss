@@ -12,7 +12,8 @@
   }
 
   // ── ТЕМНАЯ ТЕМА (по умолчанию) ───────────────────────────
-  &--dark, &:not(.crm--light) {
+  &--dark,
+  &:not(.crm--light) {
     // Фоны
     --crm-bg-base: #0d0f14; // самый тёмный — body/страница
     --crm-bg-surface: #13161e; // карточки, сайдбар
@@ -100,8 +101,12 @@
   }
 
   // ── Типографика ─────────────────────────────────────────────────────
-  --crm-font-sans: 'Rubik', sans-serif;
-  --crm-font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  --crm-font-sans: 'Rubik',
+  sans-serif;
+  --crm-font-mono: 'JetBrains Mono',
+  'Fira Code',
+  'Courier New',
+  monospace;
 
   --crm-text-xs: 11px;
   --crm-text-sm: 12px;
@@ -118,4 +123,117 @@
 
   // ── Переходы ────────────────────────────────────────────────────────
   --crm-transition: 0.2s ease;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// КНОПКИ CRM (.crm-btn)
+// Глобальные стили для всех кнопок внутри кабинета
+// ═══════════════════════════════════════════════════════════════════
+.crm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: var(--crm-radius-md);
+  font-size: var(--crm-text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--crm-transition);
+  border: 1px solid transparent;
+  line-height: 1.4;
+  white-space: nowrap;
+  user-select: none;
+  text-decoration: none;
+  font-family: inherit;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  &:active {
+    transform: scale(0.97);
+  }
+
+  // ── По умолчанию — OUTLINE (синяя обводка) ───────────────────
+  background: transparent;
+  border-color: var(--crm-accent-border);
+  color: var(--crm-accent);
+
+  &:hover {
+    background: var(--crm-accent-dim);
+    border-color: var(--crm-accent);
+  }
+
+  // ── Размеры ────────────────────────────────────────────────────
+  &--sm {
+    padding: 5px 10px;
+    font-size: var(--crm-text-xs);
+    gap: 4px;
+  }
+
+  &--lg {
+    padding: 10px 20px;
+    font-size: var(--crm-text-base);
+    gap: 8px;
+  }
+
+  // ── Варианты ───────────────────────────────────────────────────
+
+  // Сплошная акцентная (когда нужна именно заливка)
+  &--solid {
+    background: var(--crm-accent);
+    border-color: var(--crm-accent);
+    color: #fff;
+
+    &:hover {
+      background: var(--crm-accent-hover);
+      border-color: var(--crm-accent-hover);
+    }
+  }
+
+  &--ghost {
+    background: transparent;
+    border-color: var(--crm-border-hover);
+    color: var(--crm-text-secondary);
+
+    &:hover {
+      background: var(--crm-bg-overlay);
+      border-color: var(--crm-accent-border);
+      color: var(--crm-text-primary);
+    }
+  }
+
+  &--expense {
+    background: var(--crm-danger-dim);
+    border-color: rgba(242, 95, 92, 0.35);
+    color: var(--crm-danger);
+
+    &:hover {
+      background: rgba(242, 95, 92, 0.25);
+    }
+  }
+
+  &--income {
+    background: var(--crm-success-dim);
+    border-color: rgba(61, 214, 140, 0.35);
+    color: var(--crm-success);
+
+    &:hover {
+      background: rgba(61, 214, 140, 0.25);
+    }
+  }
+
+  &--danger {
+    background: var(--crm-danger);
+    border-color: var(--crm-danger);
+    color: #fff;
+
+    &:hover {
+      background: color-mix(in srgb, var(--crm-danger), black 10%);
+      border-color: color-mix(in srgb, var(--crm-danger), black 10%);
+    }
+  }
 }
