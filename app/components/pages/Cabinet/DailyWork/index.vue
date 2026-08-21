@@ -287,16 +287,32 @@ function buildDateList(endDate: Date, count: number): string[] {
   return dates
 }
 
-/** Начальный диапазон: последние INITIAL_DAYS дней, «сегодня» справа */
+/** Начальный диапазон: последние INITIAL_DAYS дней + завтра (для визуала) */
 function initRange() {
-  datesRange.value = buildDateList(new Date(), INITIAL_DAYS)
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  // Увеличиваем count на 1, чтобы завтрашний день попал в диапазон
+  datesRange.value = buildDateList(tomorrow, INITIAL_DAYS + 1)
 }
 
 /** Проматываем сетку к правому краю (к сегодняшнему дню) */
 function scrollToToday() {
   nextTick(() => {
     const el = scrollContainer.value
-    if (el) el.scrollLeft = el.scrollWidth
+    if (!el) return
+    // Прокрутка так, чтобы «сегодня» было видно полностью, 
+    // а «завтра» чуть выглядывало справа
+    const cells = el.querySelectorAll('.grid-header__cell')
+    const todayIdx = cells.length - 2 // предпоследняя ячейка = сегодня
+    if (cells[todayIdx]) {
+      (cells[todayIdx] as HTMLElement).scrollIntoView({ 
+        inline: 'end', 
+        behavior: 'smooth',
+        block: 'nearest'
+      })
+    } else {
+      el.scrollLeft = el.scrollWidth
+    }
   })
 }
 

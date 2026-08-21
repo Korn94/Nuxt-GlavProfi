@@ -32,7 +32,7 @@
           <div class="rate-table__cell rate-table__cell--label rate-table__cell--actions">Действия</div>
         </div>
 
-        <div v-for="c in contractors" :key="`${c.type}-${c.id}`" class="rate-table__row">
+        <div v-for="c in sortedContractors" :key="`${c.type}-${c.id}`" class="rate-table__row">
           <!-- Тип -->
           <div class="rate-table__cell">
             <span class="contractor-badge" :class="`contractor-badge--${c.type}`">
@@ -52,8 +52,10 @@
 
           <!-- Ставка (редактируемая) -->
           <div class="rate-table__cell rate-table__cell--rate">
-            <input type="number" min="0" step="50" inputmode="numeric" :value="draftRate(cKey(c))"
-              @input="onInput(cKey(c), $event)" :class="{ 'is-zero': Number(draftRate(cKey(c))) === 0 }" placeholder="0" />
+            <input type="number" min="0" inputmode="numeric" :value="draftRate(cKey(c))"
+              @input="onInput(cKey(c), $event)"
+              @blur="onBlur(cKey(c))"
+              :class="{ 'is-zero': Number(draftRate(cKey(c))) === 0 }" placeholder="0" />
           </div>
 
           <!-- Статус -->
@@ -100,7 +102,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, reactive } from 'vue'
 import { useContractors } from '~/composables/useContractors'
 import { useDailyAssignment } from '~/composables/daily-work/useDailyAssignment'
 import type { ContractorDTO } from '~/types/contractors'
@@ -129,10 +131,14 @@ const savingAll = ref(false)
 
 // Список контрагентов (masters + workers) и черновики ставок
 const contractors = ref<ContractorDTO[]>([])
-const draftRates = ref<Map<string, string>>(new Map())
+const draftRates = reactive(new Map<string, string>())
+
+// Замороженные значения для сортировки (обновляются только при blur/сохранении)
+const frozenRates = reactive(new Map<string, string>())
+
 // --- Составной ключ (type-id): id контрагентов не уникальны между masters и workers ---
 function cKey(c: { type: string; id: number }): string {
-  return c.type+String.fromCharCode(45)+c.id;
+  return c.type + String.fromCharCode(45) + c.id
 }
 
 // ── Загрузка данных ──────────────────────────────────────────────────
@@ -146,9 +152,13 @@ async function load() {
     ])
 
     contractors.value = [...masters, ...workers]
-    draftRates.value = new Map()
+
+    draftRates.clear()
+    frozenRates.clear()
     for (const c of contractors.value) {
-      draftRates.value.set(cKey(c), String(c.dailyRate ?? 0))
+      const rate = String(c.dailyRate ?? 0)
+      draftRates.set(cKey(c), rate)
+      frozenRates.set(cKey(c), rate)
     }
   } catch (e: any) {
     console.error('[RateManagementModal] Ошибка загрузки:', e)
@@ -172,7 +182,7 @@ onMounted(() => {
 
 // ── Редактор ставок ─────────────────────────────────────────────────
 function draftRate(key: string): string {
-  return draftRates.value.get(key) ?? '0'
+  return draftRates.get(key) ?? '0'
 }
 
 function onInput(key: string, e: Event) {
@@ -180,7 +190,13 @@ function onInput(key: string, e: Event) {
   let val = target.value
   // Запрещаем вводить отрицательное
   if (val.startsWith('-')) val = val.slice(1)
-  draftRates.value.set(key, val)
+  draftRates.set(key, val)
+}
+
+// Заморозить значение при потере фокуса — триггерит пересортировку
+function onBlur(key: string) {
+  const currentDraft = draftRates.get(key) ?? '0'
+  frozenRates.set(key, currentDraft)
 }
 
 function isDirty(c: ContractorDTO): boolean {
@@ -188,6 +204,25 @@ function isDirty(c: ContractorDTO): boolean {
 }
 
 const hasUnsaved = computed(() => contractors.value.some(c => isDirty(c)))
+
+const sortedContractors = computed(() => {
+  return [...contractors.value].sort((a, b) => {
+    // 1. Сначала активные (ставка > 0), потом скрытые (= 0)
+    // Используем frozenRates, чтобы сортировка не дёргалась при вводе
+    const aHidden = Number(frozenRates.get(cKey(a)) ?? '0') === 0 ? 1 : 0
+    const bHidden = Number(frozenRates.get(cKey(b)) ?? '0') === 0 ? 1 : 0
+    if (aHidden !== bHidden) return aHidden - bHidden
+
+    // 2. Внутри группы: сначала мастера, потом рабочие
+    const typeOrder: Record<string, number> = { master: 0, worker: 1 }
+    const aType = typeOrder[a.type] ?? 2
+    const bType = typeOrder[b.type] ?? 2
+    if (aType !== bType) return aType - bType
+
+    // 3. Внутри типа: по алфавиту (с учётом русской локали)
+    return (a.name || '').localeCompare(b.name || '', 'ru')
+  })
+})
 
 // Сохранить одну строку
 async function saveRow(c: ContractorDTO) {
@@ -197,9 +232,10 @@ async function saveRow(c: ContractorDTO) {
     const rate = Number(draftRate(key)) || 0
     const updated = await contractorsApi.update(c.type, c.id, { dailyRate: rate })
 
-    // Обновляем локальный черновик и источник — чтобы убрать «грязность»
-    draftRates.value.set(key, String(updated.dailyRate ?? rate))
-    c.dailyRate = String(updated.dailyRate ?? rate)
+    const newRate = String(updated.dailyRate ?? rate)
+    draftRates.set(key, newRate)
+    frozenRates.set(key, newRate)
+    c.dailyRate = newRate
 
     emit('updated')
   } catch (e: any) {
@@ -236,7 +272,7 @@ function getBalanceClass(balance: string | number): string {
   const num = Number(balance)
   if (num > 0) return 'balance--pos'
   if (num < 0) return 'balance--neg'
-    return 'balance--zero'
+  return 'balance--zero'
 }
 </script>
 
@@ -343,10 +379,11 @@ function getBalanceClass(balance: string | number): string {
   border-radius: var(--crm-radius-sm);
   text-align: right;
 
-  // Убираем нативные стрелки спиннера
+  /* Firefox */
   -moz-appearance: textfield;
   appearance: textfield;
 
+  /* Chrome, Safari, Edge */
   &::-webkit-outer-spin-button,
   &::-webkit-inner-spin-button {
     -webkit-appearance: none;
