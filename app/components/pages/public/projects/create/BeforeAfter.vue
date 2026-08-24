@@ -220,8 +220,13 @@ const emit = defineEmits([
 
 // --- Обработчик ошибок изображений ---
 const handleImageError = (event, type, id) => {
+  const img = event.target
+  // Защита от бесконечного цикла: placeholder ставим только один раз
+  if (!img || img?.dataset?.placeholderApplied === '1') return
+  img.dataset.placeholderApplied = '1'
+  img.onerror = null
   console.warn(`Ошибка загрузки изображения (${type}):`, id)
-  event.target.src = '/images/placeholder.jpg'
+  img.src = '/images/placeholder.jpg'
 }
 
 // --- Методы для новых пар ---

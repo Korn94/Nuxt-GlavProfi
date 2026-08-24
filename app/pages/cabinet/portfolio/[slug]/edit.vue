@@ -64,6 +64,7 @@
               @update:thumbnail="form.thumbnail = $event"
               @update:gallery="form.gallery = $event"
               @remove-existing-image="removeExistingGalleryImage"
+              @update-existing-image-type="updateExistingImageType"
             />
           </div>
 
@@ -215,14 +216,14 @@ const loadCaseData = async () => {
     // Главное изображение
     const mainImage = allImages.find(img => img.type === 'main')
     const mainImageData = mainImage
-      ? { id: mainImage.id, preview: mainImage.url, alt: mainImage.alt || '' }
-      : { id: null, preview: null, alt: '' }
+      ? { id: mainImage.id, url: mainImage.url, alt: mainImage.alt || '', file: null }
+      : { id: null, url: '', alt: '', file: null }
 
     // Миниатюра
     const thumbnailImage = allImages.find(img => img.type === 'thumbnail')
     const thumbnailImageData = thumbnailImage
-      ? { id: thumbnailImage.id, preview: thumbnailImage.url, alt: thumbnailImage.alt || '' }
-      : { id: null, preview: null, alt: '' }
+      ? { id: thumbnailImage.id, url: thumbnailImage.url, alt: thumbnailImage.alt || '', file: null }
+      : { id: null, url: '', alt: '', file: null }
 
     // Галерея (before/after без pairGroup)
     existingGallery.value = allImages.filter(img =>
@@ -285,6 +286,13 @@ const loadCaseData = async () => {
 
 const removeExistingGalleryImage = (imageId) => {
   existingGallery.value = existingGallery.value.filter(img => img.id !== imageId)
+}
+
+// Перенос существующего фото между «До»/«После»: меняем тип в existingGallery
+const updateExistingImageType = ({ id, type }) => {
+  existingGallery.value = existingGallery.value.map(img =>
+    img.id === id ? { ...img, type } : img
+  )
 }
 
 const updateExistingBeforeAfterPairs = (value) => {
@@ -356,9 +364,12 @@ const submitCase = async () => {
       }
     })
 
-    // ID существующей галереи которую оставляем
+    // ID существующей галереи которую оставляем + её (возможно изменённый) тип
     existingGallery.value.forEach((img) => {
-      if (img.id) formData.append('keepImageId[]', img.id)
+      if (img.id) {
+        formData.append('keepImageId[]', img.id)
+        if (img.type) formData.append(`keepImageType[]`, img.type)
+      }
     })
 
     // Новые фото галереи

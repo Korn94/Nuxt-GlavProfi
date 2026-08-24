@@ -26,7 +26,7 @@
 
       <div v-if="mainImage?.preview || (mainImage?.id && !mainImage?.file)" class="image-preview">
         <img 
-          :src="mainImage?.preview || (mainImage?.id ? useImageUrl(mainImage.url) : '')"
+          :src="resolveImageSrc(mainImage)"
           :alt="mainImage?.alt || 'Главное изображение'"
           class="preview-img"
           @error="handleImageError($event, 'mainImage')"
@@ -59,7 +59,7 @@
 
       <div v-if="thumbnail?.preview || (thumbnail?.id && !thumbnail?.file)" class="image-preview image-preview--small">
         <img 
-          :src="thumbnail?.preview || (thumbnail?.id ? useImageUrl(thumbnail.url) : '')"
+          :src="resolveImageSrc(thumbnail)"
           :alt="thumbnail?.alt || 'Миниатюра'"
           class="preview-img"
           @error="handleImageError($event, 'thumbnail')"
@@ -197,7 +197,8 @@ const emit = defineEmits([
   'update:mainImage',
   'update:thumbnail',
   'update:gallery',
-  'remove-existing-image'
+  'remove-existing-image',
+  'update-existing-image-type'
 ])
 
 // ── Реактивные геттеры/сеттеры ───────────────────────────────────
@@ -210,6 +211,15 @@ const thumbnail = computed({
   get: () => props.thumbnail,
   set: (value) => emit('update:thumbnail', value)
 })
+
+// ── Хелпер: источник изображения ──────────────────────────────────
+// Для новых фото — blob/preview; для существующих — хранимый url через useImageUrl
+const resolveImageSrc = (img) => {
+  if (!img) return ''
+  if (img.preview) return img.preview
+  if (img.id && img.url) return useImageUrl(img.url)
+  return ''
+}
 
 // ── Вычисляемые свойства: разделение галереи ─────────────────────
 const existingBefore = computed(() => props.existingGallery.filter(img => img.type === 'before'))
@@ -224,7 +234,8 @@ const handleMainImage = (event) => {
   const file = event.target.files?.[0]
   if (file) {
     const preview = URL.createObjectURL(file)
-    mainImage.value = { ...mainImage.value, file, preview, alt: `Главное фото ${file.name}`, url: preview }
+    // Новый файл заменяет прежнее фото — сбрасываем id/url, чтобы на сервер не уехал и id, и файл
+    mainImage.value = { id: null, url: '', file, preview, alt: `Главное фото ${file.name}` }
   }
 }
 
@@ -232,12 +243,18 @@ const handleThumbnail = (event) => {
   const file = event.target.files?.[0]
   if (file) {
     const preview = URL.createObjectURL(file)
-    thumbnail.value = { ...thumbnail.value, file, preview, alt: `Миниатюра ${file.name}`, url: preview }
+    thumbnail.value = { id: null, url: '', file, preview, alt: `Миниатюра ${file.name}` }
   }
 }
 
-const removeMainImage = () => { mainImage.value = { ...mainImage.value, file: null, preview: null } }
-const removeThumbnail = () => { thumbnail.value = { ...thumbnail.value, file: null, preview: null } }
+// Удаление: полностью сбрасываем id, url, file, чтобы фото реально снялось
+// и не уходило на сервер как существующее (не попадало в keep...Id)
+const removeMainImage = () => {
+  mainImage.value = { id: null, url: '', preview: null, file: null, alt: '' }
+}
+const removeThumbnail = () => {
+  thumbnail.value = { id: null, url: '', preview: null, file: null, alt: '' }
+}
 
 // ── Обработчики: галерея ─────────────────────────────────────────
 const triggerGalleryUpload = (type) => {
@@ -264,29 +281,15 @@ const handleGalleryImages = (event, type) => {
 // ── Перемещение между группами (ИСПРАВЛЕНО) ──────────────────────
 const moveToAfter = (identifier, source) => {
   if (source === 'existing') {
-    // Для существующих: находим изображение
     const img = props.existingGallery.find(i => i.id === identifier)
-    if (img) {
-      // ✅ Создаём новый массив gallery с добавленным изображением
-      const updatedGallery = [
-        ...props.gallery,
-        {
-          id: img.id,
-          url: img.url,
-          type: 'after', // новый тип
-          alt: img.alt,
-          file: null,
-          preview: img.url
-        }
-      ]
-      emit('update:gallery', updatedGallery)
-      emit('remove-existing-image', identifier)
+    if (img && img.type !== 'after') {
+      emit('update-existing-image-type', { id: identifier, type: 'after' })
     }
   } else {
     // Для новых: меняем тип в массиве gallery
     const img = newBefore.value[identifier]
     if (img) {
-      const updatedGallery = props.gallery.map(item => 
+      const updatedGallery = props.gallery.map(item =>
         item === img ? { ...item, type: 'after' } : item
       )
       emit('update:gallery', updatedGallery)
@@ -297,25 +300,13 @@ const moveToAfter = (identifier, source) => {
 const moveToBefore = (identifier, source) => {
   if (source === 'existing') {
     const img = props.existingGallery.find(i => i.id === identifier)
-    if (img) {
-      const updatedGallery = [
-        ...props.gallery,
-        {
-          id: img.id,
-          url: img.url,
-          type: 'before', // новый тип
-          alt: img.alt,
-          file: null,
-          preview: img.url
-        }
-      ]
-      emit('update:gallery', updatedGallery)
-      emit('remove-existing-image', identifier)
+    if (img && img.type !== 'before') {
+      emit('update-existing-image-type', { id: identifier, type: 'before' })
     }
   } else {
     const img = newAfter.value[identifier]
     if (img) {
-      const updatedGallery = props.gallery.map(item => 
+      const updatedGallery = props.gallery.map(item =>
         item === img ? { ...item, type: 'before' } : item
       )
       emit('update:gallery', updatedGallery)
@@ -346,8 +337,14 @@ const removeExistingImage = (id) => {
 }
 
 const handleImageError = (event, type, id) => {
+  const img = event.target
+  // Защита от бесконечного цикла: если placeholder уже ставили — игнорим
+  if (img?.dataset?.placeholderApplied === '1') return
+  if (!img) return
+  img.dataset.placeholderApplied = '1'
+  img.onerror = null
   console.warn(`Ошибка загрузки изображения (${type}):`, id)
-  event.target.src = '/images/placeholder.jpg'
+  img.src = '/images/placeholder.jpg'
 }
 
 // ── Очистка blob: URL ────────────────────────────────────────────
