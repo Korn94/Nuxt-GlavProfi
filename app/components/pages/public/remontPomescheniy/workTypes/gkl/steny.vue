@@ -2,10 +2,15 @@
 <template>
   <div class="page-gkl-steny">
     <!-- ==================== БЛОК 1: Навигация по видам ГКЛ работ (белый фон) ==================== -->
-    <WorkTypeNavigator
+    <!-- <WorkTypeNavigator
       title="Виды <span>гипсокартонных работ</span>"
       subtitle="Выберите нужный тип — на каждой странице подробное описание, цены и калькулятор."
       :items="gklWorkTypes"
+    /> -->
+    <!-- ==================== НОВЫЙ БЛОК: Шапка страницы (Белый фон) ==================== -->
+    <HeaderType
+      title="Монтаж гипсокартона <span>на стены</span>"
+      subtitle="Идеально ровные стены за 1–3 дня без штукатурки, демонтажа и грязи. Поверхность сразу готова под шпаклёвку, покраску или плитку."
     />
 
     <!-- ==================== БЛОК 2: Хлебные крошки + StickyNav ==================== -->
@@ -25,15 +30,29 @@
       </template>
     </NavBreadcrumbsRow>
 
+    
+    <!-- ==================== БЛОК 4: До / После (слайдер) ==================== -->
+    <section id="before-after" class="page-section">
+      <BeforeAfterShowcase
+        title="Примеры помещений <span>до и после</span> обшивки стен ГКЛ"
+        :items="[
+          { beforeImage: '/main/1-1.jpg', afterImage: '/main/1.jpg' },
+          { beforeImage: '/main/2-1.jpg', afterImage: '/main/2.jpg' },
+          { beforeImage: '/main/5.jpg', afterImage: '/main/6.jpg' },
+        ]"
+      />
+    </section>
+    
     <!-- ==================== БЛОК 3: Описание категории + перелинковка ==================== -->
     <WorkTypeOverview
-      category-label="Обшивка стен ГКЛ"
-      category-icon="mdi:wall"
-      title="Монтаж гипсокартона <span>на стены</span>"
+      title="Почему это <span>лучшее решение</span> для ваших стен"
       description="Гипсокартон (ГКЛ) — это готовые листы из гипса в картонной оболочке, которые крепятся на металлический каркас или специальный клей. За 1–3 дня получаем идеально ровную поверхность без штукатурки и длительных сроков высыхания."
       :advantages="categoryAdvantages"
     >
       <template #details>
+        <p>
+          <span class="blue">Клей</span> подходит для стен с перепадом до 2 см — это быстрее и дешевле. <span class="blue">Каркас</span> универсален: скрывает любую кривизну и коммуникации, но забирает 5-7 см площади помещения.
+        </p>
         <p>
           В отличие от штукатурки, монтаж на каркас позволяет скрыть электропроводку,
           трубы отопления и вентиляции внутри стены. Это особенно актуально при
@@ -58,17 +77,6 @@
       </template>
     </WorkTypeOverview>
 
-    <!-- ==================== БЛОК 4: До / После (слайдер) ==================== -->
-    <section id="before-after" class="page-section">
-      <BeforeAfterShowcase
-        title="Результат <span>до и после</span>"
-        :items="[
-          { beforeImage: '/main/1-1.jpg', afterImage: '/main/1.jpg' },
-          { beforeImage: '/main/2-1.jpg', afterImage: '/main/2.jpg' },
-          { beforeImage: '/main/5.jpg', afterImage: '/main/6.jpg' },
-        ]"
-      />
-    </section>
 
     <!-- ==================== БЛОК 5: Что выбрать (сравнение методов) ==================== -->
     <section id="methods" class="page-section page-section--light">
@@ -223,8 +231,9 @@
 
 <script setup lang="ts">
 // === UI: workTypes (новые компоненты) ===
+import HeaderType from '../ui/HeaderType.vue'
 import WorkTypeOverview from '../ui/WorkTypeOverview.vue'
-import WorkTypeNavigator from '../ui/WorkTypeNavigator.vue'
+// import WorkTypeNavigator from '../ui/WorkTypeNavigator.vue'
 import PriceCalculatorTabs from '../ui/PriceCalculatorTabs.vue'
 import WorkStagesTimeline from '../ui/WorkStagesTimeline.vue'
 import GuaranteesGrid from '../ui/GuaranteesGrid.vue'
@@ -246,7 +255,7 @@ import ApplicationCTA from '../../ui/ApplicationCTA.vue'
 
 // === Типы ===
 import type { OverviewAdvantage } from '../ui/WorkTypeOverview.vue'
-import type { WorkTypeNavItem } from '../ui/WorkTypeNavigator.vue'
+// import type { WorkTypeNavItem } from '../ui/WorkTypeNavigator.vue'
 import type { CalculatorTab } from '../ui/PriceCalculatorTabs.vue'
 import type { WorkStage } from '../ui/WorkStagesTimeline.vue'
 import type { GuaranteeItem } from '../ui/GuaranteesGrid.vue'
@@ -791,6 +800,7 @@ useWorkTypeSeo({
 
 <style lang="scss" scoped>
 @use '@/assets/styles/variables' as *;
+@use '@/assets/styles/mixins' as *;
 
 .page-gkl-steny {
   background: $background-dark;

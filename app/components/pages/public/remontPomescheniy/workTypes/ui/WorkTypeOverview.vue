@@ -3,14 +3,10 @@
   <section class="work-type-overview">
     <div class="container">
       <header class="overview-header">
-        <span class="overview-category">
-          <Icon :name="categoryIcon || 'mdi:tooltip-outline'" size="16" />
-          {{ categoryLabel }}
-        </span>
-
-        <h1 class="overview-title" v-html="title" />
+        <h2 class="overview-title" v-html="title" />
 
         <p v-if="description" class="overview-description">{{ description }}</p>
+        
         <!-- Расширенное описание с перелинковкой -->
         <div v-if="$slots.details" class="overview-details">
           <slot name="details" />
@@ -43,16 +39,11 @@ export interface OverviewAdvantage {
   icon?: string
 }
 
-withDefaults(
-  defineProps<{
-    categoryLabel: string
-    categoryIcon?: string
-    title: string
-    description?: string
-    advantages?: OverviewAdvantage[]
-  }>(),
-  {}
-)
+defineProps<{
+  title: string
+  description?: string
+  advantages?: OverviewAdvantage[]
+}>()
 </script>
 
 <style lang="scss" scoped>
@@ -60,7 +51,7 @@ withDefaults(
 @use '@/assets/styles/mixins' as *;
 
 .work-type-overview {
-  @include section-padding; // БЫЛО: padding: 10rem 0 0;
+  @include section-padding;
   background: $background-dark;
   color: $text-light;
   
@@ -69,24 +60,8 @@ withDefaults(
   }
 }
 
-.overview-category {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-family: 'Rubik', sans-serif;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: $blue;
-  padding: 0.35rem 0.9rem;
-  background: rgba(0, 195, 245, 0.12);
-  border-radius: 50px;
-  margin-bottom: 1.2rem;
-}
-
 .overview-title {
-  @include page-title;
+  @include section-title; // Теперь такой же как в BeforeAfterShowcase
 }
 
 .overview-description {
@@ -147,7 +122,6 @@ withDefaults(
   }
 }
 
-// === Расширенное описание ===
 .overview-details {
   max-width: 800px;
   margin: 0 0 2rem;
@@ -182,7 +156,6 @@ withDefaults(
   }
 }
 
-// === Мобильный адаптив ===
 @media (max-width: 768px) {
   .overview-header {
     margin-bottom: 2rem;
