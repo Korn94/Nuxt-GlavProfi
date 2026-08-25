@@ -346,6 +346,7 @@ h1 {
   margin: 0;
   
   /* Мультиколоночная верстка: заполнение сверху вниз */
+  /* autoprefixer: off */
   column-width: 400px; // минимальная ширина колонки (авто-адаптив)
   column-gap: 24px; // расстояние между колонками
 }
@@ -356,6 +357,7 @@ h1 {
   margin-bottom: 6px; // вертикальный отступ между пунктами
   display: block;
 }
+/* autoprefixer: on */
 
 .toc__link {
   display: block;

@@ -38,14 +38,16 @@
       </div>
     </div>
 
-    <!-- Список подкатегорий -->
-    <PagesPublicPricesPriceSubcategory
-      v-for="subcategory in category.subcategories"
-      :key="subcategory.id"
-      :subcategory="subcategory"
-      :is-admin="isAdmin"
-      :search-query="searchQuery"
-    />
+    <!-- Список подкатегорий (контейнер для drag & drop в админ-режиме) -->
+    <div ref="subcategoryListRef" class="subcategory-list">
+      <PagesPublicPricesPriceSubcategory
+        v-for="subcategory in category.subcategories"
+        :key="subcategory.id"
+        :subcategory="subcategory"
+        :is-admin="isAdmin"
+        :search-query="searchQuery"
+      />
+    </div>
 
     <!-- Кнопка добавления подкатегории (только админ) -->
     <div v-if="isAdmin">
@@ -67,7 +69,9 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import { usePriceEditStore } from 'stores/price'
+import { usePriceSortable } from '~/composables/usePriceSortable'
 import type { PriceCategory } from 'stores/price/types'
 
 // ========================================
@@ -84,7 +88,19 @@ const props = defineProps<{
 // ========================================
 const editStore = usePriceEditStore()
 
-// ui не нужен в этом компоненте — аккордеонами управляет PriceSubcategory
+// ========================================
+// 🧲 Сортировка подкатегорий перетаскиванием (только админ, без активного поиска)
+// ========================================
+const subcategoryListRef = ref<HTMLElement | null>(null)
+
+usePriceSortable({
+  el: subcategoryListRef,
+  entity: 'subcategories',
+  list: () => props.category.subcategories,
+  isEnabled: () => props.isAdmin && !props.searchQuery.trim(),
+  draggable: '.subcategory-block',
+  handle: '.subcategory-sort-handle',
+})
 </script>
 
 <style lang="scss" scoped>
@@ -96,6 +112,10 @@ const editStore = usePriceEditStore()
   &:last-child {
     border-bottom: none;
   }
+}
+
+.subcategory-list {
+  /* Контейнер для Sortable — дети должны быть невидимо-сортированы по высоте */
 }
 
 .category-header {
@@ -165,5 +185,22 @@ const editStore = usePriceEditStore()
       color: #333;
     }
   }
+}
+</style>
+<!-- Глобальные классы: библиотека навешивает их на дочерние элементы Sortable,
+     поэтому они вне scoped-контекста -->
+<style lang="scss">
+.price-sort-ghost {
+  opacity: 0.45;
+}
+
+.price-sort-chosen {
+  border: 1px dashed #00c3f5;
+}
+
+.price-sort-drag {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+  background: #fff;
+  cursor: grabbing;
 }
 </style>

@@ -76,6 +76,12 @@
     <!-- 🛠️ КНОПКИ АДМИНА                         -->
     <!-- ======================================== -->
     <div class="work-actions" v-if="isAdmin">
+      <Icon
+        v-if="!searchQuery.trim()"
+        name="mdi:drag"
+        size="16"
+        class="item-sort-handle"
+      />
       <Icon name="bx:edit" size="16" @click.stop="editStore.startEditItem(item)" />
       <Icon name="mdi:delete-forever" size="16" @click.stop="editStore.deleteItem(item.id)" />
     </div>
@@ -437,6 +443,13 @@ span {
       &:hover {
         transform: scale(1.2);
       }
+    }
+  }
+.work-actions .item-sort-handle {
+    cursor: grab;
+
+    &:active {
+      cursor: grabbing;
     }
   }
 

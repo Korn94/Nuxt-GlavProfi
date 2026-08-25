@@ -10,6 +10,13 @@
         />
       </h3>
       <div v-if="isAdmin" class="subcategory-actions">
+        <!-- Ручка перетаскивания (подкатегория перетаскивается — только админ) -->
+        <Icon
+          v-if="!searchQuery.trim()"
+          name="mdi:drag"
+          size="18"
+          class="subcategory-sort-handle"
+        />
         <Icon
           name="bx:edit"
           size="16"
@@ -35,8 +42,8 @@
       <button @click="editStore.cancelEditSubcategory">Отмена</button>
     </div>
 
-    <!-- Список работ (ИСПРАВЛЕНО: убран v-show, только CSS-класс is-open) -->
-    <dl class="works-list" :class="{ 'is-open': isOpen }">
+    <!-- Список работ (контейнер для drag & drop в админ-режиме) -->
+    <dl ref="worksListRef" class="works-list" :class="{ 'is-open': isOpen }">
       <PagesPublicPricesPriceWorkItem
         v-for="item in subcategory.items"
         :key="item.id"
@@ -76,8 +83,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { usePriceUIStore, usePriceEditStore } from 'stores/price'
+import { usePriceSortable } from '~/composables/usePriceSortable'
 import type { PriceSubcategory } from 'stores/price/types'
 
 // ========================================
@@ -103,6 +111,22 @@ const editStore = usePriceEditStore()
  * Берём значение из UI-стора.
  */
 const isOpen = computed(() => !!uiStore.openSubcategories[props.subcategory.id])
+
+// ========================================
+// 🧲 Сортировка работ перетаскиванием (только админ, без активного поиска)
+// ========================================
+const worksListRef = ref<HTMLElement | null>(null)
+
+usePriceSortable({
+  el: worksListRef,
+  entity: 'items',
+  list: () => props.subcategory.items,
+  isEnabled: () => props.isAdmin && !props.searchQuery.trim(),
+  draggable: '.work-item',
+  handle: '.item-sort-handle',
+  // Кнопка «+ Добавить работу» не участвует в сортировке
+  filter: '.add-work-button',
+})
 </script>
 
 <style lang="scss" scoped>
@@ -162,6 +186,21 @@ const isOpen = computed(() => !!uiStore.openSubcategories[props.subcategory.id])
   }
 }
 
+.subcategory-actions :deep(.subcategory-sort-handle) {
+  cursor: grab;
+  color: #888;
+  margin-right: 10px;
+  transition: transform 0.3s ease, color 0.3s ease;
+
+  &:hover {
+    color: #00c3f5;
+    transform: scale(1.15);
+  }
+
+  &:active {
+    cursor: grabbing;
+  }
+}
 /* SEO: Анимация раскрытия списка работ */
 /* ИСПРАВЛЕНО: убран v-show, теперь только CSS-класс is-open управляет видимостью */
 .works-list {

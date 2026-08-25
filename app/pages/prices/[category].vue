@@ -1,6 +1,6 @@
 <!-- app\pages\prices\[category].vue -->
 <template>
-  <PagesPublicRemontPomescheniyPageTypesUiBreadcrumbs
+  <PagesPublicRemontPomescheniyUiBreadcrumbs
     :items="breadcrumbItems"
   />
   <div class="wrap">
