@@ -5,108 +5,118 @@
       <h2 class="price-calculator__title" v-html="title" />
       <p class="price-calculator__subtitle" v-if="subtitle">{{ subtitle }}</p>
 
-      <!-- Табы -->
-      <div class="tabs">
-        <button
-          v-for="tab in tabs"
-          :key="tab.id"
-          class="tabs__btn"
-          :class="{ 'tabs__btn--active': activeTab === tab.id }"
-          @click="activeTab = tab.id"
-        >
-          <Icon v-if="tab.icon" :name="tab.icon" size="18" />
-          <span>{{ tab.label }}</span>
-        </button>
+      <!-- Индикатор загрузки цен из прайс-листа -->
+      <div v-if="loading" class="calculator-loading">
+        <div class="loading-spinner">
+          <Icon name="mdi:loading" size="32" class="spin" />
+        </div>
+        <p>Загружаем актуальные цены из прайс-листа...</p>
       </div>
 
-      <!-- Контент активного таба -->
-      <div class="calculator-body">
-        <!-- Состав работ -->
-        <div class="calculator-works">
-          <h3 class="calculator-works__title">Состав работ:</h3>
-          <ul class="calculator-works__list">
-            <li
-              v-for="(work, index) in currentWorks"
-              :key="index"
-              class="calculator-works__item"
-            >
-              <Icon name="mdi:check-circle" size="18" class="work-icon" />
-              <span class="work-name">{{ work.name }}</span>
-              <span class="work-price">{{ work.price }} ₽/м²</span>
-            </li>
-          </ul>
-
-          <!-- Итог -->
-          <div class="calculator-total">
-            <div class="calculator-total__label">Итого за м²:</div>
-            <div class="calculator-total__value">
-              <span class="price">{{ totalPerSqm }} ₽</span>
-              <span class="note">без материалов</span>
-            </div>
-          </div>
-
-          <!-- Доп. опции -->
-          <div class="calculator-extras" v-if="currentExtras?.length">
-            <h4>Дополнительно:</h4>
-            <div class="extras-list">
-              <label
-                v-for="extra in currentExtras"
-                :key="extra.id"
-                class="extra-item"
-              >
-                <input
-                  type="checkbox"
-                  v-model="selectedExtras"
-                  :value="extra.id"
-                />
-                <span class="extra-checkbox">
-                  <Icon v-if="selectedExtras.includes(extra.id)" name="mdi:check" size="14" />
-                </span>
-                <span class="extra-name">{{ extra.name }}</span>
-                <span class="extra-price">+{{ extra.price }} ₽/м²</span>
-              </label>
-            </div>
-          </div>
+      <template v-else>
+        <!-- Табы -->
+        <div class="tabs">
+          <button
+            v-for="tab in tabs"
+            :key="tab.id"
+            class="tabs__btn"
+            :class="{ 'tabs__btn--active': activeTab === tab.id }"
+            @click="activeTab = tab.id"
+          >
+            <Icon v-if="tab.icon" :name="tab.icon" size="18" />
+            <span>{{ tab.label }}</span>
+          </button>
         </div>
 
-        <!-- Правая колонка: калькулятор площади -->
-        <aside class="calculator-side">
-          <div class="side-card">
-            <h3>Рассчитать для вашей площади</h3>
-            <label class="side-label">
-              Площадь помещения, м²
-              <div class="side-input-wrap">
-                <button @click="decreaseArea" :disabled="area <= minArea">
-                  <Icon name="mdi:minus" size="18" />
-                </button>
-                <input
-                  v-model.number="area"
-                  type="number"
-                  :min="minArea"
-                  :max="maxArea"
-                  @input="clampArea"
-                />
-                <button @click="increaseArea" :disabled="area >= maxArea">
-                  <Icon name="mdi:plus" size="18" />
-                </button>
-              </div>
-            </label>
+        <!-- Контент активного таба -->
+        <div class="calculator-body">
+          <!-- Состав работ -->
+          <div class="calculator-works">
+            <h3 class="calculator-works__title">Состав работ:</h3>
+            <ul class="calculator-works__list">
+              <li
+                v-for="(work, index) in currentWorks"
+                :key="index"
+                class="calculator-works__item"
+              >
+                <Icon name="mdi:check-circle" size="18" class="work-icon" />
+                <span class="work-name">{{ work.name }}</span>
+                <span class="work-price">{{ work.price }} ₽/{{ work.unit || 'м²' }}</span>
+              </li>
+            </ul>
 
-            <div class="side-result">
-              <span class="side-result__label">Предварительная стоимость:</span>
-              <span class="side-result__value">{{ totalCost.toLocaleString('ru-RU') }} ₽</span>
-              <span class="side-result__note">
-                Точная цена — после бесплатного замера
-              </span>
+            <!-- Итог -->
+            <div class="calculator-total">
+              <div class="calculator-total__label">Итого за {{ currentUnit }}:</div>
+              <div class="calculator-total__value">
+                <span class="price">{{ totalPerSqm }} ₽</span>
+                <span class="note">без материалов</span>
+              </div>
             </div>
 
-            <button class="side-cta" @click="$emit('order-estimate')">
-              <Icon name="mdi:send" size="18" />
-              Вызвать замерщика
-            </button>
+            <!-- Доп. опции -->
+            <div class="calculator-extras" v-if="currentExtras?.length">
+              <h4>Дополнительно:</h4>
+              <div class="extras-list">
+                <label
+                  v-for="extra in currentExtras"
+                  :key="extra.id"
+                  class="extra-item"
+                >
+                  <input
+                    type="checkbox"
+                    v-model="selectedExtras"
+                    :value="extra.id"
+                  />
+                  <span class="extra-checkbox">
+                    <Icon v-if="selectedExtras.includes(extra.id)" name="mdi:check" size="14" />
+                  </span>
+                  <span class="extra-name">{{ extra.name }}</span>
+                  <span class="extra-price">+{{ extra.price }} ₽/{{ extra.unit || 'м²' }}</span>
+                </label>
+              </div>
+            </div>
           </div>
-        </aside>
-      </div>
+
+          <!-- Правая колонка: калькулятор площади -->
+          <aside class="calculator-side">
+            <div class="side-card">
+              <h3>Рассчитать для вашей площади</h3>
+              <label class="side-label">
+                Площадь стен, {{ currentUnit }}
+                <div class="side-input-wrap">
+                  <button @click="decreaseArea" :disabled="area <= minArea">
+                    <Icon name="mdi:minus" size="18" />
+                  </button>
+                  <input
+                    v-model.number="area"
+                    type="number"
+                    :min="minArea"
+                    :max="maxArea"
+                    @input="clampArea"
+                  />
+                  <button @click="increaseArea" :disabled="area >= maxArea">
+                    <Icon name="mdi:plus" size="18" />
+                  </button>
+                </div>
+              </label>
+
+              <div class="side-result">
+                <span class="side-result__label">Предварительная стоимость:</span>
+                <span class="side-result__value">{{ totalCost.toLocaleString('ru-RU') }} ₽</span>
+                <span class="side-result__note">
+                  Точная цена — после бесплатного замера
+                </span>
+              </div>
+
+              <button class="side-cta" @click="$emit('order-estimate')">
+                <Icon name="mdi:send" size="18" />
+                Вызвать замерщика
+              </button>
+            </div>
+          </aside>
+        </div>
+      </template>
     </div>
   </section>
 </template>
@@ -117,11 +127,15 @@ import { ref, computed } from 'vue'
 export interface WorkItem {
   name: string
   price: number
+  /** Единица измерения из прайс-листа: 'м²', 'м.п.', 'шт' и т.д. */
+  unit?: string
 }
 export interface ExtraItem {
   id: string
   name: string
   price: number
+  /** Единица измерения доп. работы */
+  unit?: string
 }
 export interface CalculatorTab {
   id: string
@@ -140,12 +154,15 @@ const props = withDefaults(
     minArea?: number
     maxArea?: number
     areaStep?: number
+    /** Показывать индикатор загрузки цен */
+    loading?: boolean
   }>(),
   {
     defaultArea: 20,
     minArea: 5,
     maxArea: 500,
     areaStep: 5,
+    loading: false,
   }
 )
 
@@ -160,6 +177,9 @@ const currentTab = computed(() =>
 )
 const currentWorks = computed(() => currentTab.value.works || [])
 const currentExtras = computed(() => currentTab.value.extras || [])
+
+/** Единица измерения берётся из первой работы активного таба */
+const currentUnit = computed(() => currentWorks.value[0]?.unit || 'м²')
 
 const baseTotal = computed(() =>
   currentWorks.value.reduce((sum, w) => sum + w.price, 0)
@@ -200,13 +220,41 @@ const decreaseArea = () => {
   }
 
   &__title {
-    @include section-title; // БЫЛО: 15 строк дублирования
+    @include section-title;
   }
 
   &__subtitle {
     @include section-subtitle;
     color: $text-gray;
   }
+}
+
+// === Состояние загрузки цен ===
+.calculator-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  color: $text-gray;
+  gap: 1rem;
+
+  .loading-spinner {
+    color: $blue;
+  }
+
+  .spin {
+    animation: spin 1s linear infinite;
+  }
+
+  p {
+    font-size: 0.95rem;
+  }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .tabs {
@@ -434,14 +482,12 @@ const decreaseArea = () => {
     color: $text-dark;
     outline: none;
     
-    // Стандартное свойство должно быть указано для совместимости
     appearance: none;
     -moz-appearance: textfield;
 
     &::-webkit-outer-spin-button,
     &::-webkit-inner-spin-button {
       -webkit-appearance: none;
-      // Рекомендуется также добавлять стандартное свойство внутри псевдоэлементов
       appearance: none; 
     }
   }

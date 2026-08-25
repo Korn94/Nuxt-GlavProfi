@@ -19,8 +19,8 @@
         <Breadcrumbs
           :items="[
             { label: 'Главная', to: '/' },
-            { label: 'Виды работ', to: '/vidy-rabot' },
-            { label: 'ГКЛ', to: '/vidy-rabot/gkl' },
+            { label: 'Виды работ', to: '/remont-pomescheniy' },
+            { label: 'ГКЛ', to: '/vidy-rabot/oblitsovka-gkl' },
             { label: 'Обшивка стен ГКЛ' },
           ]"
         />
@@ -84,6 +84,7 @@
         title="Что <span>выбрать</span>: клей, каркас или штукатурку?"
         subtitle="Каждый способ подходит для разных задач. Разберём плюсы, минусы и сценарии применения."
         :methods="comparisonMethods"
+        :price-data="sections"
         summary="Не уверены, что подойдёт именно вам? <strong>Инженер бесплатно приедет на замер</strong>, оценит кривизну стен и предложит оптимальный вариант по цене и срокам."
       />
     </section>
@@ -161,6 +162,7 @@
         title="Калькулятор <span>стоимости</span> монтажа ГКЛ"
         subtitle="Выберите тип монтажа и площадь — получите предварительную смету сразу."
         :tabs="calculatorTabs"
+        :loading="pricePending"
         :default-area="20"
         @order-estimate="scrollToCta"
       />
@@ -203,6 +205,7 @@
         title="Другие <span>гипсокартонные работы</span>"
         subtitle="Каждый вид работ — на отдельной странице с подробным описанием, ценами и калькулятором."
         :items="gklWorkTypes"
+        :price-data="sections"
       />
     </section>
 
@@ -270,6 +273,9 @@ import type { MaterialCardData, ThicknessOption } from '../ui/MaterialsGuide.vue
 // === SEO ===
 import { useWorkTypeSeo } from '../../composables/useWorkTypeSeo'
 
+import { usePriceFetcher } from '~/composables/calculator/usePriceFetcher'
+import type { NormalizedWorkItem } from '~/types/calculator'
+
 // ============================================================
 // БЛОК 2: НАВИГАЦИЯ ПО СЕКЦИЯМ (StickyNav)
 // ============================================================
@@ -315,25 +321,28 @@ const categoryAdvantages: OverviewAdvantage[] = [
 const gklWorkTypes: RelatedWorkTypeItem[] = [
   {
     title: 'Обшивка стен ГКЛ',
-    to: '/vidy-rabot/gkl/steny',
+    to: '/vidy-rabot/oblitsovka-gkl',
     icon: 'mdi:wall',
-    priceFrom: 1800,
+    priceWorkId: 1598, // Обшивка стен ГКЛ 1 слой на металлическом каркасе (1600 ₽/м²)
+    priceFrom: 1600,
     active: true,
     description: 'Выравнивание стен на каркас или клей',
     image: '/main/vidy-rabot/gkl/ГКЛ.png',
   },
   {
     title: 'Перегородки из ГКЛ',
-    to: '/vidy-rabot/gkl/peregorodki',
+    to: '/vidy-rabot/peregorodki-iz-gkl',
     icon: 'mdi:door-closed',
+    priceWorkId: 683, // Перегородка из ГКЛ в 1 слой с двух сторон (2100 ₽/м²)
     priceFrom: 2100,
     description: 'Зонирование с шумоизоляцией',
     image: '/main/vidy-rabot/gkl/ГКЛ.png',
   },
   {
     title: 'Потолки из ГКЛ',
-    to: '/vidy-rabot/gkl/potolki',
+    to: '/vidy-rabot/potolki-iz-gkl',
     icon: 'mdi:ceiling-light',
+    priceWorkId: 918, // Одноуровневый потолок из ГКЛ (2200 ₽/м²)
     priceFrom: 2200,
     description: 'Одно- и многоуровневые конструкции',
     image: '/main/vidy-rabot/gkl/ГКЛ.png',
@@ -347,7 +356,8 @@ const comparisonMethods: MethodOption[] = [
   {
     title: 'ГКЛ на клей',
     icon: 'mdi:land-fields',
-    priceFrom: 1800,
+    priceWorkId: 939, // Обшивка стен ГКЛ на клеевом составе (1300 ₽/м²)
+    priceFrom: 1300,
     whenToUse: [
       'Перепад стен не более 2 см на 2 метра',
       'Нужно сохранить максимум площади помещения',
@@ -369,7 +379,8 @@ const comparisonMethods: MethodOption[] = [
   {
     title: 'ГКЛ на каркас',
     icon: 'mdi:frame',
-    priceFrom: 1800,
+    priceWorkId: 1598, // Обшивка стен ГКЛ 1 слой на металлическом каркасе (1600 ₽/м²)
+    priceFrom: 1600,
     recommended: true,
     whenToUse: [
       'Перепад стен более 2 см',
@@ -392,6 +403,7 @@ const comparisonMethods: MethodOption[] = [
   {
     title: 'Штукатурка',
     icon: 'mdi:format-paint',
+    priceWorkId: 1143, // Штукатурка стен (слой 10–30 мм) (1200 ₽/м²)
     priceFrom: 1200,
     whenToUse: [
       'Перепад стен до 5 см',
@@ -494,7 +506,7 @@ const gklMaterials: MaterialCardData[] = [
     badge: 'Сверхпрочный',
     properties: [
       { label: 'В 5 раз прочнее ГКЛ', icon: 'mdi:arm-flex' },
-      { label: 'Держит саморезы без дюбелей', icon: 'mdi:screw' },
+      { label: 'Держит саморезы без дюбелей', icon: 'mdi:screw-flat-top' },
       { label: 'Огнестойкий', icon: 'mdi:fire' },
     ],
     useFor: [
@@ -560,37 +572,87 @@ const technicalInsights: InsightItem[] = [
 ]
 
 // ============================================================
-// БЛОК 8: Калькулятор
+// БЛОК 8: Калькулятор — реальные цены из прайс-листа по ID
 // ============================================================
-const calculatorTabs: CalculatorTab[] = [
-  {
-    id: 'frame',
-    label: 'На каркас',
-    icon: 'mdi:frame',
-    works: [
-      { name: 'Монтаж каркаса (профиль + подвесы)', price: 1000 },
-      { name: 'Обшивка ГКЛ в 1 слой', price: 600 },
-    ],
-    extras: [
-      { id: '2layers', name: 'Обшивка в 2 слоя (+1 слой)', price: 200 },
-      { id: 'gklv', name: 'Влагостойкий ГКЛ (вместо обычного)', price: 0 },
-      { id: 'curved', name: 'Укладка утеплителя/звукоизоляции', price: 380 },
-    ],
-  },
-  {
-    id: 'glue',
-    label: 'На клей',
-    icon: 'mdi:land-fields',
-    works: [
-      { name: 'Грунтовка стены', price: 100 },
-      { name: 'Приклейка листов ГКЛ', price: 1200 },
-    ],
-    extras: [
-      { id: 'primer2', name: 'Двойная грунтовка', price: 40 },
-      { id: 'gklv', name: 'Влагостойкий ГКЛ', price: 0 },
-    ],
-  },
-]
+
+/**
+ * ID работ из таблицы price_items (БД главпрофи).
+ * Эти ID стабильны: переименование работы в прайс-листе
+ * НЕ сломает калькулятор.
+ *
+ * При добавлении калькулятора на новую страницу (потолки, перегородки и т.д.)
+ * просто добавьте сюда новые ID из прайс-листа и создайте аналогичный
+ * `computed` с конфигурацией табов.
+ */
+const WORK_IDS = {
+  /** Обшивка стен ГКЛ 1 слой на металлическом каркасе — 1600 ₽/м² */
+  GKL_1_LAYER: 1598,
+  /** Обшивка стен ГКЛ 2 слоя на металлическом каркасе — 1800 ₽/м² */
+  GKL_2_LAYERS: 938,
+  /** Обшивка стен ГКЛ на клеевом составе — 1300 ₽/м² */
+  GKL_GLUE: 939,
+  /** Укладка минераловатного утеплителя в каркас — 380 ₽/м² */
+  INSULATION: 700,
+} as const
+
+const { sections, pending: pricePending } = usePriceFetcher()
+
+const findWorkById = (id: number): NormalizedWorkItem | undefined => {
+  const allWorks = Object.values(sections.value).flatMap(section => [
+    ...section.standard,
+    ...section.piece
+  ])
+  return allWorks.find(w => w.id === id)
+}
+
+const calculatorTabs = computed<CalculatorTab[]>(() => {
+  const gkl1 = findWorkById(WORK_IDS.GKL_1_LAYER)
+  const gkl2 = findWorkById(WORK_IDS.GKL_2_LAYERS)
+  const gklGlue = findWorkById(WORK_IDS.GKL_GLUE)
+  const insulation = findWorkById(WORK_IDS.INSULATION)
+
+  return [
+    {
+      id: 'frame',
+      label: 'На каркас',
+      icon: 'mdi:frame',
+      works: [
+        { 
+          name: gkl1?.name ?? 'Обшивка стен ГКЛ 1 слой на металлическом каркасе', 
+          price: gkl1?.pricePerUnit ?? 1600,
+          unit: gkl1?.unit ?? 'м²',
+        },
+      ],
+      extras: [
+        { 
+          id: '2layers', 
+          name: 'Обшивка в 2 слоя (доплата)', 
+          price: Math.max(0, (gkl2?.pricePerUnit ?? 1800) - (gkl1?.pricePerUnit ?? 1600)),
+          unit: gkl1?.unit ?? 'м²',
+        },
+        { 
+          id: 'insulation', 
+          name: insulation?.name ?? 'Укладка утеплителя/звукоизоляции', 
+          price: insulation?.pricePerUnit ?? 380,
+          unit: insulation?.unit ?? 'м²',
+        },
+      ],
+    },
+    {
+      id: 'glue',
+      label: 'На клей',
+      icon: 'mdi:land-fields',
+      works: [
+        { 
+          name: gklGlue?.name ?? 'Обшивка стен ГКЛ на клеевом составе', 
+          price: gklGlue?.pricePerUnit ?? 1300,
+          unit: gklGlue?.unit ?? 'м²',
+        },
+      ],
+      extras: [],
+    },
+  ]
+})
 
 // ============================================================
 // БЛОК 7: Факторы цены
@@ -758,7 +820,7 @@ const customFields = [
     type: 'tiles' as const,
     options: [
       { value: 'concrete', label: 'Бетон', icon: 'mdi:wall' },
-      { value: 'brick', label: 'Кирпич', icon: 'mdi:brick' },
+      { value: 'brick', label: 'Кирпич', icon: 'mdi:bricks' },
       { value: 'foam', label: 'Пеноблок', icon: 'mdi:layers' },
       { value: 'wood', label: 'Дерево', icon: 'mdi:tree' },
     ],

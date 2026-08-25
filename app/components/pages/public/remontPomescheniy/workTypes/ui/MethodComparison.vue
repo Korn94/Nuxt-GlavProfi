@@ -11,7 +11,7 @@
       <!-- Карточки методов -->
       <div class="method-comparison__grid">
         <article
-          v-for="(method, index) in methods"
+          v-for="(method, index) in resolvedMethods"
           :key="index"
           class="method-card"
           :class="{
@@ -105,13 +105,18 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import type { NormalizedWorkItem } from '~/types/calculator'
+
 export interface MethodOption {
-  /** Название метода */
+  /** Название метода (маркетинговое, не зависит от прайса) */
   title: string
   /** Иконка */
   icon?: string
-  /** Цена от */
+  /** Цена "от" (фоллбэк, если работа не найдена в БД) */
   priceFrom?: number | string
+  /** 🆕 ID работы в таблице price_items. Если указан, цена подтянется из прайс-листа */
+  priceWorkId?: number
   /** Когда применять */
   whenToUse: string[]
   /** Плюсы */
@@ -122,7 +127,12 @@ export interface MethodOption {
   recommended?: boolean
 }
 
-defineProps<{
+export interface PriceData {
+  standard: NormalizedWorkItem[]
+  piece: NormalizedWorkItem[]
+}
+
+const props = defineProps<{
   /** Заголовок секции */
   title: string
   /** Подзаголовок */
@@ -131,7 +141,40 @@ defineProps<{
   methods: MethodOption[]
   /** Итоговая рекомендация (HTML поддерживается) */
   summary?: string
+  /** 🆕 Данные прайс-листа от родителя (чтобы избежать гидратации) */
+  priceData?: Record<string, PriceData>
 }>()
+
+/**
+ * Ищет работу в переданных данных по ID из БД.
+ */
+const findWorkById = (id: number): NormalizedWorkItem | undefined => {
+  if (!props.priceData) return undefined
+  
+  const allWorks = Object.values(props.priceData).flatMap(section => [
+    ...section.standard,
+    ...section.piece
+  ])
+  return allWorks.find(w => w.id === id)
+}
+
+/**
+ * Вычисляемый массив методов с актуальными ценами из прайс-листа.
+ */
+const resolvedMethods = computed(() => {
+  return props.methods.map(method => {
+    if (method.priceWorkId) {
+      const work = findWorkById(method.priceWorkId)
+      if (work) {
+        return {
+          ...method,
+          priceFrom: Math.round(work.pricePerUnit),
+        }
+      }
+    }
+    return method
+  })
+})
 </script>
 
 <style lang="scss" scoped>

@@ -8,10 +8,10 @@
         <p v-if="subtitle" class="related-header__subtitle">{{ subtitle }}</p>
       </header>
 
-      <!-- Карточки -->
+      <!-- Карточки (ИСПОЛЬЗУЕМ resolvedItems вместо items) -->
       <div class="related-grid">
         <NuxtLink
-          v-for="item in items"
+          v-for="item in resolvedItems"
           :key="item.to"
           :to="item.to"
           class="related-card"
@@ -67,24 +67,67 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { WorkTypeNavItem } from './WorkTypeNavigator.vue'
+import type { NormalizedWorkItem } from '~/types/calculator'
 
 /** Расширенный тип с картинкой */
 export interface RelatedWorkTypeItem extends WorkTypeNavItem {
   /** URL картинки для карточки */
   image?: string
+  /** 🆕 ID работы в таблице price_items. Если указан, цена подтянется из прайс-листа */
+  priceWorkId?: number
 }
 
-withDefaults(
+export interface PriceData {
+  standard: NormalizedWorkItem[]
+  piece: NormalizedWorkItem[]
+}
+
+const props = withDefaults(
   defineProps<{
     title: string
     subtitle?: string
     items: RelatedWorkTypeItem[]
+    /** 🆕 Данные прайс-листа от родителя (чтобы избежать гидратации) */
+    priceData?: Record<string, PriceData>
   }>(),
   {
     title: 'Другие <span>виды работ</span> в этой категории',
   }
 )
+
+/**
+ * Ищет работу в переданных данных по ID из БД.
+ */
+const findWorkById = (id: number): NormalizedWorkItem | undefined => {
+  if (!props.priceData) return undefined
+  
+  const allWorks = Object.values(props.priceData).flatMap(section => [
+    ...section.standard,
+    ...section.piece
+  ])
+  return allWorks.find(w => w.id === id)
+}
+
+/**
+ * Вычисляемый массив карточек с актуальными ценами из прайс-листа.
+ */
+const resolvedItems = computed(() => {
+  return props.items.map(item => {
+    if (item.priceWorkId) {
+      const work = findWorkById(item.priceWorkId)
+      if (work) {
+        return {
+          ...item,
+          // Округляем на случай, если в прайсе появятся копейки
+          priceFrom: Math.round(work.pricePerUnit),
+        }
+      }
+    }
+    return item
+  })
+})
 </script>
 
 <style lang="scss" scoped>
