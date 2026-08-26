@@ -109,7 +109,8 @@
                 </span>
               </div>
 
-              <button class="side-cta" @click="$emit('order-estimate')">
+              <!-- Изменено: вызов локального метода вместо эмитта -->
+              <button class="side-cta" @click="openModal">
                 <Icon name="mdi:send" size="18" />
                 Вызвать замерщика
               </button>
@@ -118,6 +119,15 @@
         </div>
       </template>
     </div>
+
+    <!-- Модальное окно с формой (аналог homePage) -->
+    <Teleport to="body">
+      <UiFormsContactForm
+        v-if="showModal"
+        @close="closeModal"
+        @form-submitted="handleFormSubmitted"
+      />
+    </Teleport>
   </section>
 </template>
 
@@ -166,11 +176,14 @@ const props = withDefaults(
   }
 )
 
+// Эмитт можно оставить для обратной совместимости, если он используется где-то еще,
+// но теперь основная логика обрабатывается локально
 defineEmits(['order-estimate'])
 
 const activeTab = ref(props.tabs[0]?.id || '')
 const area = ref(props.defaultArea)
 const selectedExtras = ref<string[]>([])
+const showModal = ref(false)
 
 const currentTab = computed(() =>
   props.tabs.find((t) => t.id === activeTab.value) || props.tabs[0]
@@ -204,9 +217,26 @@ const increaseArea = () => {
 const decreaseArea = () => {
   area.value = Math.max(props.minArea, area.value - props.areaStep)
 }
+
+// === Логика модального окна ===
+const openModal = () => {
+  showModal.value = true
+}
+
+const closeModal = () => {
+  showModal.value = false
+}
+
+const handleFormSubmitted = (formData: unknown) => {
+  console.log('[Калькулятор] Форма заявки отправлена:', formData)
+  closeModal()
+}
 </script>
 
 <style lang="scss" scoped>
+/* Стили остаются без изменений, так как модальное окно 
+   использует собственные глобальные/скоупированные стили 
+   и рендерится в body через Teleport */
 @use '@/assets/styles/variables' as *;
 @use '@/assets/styles/mixins' as *;
 

@@ -12,7 +12,7 @@ export interface MethodOption {
   title: string
   icon: string
   priceWorkId: number
-  priceFrom: number
+  priceFrom?: number
   recommended?: boolean
   whenToUse: string[]
   pros: string[]
@@ -92,7 +92,7 @@ export interface RelatedWorkTypeItem {
   to: string
   icon: string
   priceWorkId: number
-  priceFrom: number
+  priceFrom?: number
   active?: boolean
   description: string
   image: string

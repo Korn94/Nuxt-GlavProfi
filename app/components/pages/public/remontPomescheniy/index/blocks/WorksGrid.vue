@@ -151,7 +151,7 @@ const works = [
     description: 'Монтаж межкомнатных перегородок из ГКЛ, кирпича, блоков, ПГП',
     image: '/main/remont-pomescheniy/medicina.webp',
     links: [
-      { title: 'ГКЛ', url: '/vidy-rabot/peregorodki-gkl', isReady: false },
+      { title: 'ГКЛ', url: '/vidy-rabot/peregorodki-gkl', isReady: true },
       { title: 'Кирпич', url: '/vidy-rabot/peregorodki-kirpich', isReady: false },
       { title: 'ПГП', url: '/vidy-rabot/peregorodki-pgp', isReady: false },
       { title: 'Блоки', url: '/peregorodki-bloki', isReady: false },

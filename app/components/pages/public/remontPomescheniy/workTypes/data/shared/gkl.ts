@@ -7,7 +7,8 @@ import type {
 
 /**
  * Навигация между ГКЛ работами.
- * Используется в блоке RelatedWorkTypes на всех страницах ГКЛ.
+ * 🔄 Цены берутся из прайс-листа автоматически через priceWorkId.
+ * 🔄 Активная карточка определяется по текущему URL в компоненте страницы.
  */
 export const gklWorkTypes: RelatedWorkTypeItem[] = [
   {
@@ -15,17 +16,15 @@ export const gklWorkTypes: RelatedWorkTypeItem[] = [
     to: '/vidy-rabot/oblitsovka-gkl',
     icon: 'mdi:wall',
     priceWorkId: 1598,
-    priceFrom: 1600,
-    active: true,
+    // active НЕ указываем — определяется в компоненте
     description: 'Выравнивание стен на каркас или клей',
     image: '/main/remont-pomescheniy/banki.webp',
   },
   {
     title: 'Перегородки из ГКЛ',
-    to: '/vidy-rabot/peregorodki-iz-gkl',
+    to: '/vidy-rabot/peregorodki-gkl',
     icon: 'mdi:door-closed',
     priceWorkId: 683,
-    priceFrom: 2100,
     description: 'Зонирование с шумоизоляцией',
     image: '/main/remont-pomescheniy/medicina.webp',
   },
@@ -34,7 +33,6 @@ export const gklWorkTypes: RelatedWorkTypeItem[] = [
     to: '/vidy-rabot/potolki-iz-gkl',
     icon: 'mdi:ceiling-light',
     priceWorkId: 918,
-    priceFrom: 2200,
     description: 'Одно- и многоуровневые конструкции',
     image: '/main/vidy-rabot/gkl/gkl.png',
   },

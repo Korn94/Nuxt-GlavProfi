@@ -1,5 +1,6 @@
-// app\components\pages\public\remontPomescheniy\workTypes\composables\useWorkTypeSeo.ts
-import { useHead, useSeoMeta } from "nuxt/app"
+// app/components/pages/public/remontPomescheniy/workTypes/composables/useWorkTypeSeo.ts
+import { useHead, useSeoMeta, useRoute } from 'nuxt/app'
+import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 
 export interface WorkTypeBreadcrumb {
   label: string
@@ -7,38 +8,44 @@ export interface WorkTypeBreadcrumb {
 }
 
 export interface WorkTypeSeoOptions {
-  /** Категория вида работ (slug): 'gkl', 'plitka', 'elektrika' */
   category: string
-  /** Название категории: 'ГКЛ', 'Плитка', 'Электрика' */
   categoryName: string
-  /** Слаг самой страницы: 'steny', 'potolki', 'peregorodki' */
   slug: string
-  /** H1 / название услуги: 'Монтаж гипсокартона на стены' */
   title: string
-  /** Meta description (до 160 символов) */
   description: string
-  /** Город (для локального SEO) */
   city: string
-  /** Минимальная цена (для Schema.org) */
-  priceFrom?: number
-  /** Валюта */
+  /** Минимальная цена (принимает Ref/Computed — будет реактивным) */
+  priceFrom?: MaybeRefOrGetter<number>
   currency?: string
-  /** Тип услуги для Schema.org: 'Монтаж гипсокартона', 'Укладка плитки' */
   serviceType?: string
-  /** FAQ для JSON-LD */
   faq?: Array<{ question: string; answer: string }>
-  /** OG-изображение */
   ogImage?: string
-  /** Кастомные хлебные крошки (переопределяют автогенерацию) */
+  /** 🆕 Реальный URL страницы (переопределяет автогенерацию) */
+  pageUrl?: string
+  /** 🆕 Кастомный URL категории */
+  categoryUrl?: string
   breadcrumbs?: WorkTypeBreadcrumb[]
-  /** Базовый URL */
   baseUrl?: string
   phone?: string
   companyName?: string
   companyLogo?: string
 }
 
+/**
+ * Безопасное извлечение числового значения из Ref/Computed/числа.
+ * Возвращает `undefined`, если значение некорректное (0, NaN, null).
+ */
+function resolvePrice(price: MaybeRefOrGetter<number> | undefined): number | undefined {
+  const val = toValue(price)
+  if (typeof val !== 'number' || !Number.isFinite(val) || val <= 0) {
+    return undefined
+  }
+  return val
+}
+
 export function useWorkTypeSeo(options: WorkTypeSeoOptions) {
+  const route = useRoute()
+
   const {
     category,
     categoryName,
@@ -58,90 +65,88 @@ export function useWorkTypeSeo(options: WorkTypeSeoOptions) {
     companyLogo = 'https://glavprofi.ru/logo.png',
   } = options
 
-  // === Канонический URL: /vidy-rabot/{category}/{slug}/ ===
-  const pageUrl = `${baseUrl}/vidy-rabot/${category}/${slug}`
-  const categoryUrl = `${baseUrl}/vidy-rabot/${category}`
+  // === 🆕 URL: берём текущий путь из роутера (реальный, без догадок) ===
+  const pageUrl = options.pageUrl
+    ? `${baseUrl}${options.pageUrl}`
+    : `${baseUrl}${route.path}`
+
+  const categoryUrl = options.categoryUrl
+    ? `${baseUrl}${options.categoryUrl}`
+    : `${baseUrl}/vidy-rabot`
+
   const hubUrl = `${baseUrl}/vidy-rabot`
 
-  // === Хлебные крошки (если не переданы — строим автоматически) ===
+  // === 🆕 Реактивная цена (обновляется вместе с прайсом) ===
+  const resolvedPrice = computed(() => resolvePrice(priceFrom))
+
+  const priceLabel = computed(() => {
+    const p = resolvedPrice.value
+    return p ? `${p.toLocaleString('ru-RU')} ₽/м²` : 'цена по запросу'
+  })
+
+  // === Хлебные крошки ===
   const crumbs: WorkTypeBreadcrumb[] = breadcrumbs ?? [
     { label: 'Главная', to: '/' },
     { label: 'Виды работ', to: '/vidy-rabot' },
-    { label: categoryName, to: `/vidy-rabot/${category}` },
-    { label: title }, // текущая страница без to
+    { label: title },
   ]
 
-  // === 1. Базовые мета-теги ===
+  // === 1. Базовые мета-теги (реактивные — обновятся при изменении цены) ===
   useSeoMeta({
-    title: `${title} в ${city} — от ${priceFrom ?? '...'} ₽/м² | ${companyName}`,
+    title: () => `${title} в ${city} — ${priceLabel.value} | ${companyName}`,
     description,
-    ogTitle: `${title} — ${categoryName} работы в ${city}`,
+    ogTitle: () => `${title} — ${categoryName} работы в ${city}`,
     ogDescription: description,
     ogImage,
     ogUrl: pageUrl,
     ogType: 'website',
     ogLocale: 'ru_RU',
     twitterCard: 'summary_large_image',
-    twitterTitle: `${title} | ${companyName}`,
+    twitterTitle: () => `${title} | ${companyName}`,
     twitterDescription: description,
     twitterImage: ogImage,
   })
 
-  // === 2. JSON-LD: Schema.org ===
-  const jsonLd = {
+  // === 2. JSON-LD (реактивный) ===
+  const jsonLd = computed(() => ({
     '@context': 'https://schema.org',
     '@graph': [
-      // --- Услуга: монтаж / вид работ ---
       {
         '@type': 'Service',
         '@id': `${pageUrl}#service`,
         name: title,
         serviceType: serviceType ?? `${categoryName} работы`,
         description,
-        provider: {
-          '@type': 'LocalBusiness',
-          '@id': `${baseUrl}#organization`,
-        },
-        areaServed: {
-          '@type': 'City',
-          name: city,
-        },
-        offers: priceFrom
-          ? {
-              '@type': 'Offer',
-              price: priceFrom,
+        provider: { '@type': 'LocalBusiness', '@id': `${baseUrl}#organization` },
+        areaServed: { '@type': 'City', name: city },
+        ...(resolvedPrice.value && {
+          offers: {
+            '@type': 'Offer',
+            price: resolvedPrice.value,
+            priceCurrency: currency,
+            priceSpecification: {
+              '@type': 'UnitPriceSpecification',
+              price: resolvedPrice.value,
               priceCurrency: currency,
-              priceSpecification: {
-                '@type': 'UnitPriceSpecification',
-                price: priceFrom,
-                priceCurrency: currency,
-                unitText: 'м²',
-              },
-              availability: 'https://schema.org/InStock',
-            }
-          : undefined,
+              unitText: 'м²',
+            },
+            availability: 'https://schema.org/InStock',
+          },
+        }),
         url: pageUrl,
-        // Ссылка на родительскую категорию
         isPartOf: {
           '@type': 'Service',
           '@id': `${categoryUrl}#category`,
           name: `${categoryName} работы`,
         },
       },
-
-      // --- Родительская категория (чтобы Google видел иерархию) ---
       {
         '@type': 'Service',
         '@id': `${categoryUrl}#category`,
         name: `${categoryName} работы`,
         url: categoryUrl,
-        provider: {
-          '@type': 'LocalBusiness',
-          '@id': `${baseUrl}#organization`,
-        },
+        provider: { '@type': 'LocalBusiness', '@id': `${baseUrl}#organization` },
       },
-
-      // --- Организация (один раз на сайте) ---
       {
         '@type': 'LocalBusiness',
         '@id': `${baseUrl}#organization`,
@@ -156,13 +161,8 @@ export function useWorkTypeSeo(options: WorkTypeSeoOptions) {
           addressRegion: 'Рязанская область',
           addressCountry: 'RU',
         },
-        areaServed: {
-          '@type': 'City',
-          name: city,
-        },
+        areaServed: { '@type': 'City', name: city },
       },
-
-      // --- FAQ (если есть) ---
       ...(faq.length > 0
         ? [
             {
@@ -171,16 +171,11 @@ export function useWorkTypeSeo(options: WorkTypeSeoOptions) {
               mainEntity: faq.map((item) => ({
                 '@type': 'Question',
                 name: item.question,
-                acceptedAnswer: {
-                  '@type': 'Answer',
-                  text: item.answer,
-                },
+                acceptedAnswer: { '@type': 'Answer', text: item.answer },
               })),
             },
           ]
         : []),
-
-      // --- BreadcrumbList ---
       {
         '@type': 'BreadcrumbList',
         itemListElement: crumbs.map((crumb, index) => ({
@@ -190,8 +185,6 @@ export function useWorkTypeSeo(options: WorkTypeSeoOptions) {
           item: crumb.to ? `${baseUrl}${crumb.to}` : undefined,
         })),
       },
-
-      // --- WebPage (сам документ) ---
       {
         '@type': 'WebPage',
         '@id': pageUrl,
@@ -203,17 +196,16 @@ export function useWorkTypeSeo(options: WorkTypeSeoOptions) {
         inLanguage: 'ru-RU',
       },
     ],
-  }
+  }))
 
   useHead({
     script: [
       {
         type: 'application/ld+json',
-        innerHTML: JSON.stringify(jsonLd),
+        // 🆕 JSON.stringify вызывается внутри computed — безопасен
+        innerHTML: () => JSON.stringify(jsonLd.value),
       },
     ],
-    link: [
-      { rel: 'canonical', href: pageUrl },
-    ],
+    link: [{ rel: 'canonical', href: pageUrl }],
   })
 }

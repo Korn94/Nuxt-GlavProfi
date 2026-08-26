@@ -1,6 +1,5 @@
 // app/components/pages/public/remontPomescheniy/workTypes/data/pages/oblitsovka-gkl.ts
 
-// Импортируем типы из types.ts вместо .vue файлов
 import type {
   OverviewAdvantage,
   MethodOption,
@@ -32,7 +31,7 @@ const formatUnit = (unit?: WorkUnit): string => {
 }
 
 /**
- * Навигация по секциям страницы (StickyNav) — обновлённый порядок
+ * Навигация по секциям страницы (StickyNav)
  */
 export const navItems: StickyNavItem[] = [
   { id: 'before-after', label: 'До и после', icon: 'mdi:compare-horizontal' },
@@ -47,8 +46,8 @@ export const navItems: StickyNavItem[] = [
   { id: 'guarantees', label: 'Гарантии', icon: 'mdi:shield-check' },
   { id: 'faq', label: 'Вопросы', icon: 'mdi:help-circle-outline' },
   { id: 'portfolio', label: 'Портфолио', icon: 'mdi:image-multiple' },
-  { id: 'projects', label: 'Проекты', icon: 'mdi:office-building' },
   { id: 'related', label: 'Другие работы', icon: 'mdi:view-grid-outline' },
+  { id: 'projects', label: 'Проекты', icon: 'mdi:office-building' },
   { id: 'cta', label: 'Заказать', icon: 'mdi:send-outline' },
 ]
 
@@ -74,14 +73,14 @@ export const categoryAdvantages: OverviewAdvantage[] = [
 ]
 
 /**
- * Сравнение методов: клей, каркас, штукатурка
+ * Сравнение методов: клей, каркас, штукатурка.
+ * 🔄 Цены берутся из прайс-листа автоматически через priceWorkId.
  */
 export const comparisonMethods: MethodOption[] = [
   {
     title: 'ГКЛ на клей',
     icon: 'mdi:land-fields',
     priceWorkId: 939,
-    priceFrom: 1300,
     whenToUse: [
       'Перепад стен не более 2 см на 2 метра',
       'Нужно сохранить максимум площади помещения',
@@ -104,7 +103,6 @@ export const comparisonMethods: MethodOption[] = [
     title: 'ГКЛ на каркас',
     icon: 'mdi:frame',
     priceWorkId: 1598,
-    priceFrom: 1600,
     recommended: true,
     whenToUse: [
       'Перепад стен более 2 см',
@@ -128,7 +126,6 @@ export const comparisonMethods: MethodOption[] = [
     title: 'Штукатурка',
     icon: 'mdi:format-paint',
     priceWorkId: 1143,
-    priceFrom: 1200,
     whenToUse: [
       'Перепад стен до 5 см',
       'Влажные помещения (ванная, кухня)',
@@ -183,21 +180,29 @@ export const technicalInsights: InsightItem[] = [
 ]
 
 /**
- * ID работ из прайс-листа для калькулятора
+ * ID работ из прайс-листа (БД) для автоматической подгрузки цен.
+ * 🔄 Все цены берутся через usePriceFetcher — никаких хардкодов.
  */
 export const WORK_IDS = {
-  /** Обшивка стен ГКЛ 1 слой на металлическом каркасе — 1600 ₽/м² */
+  /** Обшивка стен ГКЛ 1 слой на металлическом каркасе */
   GKL_1_LAYER: 1598,
-  /** Обшивка стен ГКЛ 2 слоя на металлическом каркасе — 1800 ₽/м² */
+  /** Обшивка стен ГКЛ 2 слоя на металлическом каркасе */
   GKL_2_LAYERS: 938,
-  /** Обшивка стен ГКЛ на клеевом составе — 1300 ₽/м² */
+  /** Обшивка стен ГКЛ на клеевом составе */
   GKL_GLUE: 939,
-  /** Укладка минераловатного утеплителя в каркас — 380 ₽/м² */
+  /** Обшивка стен ГВЛ 1 слой на металлическом каркасе */
+  GVL_1_LAYER: 1599,
+  /** Обшивка стен ГВЛ 2 слоя на металлическом каркасе */
+  GVL_2_LAYERS: 1600,
+  /** Штукатурка стен (слой 10–30 мм) */
+  PLASTER: 1143,
+  /** Укладка минераловатного утеплителя в каркас */
   INSULATION: 700,
 } as const
 
 /**
- * Функция для создания табов калькулятора
+ * Функция для создания табов калькулятора.
+ * 🔄 Все цены берутся из прайс-листа через findWorkById.
  */
 export const createCalculatorTabs = (
   findWorkById: (id: number) => NormalizedWorkItem | undefined
@@ -207,6 +212,12 @@ export const createCalculatorTabs = (
   const gklGlue = findWorkById(WORK_IDS.GKL_GLUE)
   const insulation = findWorkById(WORK_IDS.INSULATION)
 
+  // Дельта между 1 и 2 слоями вычисляется автоматически из прайса
+  const upgradeTo2Layers = Math.max(
+    0,
+    (gkl2?.pricePerUnit ?? 0) - (gkl1?.pricePerUnit ?? 0)
+  )
+
   return [
     {
       id: 'frame',
@@ -215,7 +226,7 @@ export const createCalculatorTabs = (
       works: [
         {
           name: gkl1?.name ?? 'Обшивка стен ГКЛ 1 слой на металлическом каркасе',
-          price: gkl1?.pricePerUnit ?? 1600,
+          price: gkl1?.pricePerUnit ?? 0,
           unit: formatUnit(gkl1?.normalizedUnit),
         },
       ],
@@ -223,13 +234,13 @@ export const createCalculatorTabs = (
         {
           id: '2layers',
           name: 'Обшивка в 2 слоя (доплата)',
-          price: Math.max(0, (gkl2?.pricePerUnit ?? 1800) - (gkl1?.pricePerUnit ?? 1600)),
+          price: upgradeTo2Layers,
           unit: formatUnit(gkl1?.normalizedUnit),
         },
         {
           id: 'insulation',
           name: insulation?.name ?? 'Укладка утеплителя/звукоизоляции',
-          price: insulation?.pricePerUnit ?? 380,
+          price: insulation?.pricePerUnit ?? 0,
           unit: formatUnit(insulation?.normalizedUnit),
         },
       ],
@@ -241,7 +252,7 @@ export const createCalculatorTabs = (
       works: [
         {
           name: gklGlue?.name ?? 'Обшивка стен ГКЛ на клеевом составе',
-          price: gklGlue?.pricePerUnit ?? 1300,
+          price: gklGlue?.pricePerUnit ?? 0,
           unit: formatUnit(gklGlue?.normalizedUnit),
         },
       ],
@@ -434,7 +445,8 @@ export const messageConfig = {
 }
 
 /**
- * SEO данные для страницы
+ * SEO данные для страницы.
+ * 🔄 priceFrom убран — вычисляется в компоненте из прайс-листа.
  */
 export const seoData = {
   category: 'gkl',
@@ -442,9 +454,10 @@ export const seoData = {
   slug: 'steny',
   title: 'Монтаж гипсокартона на стены',
   description:
-    'Монтаж ГКЛ на стены под ключ в Рязани: на каркас или клей. Выравнивание стен, утепление, звукоизоляция. Гарантия 3 года, фиксированная цена от 1800 ₽/м².',
+    'Монтаж ГКЛ на стены под ключ в Рязани: на каркас или клей. Выравнивание стен, утепление, звукоизоляция. Гарантия 3 года, фиксированная цена.',
   city: 'Рязани',
-  priceFrom: 1800,
   serviceType: 'Монтаж гипсокартона',
   ogImage: 'https://glavprofi.ru/og-gkl-steny.jpg',
+  pageUrl: '/vidy-rabot/oblitsovka-gkl',
+  categoryUrl: '/vidy-rabot/oblitsovka-gkl',
 }

@@ -1,10 +1,10 @@
-<!-- app/components/pages/public/remontPomescheniy/workTypes/oblitsovka/gkl.vue -->
+<!-- app/components/pages/public/remontPomescheniy/workTypes/peregorodki/gkl.vue -->
 <template>
-  <div class="page-oblitsovka-gkl">
+  <div class="page-gkl-peregorodki">
     <!-- ==================== 1. ШАПКА СТРАНИЦЫ ==================== -->
     <HeaderType
-      title="Монтаж гипсокартона <span>на стены</span>"
-      subtitle="Идеально ровные стены за 1–3 дня без штукатурки, демонтажа и грязи. Поверхность сразу готова под шпаклёвку, покраску или плитку."
+      title="Перегородки <span>из гипсокартона</span>"
+      subtitle="Зонирование пространства, шумоизоляция и монтаж дверей за 2-4 дня. Лёгкая конструкция без капитальных стен и согласований."
     />
 
     <!-- ==================== 2. ХЛЕБНЫЕ КРОШКИ + STICKYNAV ==================== -->
@@ -20,7 +20,7 @@
     <!-- ==================== 3. ДО / ПОСЛЕ ==================== -->
     <section id="before-after" class="page-section">
       <BeforeAfterShowcase
-        title="Примеры помещений <span>до и после</span> обшивки стен ГКЛ"
+        title="Примеры <span>до и после</span> монтажа перегородок"
         :items="beforeAfterItems"
       />
     </section>
@@ -28,26 +28,20 @@
     <!-- ==================== 4. ОПИСАНИЕ КАТЕГОРИИ ==================== -->
     <section id="overview" class="page-section page-section--light">
       <WorkTypeOverview
-        title="Почему это <span>лучшее решение</span> для ваших стен"
-        description="Гипсокартон (ГКЛ) — это готовые листы из гипса в картонной оболочке, которые крепятся на металлический каркас или специальный клей. За 1–3 дня получаем идеально ровную поверхность без штукатурки и длительных сроков высыхания."
+        title="Почему перегородки из <span>ГКЛ — это выгодно</span>"
+        description="Перегородка из гипсокартона — это каркас из металлического профиля, обшитый листами ГКЛ с обеих сторон. Внутри каркаса закладывается звукоизоляция (минвата) и коммуникации. Конструкция в 5-7 раз легче кирпичной стены."
         :advantages="categoryAdvantages"
       >
         <template #details>
           <p>
-            <span class="blue">Клей</span> подходит для стен с перепадом до 2 см — это быстрее и дешевле. <span class="blue">Каркас</span> универсален: скрывает любую кривизну и коммуникации, но забирает 5-7 см площади помещения.
+            <span class="blue">Зонирование</span> — самый частый сценарий: разделить студию на спальню и гостиную, выделить кабинет в офисе, создать гардеробную. Перегородка ставится за 2-4 дня без согласования с БТИ (если не затрагивает несущие стены и мокрые зоны).
           </p>
           <p>
-            В отличие от штукатурки, монтаж на каркас позволяет скрыть электропроводку,
-            трубы отопления и вентиляции внутри стены. Это особенно актуально при
-            ремонте «под ключ», когда нужно совместить несколько инженерных систем.
+            В отличие от кирпичной кладки, монтаж перегородки из ГКЛ — это сухой процесс без грязи и пыли. После заделки швов поверхность готова под
+            <NuxtLink to="/vidy-rabot/shpaklevka-sten">шпаклёвку</NuxtLink>, покраску или укладку <NuxtLink to="/vidy-rabot/ukladka-plitki">плитки</NuxtLink>.
           </p>
           <p>
-            После обшивки поверхность готова под
-            <NuxtLink to="/vidy-rabot/shpaklevka-sten">шпаклёвку</NuxtLink>, покраску
-            или укладку <NuxtLink to="/vidy-rabot/ukladka-plitki">плитки</NuxtLink>.
-            Для влажных помещений (санузел, кухня) мы используем влагостойкий ГКЛВ
-            зелёного цвета, для зон с повышенными требованиями пожарной безопасности —
-            огнестойкий ГКЛО розового цвета.
+            Внутри перегородки можно спрятать электропроводку, интернет-кабели, трубы вентиляции. Розетки и выключатели устанавливаются с обеих сторон стены. Для дверных проёмов закладывается усиленный брус или UA-профиль.
           </p>
         </template>
       </WorkTypeOverview>
@@ -56,47 +50,47 @@
     <!-- ==================== 5. СРАВНЕНИЕ МЕТОДОВ ==================== -->
     <section id="methods" class="page-section">
       <MethodComparison
-        title="Что <span>выбрать</span>: клей, каркас или штукатурку?"
-        subtitle="Каждый способ подходит для разных задач. Разберём плюсы, минусы и сценарии применения."
+        title="Что <span>выбрать</span>: 1, 2 слоя или ГВЛ?"
+        subtitle="Количество слоёв определяет прочность, звукоизоляцию и цену. Разберём плюсы, минусы и сценарии применения."
         :methods="comparisonMethods"
         :price-data="sections"
-        summary="Не уверены, что подойдёт именно вам? <strong>Инженер бесплатно приедет на замер</strong>, оценит кривизну стен и предложит оптимальный вариант по цене и срокам."
+        :summary="methodsSummary"
       />
     </section>
 
     <!-- ==================== 6. ТИПЫ МАТЕРИАЛОВ ==================== -->
     <section id="materials" class="page-section page-section--light">
       <MaterialsGuide
-        title="Какой <span>гипсокартон</span> выбрать: типы и различия"
-        subtitle="Не все листы одинаковы. Рассказываем, какой материал подойдёт под вашу задачу — и когда стоит переплатить за ГВЛ."
+        title="Какой <span>гипсокартон</span> выбрать для перегородок"
+        subtitle="Тип листа зависит от назначения помещения. Рассказываем, где использовать ГКЛ, ГКЛВ, ГВЛ и ГКЛО."
         :materials="gklMaterials"
         :thicknesses="gklThicknesses"
-        summary="Для офисов и жилых комнат достаточно <strong>ГКЛ 12,5 мм</strong>. Для санузлов и кухонь — <strong>ГКЛВ</strong>. Если планируете вешать тяжёлые шкафы или делать пол — берите <strong>ГВЛ</strong>: он дороже, но в разы прочнее. Точную комплектацию инженер посчитает на бесплатном замере."
+        summary="Для стандартных перегородок в жилых комнатах и офисах достаточно <strong>ГКЛ 12,5 мм</strong>. Для санузлов и кухонь — <strong>ГКЛВ</strong>. Если планируете вешать тяжёлые шкафы без закладных — берите <strong>ГВЛ</strong>: он держит до 30 кг на дюбель."
       />
     </section>
 
-    <!-- ==================== 7. ВТОРОЙ СЛОЙ ГКЛ ==================== -->
+    <!-- ==================== 7. ТЕХНИЧЕСКИЕ НЮАНСЫ ==================== -->
     <section id="insights" class="page-section">
       <TechnicalInsights
-        title="Зачем нужен <span>второй слой</span> гипсокартона"
-        subtitle="Объясняем простыми словами, почему в большинстве случаев одного слоя недостаточно."
+        title="Ключевые <span>технические нюансы</span> монтажа"
+        subtitle="Что отличает надёжную перегородку от хлипкой конструкции, которая треснет через полгода."
         :insights="technicalInsights"
         :comparison-images="[
           {
             src: '/main/vidy-rabot/gkl/1layer.webp',
             label: '1 слой ГКЛ',
-            alt: 'Обшивка стен одним слоем гипсокартона',
+            alt: 'Перегородка из одного слоя гипсокартона',
           },
           {
             src: '/main/vidy-rabot/gkl/2layers.webp',
             label: '2 слоя ГКЛ',
-            alt: 'Обшивка стен двумя слоями гипсокартона',
+            alt: 'Перегородка из двух слоёв гипсокартона',
           },
         ]"
         :summary="insightsSummary"
       >
         <template #content>
-          <h3>Один слой vs два слоя</h3>
+          <h3>Сравнение конструкций перегородок</h3>
           <div class="comparison-table">
             <div class="comparison-row comparison-row--header">
               <span>Параметр</span>
@@ -104,9 +98,9 @@
               <span>2 слоя</span>
             </div>
             <div class="comparison-row">
-              <span>Трещины по швам</span>
-              <span data-label="1 слой">Возможны при усадке</span>
-              <span data-label="2 слоя" class="comparison-better">Исключены</span>
+              <span>Звукоизоляция</span>
+              <span data-label="1 слой">~35 дБ</span>
+              <span data-label="2 слоя" class="comparison-better">~48 дБ</span>
             </div>
             <div class="comparison-row">
               <span>Прочность на удар</span>
@@ -114,19 +108,24 @@
               <span data-label="2 слоя" class="comparison-better">В 2-3 раза выше</span>
             </div>
             <div class="comparison-row">
-              <span>Звукоизоляция</span>
-              <span data-label="1 слой">~40 дБ</span>
-              <span data-label="2 слоя" class="comparison-better">~52 дБ</span>
+              <span>Трещины по швам</span>
+              <span data-label="1 слой">Возможны</span>
+              <span data-label="2 слоя" class="comparison-better">Исключены</span>
             </div>
             <div class="comparison-row">
-              <span>Для покраски</span>
+              <span>Для жилых комнат</span>
               <span data-label="1 слой">Не рекомендуется</span>
               <span data-label="2 слоя" class="comparison-better">Подходит</span>
             </div>
             <div class="comparison-row">
+              <span>Толщина перегородки</span>
+              <span data-label="1 слой">75 мм</span>
+              <span data-label="2 слоя">100 мм</span>
+            </div>
+            <div class="comparison-row">
               <span>Цена работы</span>
-              <span data-label="1 слой">{{ formatPrice(gkl1Price) }}</span>
-              <span data-label="2 слоя" class="comparison-better">{{ formatPrice(gkl2Price) }}</span>
+              <span data-label="1 слой">{{ formatPrice(p1Price) }}</span>
+              <span data-label="2 слоя">{{ formatPrice(p2Price) }}</span>
             </div>
           </div>
         </template>
@@ -136,10 +135,10 @@
     <!-- ==================== 8. ПРЕДПРОСМОТР ЦЕН ==================== -->
     <section id="price-list" class="page-section">
       <PriceListTable
-        title="Полный прайс: <span>обшивка стен ГКЛ</span>"
-        subtitle="Все работы по монтажу гипсокартона на стены. Точная смета — после бесплатного замера."
-        :sub-category-ids="[279, 370]"
-        footer-note="* Цены указаны за работу без учёта стоимости материалов. Доплаты отмечены знаком «+ к цене». Короба считаются в погонных метрах."
+        title="Полный прайс: <span>перегородки из ГКЛ</span>"
+        subtitle="Все работы по монтажу гипсокартонных перегородок. Точная смета — после бесплатного замера."
+        :sub-category-ids="[228, 231, 232]"
+        footer-note="* Цены указаны за работу без учёта стоимости материалов. Доплаты отмечены знаком «+ к цене». Монтаж дверей и коробок считается отдельно."
       />
     </section>
 
@@ -155,11 +154,11 @@
     <!-- ==================== 10. КАЛЬКУЛЯТОР ==================== -->
     <section id="calculator" class="page-section">
       <PriceCalculatorTabs
-        title="Калькулятор <span>стоимости</span> монтажа ГКЛ"
-        subtitle="Выберите тип монтажа и площадь — получите предварительную смету сразу."
+        title="Калькулятор <span>стоимости</span> перегородки"
+        subtitle="Выберите тип конструкции и площадь — получите предварительную смету сразу."
         :tabs="calculatorTabs"
         :loading="pricePending"
-        :default-area="20"
+        :default-area="10"
         @order-estimate="scrollToCta"
       />
     </section>
@@ -167,8 +166,8 @@
     <!-- ==================== 11. ЭТАПЫ РАБОТ ==================== -->
     <section id="stages" class="page-section page-section--light">
       <WorkStagesTimeline
-        title="Как <span>мы работаем</span>: 6 этапов"
-        subtitle="От звонка до сдачи готовых стен под отделку"
+        title="Как <span>мы работаем</span>: 7 этапов"
+        subtitle="От звонка до сдачи готовой перегородки под отделку"
         :stages="workStages"
       />
     </section>
@@ -183,14 +182,14 @@
       <FAQBlock
         title="Ответы на <span>частые вопросы</span>"
         :items="faqItems"
-        id-prefix="oblitsovka-gkl-faq"
+        id-prefix="gkl-peregorodki-faq"
       />
     </section>
 
     <!-- ==================== 14. ПОРТФОЛИО ==================== -->
     <section id="portfolio" class="page-section">
       <BeforeAfterGallery
-        title="Наши работы: <span>стены из ГКЛ</span>"
+        title="Наши работы: <span>перегородки из ГКЛ</span>"
         :slugs="projectSlugs"
       />
     </section>
@@ -216,11 +215,11 @@
     <!-- ==================== 17. CTA ==================== -->
     <section id="cta" class="page-section page-section--light">
       <ApplicationCTA
-        title="Рассчитайте <span>точную стоимость</span> вашего объекта"
-        subtitle="Оставьте заявку — инженер бесплатно приедет на замер, оценит кривизну стен и подготовит детальную смету."
+        title="Рассчитайте <span>точную стоимость</span> вашей перегородки"
+        subtitle="Оставьте заявку — инженер бесплатно приедет на замер, обсудит планировку и подготовит детальную смету."
         phone="+7 (910) 909-69-47"
         telegram="@glavprofii"
-        id-prefix="oblitsovka-gkl-cta"
+        id-prefix="gkl-peregorodki-cta"
         :custom-fields="customFields"
         :message-config="messageConfig"
       />
@@ -251,7 +250,7 @@ import {
   messageConfig,
   seoData,
   WORK_IDS,
-} from '../data/pages/oblitsovka-gkl'
+} from '../data/pages/gkl-peregorodki'
 
 // === UI: workTypes ===
 import HeaderType from '../ui/HeaderType.vue'
@@ -305,7 +304,7 @@ const relatedGklWorkTypes = computed(() =>
 const breadcrumbItems = [
   { label: 'Главная', to: '/' },
   { label: 'Виды работ', to: '/remont-pomescheniy' },
-  { label: 'Обшивка стен ГКЛ' },
+  { label: 'Перегородки из ГКЛ' },
 ]
 
 // ============================================================
@@ -333,17 +332,17 @@ const findWorkById = (id: number): NormalizedWorkItem | undefined => {
 // ============================================================
 // 🔄 АВТОМАТИЧЕСКИЕ ЦЕНЫ ИЗ ПРАЙС-ЛИСТА
 // ============================================================
-const gkl1 = computed(() => findWorkById(WORK_IDS.GKL_1_LAYER))
-const gkl2 = computed(() => findWorkById(WORK_IDS.GKL_2_LAYERS))
+const p1 = computed(() => findWorkById(WORK_IDS.PARTITION_1_LAYER))
+const p2 = computed(() => findWorkById(WORK_IDS.PARTITION_2_LAYERS))
 
-/** Цены в ₽/м² (округлённые) */
-const gkl1Price = computed(() => gkl1.value ? Math.round(gkl1.value.pricePerUnit) : 0)
-const gkl2Price = computed(() => gkl2.value ? Math.round(gkl2.value.pricePerUnit) : 0)
+/** Цены в ₽/м² (только те, что используются в шаблоне) */
+const p1Price = computed(() => p1.value ? Math.round(p1.value.pricePerUnit) : 0)
+const p2Price = computed(() => p2.value ? Math.round(p2.value.pricePerUnit) : 0)
 
 /** Дельта между 1 и 2 слоями (для summary в TechnicalInsights) */
 const priceDelta1to2 = computed(() => {
-  if (gkl1Price.value && gkl2Price.value) {
-    return gkl2Price.value - gkl1Price.value
+  if (p1Price.value && p2Price.value) {
+    return p2Price.value - p1Price.value
   }
   return 0
 })
@@ -355,16 +354,20 @@ const formatPrice = (price: number): string => {
 }
 
 /** Минимальная цена для SEO (из прайса) */
-const minPrice = computed(() => gkl1Price.value || 0)
+const minPrice = computed(() => p1Price.value || 0)
 
 // ============================================================
 // 🔄 ВЫЧИСЛЯЕМЫЕ ТЕКСТЫ С ЦЕНАМИ
 // ============================================================
+const methodsSummary = computed(() => {
+  return `Для жилых комнат и офисов рекомендуем <strong>2 слоя ГКЛ с минватой 100 мм</strong> — это оптимальное соотношение цены и звукоизоляции. Для кладовых достаточно <strong>1 слоя</strong>. Для серверных и архивов — <strong>3 слоя</strong> или <strong>ГВЛ</strong>.`
+})
+
 const insightsSummary = computed(() => {
   if (priceDelta1to2.value > 0) {
-    return `Второй слой добавляет <strong>+${priceDelta1to2.value.toLocaleString('ru-RU')} ₽/м²</strong> к стоимости работ, но это плата за стены, которые не треснут через год. Особенно важно для новостроек (усадка), офисов с высокой проходимостью и стен под покраску.`
+    return `Двухслойная обшивка добавляет <strong>+${priceDelta1to2.value.toLocaleString('ru-RU')} ₽/м²</strong>, но это плата за прочность и тишину. Минвата 100 мм + 2 слоя ГКЛ = перегородка с звукоизоляцией 48 дБ, как стена в тихой спальне.`
   }
-  return 'Второй слой значительно повышает прочность стены и исключает трещины по швам. Особенно важно для новостроек (усадка), офисов с высокой проходимостью и стен под покраску.'
+  return 'Двухслойная обшивка значительно повышает прочность и звукоизоляцию перегородки. Минвата 100 мм + 2 слоя ГКЛ = перегородка с звукоизоляцией 48 дБ, как стена в тихой спальне.'
 })
 
 // ============================================================
@@ -385,7 +388,7 @@ const scrollToCta = () => {
 // ============================================================
 useWorkTypeSeo({
   ...seoData,
-  priceFrom: minPrice,
+  priceFrom: minPrice,  // ← useWorkTypeSeo использует toValue(), computed работает реактивно
   faq: faqItems,
 })
 </script>
@@ -394,7 +397,7 @@ useWorkTypeSeo({
 @use '@/assets/styles/variables' as *;
 @use '@/assets/styles/mixins' as *;
 
-.page-oblitsovka-gkl {
+.page-gkl-peregorodki {
   background: $background-dark;
   color: $text-light;
   margin-top: 5em;
