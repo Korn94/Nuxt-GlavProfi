@@ -20,28 +20,48 @@
           class="insight-card"
           :class="{ 'insight-card--highlight': item.highlight }"
         >
-          <!-- Индикатор номера -->
           <div class="insight-card__number">
             {{ String(index + 1).padStart(2, '0') }}
           </div>
 
-          <!-- Иконка -->
           <div class="insight-card__icon">
             <Icon :name="item.icon || 'mdi:information-outline'" size="24" />
           </div>
 
-          <!-- Контент -->
           <div class="insight-card__content">
             <h3 class="insight-card__title">{{ item.title }}</h3>
             <p class="insight-card__desc">{{ item.description }}</p>
 
-            <!-- Дополнительный факт (если есть) -->
             <div v-if="item.fact" class="insight-card__fact">
               <Icon name="mdi:flash" size="14" />
               <span>{{ item.fact }}</span>
             </div>
           </div>
         </article>
+      </div>
+
+      <!-- 🆕 Блок сравнения фото (0, 1 или 2 фото) -->
+      <div
+        v-if="comparisonImages?.length"
+        class="insights-comparison"
+        :class="`insights-comparison--count-${Math.min(comparisonImages.length, 2)}`"
+      >
+        <div
+          v-for="(img, idx) in comparisonImages.slice(0, 2)"
+          :key="idx"
+          class="comparison-item"
+        >
+          <div class="comparison-item__image">
+            <img
+              :src="img.src"
+              :alt="img.alt || img.label"
+              loading="lazy"
+            />
+          </div>
+          <div class="comparison-item__label">
+            {{ img.label }}
+          </div>
+        </div>
       </div>
 
       <!-- Произвольный контент через слот (таблицы, картинки, сравнения) -->
@@ -62,16 +82,21 @@
 
 <script setup lang="ts">
 export interface InsightItem {
-  /** Заголовок инсайта */
   title: string
-  /** Описание */
   description: string
-  /** Иконка из @iconify */
   icon?: string
-  /** Выделить карточку (например, для самого важного) */
   highlight?: boolean
-  /** Короткий факт-цифра внизу карточки */
   fact?: string
+}
+
+/** 🆕 Фото для блока сравнения */
+export interface ComparisonImage {
+  /** URL изображения */
+  src: string
+  /** Подпись под фото (например, "1 слой ГКЛ") */
+  label: string
+  /** alt-атрибут для SEO (если не указан — берётся label) */
+  alt?: string
 }
 
 defineProps<{
@@ -79,6 +104,8 @@ defineProps<{
   subtitle?: string
   insights?: InsightItem[]
   summary?: string
+  /** 🆕 Массив фото для сравнения: 0, 1 или 2 элемента */
+  comparisonImages?: ComparisonImage[]
 }>()
 </script>
 
@@ -93,7 +120,6 @@ defineProps<{
   position: relative;
   overflow: hidden;
 
-  // Декоративные свечения
   &::before {
     content: '';
     position: absolute;
@@ -125,7 +151,6 @@ defineProps<{
   }
 }
 
-// === Заголовок ===
 .insights-header {
   margin-bottom: 2.5rem;
   max-width: 760px;
@@ -156,7 +181,6 @@ defineProps<{
   color: rgba($text-light, 0.7);
 }
 
-// === Сетка карточек ===
 .insights-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -167,11 +191,10 @@ defineProps<{
   }
 }
 
-// === Карточка инсайта ===
 .insight-card {
   @include dark-card;
   position: relative;
-  padding: 1.6rem 1.6rem 1.6rem 1.6rem;
+  padding: 1.6rem;
   overflow: hidden;
   transition: all 0.3s ease;
 
@@ -181,7 +204,6 @@ defineProps<{
     transform: translateY(-3px);
   }
 
-  // === Выделенная карточка ===
   &--highlight {
     border-color: $blue;
     background: rgba(0, 195, 245, 0.06);
@@ -202,7 +224,6 @@ defineProps<{
     }
   }
 
-  // Номер в углу
   &__number {
     position: absolute;
     top: 0.8rem;
@@ -259,7 +280,6 @@ defineProps<{
     margin: 0;
   }
 
-  // Факт-цифра
   &__fact {
     display: inline-flex;
     align-items: center;
@@ -281,7 +301,82 @@ defineProps<{
   }
 }
 
-// === Произвольный контент через слот ===
+// ============================================================
+// 🆕 БЛОК СРАВНЕНИЯ ФОТО
+// ============================================================
+.insights-comparison {
+  display: grid;
+  gap: 1.2rem;
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+
+  // 2 фото — две колонки на десктопе
+  &--count-2 {
+    grid-template-columns: 1fr 1fr;
+
+    @media (max-width: 640px) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  // 1 фото — одна колонка, центрированная
+  &--count-1 {
+    grid-template-columns: 1fr;
+    max-width: 640px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+.comparison-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+
+  &__image {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    border-radius: 10px;
+    background: rgba(0, 195, 245, 0.05);
+    border: 1px solid rgba(0, 195, 245, 0.15);
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.4s ease;
+    }
+
+    &:hover img {
+      transform: scale(1.03);
+    }
+  }
+
+  &__label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.7rem 1rem;
+    background: rgba(0, 195, 245, 0.08);
+    border: 1px solid rgba(0, 195, 245, 0.2);
+    border-radius: 10px;
+    font-family: 'Rubik', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-align: center;
+    letter-spacing: 0.01em;
+  }
+}
+
+// ============================================================
+// Произвольный контент через слот
+// ============================================================
 .insights-custom-content {
   margin-top: 2rem;
   padding: 1.8rem;
@@ -311,13 +406,11 @@ defineProps<{
   }
 }
 
-// === Итоговая рекомендация ===
 .insights-summary {
   @include summary-block(dark);
   margin-top: 2rem;
 }
 
-// === Адаптив ===
 @media (max-width: 768px) {
   .insight-card {
     padding: 1.3rem;
@@ -329,6 +422,17 @@ defineProps<{
 
     &__title {
       font-size: 1.05rem;
+    }
+  }
+
+  .insights-comparison {
+    padding: 1rem;
+  }
+
+  .comparison-item {
+    &__label {
+      font-size: 0.88rem;
+      padding: 0.6rem 0.8rem;
     }
   }
 }

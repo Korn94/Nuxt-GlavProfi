@@ -1,4 +1,4 @@
-<!-- app\components\pages\public\remontPomescheniy\workTypes\ui\RelatedWorkTypes.vue -->
+<!-- app/components/pages/public/remontPomescheniy/workTypes/ui/RelatedWorkTypes.vue -->
 <template>
   <section class="related-work-types">
     <div class="container">
@@ -68,16 +68,8 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { WorkTypeNavItem } from './WorkTypeNavigator.vue'
+import type { RelatedWorkTypeItem } from '../types'
 import type { NormalizedWorkItem } from '~/types/calculator'
-
-/** Расширенный тип с картинкой */
-export interface RelatedWorkTypeItem extends WorkTypeNavItem {
-  /** URL картинки для карточки */
-  image?: string
-  /** 🆕 ID работы в таблице price_items. Если указан, цена подтянется из прайс-листа */
-  priceWorkId?: number
-}
 
 export interface PriceData {
   standard: NormalizedWorkItem[]

@@ -7,7 +7,7 @@
 </template>
 
 <script setup lang="ts">
-import GklStenyPage from '~/components/pages/public/remontPomescheniy/workTypes/gkl/steny.vue'
+import GklStenyPage from '~/components/pages/public/remontPomescheniy/workTypes/oblitsovka/gkl.vue'
 </script>
 
 <style lang="scss" scoped>
