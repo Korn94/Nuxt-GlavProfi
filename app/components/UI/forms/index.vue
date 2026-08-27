@@ -28,6 +28,11 @@ import { useNotifications } from '~/composables/useNotifications'
 
 const notifications = useNotifications()
 
+// Опциональный источник заявки (отображается в Telegram/email)
+const props = defineProps({
+  source: { type: String, default: '' },
+})
+
 // Реактивные данные
 const name = ref('')
 const phoneNumber = ref('+7 ')
@@ -58,12 +63,15 @@ async function submitForm() {
   phoneError.value = false
 
   // ✅ Формируем структурированные данные для отправки
+  const sourceLine = props.source ? `Источник: ${props.source}\n` : ''
+  const commentBody = comment.value.trim() ? `Комментарий: ${comment.value.trim()}\n` : ''
+
   const formData = {
     name: name.value.trim(),
     phone: phoneNumber.value,
-    comment: comment.value.trim(),
+    comment: `${sourceLine}${commentBody}`.trim(),
     // Дублируем message для обратной совместимости
-    message: `Заявка: ${name.value || 'Аноним'}, тел: ${phoneNumber.value}\n${comment.value ? 'Комментарий: ' + comment.value : ''}`
+    message: `Заявка: ${name.value || 'Аноним'}, тел: ${phoneNumber.value}\n${sourceLine}${commentBody}`.trim()
   }
 
   try {

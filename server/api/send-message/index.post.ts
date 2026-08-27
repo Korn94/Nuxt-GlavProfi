@@ -184,14 +184,27 @@ export default defineEventHandler(async (event) => {
       return true
     }
 
-    // Запускаем параллельно
-    const [telegramOk, emailOk] = await Promise.all([sendTelegram(), sendEmail()])
+    // Запускаем отправку:
+    // Telegram в РФ может «висеть» или быть недоступен, поэтому НЕ ждём его —
+    // запускаем в фоне, а отвечаем клиенту после отправки по надёжному каналу (email).
+    const telegramPromise = sendTelegram()
+    // Фоновый промис не должен вызывать unhandled rejection (sendTelegram сам ловит ошибки)
+    telegramPromise.catch(() => {})
+
+    // Email — основной канал: ждём именно его результат
+    const emailOk = await sendEmail().catch(() => false)
+
+    // Если письмо ушло — telegram продолжает выполняться в фоне (не блокирует ответ).
+    // Если email не сработал — дождёмся telegram, чтобы заявка не потерялась.
+    const telegramOk = emailOk
+      ? 'background'
+      : (await telegramPromise.catch(() => false)) ? 'sent' : 'blocked'
 
     return {
       success: emailOk,
       channels: {
         email: emailOk ? 'sent' : 'failed',
-        telegram: telegramOk ? 'sent' : 'blocked',
+        telegram: telegramOk,
       },
       filesAttached: files.length,
     }

@@ -5,7 +5,7 @@
         <div class="block_form">
           <span class="close" @click.stop="closeModal">&times;</span>
           <h2>Отправить сообщение</h2>
-          <UiForms @formSubmitted="handleFormSubmitted" />
+          <UiForms :source="source" @formSubmitted="handleFormSubmitted" />
         </div>
         <div class="block">
           <div>
@@ -22,6 +22,10 @@
 
 <script>
 export default {
+  props: {
+    // Источник заявки (отображается в сообщении для Telegram/email)
+    source: { type: String, default: '' },
+  },
   methods: {
     closeModal(event) {
       // Проверяем, был ли клик на крестике или за пределами контента формы

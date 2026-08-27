@@ -124,6 +124,7 @@
     <Teleport to="body">
       <UiFormsContactForm
         v-if="showModal"
+        :source="sourceLabel"
         @close="closeModal"
         @form-submitted="handleFormSubmitted"
       />
@@ -190,6 +191,14 @@ const currentTab = computed(() =>
 )
 const currentWorks = computed(() => currentTab.value.works || [])
 const currentExtras = computed(() => currentTab.value.extras || [])
+
+/** Источник заявки для формы — указывает, по какому виду работ считали стоимость */
+const sourceLabel = computed(() => {
+  const tabName = currentTab.value?.label || ''
+  return tabName
+    ? `Калькулятор стоимости (${tabName})`
+    : 'Калькулятор стоимости'
+})
 
 /** Единица измерения берётся из первой работы активного таба */
 const currentUnit = computed(() => currentWorks.value[0]?.unit || 'м²')

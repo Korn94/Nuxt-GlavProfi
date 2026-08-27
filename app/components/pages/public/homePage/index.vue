@@ -38,6 +38,7 @@
         <!-- Модальная форма -->
         <UiFormsContactForm
           v-if="showModal"
+          source="Заявка с главной страницы (первый экран)"
           @close="closeModal"
           @formSubmitted="handleFormSubmitted"
         />
