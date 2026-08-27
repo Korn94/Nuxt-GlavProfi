@@ -6,7 +6,9 @@
       <p class="price-calculator__subtitle" v-if="subtitle">{{ subtitle }}</p>
 
       <!-- Индикатор загрузки цен из прайс-листа -->
-      <div v-if="loading" class="calculator-loading">
+      <!-- Показываем спиннер только после монтирования (на клиенте), чтобы не было
+           рассинхрона в hydration: на сервере pricePending === true, на клиенте уже false -->
+      <div v-if="mounted && loading" class="calculator-loading">
         <div class="loading-spinner">
           <Icon name="mdi:loading" size="32" class="spin" />
         </div>
@@ -133,7 +135,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 
 export interface WorkItem {
   name: string
@@ -185,6 +187,13 @@ const activeTab = ref(props.tabs[0]?.id || '')
 const area = ref(props.defaultArea)
 const selectedExtras = ref<string[]>([])
 const showModal = ref(false)
+
+// Флаг монтирования: спиннер загрузки цен показываем только на клиенте,
+// чтобы SSR и клиентская гидрация рендерили одинаковую ветку v-if/v-else.
+const mounted = ref(false)
+onMounted(() => {
+  mounted.value = true
+})
 
 const currentTab = computed(() =>
   props.tabs.find((t) => t.id === activeTab.value) || props.tabs[0]

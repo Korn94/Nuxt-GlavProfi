@@ -5,9 +5,11 @@
     "**/*.ts",
     "**/*.tsx",
     "**/*.vue",
-    "stores/**/*.ts"
+    "stores/**/*.ts",
+    ".nuxt/nuxt.d.ts",
+    ".nuxt/nuxt.shared.d.ts"
   ],
-  "exclude": ["node_modules", ".nuxt", "dist", ".git", ".output"],
+  "exclude": ["node_modules", "dist", ".git", ".output"],
   "compilerOptions": {
     "types": ["nuxt", "vite/client"],
     "paths": {

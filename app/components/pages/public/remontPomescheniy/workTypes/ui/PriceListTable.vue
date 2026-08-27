@@ -75,7 +75,7 @@
         <!-- 🆕 Кнопка перехода на полный прайс-лист -->
         <div v-if="viewAllLink" class="price-list-table__view-all">
           <NuxtLink :to="viewAllLink" class="view-all-btn">
-            <Icon name="mdi:format-list-price" size="20" />
+            <Icon name="mdi:cube-scan" size="20" />
             <span>{{ viewAllText }}</span>
             <Icon name="mdi:arrow-right" size="18" class="view-all-btn__arrow" />
           </NuxtLink>

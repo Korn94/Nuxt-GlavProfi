@@ -12,27 +12,17 @@
         <p v-if="subtitle" class="showcase-header__subtitle">{{ subtitle }}</p>
       </header>
 
-      <!-- Подписи сторон + кнопка паузы -->
+      <!-- Подписи сторон + счётчик -->
       <div class="showcase-topbar">
         <span class="showcase-label showcase-label--before">
           <Icon name="mdi:circle-half-full" size="14" />
           До
         </span>
 
-        <!-- Кнопка паузы + счётчик (по центру) -->
-        <div class="showcase-controls">
-          <button
-            class="showcase-pause-btn"
-            :aria-label="isPlaying ? 'Остановить анимацию' : 'Запустить анимацию'"
-            @click="togglePlay"
-          >
-            <Icon :name="isPlaying ? 'mdi:pause' : 'mdi:play'" size="18" />
-          </button>
-
-          <span v-if="items.length > 1" class="showcase-counter">
-            {{ activeIndex + 1 }} / {{ items.length }}
-          </span>
-        </div>
+        <!-- Счётчик (по центру) -->
+        <span v-if="items.length > 1" class="showcase-counter">
+          {{ activeIndex + 1 }} / {{ items.length }}
+        </span>
 
         <span class="showcase-label showcase-label--after">
           После
@@ -44,7 +34,7 @@
       <div class="showcase-slider">
         <Transition name="slider-fade" mode="out-in">
           <BeforeAfterSlider
-            :key="sliderKey"
+            :key="activeIndex"
             :before-image="activeItem.beforeImage"
             :after-image="activeItem.afterImage"
             :before-alt="activeItem.beforeAlt || 'До ремонта'"
@@ -53,7 +43,7 @@
             :duration="duration"
             :pause-at-edges="pauseAtEdges"
             :pause-on-hover="true"
-            :auto-play="isPlaying"
+            auto-play
           />
         </Transition>
       </div>
@@ -110,7 +100,6 @@ const props = withDefaults(
 
 // === Состояние ===
 const activeIndex = ref(0)
-const isPlaying = ref(true)
 const isVisible = ref(false)
 const sectionRef = ref<HTMLElement | null>(null)
 
@@ -118,18 +107,10 @@ let observer: IntersectionObserver | null = null
 
 const activeItem = computed(() => props.items[activeIndex.value] || props.items[0])
 
-// Ключ для пересоздания слайдера (переключение пар + пауза)
-const sliderKey = computed(() => `${activeIndex.value}-${isPlaying.value}`)
-
 // === Переключение пар ===
 const switchTo = (index: number) => {
   if (index === activeIndex.value) return
   activeIndex.value = index
-}
-
-// === Пауза / воспроизведение ===
-const togglePlay = () => {
-  isPlaying.value = !isPlaying.value
 }
 
 // === Анимация появления при скролле ===
@@ -189,17 +170,16 @@ onBeforeUnmount(() => {
   }
 
   .container {
-    @include section-container; // БЫЛО: max-width: 1100px, СТАЛО: 1200px
+    @include section-container;
   }
 }
 
 // === Заголовок ===
 .showcase-header {
   margin-bottom: 2rem;
-  // text-align: center;
 
   &__title {
-    @include section-title; // БЫЛО: дублирование стилей, СТАЛО: миксин
+    @include section-title;
   }
 
   &__subtitle {
@@ -209,7 +189,7 @@ onBeforeUnmount(() => {
   }
 }
 
-// === Верхняя панель: подписи + контролы ===
+// === Верхняя панель: подписи + счётчик ===
 .showcase-topbar {
   display: flex;
   justify-content: space-between;
@@ -237,38 +217,6 @@ onBeforeUnmount(() => {
   }
 }
 
-// === Контролы по центру ===
-.showcase-controls {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-}
-
-.showcase-pause-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 50%;
-  color: rgba($text-light, 0.7);
-  cursor: pointer;
-  transition: all 0.3s ease;
-
-  &:hover {
-    background: rgba(0, 195, 245, 0.12);
-    border-color: $blue;
-    color: $blue-light;
-    transform: scale(1.1);
-  }
-
-  &:active {
-    transform: scale(0.95);
-  }
-}
-
 .showcase-counter {
   font-family: 'Rubik', sans-serif;
   font-size: 0.82rem;
@@ -280,7 +228,7 @@ onBeforeUnmount(() => {
 // === Слайдер ===
 .showcase-slider {
   position: relative;
-  border-radius: 16px;
+  border-radius: $border-radius;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
@@ -320,9 +268,8 @@ onBeforeUnmount(() => {
 // === Миниатюры ===
 .showcase-thumbnails {
   display: flex;
-  // justify-content: center;
   gap: 0.8rem;
-  margin-top: 1.5rem;
+  margin-top: 0.8rem;
   flex-wrap: wrap;
 }
 
@@ -330,9 +277,9 @@ onBeforeUnmount(() => {
   position: relative;
   width: 110px;
   height: 74px;
-  border-radius: 10px;
+  border-radius: $border-radius;
   overflow: hidden;
-  border: 2px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   cursor: pointer;
   padding: 0;
   background: transparent;
@@ -385,7 +332,7 @@ onBeforeUnmount(() => {
 
   &--active {
     border-color: $blue;
-    box-shadow: 0 0 0 2px rgba(0, 195, 245, 0.3), 0 8px 24px rgba(0, 195, 245, 0.25);
+    box-shadow: 0 0 0 0 rgba(0, 195, 245, 0.3), 0 8px 24px rgba(0, 195, 245, 0.25);
 
     img {
       filter: brightness(1.05);
