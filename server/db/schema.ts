@@ -62,6 +62,7 @@ export const userSessions = mysqlTable('user_sessions', {
   userIndex: index('user_idx').on(table.userId),
   statusIndex: index('status_idx').on(table.status),
   lastActivityIndex: index('last_activity_idx').on(table.lastActivity),
+  activeStatusLifeIndex: index('active_status_life_idx').on(table.status, table.lastActivity), // Композитный для getOnlineUsers(): status IN (online,afk) + окно по lastActivity
   activeTabIndex: index('active_tab_idx').on(table.userId, table.isActiveTab), // Быстрый поиск активной вкладки пользователя
   tabIdIndex: index('tab_id_idx').on(table.tabId) // Поиск по ID вкладки
 }))

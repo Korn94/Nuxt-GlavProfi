@@ -126,28 +126,17 @@ export async function updateSessionStatus(
     .set(updateData)
     .where(eq(userSessions.sessionId, sessionId))
 
-  // Получаем обновлённую сессию
-  const [session] = await db
-    .select({
-      id: userSessions.id,
-      sessionId: userSessions.sessionId,
-      status: userSessions.status,
-      isActiveTab: userSessions.isActiveTab,
-      tabId: userSessions.tabId,
-      currentPath: userSessions.currentPath,
-      lastActivity: userSessions.lastActivity,
-      endedAt: userSessions.endedAt
-    })
-    .from(userSessions)
-    .where(eq(userSessions.sessionId, sessionId))
-
-  return session
+  // ✅ Оптимизация: без повторного SELECT. Возвращаем известный sessionId,
+  // чтобы не гонять лишний round-trip в горячих путях (статус/afk/навигация).
+  // Объект остаётся truthy, что важно для вызывающего кода (if (!session)).
+  return { sessionId }
 }
 
 /**
  * Завершение сессии при выходе пользователя
+ * ✅ Оптимизация: убран повторный SELECT после UPDATE (возвращаемое значение не используется)
  */
-export async function endSession(sessionId: string) {
+export async function endSession(sessionId: string): Promise<void> {
   await db
     .update(userSessions)
     .set({
@@ -155,17 +144,6 @@ export async function endSession(sessionId: string) {
       endedAt: formatMySQLDate(new Date())
     })
     .where(eq(userSessions.sessionId, sessionId))
-
-  const [session] = await db
-    .select({
-      id: userSessions.id,
-      sessionId: userSessions.sessionId,
-      endedAt: userSessions.endedAt
-    })
-    .from(userSessions)
-    .where(eq(userSessions.sessionId, sessionId))
-
-  return session
 }
 
 /**
@@ -197,13 +175,16 @@ export async function getUserSessions(userId: number) {
  */
 export async function cleanupOldSessions(days: number = 30) {
   try {
-    // ✅ Чистим сессии со статусом offline и endedAt старше N дней
+    // ✅ Чистим offline-сессии, неактивные дольше N дней.
+    // Используем lastActivity (≈ время выхода), т.к. при обычном disconnect
+    // endedAt больше не выставляется (P0.3) — фильтр по endedAt оставлял бы
+    // "висячие" offline-сессии без endedAt вечно в таблице.
     const result1 = await db
       .delete(userSessions)
       .where(
         and(
           eq(userSessions.status, 'offline'),
-          sql`${userSessions.endedAt} < DATE_SUB(NOW(), INTERVAL ${days} DAY)`
+          sql`${userSessions.lastActivity} < DATE_SUB(NOW(), INTERVAL ${days} DAY)`
         )
       )
       .execute()
@@ -309,9 +290,15 @@ export async function getOnlineUsers() {
     .from(userSessions)
     .innerJoin(users, eq(userSessions.userId, users.id))
     .where(
-      or(
-        eq(userSessions.status, 'online'),
-        eq(userSessions.status, 'afk')
+      and(
+        or(
+          eq(userSessions.status, 'online'),
+          eq(userSessions.status, 'afk')
+        ),
+        // ✅ "Окно жизни" сессии: пользователи без активности > 2 часов (зомби)
+        // считаются offline сразу при чтении. Раньше за это отвечал фоновый
+        // cleanup-крон (костыль), теперь корректный онлайн вычисляется здесь.
+        sql`${userSessions.lastActivity} >= DATE_SUB(NOW(), INTERVAL 2 HOUR)`
       )
     )
     .orderBy(desc(userSessions.lastActivity))
