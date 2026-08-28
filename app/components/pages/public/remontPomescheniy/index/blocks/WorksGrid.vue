@@ -211,7 +211,7 @@ const works = [
     description: 'Штукатурка стен, потолков, откосов, декоративная штукатурка',
     image: '/main/remont-pomescheniy/salony.webp',
     links: [
-      { title: 'Стены', url: '/vidy-rabot/shtukaturka-sten', isReady: false },
+      { title: 'Стены', url: '/vidy-rabot/shtukaturka-sten', isReady: true },
       { title: 'Потолки', url: '/vidy-rabot/shtukaturka-potolkov', isReady: false },
       { title: 'Откосы', url: '/vidy-rabot/shtukaturka-otkosov', isReady: false },
       { title: 'Декоративная', url: '/vidy-rabot/dekorativnaya-shtukaturka', isReady: false },
@@ -225,7 +225,7 @@ const works = [
     description: 'Шпаклёвка стен и потолков, шлифовка, грунтовка',
     image: '/main/vidy-rabot/shpaklevka.jpg',
     links: [
-      { title: 'Стены', url: '/vidy-rabot/shpaklevka-sten', isReady: false },
+      { title: 'Стены', url: '/vidy-rabot/shpaklevka-sten', isReady: true },
       { title: 'Потолки', url: '/vidy-rabot/shpaklevka-potolkov', isReady: false },
       { title: 'Откосы', url: '/vidy-rabot/shpaklevka-otkosov', isReady: false },
       { title: 'Шлифовка', url: '/vidy-rabot/shlifovka-sten', isReady: false },

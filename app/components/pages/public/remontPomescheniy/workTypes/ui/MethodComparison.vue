@@ -160,16 +160,25 @@ const findWorkById = (id: number): NormalizedWorkItem | undefined => {
 
 /**
  * Вычисляемый массив методов с актуальными ценами из прайс-листа.
+ * 🔄 Поддерживает одиночный priceWorkId и массив priceWorkIds (сумма).
  */
 const resolvedMethods = computed(() => {
   return props.methods.map(method => {
+    // 🆕 Приоритет: массив работ (сумма цен)
+    if (method.priceWorkIds?.length) {
+      const total = method.priceWorkIds.reduce((sum, id) => {
+        const work = findWorkById(id)
+        return sum + (work ? work.pricePerUnit : 0)
+      }, 0)
+      if (total > 0) {
+        return { ...method, priceFrom: Math.round(total) }
+      }
+    }
+    // Одиночная работа
     if (method.priceWorkId) {
       const work = findWorkById(method.priceWorkId)
       if (work) {
-        return {
-          ...method,
-          priceFrom: Math.round(work.pricePerUnit),
-        }
+        return { ...method, priceFrom: Math.round(work.pricePerUnit) }
       }
     }
     return method

@@ -11,7 +11,10 @@ export interface OverviewAdvantage {
 export interface MethodOption {
   title: string
   icon: string
-  priceWorkId: number
+  /** ID одной работы в прайс-листе */
+  priceWorkId?: number
+  /** 🆕 Массив ID работ — цены суммируются (для комбинаций) */
+  priceWorkIds?: number[]
   priceFrom?: number
   recommended?: boolean
   whenToUse: string[]
@@ -23,8 +26,9 @@ export interface MethodOption {
 export interface InsightItem {
   title: string
   description: string
-  icon: string
+  icon?: string           // фоллбэк в компоненте: mdi:information-outline
   highlight?: boolean
+  fact?: string           // короткая пилюля-факт
 }
 
 // === PriceFactors ===

@@ -3,7 +3,7 @@
   <div class="page-kliniki">
     <!-- ==================== БЛОК 1: HERO ==================== -->
     <PageHero
-      title="Ремонт клиник в Рязани с учётом <span>СанПиН</span> и лицензионных требований"
+      title="Ремонт клиники в Рязани</br> от <span>2х недель</span> с учётом <span>СанПиН</span> и лицензионных требований"
       subtitle="Сдаём клинику, готовую к лицензированию: с правильным зонированием, инженерией под медоборудование и отделкой по санитарным нормам. Работаем по вашему проекту или готовим ТЗ с нуля с учётом требований Роспотребнадзора. Смета и срок фиксируются в договоре."
     >
       <template #background>
@@ -20,8 +20,8 @@
       </template>
 
       <template #price>
-        <span class="price-main">от 18 000 ₽/м²</span>
-        <span class="price-example">100 м²: ~1.8–2.8 млн ₽</span>
+        <span class="price-main">от 8 500 ₽/м²</span>
+        <span class="price-example">100 м²: ~0.8–1.5 млн ₽</span>
         <span class="price-note">В стоимость входят работы без материалов</span>
       </template>
 
@@ -42,7 +42,7 @@
         </span>
         <span class="trigger-item">
           <Icon name="mdi:clock-fast" class="trigger-icon" size="18" />
-          Работаем без остановки приёма пациентов
+          Работаем в максимально сжатые сроки
         </span>
         <span class="trigger-item">
           <Icon name="mdi:account-hard-hat" class="trigger-icon" size="18" />
@@ -201,7 +201,7 @@ const repairVariants: RepairVariant[] = [
       'Обновление потолков',
       'Мелкий ремонт кабинетов и холла',
     ],
-    duration: 'от 3 недель',
+    duration: 'от 2х недель',
     price: 'от 8 500 ₽/м²',
     icon: 'mdi:format-paint',
   },
@@ -214,7 +214,7 @@ const repairVariants: RepairVariant[] = [
       'Черновые и чистовые работы',
       'Перекладка инженерных систем под медоборудование',
     ],
-    duration: 'от 2 месяцев',
+    duration: 'от 2х месяцев',
     price: 'от 18 000 ₽/м²',
     icon: 'mdi:hammer-wrench',
     featured: true,
@@ -229,7 +229,7 @@ const repairVariants: RepairVariant[] = [
       'Инженерия под медоборудование',
       'Подготовка документов для Росздравнадзора',
     ],
-    duration: 'от 3 месяцев',
+    duration: 'от 3х месяцев',
     icon: 'mdi:medical-bag',
     badge: 'Под ключ',
   },
