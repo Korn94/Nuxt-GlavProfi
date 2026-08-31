@@ -43,45 +43,53 @@
           <NuxtLink
             v-if="hasReadyLinks(work)"
             :to="firstReadyUrl(work)"
-            :class="[
-              'works-grid__card',
-              'is-clickable',
-              { 'item-visible': animatedSlugs.has(work.slug) },
-            ]"
-            @click="handleCardClick(work)"
+            custom
+            v-slot="{ navigate }"
           >
-            <div class="works-grid__card-image">
-              <img :src="work.image" :alt="work.title" loading="lazy" class="works-grid__img">
-              <div class="works-grid__card-overlay">
-                <h3 class="works-grid__card-title">{{ work.title }}</h3>
-                <span class="works-grid__card-count">{{ work.links.length }} услуг</span>
+            <div
+              :class="[
+                'works-grid__card',
+                'is-clickable',
+                { 'item-visible': animatedSlugs.has(work.slug) },
+              ]"
+              @click="(e) => { navigate(e); handleCardClick(work); }"
+              @keyup.enter="(e) => { navigate(e); handleCardClick(work); }"
+              role="link"
+              tabindex="0"
+            >
+              <div class="works-grid__card-image">
+                <img :src="work.image" :alt="work.title" loading="lazy" class="works-grid__img">
+                <div class="works-grid__card-overlay">
+                  <h3 class="works-grid__card-title">{{ work.title }}</h3>
+                  <span class="works-grid__card-count">{{ work.links.length }} услуг</span>
+                </div>
               </div>
-            </div>
 
-            <div class="works-grid__card-body">
-              <p class="works-grid__card-desc">{{ work.description }}</p>
+              <div class="works-grid__card-body">
+                <p class="works-grid__card-desc">{{ work.description }}</p>
 
-              <div class="works-grid__card-links" @click.stop>
-                <template v-for="link in work.links" :key="link.url">
-                  <!-- ✅ Готовая ссылка -->
-                  <NuxtLink
-                    v-if="link.isReady"
-                    :to="link.url"
-                    class="works-grid__card-link"
-                    :title="link.title"
-                  >
-                    {{ link.title }}
-                  </NuxtLink>
-                  <!-- ❌ Неготовая ссылка -->
-                  <span
-                    v-else
-                    class="works-grid__card-link works-grid__card-link--disabled"
-                    :title="`${link.title} — в разработке`"
-                  >
-                    <Icon name="mdi:link-off" size="13" />
-                    {{ link.title }}
-                  </span>
-                </template>
+                <div class="works-grid__card-links" @click.stop>
+                  <template v-for="link in work.links" :key="link.url">
+                    <!-- ✅ Готовая ссылка -->
+                    <NuxtLink
+                      v-if="link.isReady"
+                      :to="link.url"
+                      class="works-grid__card-link"
+                      :title="link.title"
+                    >
+                      {{ link.title }}
+                    </NuxtLink>
+                    <!-- ❌ Неготовая ссылка -->
+                    <span
+                      v-else
+                      class="works-grid__card-link works-grid__card-link--disabled"
+                      :title="`${link.title} — в разработке`"
+                    >
+                      <Icon name="mdi:link-off" size="13" />
+                      {{ link.title }}
+                    </span>
+                  </template>
+                </div>
               </div>
             </div>
           </NuxtLink>
@@ -454,6 +462,7 @@ const handleCardClick = (work: any) => {
     text-decoration: none;
     color: inherit;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    cursor: pointer;
 
     &.item-visible {
       opacity: 1;

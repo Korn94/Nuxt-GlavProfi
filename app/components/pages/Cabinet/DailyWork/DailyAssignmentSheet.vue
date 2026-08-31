@@ -111,7 +111,7 @@
               :object-id="split.objectId"
               :object-name="getObjectName(split.objectId)"
               :value="split.value"
-              :daily-rate="effectiveRate"
+              :daily-rate="amountBase"
               :is-removable="localSplits.length > 1"
               :is-single-object="localSplits.length === 1"
               :is-multi-worker="isMultiWorker"
@@ -138,7 +138,7 @@
           <SplitSummary
             v-if="localSplits.length > 1 || props.dates.length > 1 || isHalfDay || workerCount > 1"
             :total-allocated="totalAllocated"
-            :daily-rate="effectiveRate"
+            :daily-rate="amountBase"
             :days-count="localSelectedDates.length || props.dates.length || 1"
             :is-half-day="isHalfDay"
             :status-message="validationMessage"
@@ -243,6 +243,12 @@ const effectiveRate = computed(() => {
   return isHalfDay.value ? props.dailyRate / 2 : props.dailyRate
 })
 
+/** База для перевода % в ₽: у обычных контрагентов % считается от полной ставки дня,
+ *  а у мульти-контрагентов — от уже агрегированной effectiveRate (их % всегда 100). */
+const amountBase = computed(() =>
+  isMultiWorker.value ? effectiveRate.value : props.dailyRate
+)
+
 const targetPercent = computed(() => {
   // Для мульти-контрагентов — всегда 100% от effectiveRate
   if (isMultiWorker.value) return 100
@@ -255,7 +261,7 @@ const totalPercent = computed(() =>
 )
 
 const totalAllocated = computed(() =>
-  localSplits.value.reduce((sum, s) => sum + (effectiveRate.value * s.value) / 100, 0)
+  localSplits.value.reduce((sum, s) => sum + (amountBase.value * s.value) / 100, 0)
 )
 
 const hasZeroSplits = computed(() => localSplits.value.some(s => s.value <= 0))
@@ -471,7 +477,8 @@ function handleSave(): void {
     return
   }
 
-  // Передаём effectiveRate как dailyRate, чтобы сервер рассчитал amount от удвоенной ставки
+  // Передаём amount, рассчитанный от amountBase (для обычных — полная ставка дня,
+  // для мульти-контрагентов — агрегированная effectiveRate)
   const payload: DailyAssignment[] = localSplits.value.map((split) => ({
     workerId: 0,
     contractorType: props.contractorType || 'worker',
@@ -479,7 +486,7 @@ function handleSave(): void {
     objectId: split.objectId,
     objectName: getObjectName(split.objectId),
     percentage: split.value,
-    amount: (effectiveRate.value * split.value) / 100,
+    amount: (amountBase.value * split.value) / 100,
     workSource: 'daily'
   }))
 

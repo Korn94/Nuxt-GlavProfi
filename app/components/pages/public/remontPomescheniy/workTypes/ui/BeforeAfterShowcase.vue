@@ -14,29 +14,41 @@
 
       <!-- Подписи сторон + счётчик -->
       <div class="showcase-topbar">
-        <span class="showcase-label showcase-label--before">
+        <!-- Подпись "До" только если активный элемент — пара -->
+        <span
+          v-if="isCurrentPair"
+          class="showcase-label showcase-label--before"
+        >
           <Icon name="mdi:circle-half-full" size="14" />
           До
         </span>
+        <span v-else class="showcase-label showcase-label--placeholder" />
 
         <!-- Счётчик (по центру) -->
         <span v-if="items.length > 1" class="showcase-counter">
           {{ activeIndex + 1 }} / {{ items.length }}
         </span>
 
-        <span class="showcase-label showcase-label--after">
+        <!-- Подпись "После" только если активный элемент — пара -->
+        <span
+          v-if="isCurrentPair"
+          class="showcase-label showcase-label--after"
+        >
           После
           <Icon name="mdi:circle-half-full" size="14" />
         </span>
+        <span v-else class="showcase-label showcase-label--placeholder" />
       </div>
 
-      <!-- Слайдер с fade-переходом -->
+      <!-- Слайдер: BeforeAfterSlider для пар, <img> для одиночных -->
       <div class="showcase-slider">
         <Transition name="slider-fade" mode="out-in">
+          <!-- ПАРА до/после -->
           <BeforeAfterSlider
-            :key="activeIndex"
-            :before-image="activeItem.beforeImage"
-            :after-image="activeItem.afterImage"
+            v-if="isCurrentPair"
+            :key="'pair-' + activeIndex"
+            :before-image="activeItem.beforeImage!"
+            :after-image="activeItem.afterImage!"
             :before-alt="activeItem.beforeAlt || 'До ремонта'"
             :after-alt="activeItem.afterAlt || 'После ремонта'"
             :dimming="false"
@@ -45,25 +57,38 @@
             :pause-on-hover="true"
             auto-play
           />
+          <!-- ОДИНОЧНОЕ ФОТО -->
+          <img
+            v-else
+            :key="'single-' + activeIndex"
+            :src="activeItem.src!"
+            :alt="activeItem.alt || 'Пример работы'"
+            class="showcase-main-image"
+            draggable="false"
+          />
         </Transition>
       </div>
 
-      <!-- Миниатюры (только если больше одной пары) -->
+      <!-- Миниатюры (только если больше одного элемента) -->
       <div v-if="items.length > 1" class="showcase-thumbnails">
         <button
           v-for="(item, index) in items"
           :key="index"
           class="thumbnail"
-          :class="{ 'thumbnail--active': index === activeIndex }"
-          :aria-label="`Пример работы ${index + 1}`"
+          :class="{
+            'thumbnail--active': index === activeIndex,
+            'thumbnail--pair': isPair(item),
+          }"
+          :aria-label="isPair(item) ? `Пример работы ${index + 1} (до/после)` : `Фото ${index + 1}`"
           @click="switchTo(index)"
         >
           <img
-            :src="item.afterImage"
-            :alt="item.afterAlt || `Пример работы ${index + 1}`"
+            :src="getThumbnailSrc(item)"
+            :alt="getThumbnailAlt(item, index)"
             loading="lazy"
           />
-          <span class="thumbnail__overlay">
+          <!-- Иконка сравнения только для пар -->
+          <span v-if="isPair(item)" class="thumbnail__overlay">
             <Icon name="mdi:compare-horizontal" size="18" />
           </span>
           <span class="thumbnail__number">{{ index + 1 }}</span>
@@ -77,11 +102,18 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import BeforeAfterSlider from '../../ui/BeforeAfterSlider.vue'
 
+/**
+ * Универсальный ShowcaseItem:
+ * - Пара (до/после): нужны beforeImage + afterImage
+ * - Одиночное фото: нужен src
+ */
 export interface ShowcaseItem {
-  beforeImage: string
-  afterImage: string
+  beforeImage?: string
+  afterImage?: string
   beforeAlt?: string
   afterAlt?: string
+  src?: string
+  alt?: string
 }
 
 const props = withDefaults(
@@ -107,7 +139,25 @@ let observer: IntersectionObserver | null = null
 
 const activeItem = computed(() => props.items[activeIndex.value] || props.items[0])
 
-// === Переключение пар ===
+// === Проверка типа элемента ===
+const isPair = (item: ShowcaseItem): boolean => {
+  return Boolean(item.beforeImage && item.afterImage)
+}
+
+const isCurrentPair = computed(() => isPair(activeItem.value))
+
+// === Превью для миниатюр ===
+const getThumbnailSrc = (item: ShowcaseItem): string => {
+  if (isPair(item)) return item.afterImage!
+  return item.src!
+}
+
+const getThumbnailAlt = (item: ShowcaseItem, index: number): string => {
+  if (isPair(item)) return item.afterAlt || `Пример работы ${index + 1}`
+  return item.alt || `Фото ${index + 1}`
+}
+
+// === Переключение ===
 const switchTo = (index: number) => {
   if (index === activeIndex.value) return
   activeIndex.value = index
@@ -185,7 +235,7 @@ onBeforeUnmount(() => {
   &__subtitle {
     @include section-subtitle;
     color: rgba($text-light, 0.7);
-    margin: 0 auto;
+    margin: 0;
   }
 }
 
@@ -207,6 +257,7 @@ onBeforeUnmount(() => {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  min-width: 80px;
 
   &--before {
     color: rgba($text-light, 0.5);
@@ -214,6 +265,11 @@ onBeforeUnmount(() => {
 
   &--after {
     color: $blue-light;
+    justify-content: flex-end;
+  }
+
+  &--placeholder {
+    visibility: hidden;
   }
 }
 
@@ -232,24 +288,40 @@ onBeforeUnmount(() => {
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  background: #000;
 
   :deep(.before-after) {
-    height: 500px;
+    height: 700px;
     min-height: 400px;
 
     @media (max-width: 768px) {
-      height: 350px;
+      height: 450px;
       min-height: 280px;
     }
 
     @media (max-width: 480px) {
-      height: 280px;
+      height: 380px;
       min-height: 220px;
     }
   }
 }
 
-// === Fade-переход между парами ===
+.showcase-main-image {
+  width: 100%;
+  height: 700px;
+  object-fit: cover;
+  display: block;
+
+  @media (max-width: 768px) {
+    height: 450px;
+  }
+
+  @media (max-width: 480px) {
+    height: 380px;
+  }
+}
+
+// === Fade-переход ===
 .slider-fade-enter-active,
 .slider-fade-leave-active {
   transition: opacity 0.4s ease, transform 0.4s ease;
@@ -294,13 +366,13 @@ onBeforeUnmount(() => {
     transition: transform 0.3s ease, filter 0.3s ease;
   }
 
+  // === Оверлей с иконкой сравнения ===
   &__overlay {
     position: absolute;
     inset: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(24, 25, 27, 0.45);
     color: $text-light;
     opacity: 0;
     transition: opacity 0.3s ease;
@@ -320,16 +392,58 @@ onBeforeUnmount(() => {
     line-height: 1.2;
   }
 
-  &:hover:not(.thumbnail--active) {
+  // === Одиночное фото: иконка появляется только при hover ===
+  &:hover:not(.thumbnail--active):not(.thumbnail--pair) {
     border-color: rgba(0, 195, 245, 0.5);
     transform: translateY(-3px);
     box-shadow: 0 8px 20px rgba(0, 195, 245, 0.2);
 
     .thumbnail__overlay {
       opacity: 1;
+      background: rgba(24, 25, 27, 0.45);
     }
   }
 
+  // === Парное фото (до/после): иконка видна ВСЕГДА ===
+  &--pair {
+    .thumbnail__overlay {
+      // Градиент снизу — иконка хорошо читается на любом фото
+      background: linear-gradient(
+        to top,
+        rgba(0, 0, 0, 0.7) 0%,
+        rgba(0, 0, 0, 0.3) 40%,
+        rgba(0, 0, 0, 0.15) 70%,
+        transparent 100%
+      );
+      opacity: 1;
+
+      // Сдвигаем иконку чуть выше номера
+      align-items: center;
+      padding-bottom: 6px;
+    }
+
+    &:hover:not(.thumbnail--active) {
+      border-color: rgba(0, 195, 245, 0.5);
+      transform: translateY(-3px);
+      box-shadow: 0 8px 20px rgba(0, 195, 245, 0.2);
+
+      .thumbnail__overlay {
+        background: linear-gradient(
+          to top,
+          rgba(0, 0, 0, 0.85) 0%,
+          rgba(0, 0, 0, 0.5) 40%,
+          rgba(0, 0, 0, 0.3) 70%,
+          rgba(24, 25, 27, 0.15) 100%
+        );
+      }
+
+      img {
+        transform: scale(1.05);
+      }
+    }
+  }
+
+  // === Активная миниатюра ===
   &--active {
     border-color: $blue;
     box-shadow: 0 0 0 0 rgba(0, 195, 245, 0.3), 0 8px 24px rgba(0, 195, 245, 0.25);
@@ -341,6 +455,18 @@ onBeforeUnmount(() => {
     .thumbnail__overlay {
       opacity: 1;
       color: $blue-light;
+      background: rgba(24, 25, 27, 0.45);
+    }
+
+    // Для активных пар сохраняем градиент, но делаем его синеватым
+    &.thumbnail--pair .thumbnail__overlay {
+      background: linear-gradient(
+        to top,
+        rgba(0, 50, 70, 0.85) 0%,
+        rgba(0, 30, 50, 0.5) 40%,
+        rgba(0, 20, 40, 0.3) 70%,
+        transparent 100%
+      );
     }
   }
 }
@@ -349,6 +475,7 @@ onBeforeUnmount(() => {
 @media (max-width: 768px) {
   .showcase-label {
     font-size: 0.78rem;
+    min-width: 60px;
   }
 
   .showcase-thumbnails {

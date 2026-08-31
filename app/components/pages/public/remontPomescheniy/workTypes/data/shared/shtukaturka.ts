@@ -58,7 +58,7 @@ export const shtukaturkaMaterials: MaterialCardData[] = [
     name: 'Гипсовая',
     fullName: 'Гипсовая штукатурка (универсальная)',
     color: '#E8E0D4',
-    image: '/main/vidy-rabot/shtukaturka/gips.webp',
+    image: '/main/vidy-rabot/shtukaturka/4.jpg',
     colorLabel: 'Белый или светло-серый порошок',
     badge: 'Самая популярная',
     properties: [
@@ -77,7 +77,7 @@ export const shtukaturkaMaterials: MaterialCardData[] = [
     name: 'Цементная',
     fullName: 'Цементно-песчаная штукатурка',
     color: '#9E9E9E',
-    image: '/main/vidy-rabot/shtukaturka/cement.webp',
+    image: '/main/vidy-rabot/shtukaturka/17.jpg',
     colorLabel: 'Серая масса с крупным песком',
     badge: 'Для влажных зон',
     properties: [
@@ -110,24 +110,24 @@ export const shtukaturkaMaterials: MaterialCardData[] = [
     ],
     avoidFor: ['Влажные зоны прямого контакта с водой', 'Высокие нагрузки'],
   },
-  {
-    name: 'Машинная',
-    fullName: 'Машинная штукатурка (смесь для станции)',
-    color: '#B0BEC5',
-    image: '/main/vidy-rabot/shtukaturka/machine.webp',
-    colorLabel: 'Специальная смесь для штукатурной станции',
-    badge: 'Быстрый результат',
-    properties: [
-      { label: 'Скорость нанесения', icon: 'mdi:speedometer' },
-      { label: 'Однородность слоя', icon: 'mdi:circle-outline' },
-    ],
-    useFor: [
-      'Площади от 100 м²',
-      'Новостройки с большими объёмами',
-      'Коммерческие объекты',
-    ],
-    avoidFor: ['Малые объёмы (до 30 м²) — невыгодно привозить станцию'],
-  },
+  // {
+  //   name: 'Машинная',
+  //   fullName: 'Машинная штукатурка (смесь для станции)',
+  //   color: '#B0BEC5',
+  //   image: '/main/vidy-rabot/shtukaturka/machine.webp',
+  //   colorLabel: 'Специальная смесь для штукатурной станции',
+  //   badge: 'Быстрый результат',
+  //   properties: [
+  //     { label: 'Скорость нанесения', icon: 'mdi:speedometer' },
+  //     { label: 'Однородность слоя', icon: 'mdi:circle-outline' },
+  //   ],
+  //   useFor: [
+  //     'Площади от 100 м²',
+  //     'Новостройки с большими объёмами',
+  //     'Коммерческие объекты',
+  //   ],
+  //   avoidFor: ['Малые объёмы (до 30 м²) — невыгодно привозить станцию'],
+  // },
 ]
 
 /**

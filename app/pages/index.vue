@@ -12,6 +12,16 @@
       <PagesPublicHomePageMiniProjects />
     </UiAnimationsBlockAnimator>
     <UiAnimationsBlockAnimator>
+          <!-- ==================== 3. ДО / ПОСЛЕ ==================== -->
+    <section id="before-after" class="page-section">
+      <BeforeAfterShowcase
+        title="Примеры объектов <span>до и после</span>"
+        subtitle="Фотографии с реальных объектов в Рязани."
+        :items="beforeAfterItems"
+      />
+    </section>
+    </UiAnimationsBlockAnimator>
+    <UiAnimationsBlockAnimator>
       <PagesPublicHomePageBrands />
     </UiAnimationsBlockAnimator>
     <UiAnimationsBlockAnimator>
@@ -33,6 +43,24 @@
 </template>
 
 <script setup>
+import BeforeAfterShowcase from '../components/pages/public/remontPomescheniy/workTypes/ui/BeforeAfterShowcase.vue'
+// app\components\pages\public\remontPomescheniy\workTypes\ui\BeforeAfterShowcase.vue
+// ============================================================
+// ДО / ПОСЛЕ
+// ============================================================
+const beforeAfterItems = [
+  { beforeImage: '/main/vidy-rabot/shtukaturka/13.jpg', afterImage: '/main/vidy-rabot/shtukaturka/14.jpg' },
+  { beforeImage: '/main/vidy-rabot/shtukaturka/9.jpg', afterImage: '/main/vidy-rabot/shtukaturka/10.jpg' },
+  { beforeImage: '/main/vidy-rabot/shtukaturka/7.jpg', afterImage: '/main/vidy-rabot/shtukaturka/8.jpg' },
+  { beforeImage: '/main/vidy-rabot/shtukaturka/11.jpg', afterImage: '/main/vidy-rabot/shtukaturka/12.jpg' },
+  { beforeImage: '/main/vidy-rabot/shtukaturka/4.jpg', afterImage: '/main/vidy-rabot/shtukaturka/6.jpg' },
+  { beforeImage: '/main/vidy-rabot/shtukaturka/3.jpg', afterImage: '/main/vidy-rabot/shtukaturka/5.jpg' },
+  { src: '/main/vidy-rabot/shtukaturka/15.jpg', alt: 'Готовая штукатурка стен в офисе' },
+  { src: '/main/vidy-rabot/shtukaturka/16.jpg', alt: 'Готовая штукатурка стен в офисе' },
+  { src: '/main/vidy-rabot/shtukaturka/1.jpg', alt: 'Готовая штукатурка стен в офисе' },
+  { src: '/main/vidy-rabot/shtukaturka/2.jpg', alt: 'Процесс выравнивания стен по маякам' },
+]
+
 useHead({
   title: 'Ремонт и отделка коммерческих помещений под ключ в Рязани и области - ГлавПрофи',
   meta: [

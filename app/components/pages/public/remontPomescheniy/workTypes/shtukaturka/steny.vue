@@ -21,6 +21,7 @@
     <section id="before-after" class="page-section">
       <BeforeAfterShowcase
         title="Примеры стен <span>до и после</span> штукатурки"
+        subtitle="Фотографии с реальных объектов в Рязани."
         :items="beforeAfterItems"
       />
     </section>
@@ -86,12 +87,12 @@
         :insights="technicalInsights"
         :comparison-images="[
           {
-            src: '/main/vidy-rabot/shtukaturka/mayaki.webp',
+            src: '/main/vidy-rabot/shtukaturka/15.jpg',
             label: 'Установка маяков',
             alt: 'Металлические маяки на стене перед нанесением штукатурки',
           },
           {
-            src: '/main/vidy-rabot/shtukaturka/finish.webp',
+            src: '/main/vidy-rabot/shtukaturka/16.jpg',
             label: 'Готовая оштукатуренная стена',
             alt: 'Выровненная оштукатуренная стена после высыхания',
           },
@@ -321,9 +322,16 @@ const breadcrumbItems = [
 // ДО / ПОСЛЕ
 // ============================================================
 const beforeAfterItems = [
-  { beforeImage: '/main/1-1.jpg', afterImage: '/main/1.jpg' },
-  { beforeImage: '/main/2-1.jpg', afterImage: '/main/2.jpg' },
-  { beforeImage: '/main/5.jpg', afterImage: '/main/6.jpg' },
+  { beforeImage: '/main/vidy-rabot/shtukaturka/13.jpg', afterImage: '/main/vidy-rabot/shtukaturka/14.jpg' },
+  { beforeImage: '/main/vidy-rabot/shtukaturka/9.jpg', afterImage: '/main/vidy-rabot/shtukaturka/10.jpg' },
+  { beforeImage: '/main/vidy-rabot/shtukaturka/7.jpg', afterImage: '/main/vidy-rabot/shtukaturka/8.jpg' },
+  { beforeImage: '/main/vidy-rabot/shtukaturka/11.jpg', afterImage: '/main/vidy-rabot/shtukaturka/12.jpg' },
+  { beforeImage: '/main/vidy-rabot/shtukaturka/4.jpg', afterImage: '/main/vidy-rabot/shtukaturka/6.jpg' },
+  { beforeImage: '/main/vidy-rabot/shtukaturka/3.jpg', afterImage: '/main/vidy-rabot/shtukaturka/5.jpg' },
+  { src: '/main/vidy-rabot/shtukaturka/15.jpg', alt: 'Готовая штукатурка стен в офисе' },
+  { src: '/main/vidy-rabot/shtukaturka/16.jpg', alt: 'Готовая штукатурка стен в офисе' },
+  { src: '/main/vidy-rabot/shtukaturka/1.jpg', alt: 'Готовая штукатурка стен в офисе' },
+  { src: '/main/vidy-rabot/shtukaturka/2.jpg', alt: 'Процесс выравнивания стен по маякам' },
 ]
 
 // ============================================================
