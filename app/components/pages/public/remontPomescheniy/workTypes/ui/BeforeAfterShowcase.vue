@@ -291,7 +291,7 @@ onBeforeUnmount(() => {
   background: #000;
 
   :deep(.before-after) {
-    height: 700px;
+    height: 900px;
     min-height: 400px;
 
     @media (max-width: 768px) {

@@ -15,7 +15,7 @@
           <!-- ==================== 3. ДО / ПОСЛЕ ==================== -->
     <section id="before-after" class="page-section">
       <BeforeAfterShowcase
-        title="Примеры объектов <span>до и после</span>"
+        title="Примеры различных объектов <span>до и после</span>"
         subtitle="Фотографии с реальных объектов в Рязани."
         :items="beforeAfterItems"
       />
@@ -49,16 +49,11 @@ import BeforeAfterShowcase from '../components/pages/public/remontPomescheniy/wo
 // ДО / ПОСЛЕ
 // ============================================================
 const beforeAfterItems = [
-  { beforeImage: '/main/vidy-rabot/shtukaturka/13.jpg', afterImage: '/main/vidy-rabot/shtukaturka/14.jpg' },
-  { beforeImage: '/main/vidy-rabot/shtukaturka/9.jpg', afterImage: '/main/vidy-rabot/shtukaturka/10.jpg' },
-  { beforeImage: '/main/vidy-rabot/shtukaturka/7.jpg', afterImage: '/main/vidy-rabot/shtukaturka/8.jpg' },
-  { beforeImage: '/main/vidy-rabot/shtukaturka/11.jpg', afterImage: '/main/vidy-rabot/shtukaturka/12.jpg' },
-  { beforeImage: '/main/vidy-rabot/shtukaturka/4.jpg', afterImage: '/main/vidy-rabot/shtukaturka/6.jpg' },
-  { beforeImage: '/main/vidy-rabot/shtukaturka/3.jpg', afterImage: '/main/vidy-rabot/shtukaturka/5.jpg' },
-  { src: '/main/vidy-rabot/shtukaturka/15.jpg', alt: 'Готовая штукатурка стен в офисе' },
-  { src: '/main/vidy-rabot/shtukaturka/16.jpg', alt: 'Готовая штукатурка стен в офисе' },
-  { src: '/main/vidy-rabot/shtukaturka/1.jpg', alt: 'Готовая штукатурка стен в офисе' },
-  { src: '/main/vidy-rabot/shtukaturka/2.jpg', alt: 'Процесс выравнивания стен по маякам' },
+  { beforeImage: '/main/7-1.webp', afterImage: '/main/7.webp' },
+  { beforeImage: '/main/1-1.jpg', afterImage: '/main/1.jpg' },
+  { beforeImage: '/main/vidy-rabot/peregorodki-gkl/10.jpg', afterImage: '/main/vidy-rabot/peregorodki-gkl/2.jpg' },
+  { beforeImage: '/main/vidy-rabot/peregorodki-gkl/9.jpg', afterImage: '/main/vidy-rabot/peregorodki-gkl/4.jpg' },
+  { beforeImage: '/main/5.jpg', afterImage: '/main/6.jpg' },
 ]
 
 useHead({

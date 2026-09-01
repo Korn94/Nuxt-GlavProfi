@@ -77,13 +77,13 @@
         :insights="technicalInsights"
         :comparison-images="[
           {
-            src: '/main/vidy-rabot/gkl/1layer.webp',
-            label: '1 слой ГКЛ',
+            src: '/main/vidy-rabot/gkl/1.webp',
+            label: 'Перегородка ГКЛ в 1 слой',
             alt: 'Перегородка из одного слоя гипсокартона',
           },
           {
-            src: '/main/vidy-rabot/gkl/2layers.webp',
-            label: '2 слоя ГКЛ',
+            src: '/main/vidy-rabot/gkl/2.webp',
+            label: 'Перегородка ГКЛ в 2 слоя',
             alt: 'Перегородка из двух слоёв гипсокартона',
           },
         ]"
@@ -311,8 +311,13 @@ const breadcrumbItems = [
 // ДО / ПОСЛЕ
 // ============================================================
 const beforeAfterItems = [
-  { beforeImage: '/main/1-1.jpg', afterImage: '/main/1.jpg' },
-  { beforeImage: '/main/2-1.jpg', afterImage: '/main/2.jpg' },
+  { beforeImage: '/main/vidy-rabot/peregorodki-gkl/1.jpg', afterImage: '/main/vidy-rabot/peregorodki-gkl/2.jpg' },
+  { beforeImage: '/main/vidy-rabot/peregorodki-gkl/10.jpg', afterImage: '/main/vidy-rabot/peregorodki-gkl/2.jpg' },
+  { beforeImage: '/main/vidy-rabot/peregorodki-gkl/3.jpg', afterImage: '/main/vidy-rabot/peregorodki-gkl/4.jpg' },
+  { beforeImage: '/main/vidy-rabot/peregorodki-gkl/9.jpg', afterImage: '/main/vidy-rabot/peregorodki-gkl/4.jpg' },
+  { beforeImage: '/main/vidy-rabot/peregorodki-gkl/5.jpg', afterImage: '/main/vidy-rabot/peregorodki-gkl/6.jpg' },
+  { beforeImage: '/main/vidy-rabot/peregorodki-gkl/7.jpg', afterImage: '/main/vidy-rabot/peregorodki-gkl/8.jpg' },
+  { beforeImage: '/main/vidy-rabot/peregorodki-gkl/11.jpg', afterImage: '/main/vidy-rabot/peregorodki-gkl/12.jpg' },
   { beforeImage: '/main/5.jpg', afterImage: '/main/6.jpg' },
 ]
 

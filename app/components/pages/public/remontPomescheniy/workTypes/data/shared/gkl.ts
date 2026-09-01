@@ -28,14 +28,14 @@ export const gklWorkTypes: RelatedWorkTypeItem[] = [
     description: 'Зонирование с шумоизоляцией',
     image: '/main/remont-pomescheniy/medicina.webp',
   },
-  {
-    title: 'Потолки из ГКЛ',
-    to: '/vidy-rabot/potolki-iz-gkl',
-    icon: 'mdi:ceiling-light',
-    priceWorkId: 918,
-    description: 'Одно- и многоуровневые конструкции',
-    image: '/main/vidy-rabot/gkl/gkl.png',
-  },
+  // {
+  //   title: 'Потолки из ГКЛ',
+  //   to: '/vidy-rabot/potolki-iz-gkl',
+  //   icon: 'mdi:ceiling-light',
+  //   priceWorkId: 918,
+  //   description: 'Одно- и многоуровневые конструкции',
+  //   image: '/main/vidy-rabot/gkl/gkl.png',
+  // },
 ]
 
 /**

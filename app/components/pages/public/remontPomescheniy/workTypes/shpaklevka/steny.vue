@@ -86,12 +86,12 @@
         :insights="technicalInsights"
         :comparison-images="[
           {
-            src: '/main/vidy-rabot/shpaklevka/start.webp',
+            src: '/main/vidy-rabot/shpaklevka/7.jpg',
             label: 'После стартовой шпаклёвки',
             alt: 'Стена после нанесения стартовой шпаклёвки',
           },
           {
-            src: '/main/vidy-rabot/shpaklevka/finish.webp',
+            src: '/main/vidy-rabot/shpaklevka/8.jpg',
             label: 'После финишной + шлифовка',
             alt: 'Стена после финишной шпаклёвки и шлифовки',
           },
@@ -317,9 +317,14 @@ const breadcrumbItems = [
 // ДО / ПОСЛЕ
 // ============================================================
 const beforeAfterItems = [
-  { beforeImage: '/main/1-1.jpg', afterImage: '/main/1.jpg' },
-  { beforeImage: '/main/2-1.jpg', afterImage: '/main/2.jpg' },
-  { beforeImage: '/main/5.jpg', afterImage: '/main/6.jpg' },
+  { beforeImage: '/main/vidy-rabot/shpaklevka/7.jpg', afterImage: '/main/vidy-rabot/shpaklevka/8.jpg' },
+  { beforeImage: '/main/vidy-rabot/shpaklevka/3.jpg', afterImage: '/main/vidy-rabot/shpaklevka/4.jpg' },
+  { beforeImage: '/main/vidy-rabot/shpaklevka/5.jpg', afterImage: '/main/vidy-rabot/shpaklevka/6.jpg' },
+  { beforeImage: '/main/vidy-rabot/shpaklevka/9.jpg', afterImage: '/main/vidy-rabot/shpaklevka/10.jpg' },
+  { beforeImage: '/main/vidy-rabot/shpaklevka/11.jpg', afterImage: '/main/vidy-rabot/shpaklevka/12.jpg' },
+  { beforeImage: '/main/vidy-rabot/shpaklevka/1.jpg', afterImage: '/main/vidy-rabot/shpaklevka/2.jpg' },
+  { src: '/main/vidy-rabot/shpaklevka/13.jpg', alt: 'Готовая шпаклевка стен в офисе' },
+  { src: '/main/vidy-rabot/shpaklevka/14.jpg', alt: 'Готовая шпаклевка стен в коридоре' },
 ]
 
 // ============================================================
