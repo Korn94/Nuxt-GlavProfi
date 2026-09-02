@@ -15,12 +15,20 @@
           <!-- ==================== 3. ДО / ПОСЛЕ ==================== -->
     <section id="before-after" class="page-section">
       <BeforeAfterShowcase
-        title="Примеры различных объектов <span>до и после</span>"
+        title="Примеры объектов <span>до и после</span>"
         subtitle="Фотографии с реальных объектов в Рязани."
         :items="beforeAfterItems"
       />
     </section>
     </UiAnimationsBlockAnimator>
+
+    <UiAnimationsBlockAnimator>
+      <PagesPublicHomePagePremisesPreview />
+    </UiAnimationsBlockAnimator>
+    <UiAnimationsBlockAnimator>
+      <PagesPublicHomePageWorksPreview />
+    </UiAnimationsBlockAnimator>
+
     <UiAnimationsBlockAnimator>
       <PagesPublicHomePageBrands />
     </UiAnimationsBlockAnimator>

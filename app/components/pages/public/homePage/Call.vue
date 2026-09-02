@@ -19,9 +19,9 @@
       />
       <teleport to="body">
         <UiFormsContactForm 
-        v-if="showModal" 
-        @close="closeModal" 
-        @formSubmitted="handleFormSubmitted" 
+          v-if="showModal" 
+          @close="closeModal" 
+          @formSubmitted="handleFormSubmitted" 
         />
       </teleport>
     </div>

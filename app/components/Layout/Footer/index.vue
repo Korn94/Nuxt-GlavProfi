@@ -4,11 +4,12 @@
     <div class="footer-container">
       <!-- Левая часть: информация о компании -->
       <div class="footer-info">
-        <h2 class="footer-title">Рязань и область</h2>
+        <h2 class="footer-title">Рязань / Москва</h2>
         <p class="footer-text">
           Отделка и ремонт помещений любой сложности<br>
           От косметического ремонта до полной реконструкции
         </p>
+        <h3 class="footer-title">Головной офис в Рязани</h3>
         <ul class="footer-details">
           <li 
             role="button" 

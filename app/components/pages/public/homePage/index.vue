@@ -1,4 +1,4 @@
-<!-- app\components\pages\public\homePage\index.vue -->
+<!-- app/components/pages/public/homePage/index.vue -->
 <template>
   <div class="container">
     <!-- Фон с видео -->
@@ -11,6 +11,7 @@
         muted
         loop
         playsinline
+        aria-label="Демонстрация выполненных работ по ремонту помещений"
         preload="none"
         poster="/main/video/main-poster.webp"
       >
@@ -44,9 +45,12 @@
         />
 
         <!-- Блок с информацией -->
-        <div class="exp">
-          <p>
-            <span class="blue">Рязань</span> и <span class="blue">Область</span>
+        <div class="geo-block">
+          <p class="geo-main">
+            <span class="blue">Рязань</span> / <span class="blue">Москва</span> и <span class="blue">области</span>
+          </p>
+          <p class="geo-note">
+            *В Москве и МО работаем на выездной основе
           </p>
         </div>
       </div>
@@ -203,17 +207,24 @@ export default {
         margin-bottom: 2em;
       }
 
-      .exp {
+      .geo-block {
         position: absolute;
         bottom: 2em;
         left: 2em;
         display: flex;
-        align-items: center;
+        flex-direction: column;
+        gap: 0.3em;
 
-        p {
+        .geo-main {
           margin: 0;
           font-size: 1rem;
           color: rgba($text-light, 0.9);
+        }
+
+        .geo-note {
+          margin: 0;
+          font-size: 0.75rem;
+          color: rgba($text-light, 0.6);
         }
 
         .bold {
@@ -241,10 +252,10 @@ export default {
         line-height: 1.3;
       }
 
-      .exp {
+      .geo-block {
         position: static;
         margin-top: 1.5em;
-        justify-content: center;
+        align-items: center;
       }
     }
   }
