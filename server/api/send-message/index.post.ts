@@ -1,7 +1,9 @@
 // server/api/send-message/index.post.ts
 import { defineEventHandler, readBody, readMultipartFormData, createError } from 'h3'
 import nodemailer from 'nodemailer'
-import TelegramBot from 'node-telegram-bot-api'
+import * as TelegramBotPkg from 'node-telegram-bot-api';
+// В ESM CommonJS-экспорты часто лежат в свойстве default или являются самим объектом
+const TelegramBot = (TelegramBotPkg as any).default || TelegramBotPkg;
 
 interface ParsedFields {
   message?: string

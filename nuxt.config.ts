@@ -1,11 +1,10 @@
 import { defineNuxtConfig } from 'nuxt/config';
-import tsconfigPaths from 'vite-tsconfig-paths'
+// [ИСПРАВЛЕНО] Удалили импорт vite-tsconfig-paths
 
 export default defineNuxtConfig({
   app: {
     head: {
       link: [
-        // Добавляем предзагрузку для ОСНОВНОГО шрифта
         {
           rel: 'preload',
           href: '/fonts/rubik/Rubik-Regular.woff2',
@@ -27,24 +26,19 @@ export default defineNuxtConfig({
             })();
           `,
           type: 'text/javascript',
-          // ИСПОЛЬЗУЕМ ПРАВИЛЬНЫЕ СВОЙСТВА
           tagPriority: 'critical',
-          processTemplateParams: true // Правильное имя свойства (без вложенного объекта)
+          // [ИСПРАВЛЕНО] processTemplateParams убран, так как в Unhead 3 он не нужен для обычного innerHTML
         }
       ],
-
-      // ПРАВИЛЬНЫЙ ФОРМАТ ДЛЯ NOSCRIPT
       noscript: [
         {
           innerHTML: '<style>.mobile-bottom-nav { display: none; }</style>',
-          // ИСПОЛЬЗУЕМ ПРАВИЛЬНОЕ СВОЙСТВО ВМЕСТО body
-          tagPosition: 'bodyClose' // Добавляет в конец body
+          tagPosition: 'bodyClose' 
         }
       ]
     }
   },
 
-  // Включаем SSR
   ssr: true,
 
   typescript: {
@@ -52,10 +46,9 @@ export default defineNuxtConfig({
     strict: true,
   },
 
-  // Глобальные стили
   css: [
-    './app/assets/styles/index.scss', // Основные стили
-    './app/assets/styles/animations-custom.scss', // Кастомные анимации (вместо animate.css)
+    '~/assets/styles/index.scss',
+    '~/assets/styles/animations-custom.scss',
   ],
 
   vite: {
@@ -70,11 +63,11 @@ export default defineNuxtConfig({
         '@telegram-apps/sdk',
         'socket.io-client',
         'echarts',
-        'buffer', // CJS
+        'buffer',
         'drizzle-orm/mysql-core',
         'drizzle-orm',
         'drizzle-orm/mysql2',
-        'mysql2/promise', // CJS
+        'mysql2/promise',
       ],
       exclude: ['jsonwebtoken']
     },
@@ -84,7 +77,7 @@ export default defineNuxtConfig({
       },
     },
     plugins: [
-      tsconfigPaths(),
+      // [ИСПРАВЛЕНО] tsconfigPaths() удален из массива плагинов
       {
         name: 'buffer-polyfill',
         transform(code, id) {
@@ -101,7 +94,6 @@ export default defineNuxtConfig({
     css: {
       preprocessorOptions: {
         scss: {
-          // Добавляем sass:color перед вашими переменными
           additionalData: `
             @use 'sass:color';
             @use "@/assets/styles/variables.scss" as *;
@@ -112,21 +104,18 @@ export default defineNuxtConfig({
     },
   },
 
-  // Модули
   modules: [
-    '@nuxt/icon', // Иконки
-    '@nuxtjs/sitemap', // Карта сайта
+    '@nuxt/icon',
+    '@nuxtjs/sitemap',
     '@pinia/nuxt',
   ],
 
-  // chartjs: {
-  //   autoImport: true,
+  // [ИСПРАВЛЕНО] Полностью переписан конфиг для Sitemap v8
+  // site: {
+  //   url: process.env.NUXT_PUBLIC_SITE_URL || 'https://glavprofi.ru',
   // },
-
-  // Настройка карты сайта
   sitemap: {
-    hostname: process.env.NUXT_PUBLIC_SITE_URL,
-    gzip: true,
+    // hostname и gzip больше не нужны!
     strictNuxtPagePaths: false,
     exclude: [
       '/cabinet',
@@ -137,60 +126,31 @@ export default defineNuxtConfig({
       '/access-denied',
       '/telegram',
     ],
+    // В v8 массив routes остался, но если будут ошибки, замени на sources
     routes: [
-      '/',
-      '/about',
-      '/contacts',
-      // Кейсы
-      '/projects',
-      '/projects/ddx',
-      '/projects/zerno',
-      '/projects/klinika-alma',
-      '/projects/fora-bank',
-      // Политика
-      '/privacy-policy',
-      '/terms-of-service',
-      // Прайс лист
-      '/prices/otdelochnye-raboty',
-      '/prices/plumbing',
-      '/prices/electricity',
-      // Типы помещений
-      '/remont-pomescheniy/ofisy',
-      '/remont-pomescheniy/magaziny',
-      '/remont-pomescheniy/sklady',
-      '/remont-pomescheniy/angary',
-      '/remont-pomescheniy/kliniki',
-      '/remont-pomescheniy/fasady',
-      '/remont-pomescheniy/fitness',
-      '/remont-pomescheniy/proizvodstvo',
-      '/remont-pomescheniy/salony',
-      '/remont-pomescheniy/mopy',
-      '/remont-pomescheniy/banki',
+      '/', '/about', '/contacts',
+      '/projects', '/projects/ddx', '/projects/zerno', '/projects/klinika-alma', '/projects/fora-bank',
+      '/privacy-policy', '/terms-of-service',
+      '/prices/otdelochnye-raboty', '/prices/plumbing', '/prices/electricity',
+      '/remont-pomescheniy/ofisy', '/remont-pomescheniy/magaziny', '/remont-pomescheniy/sklady',
+      '/remont-pomescheniy/angary', '/remont-pomescheniy/kliniki', '/remont-pomescheniy/fasady',
+      '/remont-pomescheniy/fitness', '/remont-pomescheniy/proizvodstvo', '/remont-pomescheniy/salony',
+      '/remont-pomescheniy/mopy', '/remont-pomescheniy/banki',
     ],
   },
   
-  // @ts-ignore - Nitro config для Nuxt 4
   nitro: {
     preset: 'node-server',
     experimental: {
       websocket: true,
     },
     externals: {
-      inline: ['jsonwebtoken'] // если используете его
+      inline: ['jsonwebtoken']
     },
     plugins: [
       './plugins/socket.io.ts'
     ],
-    // devErrorHandler: (error: { status: number; }, event: { path: string; }) => {
-    //   // Игнорируем ошибки 404 для /_nuxt/
-    //   if (event.path.startsWith('/_nuxt/') && error.status === 404) {
-    //     return
-    //   }
-    //   // Стандартная обработка
-    //   return defaultErrorHandler(error, event)
-    // },
     typescript: {
-      // Можно указать другие настройки, если нужно
       strict: true,
     },
     routeRules: {
@@ -207,54 +167,42 @@ export default defineNuxtConfig({
       },
       '/cabinet': {
         cors: true,
-        headers: {
-          'X-Robots-Tag': 'noindex, nofollow',
-        }
+        headers: { 'X-Robots-Tag': 'noindex, nofollow' }
       },
       '/login': {
         cors: true,
-        headers: {
-          'X-Robots-Tag': 'noindex, nofollow',
-        }
+        headers: { 'X-Robots-Tag': 'noindex, nofollow' }
       },
       '/cabinet/**': {
-        headers: {
-          'X-Robots-Tag': 'noindex, nofollow',
-        }
+        headers: { 'X-Robots-Tag': 'noindex, nofollow' }
       },
-
-      // Редирект со старого прайса
-      '/prices/floor': {
-        redirect: { to: '/prices/otdelochnye-raboty', statusCode: 301 }
-      },
-      '/prices/walls': {
-        redirect: { to: '/prices/otdelochnye-raboty', statusCode: 301 }
-      },
-      '/prices/ceiling': {
-        redirect: { to: '/prices/otdelochnye-raboty', statusCode: 301 }
-      },
-      '/prices/other': {
-        redirect: { to: '/prices/otdelochnye-raboty', statusCode: 301 }
-      },
+      '/prices/floor': { redirect: { to: '/prices/otdelochnye-raboty', statusCode: 301 } },
+      '/prices/walls': { redirect: { to: '/prices/otdelochnye-raboty', statusCode: 301 } },
+      '/prices/ceiling': { redirect: { to: '/prices/otdelochnye-raboty', statusCode: 301 } },
+      '/prices/other': { redirect: { to: '/prices/otdelochnye-raboty', statusCode: 301 } },
     }
   },
 
-  // Настройка плагинов
   plugins: [
-    '~/plugins/yandexMetrica.js', // Подключение Яндекс.Метрики
-    '~/plugins/analytics.client.ts', // Ленивая загрузка Google Analytics
+    '~/plugins/yandexMetrica.js',
+    '~/plugins/analytics.client.ts',
     '~/plugins/telegram.client.ts',
     '~/plugins/socket.client.ts',
     '~/plugins/buffer.client.ts',
   ],
 
-  // Настройка переменных окружения
+  // [ИСПРАВЛЕНО] Убрали вложенный объект private. Все приватные переменные теперь в корне runtimeConfig
   runtimeConfig: {
-    // Приватные переменные (доступны только на сервере)
+    // Приватные (серверные) переменные
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
     telegramChatId: process.env.TELEGRAM_CHAT_ID,
+    dbHost: process.env.NUXT_DB_HOST,
+    dbPort: Number(process.env.NUXT_DB_PORT),
+    dbUser: process.env.NUXT_DB_USER,
+    dbPassword: process.env.NUXT_DB_PASSWORD,
+    dbName: process.env.NUXT_DB_NAME,
+    jwtSecret: process.env.NUXT_JWT_SECRET,
 
-    // Добавляем настройки почты
     email: {
       host: process.env.NUXT_EMAIL_HOST,
       port: Number(process.env.NUXT_EMAIL_PORT) || 465,
@@ -265,33 +213,23 @@ export default defineNuxtConfig({
       from: process.env.NUXT_EMAIL_FROM || 'noreply@glavprofi.ru',
     },
 
+    // Публичные переменные
     public: {
-      yandexMetricaId: process.env.YANDEX_METRICA_ID, // ID Яндекс.Метрики
+      yandexMetricaId: process.env.YANDEX_METRICA_ID,
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 
         (process.env.NODE_ENV === 'production' 
           ? 'https://glavprofi.ru' 
           : `http://${process.env.NUXT_HOST || '0.0.0.0'}:${process.env.PORT || 3000}`),
-
-      // Базовый URL для загруженных файлов
       uploadsBaseUrl: process.env.NUXT_PUBLIC_UPLOADS_BASE_URL || '',
-    },
-    private: {
-      dbHost: process.env.NUXT_DB_HOST,
-      dbPort: Number(process.env.NUXT_DB_PORT),
-      dbUser: process.env.NUXT_DB_USER,
-      dbPassword: process.env.NUXT_DB_PASSWORD,
-      dbName: process.env.NUXT_DB_NAME,
-      jwtSecret: process.env.NUXT_JWT_SECRET,
     }
   },
 
-  // Дата совместимости
   compatibilityDate: '2026-03-13',
 
   alias: {
-  'shared': '~~/shared',
-  'stores': '~~/stores',
-  'services': '~~/services',
+    'shared': '~~/shared',
+    'stores': '~~/stores',
+    'services': '~~/services',
   },
 
   devtools: {
@@ -301,6 +239,3 @@ export default defineNuxtConfig({
     },
   },
 });
-function defaultErrorHandler(error: { status: number; }, event: { path: string; }) {
-  throw new Error('Function not implemented.');
-}

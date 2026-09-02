@@ -1,53 +1,61 @@
 <!-- app\components\pages\public\homePage\WorksPreview.vue -->
- <template>
+<template>
   <section class="works-preview">
     <div class="container">
-      <h2 class="works-preview__title">Основные <span class="blue">виды работ</span></h2>
+      <h2 class="works-preview__title">Виды отделочных работ</h2>
       <p class="works-preview__subtitle">
-        Выполняем <span class="blue">полный цикл отделочных работ</span>, а также <span class="blue">электрику</span> и <span class="blue">сантехнику</span> — от проекта до сдачи объекта.
+        Все виды отделочных работ: от перегородок и стяжки до финишной отделки. Дополнительно выполняем <span class="blue">электрику</span> и <span class="blue">сантехнику</span> под ключ.
       </p>
 
       <div class="works-preview__grid">
-        <NuxtLink
-          v-for="work in previewItems"
-          :key="work.slug"
-          :to="firstReadyUrl(work)"
-          class="works-preview__card"
-        >
-          <div class="works-preview__card-image">
-            <img :src="work.image" :alt="work.title" loading="lazy" class="works-preview__img">
-            <div class="works-preview__card-overlay">
-              <h3 class="works-preview__card-title">{{ work.title }}</h3>
-              <span class="works-preview__card-count">{{ work.links.length }} услуг</span>
-            </div>
-          </div>
+        <template v-for="work in previewItems" :key="work.slug">
+          <NuxtLink
+            :to="firstReadyUrl(work)"
+            custom
+            v-slot="{ navigate }"
+          >
+            <div
+              class="works-preview__card"
+              @click="navigate"
+              @keyup.enter="navigate"
+              role="link"
+              tabindex="0"
+            >
+              <div class="works-preview__card-image">
+                <img :src="work.image" :alt="work.title" loading="lazy" class="works-preview__img">
+                <div class="works-preview__card-overlay">
+                  <h3 class="works-preview__card-title">{{ work.title }}</h3>
+                  <span class="works-preview__card-count">{{ work.links.length }} услуг</span>
+                </div>
+              </div>
 
-          <div class="works-preview__card-body">
-            <p class="works-preview__card-desc">{{ work.description }}</p>
+              <div class="works-preview__card-body">
+                <p class="works-preview__card-desc">{{ work.description }}</p>
 
-            <div class="works-preview__card-links">
-              <template v-for="link in work.links.slice(0, 3)" :key="link.url">
-                <NuxtLink
-                  v-if="link.isReady"
-                  :to="link.url"
-                  class="works-preview__card-link"
-                  @click.stop
-                  :title="link.title"
-                >
-                  {{ link.title }}
-                </NuxtLink>
-                <span
-                  v-else
-                  class="works-preview__card-link works-preview__card-link--disabled"
-                  :title="`${link.title} — в разработке`"
-                >
-                  <Icon name="mdi:link-off" size="13" />
-                  {{ link.title }}
-                </span>
-              </template>
+                <div class="works-preview__card-links">
+                  <template v-for="link in work.links.slice(0, 3)" :key="link.url">
+                    <NuxtLink
+                      v-if="link.isReady"
+                      :to="link.url"
+                      class="works-preview__card-link"
+                      :title="link.title"
+                    >
+                      {{ link.title }}
+                    </NuxtLink>
+                    <span
+                      v-else
+                      class="works-preview__card-link works-preview__card-link--disabled"
+                      :title="`${link.title} — в разработке`"
+                    >
+                      <Icon name="mdi:link-off" size="13" />
+                      {{ link.title }}
+                    </span>
+                  </template>
+                </div>
+              </div>
             </div>
-          </div>
-        </NuxtLink>
+          </NuxtLink>
+        </template>
       </div>
 
       <div class="works-preview__footer">
@@ -166,6 +174,7 @@ const firstReadyUrl = (work: any): string => {
     text-decoration: none;
     color: inherit;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    cursor: pointer;
 
     &:hover {
       transform: translateY(-4px);
