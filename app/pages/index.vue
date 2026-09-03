@@ -12,14 +12,15 @@
       <PagesPublicHomePageMiniProjects />
     </UiAnimationsBlockAnimator>
     <UiAnimationsBlockAnimator>
-          <!-- ==================== 3. ДО / ПОСЛЕ ==================== -->
-    <section id="before-after" class="page-section">
-      <BeforeAfterShowcase
-        title="Примеры объектов <span>до и после</span>"
-        subtitle="Фотографии с реальных объектов в Рязани."
-        :items="beforeAfterItems"
-      />
-    </section>
+      <!-- ==================== 3. ДО / ПОСЛЕ ==================== -->
+      <section id="before-after" class="page-section">
+        <BeforeAfterShowcase
+          title="Примеры объектов <span>до и после</span>"
+          subtitle="Фотографии с реальных объектов в Рязани."
+          :items="beforeAfterItems"
+          :auto-switch-after-passes="4"
+        />
+      </section>
     </UiAnimationsBlockAnimator>
 
     <UiAnimationsBlockAnimator>

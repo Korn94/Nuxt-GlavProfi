@@ -42,6 +42,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 
+// === Эмиты ===
+const emit = defineEmits<{
+  /** Срабатывает при каждом достижении края (один полный проход линии сравнения) */
+  (e: 'pass-complete'): void
+}>()
+
 const props = withDefaults(
   defineProps<{
     /** URL изображения "до" */
@@ -158,6 +164,9 @@ const animate = (timestamp: number) => {
     progress = 1
     isPausedAtEdge = true
     pauseStartTime = timestamp
+
+    // ✅ ДОБАВЛЕНО: сигнализируем родителю о завершении полного прохода
+    emit('pass-complete')
   }
 
   // Применяем easing к прогрессу

@@ -14,7 +14,6 @@
 
       <!-- Подписи сторон + счётчик -->
       <div class="showcase-topbar">
-        <!-- Подпись "До" только если активный элемент — пара -->
         <span
           v-if="isCurrentPair"
           class="showcase-label showcase-label--before"
@@ -56,6 +55,7 @@
             :pause-at-edges="pauseAtEdges"
             :pause-on-hover="true"
             auto-play
+            @pass-complete="onPassComplete"
           />
           <!-- ОДИНОЧНОЕ ФОТО -->
           <img
@@ -123,10 +123,16 @@ const props = withDefaults(
     items: ShowcaseItem[]
     duration?: number
     pauseAtEdges?: number
+    /**
+     * Количество полных проходов линии сравнения, после которых
+     * авто-переключается на следующую пару. 0 или undefined = выключено.
+     */
+    autoSwitchAfterPasses?: number
   }>(),
   {
     duration: 7000,
     pauseAtEdges: 2000,
+    // autoSwitchAfterPasses по умолчанию undefined — автопереключение выключено
   }
 )
 
@@ -134,6 +140,7 @@ const props = withDefaults(
 const activeIndex = ref(0)
 const isVisible = ref(false)
 const sectionRef = ref<HTMLElement | null>(null)
+const passesCount = ref(0) // Счётчик завершённых проходов
 
 let observer: IntersectionObserver | null = null
 
@@ -161,6 +168,21 @@ const getThumbnailAlt = (item: ShowcaseItem, index: number): string => {
 const switchTo = (index: number) => {
   if (index === activeIndex.value) return
   activeIndex.value = index
+  passesCount.value = 0 // Сбрасываем счётчик при ручном переключении
+}
+
+// === Обработчик завершения прохода ===
+const onPassComplete = () => {
+  // Если опция не задана или элементов мало — ничего не делаем
+  if (!props.autoSwitchAfterPasses || props.items.length <= 1) return
+
+  passesCount.value++
+
+  if (passesCount.value >= props.autoSwitchAfterPasses) {
+    passesCount.value = 0
+    const nextIndex = (activeIndex.value + 1) % props.items.length
+    activeIndex.value = nextIndex
+  }
 }
 
 // === Анимация появления при скролле ===
