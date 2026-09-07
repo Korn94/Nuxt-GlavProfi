@@ -27,24 +27,19 @@ export default defineNuxtConfig({
             })();
           `,
           type: 'text/javascript',
-          // ИСПОЛЬЗУЕМ ПРАВИЛЬНЫЕ СВОЙСТВА
           tagPriority: 'critical',
-          processTemplateParams: true // Правильное имя свойства (без вложенного объекта)
+          processTemplateParams: true
         }
       ],
-
-      // ПРАВИЛЬНЫЙ ФОРМАТ ДЛЯ NOSCRIPT
       noscript: [
         {
           innerHTML: '<style>.mobile-bottom-nav { display: none; }</style>',
-          // ИСПОЛЬЗУЕМ ПРАВИЛЬНОЕ СВОЙСТВО ВМЕСТО body
-          tagPosition: 'bodyClose' // Добавляет в конец body
+          tagPosition: 'bodyClose'
         }
       ]
     }
   },
 
-  // Включаем SSR
   ssr: true,
 
   typescript: {
@@ -52,10 +47,9 @@ export default defineNuxtConfig({
     strict: true,
   },
 
-  // Глобальные стили
   css: [
-    './app/assets/styles/index.scss', // Основные стили
-    './app/assets/styles/animations-custom.scss', // Кастомные анимации (вместо animate.css)
+    './app/assets/styles/index.scss',
+    './app/assets/styles/animations-custom.scss',
   ],
 
   vite: {
@@ -70,11 +64,11 @@ export default defineNuxtConfig({
         '@telegram-apps/sdk',
         'socket.io-client',
         'echarts',
-        'buffer', // CJS
+        'buffer',
         'drizzle-orm/mysql-core',
         'drizzle-orm',
         'drizzle-orm/mysql2',
-        'mysql2/promise', // CJS
+        'mysql2/promise',
       ],
       exclude: ['jsonwebtoken']
     },
@@ -101,7 +95,6 @@ export default defineNuxtConfig({
     css: {
       preprocessorOptions: {
         scss: {
-          // Добавляем sass:color перед вашими переменными
           additionalData: `
             @use 'sass:color';
             @use "@/assets/styles/variables.scss" as *;
@@ -112,18 +105,12 @@ export default defineNuxtConfig({
     },
   },
 
-  // Модули
   modules: [
-    '@nuxt/icon', // Иконки
-    '@nuxtjs/sitemap', // Карта сайта
+    '@nuxt/icon',
+    '@nuxtjs/sitemap',
     '@pinia/nuxt',
   ],
 
-  // chartjs: {
-  //   autoImport: true,
-  // },
-
-  // Настройка карты сайта
   sitemap: {
     hostname: process.env.NUXT_PUBLIC_SITE_URL,
     gzip: true,
@@ -141,20 +128,16 @@ export default defineNuxtConfig({
       '/',
       '/about',
       '/contacts',
-      // Кейсы
       '/projects',
       '/projects/ddx',
       '/projects/zerno',
       '/projects/klinika-alma',
       '/projects/fora-bank',
-      // Политика
       '/privacy-policy',
       '/terms-of-service',
-      // Прайс лист
       '/prices/otdelochnye-raboty',
       '/prices/plumbing',
       '/prices/electricity',
-      // Типы помещений
       '/remont-pomescheniy/ofisy',
       '/remont-pomescheniy/magaziny',
       '/remont-pomescheniy/sklady',
@@ -169,7 +152,6 @@ export default defineNuxtConfig({
     ],
   },
   
-  // @ts-ignore - Nitro config для Nuxt 4
   nitro: {
     preset: 'node-server',
     experimental: {
@@ -177,26 +159,21 @@ export default defineNuxtConfig({
     },
     externals: {
       trace: true,
-      inline: ['jsonwebtoken'], // принудительно бандлить
-      external: [               // НЕ бандлить, брать напрямую из node_modules
-        // БД и ORM
+      inline: ['jsonwebtoken'],
+      external: [
         'mysql2',
         'mysql2/promise',
         'drizzle-orm',
         'drizzle-orm/mysql2',
         'drizzle-orm/mysql-core',
-        // Нативные модули
         'sharp',
         'bcryptjs',
-        // Серверные утилиты
         'nodemailer',
         'node-cron',
         'node-telegram-bot-api',
         'socket.io',
-        // Клиентские библиотеки (не нужны на сервере)
         'echarts',
         '@telegram-apps/sdk',
-        // Прочее
         'zod',
         'lru-cache',
       ],
@@ -204,19 +181,20 @@ export default defineNuxtConfig({
     plugins: [
       './plugins/socket.io.ts'
     ],
-    // devErrorHandler: (error: { status: number; }, event: { path: string; }) => {
-    //   // Игнорируем ошибки 404 для /_nuxt/
-    //   if (event.path.startsWith('/_nuxt/') && error.status === 404) {
-    //     return
-    //   }
-    //   // Стандартная обработка
-    //   return defaultErrorHandler(error, event)
-    // },
     typescript: {
-      // Можно указать другие настройки, если нужно
       strict: true,
     },
     routeRules: {
+      // 🔥 ГЛОБАЛЬНОЕ ПРАВИЛО ДЛЯ SEO: Запрещаем кэширование HTML-страниц
+      // Это заставляет Яндекса всегда скачивать свежий HTML с актуальными хэшами JS/CSS
+      '/**': {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      },
+
       '/api/**': {
         cors: true,
         headers: {
@@ -245,8 +223,6 @@ export default defineNuxtConfig({
           'X-Robots-Tag': 'noindex, nofollow',
         }
       },
-
-      // Редирект со старого прайса
       '/prices/floor': {
         redirect: { to: '/prices/otdelochnye-raboty', statusCode: 301 }
       },
@@ -262,22 +238,17 @@ export default defineNuxtConfig({
     }
   },
 
-  // Настройка плагинов
   plugins: [
-    '~/plugins/yandexMetrica.js', // Подключение Яндекс.Метрики
-    '~/plugins/analytics.client.ts', // Ленивая загрузка Google Analytics
+    '~/plugins/yandexMetrica.js',
+    '~/plugins/analytics.client.ts',
     '~/plugins/telegram.client.ts',
     '~/plugins/socket.client.ts',
     '~/plugins/buffer.client.ts',
   ],
 
-  // Настройка переменных окружения
   runtimeConfig: {
-    // Приватные переменные (доступны только на сервере)
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
     telegramChatId: process.env.TELEGRAM_CHAT_ID,
-
-    // Добавляем настройки почты
     email: {
       host: process.env.NUXT_EMAIL_HOST,
       port: Number(process.env.NUXT_EMAIL_PORT) || 465,
@@ -287,15 +258,12 @@ export default defineNuxtConfig({
       to: process.env.NUXT_EMAIL_TO,
       from: process.env.NUXT_EMAIL_FROM || 'noreply@glavprofi.ru',
     },
-
     public: {
-      yandexMetricaId: process.env.YANDEX_METRICA_ID, // ID Яндекс.Метрики
+      yandexMetricaId: process.env.YANDEX_METRICA_ID,
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 
         (process.env.NODE_ENV === 'production' 
           ? 'https://glavprofi.ru' 
           : `http://${process.env.NUXT_HOST || '0.0.0.0'}:${process.env.PORT || 3000}`),
-
-      // Базовый URL для загруженных файлов
       uploadsBaseUrl: process.env.NUXT_PUBLIC_UPLOADS_BASE_URL || '',
     },
     private: {
@@ -308,13 +276,12 @@ export default defineNuxtConfig({
     }
   },
 
-  // Дата совместимости
   compatibilityDate: '2026-03-13',
 
   alias: {
-  'shared': '~~/shared',
-  'stores': '~~/stores',
-  'services': '~~/services',
+    'shared': '~~/shared',
+    'stores': '~~/stores',
+    'services': '~~/services',
   },
 
   devtools: {
@@ -324,6 +291,3 @@ export default defineNuxtConfig({
     },
   },
 });
-function defaultErrorHandler(error: { status: number; }, event: { path: string; }) {
-  throw new Error('Function not implemented.');
-}
