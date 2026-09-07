@@ -176,7 +176,30 @@ export default defineNuxtConfig({
       websocket: true,
     },
     externals: {
-      inline: ['jsonwebtoken'] // если используете его
+      trace: true,
+      inline: ['jsonwebtoken'], // принудительно бандлить
+      external: [               // НЕ бандлить, брать напрямую из node_modules
+        // БД и ORM
+        'mysql2',
+        'mysql2/promise',
+        'drizzle-orm',
+        'drizzle-orm/mysql2',
+        'drizzle-orm/mysql-core',
+        // Нативные модули
+        'sharp',
+        'bcryptjs',
+        // Серверные утилиты
+        'nodemailer',
+        'node-cron',
+        'node-telegram-bot-api',
+        'socket.io',
+        // Клиентские библиотеки (не нужны на сервере)
+        'echarts',
+        '@telegram-apps/sdk',
+        // Прочее
+        'zod',
+        'lru-cache',
+      ],
     },
     plugins: [
       './plugins/socket.io.ts'

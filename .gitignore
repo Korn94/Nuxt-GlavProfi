@@ -26,6 +26,8 @@ ecosystem.config.cjs
 
 # Папка с приватными данными
 config
+deploy.sh
+.devops
 
 public/uploads
 ngix-setting-dump
