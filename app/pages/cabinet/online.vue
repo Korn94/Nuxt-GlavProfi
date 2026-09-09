@@ -288,6 +288,11 @@ onUnmounted(() => {
   if (timeInterval) clearInterval(timeInterval)
   if (fallbackPoller) clearInterval(fallbackPoller)
 })
+
+useHead({
+  meta: [{ name: 'robots', content: 'noindex, nofollow' }],
+  title: 'CRM — Онлайн',
+})
 </script>
 
 <style lang="scss" scoped>

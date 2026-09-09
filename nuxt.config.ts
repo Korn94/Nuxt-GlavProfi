@@ -158,7 +158,9 @@ export default defineNuxtConfig({
       websocket: true,
     },
     externals: {
-      trace: true,
+      // trace: true,
+      // 🔥 Условная логика: false в dev, true в prod
+      trace: process.env.NODE_ENV !== 'development',
       inline: ['jsonwebtoken'],
       external: [
         'mysql2',

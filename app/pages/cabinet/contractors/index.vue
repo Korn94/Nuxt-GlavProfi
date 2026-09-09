@@ -335,6 +335,11 @@ onMounted(async () => {
     if (user?.role === 'admin') isAdmin.value = true
   } catch (e) { console.log('[Contractors] ℹ️ Не удалось проверить роль админа') }
 })
+
+useHead({
+  meta: [{ name: 'robots', content: 'noindex, nofollow' }],
+  title: 'CRM — Сотрудники',
+})
 </script>
 
 <style lang="scss" scoped>

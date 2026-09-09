@@ -181,6 +181,11 @@ async function handleDelete() {
     isDeleting.value = false
   }
 }
+
+useHead({
+  meta: [{ name: 'robots', content: 'noindex, nofollow' }],
+  title: 'CRM — Пользователи',
+})
 </script>
 
 <style lang="scss" scoped>

@@ -186,6 +186,14 @@ const menuItems: MenuItem[] = [
     page: 'test',
     roleCheck: 'admin'
   },
+  {
+    id: 'test',
+    title: 'Тест2',
+    path: '/cabinet/testpage2',
+    icon: 'mdi:flask-outline',
+    page: 'test',
+    roleCheck: 'admin'
+  },
 
   { id: 'div-2', divider: true },
 
