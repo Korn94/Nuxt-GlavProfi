@@ -104,6 +104,7 @@
 <script setup>
 import { useRoute, useRouter } from "vue-router";
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
+import { copyToClipboard } from "~/utils/clipboard";
 
 const route = useRoute();
 const router = useRouter();
@@ -158,8 +159,7 @@ const navigateTo = (path) => {
 // Копирование номера телефона
 const copyPhoneNumber = () => {
   const phoneNumber = "+79109096947";
-  navigator.clipboard.writeText(phoneNumber).then(() => {
-  });
+  copyToClipboard(phoneNumber);
 };
 
 // Добавление обработчика прокрутки

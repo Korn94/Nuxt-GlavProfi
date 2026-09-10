@@ -203,7 +203,7 @@ const works = [
     description: 'Укладка плитки, керамогранита, мозаики, затирка швов',
     image: '/main/vidy-rabot/plitka.jpg',
     links: [
-      { title: 'Плитка', url: '/vidy-rabot/ukladka-plitki', isReady: false },
+      { title: 'Плитка', url: '/vidy-rabot/ukladka-plitki', isReady: true },
       { title: 'Керамогранит', url: '/vidy-rabot/ukladka-keramogranita', isReady: false },
       { title: 'Настенная', url: '/vidy-rabot/ukladka-nastennoy-plitki', isReady: false },
       { title: 'Напольная', url: '/vidy-rabot/ukladka-napolnoy-plitki', isReady: false },

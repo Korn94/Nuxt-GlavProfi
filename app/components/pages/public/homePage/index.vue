@@ -47,7 +47,7 @@
         <!-- Блок с информацией -->
         <div class="geo-block">
           <p class="geo-main">
-            <span class="blue">Рязань</span> / <span class="blue">Москва</span> и <span class="blue">области</span>
+            <span class="blue">Рязань</span> · <span class="blue">Москва</span> · <span class="blue">Области</span>
           </p>
           <p class="geo-note">
             *В Москве и МО работаем на выездной основе

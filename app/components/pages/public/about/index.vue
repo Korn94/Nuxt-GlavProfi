@@ -1,3 +1,4 @@
+<!-- app\components\pages\public\about\index.vue -->
 <template>
   <div class="about-page">
     <div class="page-header">

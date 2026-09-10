@@ -1,3 +1,4 @@
+<!-- app\pages\about.vue -->
 <template>
   <PagesPublicAbout />
 </template>

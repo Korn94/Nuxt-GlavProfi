@@ -4,7 +4,7 @@
     <div class="footer-container">
       <!-- Левая часть: информация о компании -->
       <div class="footer-info">
-        <h2 class="footer-title">Рязань / Москва</h2>
+        <h2 class="footer-title">Рязань <span class="white">·</span> Москва</h2>
         <p class="footer-text">
           Отделка и ремонт помещений любой сложности<br>
           От косметического ремонта до полной реконструкции
@@ -14,8 +14,8 @@
           <li 
             role="button" 
             tabindex="0" 
-            @click="copyToClipboard('622907683792')"
-            @keydown.enter="copyToClipboard('622907683792')"
+            @click="copyToClipboardLocal('622907683792', 'ИНН скопирован')"
+            @keydown.enter="copyToClipboardLocal('622907683792', 'ИНН скопирован')"
             title="Нажмите, чтобы скопировать ИНН"
           >
             <strong>ИНН: </strong>
@@ -45,6 +45,9 @@
             <strong>Наш офис: </strong>
             <span>г. Рязань, Право-Лыбедская ул., 40</span>
           </li>
+          <!-- <li>
+            <NuxtLink href="/requisites">Реквизиты компании</NuxtLink>
+          </li> -->
         </ul>
       </div>
 
@@ -135,6 +138,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useNotifications } from '~/composables/useNotifications'
+import { copyToClipboard } from '~/utils/clipboard'
 
 // Данные
 const currentYear = new Date().getFullYear()
@@ -146,11 +150,13 @@ const isSubmitting = ref(false)
 // Композабл для уведомлений
 const notifications = useNotifications()
 
-function copyToClipboard(text) {
-  navigator.clipboard.writeText(text).then(() => {
-    notifications.success('ИНН скопирован', 'Готово')
-  }).catch(() => {
-    notifications.error('Не удалось скопировать', 'Ошибка')
+function copyToClipboardLocal(text, message = 'Скопировано') {
+  copyToClipboard(text).then((ok) => {
+    if (ok) {
+      notifications.success(message, 'Готово')
+    } else {
+      notifications.error('Не удалось скопировать', 'Ошибка')
+    }
   })
 }
 
@@ -162,7 +168,7 @@ function handlePhoneClick(phoneNumber) {
   if (/Mobi|Android/i.test(navigator.userAgent)) {
     window.location.href = `tel:${phoneNumber.replace(/\D/g, '')}`
   } else {
-    copyToClipboard(phoneNumber)
+    copyToClipboardLocal(phoneNumber, 'Телефон скопирован')
   }
 }
 
