@@ -38,9 +38,9 @@
           <li :class="{ active: currentRoute === 'index' }">
             <nuxt-link to="/" @click.native="closeMenus">Главная</nuxt-link>
           </li>
-          <!-- <li :class="{ active: isServiceActive }">
-            <nuxt-link to="/services" @click.native="closeMenus">Услуги</nuxt-link>
-          </li> -->
+          <li :class="{ active: isServiceActive }">
+            <nuxt-link to="/remont-pomescheniy" @click.native="closeMenus">Услуги</nuxt-link>
+          </li>
           <li :class="{ active: currentRoute === 'projects' }">
             <nuxt-link to="/projects" @click.native="closeMenus">Портфолио</nuxt-link>
           </li>

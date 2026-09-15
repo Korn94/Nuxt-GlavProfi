@@ -67,6 +67,16 @@
       </template>
     </NavBreadcrumbsRow>
 
+    <!-- ==================== 2. ДО / ПОСЛЕ ==================== -->
+    <!-- <section id="before-after" class="page-section">
+      <BeforeAfterShowcase
+        title="Примеры объектов <span>до и после</span>"
+        subtitle="Фотографии с реальных объектов в Рязани."
+        :items="beforeAfterItems"
+        :auto-switch-after-passes="4"
+      />
+    </section> -->
+
     <!-- ==================== БЛОК 3: ВАРИАНТЫ РЕМОНТА ==================== -->
     <section id="repair-types" class="page-section">
       <RepairTypes
@@ -167,6 +177,7 @@ import FAQBlock from '../../ui/FAQBlock.vue'
 import ApplicationCTA from '../../ui/ApplicationCTA.vue'
 import Breadcrumbs from '../../ui/Breadcrumbs.vue'
 import NavBreadcrumbsRow from '../../ui/NavBreadcrumbsRow.vue'
+// import BeforeAfterShowcase from '../../workTypes/ui/BeforeAfterShowcase.vue'
 
 // === Типы данных ===
 import type { RepairVariant } from '../ui/RepairTypes.vue'
@@ -184,6 +195,17 @@ const navItems: StickyNavItem[] = [
   { id: 'cta', label: 'Оставить заявку', icon: 'mdi:send-outline' },
   { id: 'faq', label: 'Вопросы', icon: 'mdi:help-circle-outline' },
 ]
+
+// ============================================================
+// ДО / ПОСЛЕ
+// ============================================================
+// const beforeAfterItems = [
+//   { beforeImage: '/main/7-1.webp', afterImage: '/main/7.webp' },
+//   { beforeImage: '/main/1-1.jpg', afterImage: '/main/1.jpg' },
+//   { beforeImage: '/main/vidy-rabot/peregorodki-gkl/10.jpg', afterImage: '/main/vidy-rabot/peregorodki-gkl/2.jpg' },
+//   { beforeImage: '/main/vidy-rabot/peregorodki-gkl/9.jpg', afterImage: '/main/vidy-rabot/peregorodki-gkl/4.jpg' },
+//   { beforeImage: '/main/5.jpg', afterImage: '/main/6.jpg' },
+// ]
 
 // === Варианты ремонта (специфичные для ангаров) ===
 const repairTypes = [
