@@ -70,7 +70,7 @@ export const comparisonMethods: MethodOption[] = [
   {
     title: 'Стартовая шпаклёвка',
     icon: 'mdi:layers-outline',
-    priceWorkId: 806, // одна работа — 300 ₽/м²
+    priceWorkId: 806,
     whenToUse: [
       'Перепады до 3 мм на 2 метра',
       'Стены после штукатурки',
@@ -91,7 +91,7 @@ export const comparisonMethods: MethodOption[] = [
   {
     title: 'Стартовая + Финишная',
     icon: 'mdi:layers-triple',
-    priceWorkIds: [806, 811], // 🆕 сумма: 300 + 400 = 700 ₽/м²
+    priceWorkIds: [806, 811],
     recommended: true,
     whenToUse: [
       'Подготовка под покраску',
@@ -113,7 +113,7 @@ export const comparisonMethods: MethodOption[] = [
   {
     title: 'Под покраску «под лампочку»',
     icon: 'mdi:spotlight-beam',
-    priceWorkIds: [806, 813], // 🆕 сумма: 300 + 500 = 800 ₽/м²
+    priceWorkIds: [806, 813],
     whenToUse: [
       'Боковое / точечное освещение',
       'Тёмные и глянцевые краски',
@@ -188,37 +188,73 @@ export const WORK_IDS = {
   SHLIFOVKA_POKRASKA: 829,
   /** Армирование стыков ГКЛ серпянкой */
   SERPYANKA: 821,
+  /** Демонтаж шпаклёвки */
+  DEMONTAZH_SHPAKLEVKA: 646,
+  /** Снятие обоев */
+  SNYATIE_OBOEV: 647,
+  /** Удаление покраски */
+  UDALENIE_POKRASKI: 649,
+  /** Локальная заделка выбоин */
+  ZADELKA_VYBOIN: 810,
 } as const
 
 /**
- * Функция для создания табов калькулятора.
+ * 🆕 Функция для создания табов калькулятора шпаклёвки стен.
+ * Использует baseOptions для выбора типа отделки.
  */
 export const createCalculatorTabs = (
   findWorkById: (id: number) => NormalizedWorkItem | undefined
 ): CalculatorTab[] => {
   const grunt = findWorkById(WORK_IDS.GRUNTOVKA)
   const startGips = findWorkById(WORK_IDS.START_GIPS)
+  const startCement = findWorkById(WORK_IDS.START_CEMENT)
   const finishGips = findWorkById(WORK_IDS.FINISH_GIPS)
   const podPokrasku = findWorkById(WORK_IDS.POD_POKRASKU)
   const shlifovka = findWorkById(WORK_IDS.SHLIFOVKA)
   const shlifPokraska = findWorkById(WORK_IDS.SHLIFOVKA_POKRASKA)
   const serpyanka = findWorkById(WORK_IDS.SERPYANKA)
+  const demontazhShpaklevka = findWorkById(WORK_IDS.DEMONTAZH_SHPAKLEVKA)
+  const snyatieOboev = findWorkById(WORK_IDS.SNYATIE_OBOEV)
+  const udaleniePokraski = findWorkById(WORK_IDS.UDALENIE_POKRASKI)
+  const zadelkaVyboin = findWorkById(WORK_IDS.ZADELKA_VYBOIN)
 
   return [
     {
-      id: 'basic',
-      label: 'Стартовая',
+      id: 'shpaklevka',
+      label: 'Шпаклёвка',
       icon: 'mdi:layers-outline',
-      works: [
+      works: [],
+      baseOptionsLabel: 'Тип отделки',
+      baseOptions: [
         {
-          name: grunt?.name ?? 'Грунтовка глубокого проникновения',
-          price: grunt?.pricePerUnit ?? 0,
-          unit: formatUnit(grunt?.normalizedUnit),
+          id: 'start-only',
+          name: 'Стартовая',
+          price: (grunt?.pricePerUnit ?? 0) + (startGips?.pricePerUnit ?? 0),
+          unit: formatUnit(startGips?.normalizedUnit),
+          description: 'Под обои и декоративную штукатурку',
         },
         {
-          name: startGips?.name ?? 'Стартовая гипсовая шпаклёвка (слой до 3 мм)',
-          price: startGips?.pricePerUnit ?? 0,
+          id: 'start-finish',
+          name: 'Стартовая + Финишная',
+          price: (grunt?.pricePerUnit ?? 0) + (startGips?.pricePerUnit ?? 0) + (finishGips?.pricePerUnit ?? 0) + (shlifovka?.pricePerUnit ?? 0),
           unit: formatUnit(startGips?.normalizedUnit),
+          recommended: true,
+          description: 'Под покраску, 2 слоя + шлифовка',
+          badge: 'Рекомендуем',
+        },
+        {
+          id: 'premium',
+          name: 'Под покраску «под лампочку»',
+          price: (grunt?.pricePerUnit ?? 0) + (startGips?.pricePerUnit ?? 0) + (podPokrasku?.pricePerUnit ?? 0) + (shlifPokraska?.pricePerUnit ?? 0),
+          unit: formatUnit(startGips?.normalizedUnit),
+          description: 'Премиум: контроль под прожектором',
+        },
+        {
+          id: 'cement',
+          name: 'Цементная (для влажных)',
+          price: (grunt?.pricePerUnit ?? 0) + (startCement?.pricePerUnit ?? 0),
+          unit: formatUnit(startCement?.normalizedUnit),
+          description: 'Ванные, кухни, подвалы',
         },
       ],
       extras: [
@@ -227,76 +263,31 @@ export const createCalculatorTabs = (
           name: serpyanka?.name ?? 'Армирование стыков ГКЛ серпянкой',
           price: serpyanka?.pricePerUnit ?? 0,
           unit: 'м.п.',
-        },
-      ],
-    },
-    {
-      id: 'finish',
-      label: 'Стартовая + Финишная',
-      icon: 'mdi:layers-triple',
-      works: [
-        {
-          name: grunt?.name ?? 'Грунтовка глубокого проникновения',
-          price: grunt?.pricePerUnit ?? 0,
-          unit: formatUnit(grunt?.normalizedUnit),
+          recommended: true,
         },
         {
-          name: startGips?.name ?? 'Стартовая гипсовая шпаклёвка (слой до 3 мм)',
-          price: startGips?.pricePerUnit ?? 0,
-          unit: formatUnit(startGips?.normalizedUnit),
+          id: 'demontazh-shpaklevka',
+          name: demontazhShpaklevka?.name ?? 'Демонтаж старой шпаклёвки',
+          price: demontazhShpaklevka?.pricePerUnit ?? 0,
+          unit: formatUnit(demontazhShpaklevka?.normalizedUnit),
         },
         {
-          name: finishGips?.name ?? 'Финишная гипсовая шпаклёвка (слой 1–2 мм)',
-          price: finishGips?.pricePerUnit ?? 0,
-          unit: formatUnit(finishGips?.normalizedUnit),
+          id: 'snyatie-oboev',
+          name: snyatieOboev?.name ?? 'Снятие старых обоев',
+          price: snyatieOboev?.pricePerUnit ?? 0,
+          unit: formatUnit(snyatieOboev?.normalizedUnit),
         },
         {
-          name: shlifovka?.name ?? 'Шлифовка стен',
-          price: shlifovka?.pricePerUnit ?? 0,
-          unit: formatUnit(shlifovka?.normalizedUnit),
-        },
-      ],
-      extras: [
-        {
-          id: 'serpyanka',
-          name: serpyanka?.name ?? 'Армирование стыков ГКЛ серпянкой',
-          price: serpyanka?.pricePerUnit ?? 0,
-          unit: 'м.п.',
-        },
-      ],
-    },
-    {
-      id: 'premium',
-      label: 'Под покраску',
-      icon: 'mdi:spotlight-beam',
-      works: [
-        {
-          name: grunt?.name ?? 'Грунтовка глубокого проникновения',
-          price: grunt?.pricePerUnit ?? 0,
-          unit: formatUnit(grunt?.normalizedUnit),
+          id: 'udalenie-pokraski',
+          name: udaleniePokraski?.name ?? 'Удаление старой краски',
+          price: udaleniePokraski?.pricePerUnit ?? 0,
+          unit: formatUnit(udaleniePokraski?.normalizedUnit),
         },
         {
-          name: startGips?.name ?? 'Стартовая гипсовая шпаклёвка (слой до 3 мм)',
-          price: startGips?.pricePerUnit ?? 0,
-          unit: formatUnit(startGips?.normalizedUnit),
-        },
-        {
-          name: podPokrasku?.name ?? 'Выравнивание под покраску (под «лампочку»)',
-          price: podPokrasku?.pricePerUnit ?? 0,
-          unit: formatUnit(podPokrasku?.normalizedUnit),
-        },
-        {
-          name: shlifPokraska?.name ?? 'Шлифовка стен под покраску',
-          price: shlifPokraska?.pricePerUnit ?? 0,
-          unit: formatUnit(shlifPokraska?.normalizedUnit),
-        },
-      ],
-      extras: [
-        {
-          id: 'serpyanka',
-          name: serpyanka?.name ?? 'Армирование стыков ГКЛ серпянкой',
-          price: serpyanka?.pricePerUnit ?? 0,
-          unit: 'м.п.',
+          id: 'zadelka-vyboin',
+          name: zadelkaVyboin?.name ?? 'Локальная заделка выбоин и углублений',
+          price: zadelkaVyboin?.pricePerUnit ?? 0,
+          unit: formatUnit(zadelkaVyboin?.normalizedUnit),
         },
       ],
     },
@@ -371,7 +362,7 @@ export const workStages: WorkStage[] = [
       'Нанесение выравнивающего слоя (до 3 мм). Армирование стыков ГКЛ серпянкой.',
     icon: 'mdi:layers-outline',
     duration: '1 день',
-    // highlight: true,
+    highlighted: true,
     result: 'Выровненная поверхность',
   },
   {

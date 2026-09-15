@@ -302,91 +302,185 @@ export const WORK_IDS = {
  * Функция для создания табов калькулятора.
  * 🔄 Все цены берутся из прайс-листа через findWorkById.
  */
+/**
+ * 🆕 Функция для создания табов калькулятора с выбором размера плитки и затирки.
+ * Все цены берутся из прайс-листа. Если цена не найдена — 0.
+ */
 export const createCalculatorTabs = (
   findWorkById: (id: number) => NormalizedWorkItem | undefined
 ): CalculatorTab[] => {
-  const pol60 = findWorkById(WORK_IDS.POL_60x60)
-  const stena40 = findWorkById(WORK_IDS.STENA_40x40)
-  const krupnoformat = findWorkById(WORK_IDS.KRUPNOFORMAT)
+  // Варианты затирки
   const zatirkaTsement = findWorkById(WORK_IDS.ZATIRKA_TSEMENT)
+  const zatirkaEpoksid = findWorkById(WORK_IDS.ZATIRKA_EPOKSID)
+  const zatirkaAntiseptik = findWorkById(WORK_IDS.ZATIRKA_ANTISEPTIK)
+  
+  // Дополнительные работы
   const tepliyPol = findWorkById(WORK_IDS.POL_TEPLY)
   const uklon = findWorkById(WORK_IDS.POL_UKLON)
   const gidro = findWorkById(WORK_IDS.GIDROIZOLYATSIYA)
   const slozhnaya = findWorkById(WORK_IDS.STENA_SLOZHNAYA)
   const podrezka45 = findWorkById(WORK_IDS.PODREZKA_45)
   const tyazhely = findWorkById(WORK_IDS.TYAZHELY_KERAMOGRANIT)
-  // 🆕 Подготовка основания
+  
+  // Подготовка основания
   const gruntovka = findWorkById(WORK_IDS.GRUNTOVKA_ADGEZIYA)
   const styazhka = findWorkById(WORK_IDS.STYAZHKA_STANDARD)
   const tonkayaStyazhka = findWorkById(WORK_IDS.STYAZHKA_TONKAYA)
   const nalivnoyPol = findWorkById(WORK_IDS.NALIVNOY_TONKIY)
   const vosstanovlenie = findWorkById(WORK_IDS.VOSSTANOVLENIE_POSLE_DEMONTAZHA)
+  
+  // Демонтаж
+  const demontazhPol = findWorkById(WORK_IDS.DEMONTAZH_POL)
+  const demontazhStena = findWorkById(WORK_IDS.DEMONTAZH_STENA)
+
+  // Размеры плитки для пола
+  const pol30 = findWorkById(WORK_IDS.POL_30x30)
+  const pol40 = findWorkById(WORK_IDS.POL_40x40)
+  const pol60 = findWorkById(WORK_IDS.POL_60x60)
+  const pol60x120 = findWorkById(WORK_IDS.POL_60x120)
+
+  // Размеры плитки для стен
+  const stena30 = findWorkById(WORK_IDS.STENA_30x30)
+  const stena40 = findWorkById(WORK_IDS.STENA_40x40)
+  const stena60 = findWorkById(WORK_IDS.STENA_60x60)
+  const stena60x120 = findWorkById(WORK_IDS.STENA_60x120)
+
+  // Крупноформат
+  const krupnoformat = findWorkById(WORK_IDS.KRUPNOFORMAT)
+
+  // Общие опции затирки (одинаковые для всех табов)
+  const zatirkaOptions = [
+    {
+      id: 'tsement',
+      name: 'Цементная затирка',
+      price: zatirkaTsement?.pricePerUnit ?? 0,
+      unit: formatUnit(zatirkaTsement?.normalizedUnit),
+      // recommended: true,
+      description: 'Для сухих помещений',
+    },
+    {
+      id: 'epoksid',
+      name: 'Эпоксидная затирка',
+      price: zatirkaEpoksid?.pricePerUnit ?? 0,
+      unit: formatUnit(zatirkaEpoksid?.normalizedUnit),
+      description: 'Для влажных зон, не плесневеет',
+    },
+    {
+      id: 'antiseptik',
+      name: 'Антисептическая затирка',
+      price: zatirkaAntiseptik?.pricePerUnit ?? 0,
+      unit: formatUnit(zatirkaAntiseptik?.normalizedUnit),
+      description: 'Для кухонь и клиник',
+    },
+  ]
 
   return [
     {
       id: 'pol',
       label: 'Пол',
       icon: 'mdi:checkerboard',
-      works: [
+      // 🆕 Только одна работа — затирка вынесена в отдельный блок
+      works: [],
+      // 🆕 Выбор размера плитки
+      tileSizeOptions: [
         {
-          name: pol60?.name ?? 'Плитка 60×60 см (пол)',
+          id: 'pol-30x30',
+          name: '30×30 см',
+          price: pol30?.pricePerUnit ?? 0,
+          unit: formatUnit(pol30?.normalizedUnit),
+          description: 'Малый формат',
+          workId: WORK_IDS.POL_30x30,
+        },
+        {
+          id: 'pol-40x40',
+          name: '40×40 см',
+          price: pol40?.pricePerUnit ?? 0,
+          unit: formatUnit(pol40?.normalizedUnit),
+          description: 'Стандартный формат',
+          recommended: true,
+          workId: WORK_IDS.POL_40x40,
+        },
+        {
+          id: 'pol-60x60',
+          name: '60×60 см',
           price: pol60?.pricePerUnit ?? 0,
           unit: formatUnit(pol60?.normalizedUnit),
+          description: 'Крупный формат',
+          workId: WORK_IDS.POL_60x60,
         },
         {
-          name: zatirkaTsement?.name ?? 'Цементная затирка (2–5 мм)',
-          price: zatirkaTsement?.pricePerUnit ?? 0,
-          unit: formatUnit(zatirkaTsement?.normalizedUnit),
+          id: 'pol-60x120',
+          name: '60×120 см',
+          price: pol60x120?.pricePerUnit ?? 0,
+          unit: formatUnit(pol60x120?.normalizedUnit),
+          description: 'Удлинённый формат',
+          workId: WORK_IDS.POL_60x120,
         },
       ],
+      zatirkaOptions,
       extras: [
+        {
+          id: 'demontazh-pol',
+          name: demontazhPol?.name ?? 'Демонтаж старой плитки',
+          price: demontazhPol?.pricePerUnit ?? 0,
+          unit: formatUnit(demontazhPol?.normalizedUnit),
+          category: 'demontazh',
+        },
         {
           id: 'gruntovka-pol',
           name: gruntovka?.name ?? 'Адгезионная грунтовка (бетоноконтакт)',
           price: gruntovka?.pricePerUnit ?? 0,
           unit: formatUnit(gruntovka?.normalizedUnit),
+          category: 'podgotovka',
         },
         {
           id: 'styazhka-pol',
           name: styazhka?.name ?? 'Стандартная стяжка по маякам (30–50 мм)',
           price: styazhka?.pricePerUnit ?? 0,
           unit: formatUnit(styazhka?.normalizedUnit),
+          category: 'podgotovka',
         },
         {
           id: 'tonkaya-styazhka-pol',
-          name: tonkayaStyazhka?.name ?? 'Тонкая стяжка (слой 20–30 мм) на готовое основание',
+          name: tonkayaStyazhka?.name ?? 'Тонкая стяжка (слой 20–30 мм)',
           price: tonkayaStyazhka?.pricePerUnit ?? 0,
           unit: formatUnit(tonkayaStyazhka?.normalizedUnit),
+          category: 'podgotovka',
         },
         {
           id: 'nalivnoy-pol',
           name: nalivnoyPol?.name ?? 'Тонкослойное выравнивание наливным полом (3–5 мм)',
           price: nalivnoyPol?.pricePerUnit ?? 0,
           unit: formatUnit(nalivnoyPol?.normalizedUnit),
+          category: 'podgotovka',
         },
         {
           id: 'vosstanovlenie-pol',
-          name: vosstanovlenie?.name ?? 'Восстановление основания под плитку после демонтажа',
+          name: vosstanovlenie?.name ?? 'Восстановление основания после демонтажа',
           price: vosstanovlenie?.pricePerUnit ?? 0,
           unit: formatUnit(vosstanovlenie?.normalizedUnit),
+          category: 'podgotovka',
         },
         {
           id: 'gidro',
-          name: gidro?.name ?? 'Нанесение обмазочной гидроизоляции (2 слоя)',
+          name: gidro?.name ?? 'Обмазочная гидроизоляция (2 слоя)',
           price: gidro?.pricePerUnit ?? 0,
           unit: formatUnit(gidro?.normalizedUnit),
+          category: 'zashchita',
         },
         {
           id: 'teply-pol',
           name: tepliyPol?.name ?? 'Доплата за укладку на тёплый пол',
           price: tepliyPol?.pricePerUnit ?? 0,
           unit: formatUnit(tepliyPol?.normalizedUnit),
+          category: 'komfort',
         },
         {
           id: 'uklon',
           name: uklon?.name ?? 'Доплата за укладку с уклоном',
           price: uklon?.pricePerUnit ?? 0,
           unit: formatUnit(uklon?.normalizedUnit),
+          category: 'special',
         },
       ],
     },
@@ -394,36 +488,78 @@ export const createCalculatorTabs = (
       id: 'stena',
       label: 'Стены',
       icon: 'mdi:wall',
-      works: [
+      works: [],
+      tileSizeOptions: [
         {
-          name: stena40?.name ?? 'Плитка 40×40 см (стена)',
+          id: 'stena-30x30',
+          name: '30×30 см',
+          price: stena30?.pricePerUnit ?? 0,
+          unit: formatUnit(stena30?.normalizedUnit),
+          description: 'Малый формат',
+          workId: WORK_IDS.STENA_30x30,
+        },
+        {
+          id: 'stena-40x40',
+          name: '40×40 см',
           price: stena40?.pricePerUnit ?? 0,
           unit: formatUnit(stena40?.normalizedUnit),
+          description: 'Стандартный формат',
+          recommended: true,
+          workId: WORK_IDS.STENA_40x40,
         },
         {
-          name: zatirkaTsement?.name ?? 'Цементная затирка (2–5 мм)',
-          price: zatirkaTsement?.pricePerUnit ?? 0,
-          unit: formatUnit(zatirkaTsement?.normalizedUnit),
+          id: 'stena-60x60',
+          name: '60×60 см',
+          price: stena60?.pricePerUnit ?? 0,
+          unit: formatUnit(stena60?.normalizedUnit),
+          description: 'Крупный формат',
+          workId: WORK_IDS.STENA_60x60,
+        },
+        {
+          id: 'stena-60x120',
+          name: '60×120 см',
+          price: stena60x120?.pricePerUnit ?? 0,
+          unit: formatUnit(stena60x120?.normalizedUnit),
+          description: 'Удлинённый формат',
+          workId: WORK_IDS.STENA_60x120,
         },
       ],
+      zatirkaOptions,
       extras: [
+        {
+          id: 'demontazh-stena',
+          name: demontazhStena?.name ?? 'Демонтаж старой плитки',
+          price: demontazhStena?.pricePerUnit ?? 0,
+          unit: formatUnit(demontazhStena?.normalizedUnit),
+          category: 'demontazh',
+        },
         {
           id: 'gruntovka-stena',
           name: gruntovka?.name ?? 'Адгезионная грунтовка (бетоноконтакт)',
           price: gruntovka?.pricePerUnit ?? 0,
           unit: formatUnit(gruntovka?.normalizedUnit),
+          category: 'podgotovka',
         },
         {
           id: 'slozhnaya',
           name: slozhnaya?.name ?? 'Доплата за сложные поверхности (ниши, выступы)',
           price: slozhnaya?.pricePerUnit ?? 0,
           unit: formatUnit(slozhnaya?.normalizedUnit),
+          category: 'special',
         },
         {
           id: 'podrezka45',
           name: podrezka45?.name ?? 'Подрезка плитки под 45 градусов',
           price: podrezka45?.pricePerUnit ?? 0,
           unit: formatUnit(podrezka45?.normalizedUnit),
+          category: 'special',
+        },
+        {
+          id: 'gidro-stena',
+          name: gidro?.name ?? 'Обмазочная гидроизоляция (2 слоя)',
+          price: gidro?.pricePerUnit ?? 0,
+          unit: formatUnit(gidro?.normalizedUnit),
+          category: 'zashchita',
         },
       ],
     },
@@ -431,60 +567,76 @@ export const createCalculatorTabs = (
       id: 'krupnoformat',
       label: 'Крупноформат',
       icon: 'mdi:arrow-expand-all',
-      works: [
+      works: [],
+      // Для крупноформата только один размер
+      tileSizeOptions: [
         {
-          name: krupnoformat?.name ?? 'Плитка 120×120 см и больше',
+          id: 'krupno-120x120',
+          name: '120×120 см и больше',
           price: krupnoformat?.pricePerUnit ?? 0,
           unit: formatUnit(krupnoformat?.normalizedUnit),
-        },
-        {
-          name: zatirkaTsement?.name ?? 'Цементная затирка (2–5 мм)',
-          price: zatirkaTsement?.pricePerUnit ?? 0,
-          unit: formatUnit(zatirkaTsement?.normalizedUnit),
+          description: 'Крупноформатный керамогранит',
+          recommended: true,
+          workId: WORK_IDS.KRUPNOFORMAT,
         },
       ],
+      zatirkaOptions,
       extras: [
+        {
+          id: 'demontazh-krupno',
+          name: demontazhPol?.name ?? 'Демонтаж старой плитки',
+          price: demontazhPol?.pricePerUnit ?? 0,
+          unit: formatUnit(demontazhPol?.normalizedUnit),
+          category: 'demontazh',
+        },
         {
           id: 'gruntovka-krupno',
           name: gruntovka?.name ?? 'Адгезионная грунтовка (бетоноконтакт)',
           price: gruntovka?.pricePerUnit ?? 0,
           unit: formatUnit(gruntovka?.normalizedUnit),
+          category: 'podgotovka',
         },
         {
           id: 'styazhka-krupno',
           name: styazhka?.name ?? 'Стандартная стяжка по маякам (30–50 мм)',
           price: styazhka?.pricePerUnit ?? 0,
           unit: formatUnit(styazhka?.normalizedUnit),
+          category: 'podgotovka',
         },
         {
           id: 'nalivnoy-krupno',
           name: nalivnoyPol?.name ?? 'Тонкослойное выравнивание наливным полом (3–5 мм)',
           price: nalivnoyPol?.pricePerUnit ?? 0,
           unit: formatUnit(nalivnoyPol?.normalizedUnit),
+          category: 'podgotovka',
         },
         {
           id: 'vosstanovlenie-krupno',
-          name: vosstanovlenie?.name ?? 'Восстановление основания под плитку после демонтажа',
+          name: vosstanovlenie?.name ?? 'Восстановление основания после демонтажа',
           price: vosstanovlenie?.pricePerUnit ?? 0,
           unit: formatUnit(vosstanovlenie?.normalizedUnit),
+          category: 'podgotovka',
         },
         {
           id: 'gidro-krupno',
-          name: gidro?.name ?? 'Нанесение обмазочной гидроизоляции (2 слоя)',
+          name: gidro?.name ?? 'Обмазочная гидроизоляция (2 слоя)',
           price: gidro?.pricePerUnit ?? 0,
           unit: formatUnit(gidro?.normalizedUnit),
+          category: 'zashchita',
         },
         {
           id: 'tyazhely',
           name: tyazhely?.name ?? 'Работа с тяжёлым керамогранитом (≥20 кг/лист)',
           price: tyazhely?.pricePerUnit ?? 0,
           unit: formatUnit(tyazhely?.normalizedUnit),
+          category: 'special',
         },
         {
           id: 'podrezka45-large',
           name: podrezka45?.name ?? 'Подрезка плитки под 45 градусов',
           price: podrezka45?.pricePerUnit ?? 0,
           unit: formatUnit(podrezka45?.normalizedUnit),
+          category: 'special',
         },
       ],
     },

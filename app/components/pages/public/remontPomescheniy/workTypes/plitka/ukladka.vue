@@ -312,9 +312,23 @@ const breadcrumbItems = [
 // ДО / ПОСЛЕ (фото-плейсхолдеры, будут заменены)
 // ============================================================
 const beforeAfterItems = [
-  { beforeImage: '/main/1-1.jpg', afterImage: '/main/1.jpg' },
-  { beforeImage: '/main/2-1.jpg', afterImage: '/main/2.jpg' },
+  { beforeImage: '/main/vidy-rabot/plitka/1-1.webp', afterImage: '/main/vidy-rabot/plitka/1.webp' },
+  { beforeImage: '/main/vidy-rabot/plitka/2-1.webp', afterImage: '/main/vidy-rabot/plitka/2.webp' },
   { beforeImage: '/main/5.jpg', afterImage: '/main/6.jpg' },
+  { src: '/main/vidy-rabot/plitka/3.jpg', alt: 'Разметка пола под укладку плитки: красные маркеры обозначают границы и уровни' },
+  { src: '/main/vidy-rabot/plitka/4.jpg', alt: 'Подготовка основания пола: нанесение разметки для точной укладки керамогранита' },
+  { src: '/main/vidy-rabot/plitka/5.jpg', alt: 'Общий вид помещения с разметкой: подготовка к укладке напольной плитки' },
+  { src: '/main/vidy-rabot/plitka/6.jpg', alt: 'Детальная разметка пола для укладки плитки с соблюдением геометрии' },
+  { src: '/main/vidy-rabot/plitka/7.jpg', alt: 'Укладка черной плитки на стену: процесс облицовки вертикальной поверхности' },
+  { src: '/main/vidy-rabot/plitka/8.jpg', alt: 'Монтаж черной настенной плитки в коммерческом помещении' },
+  { src: '/main/vidy-rabot/plitka/9.jpg', alt: 'Крупный план укладки черной плитки: система выравнивания и крепеж' },
+  { src: '/main/vidy-rabot/plitka/10.jpg', alt: 'Коридор на этапе ремонта: подготовка стен и пола к облицовке плиткой' },
+  { src: '/main/vidy-rabot/plitka/11.jpg', alt: 'Готовый коридор в стиле лофт: плитка под бетон и современное освещение' },
+  { src: '/main/vidy-rabot/plitka/12.jpg', alt: 'Зона хаммама: отделка мраморной плиткой с LED-подсветкой' },
+  { src: '/main/vidy-rabot/plitka/13.jpg', alt: 'Коридор с эффектной подсветкой: плитка и неоновое освещение' },
+  { src: '/main/vidy-rabot/plitka/14.jpg', alt: 'Сауна с деревянной отделкой: сочетание плитки и натурального дерева' },
+  { src: '/main/vidy-rabot/plitka/15.jpg', alt: 'Санузел премиум-класса: керамогранит и подвесная сантехника' },
+  { src: '/main/vidy-rabot/plitka/16.jpg', alt: 'Зона отдыха с естественным освещением: плитка под камень и настенные бра' },
 ]
 
 // ============================================================

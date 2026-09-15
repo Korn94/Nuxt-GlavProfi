@@ -198,11 +198,17 @@ export const WORK_IDS = {
   PLASTER: 1143,
   /** Укладка минераловатного утеплителя в каркас */
   INSULATION: 700,
+  /** 🆕 Доплата за усиление каркаса под тяжёлые участки */
+  FRAME_REINFORCE: 940,
+  /** 🆕 Обработка углов армированным профилем */
+  CORNER_REINFORCE: 941,
+  /** 🆕 Армирование стыков серпянкой */
+  JOINT_ARMING: 942,
 } as const
 
 /**
- * Функция для создания табов калькулятора.
- * 🔄 Все цены берутся из прайс-листа через findWorkById.
+ * 🆕 Функция для создания табов калькулятора обшивки стен ГКЛ.
+ * Использует baseOptions для выбора материала и количества слоёв.
  */
 export const createCalculatorTabs = (
   findWorkById: (id: number) => NormalizedWorkItem | undefined
@@ -210,38 +216,77 @@ export const createCalculatorTabs = (
   const gkl1 = findWorkById(WORK_IDS.GKL_1_LAYER)
   const gkl2 = findWorkById(WORK_IDS.GKL_2_LAYERS)
   const gklGlue = findWorkById(WORK_IDS.GKL_GLUE)
+  const gvl1 = findWorkById(WORK_IDS.GVL_1_LAYER)
+  const gvl2 = findWorkById(WORK_IDS.GVL_2_LAYERS)
   const insulation = findWorkById(WORK_IDS.INSULATION)
-
-  // Дельта между 1 и 2 слоями вычисляется автоматически из прайса
-  const upgradeTo2Layers = Math.max(
-    0,
-    (gkl2?.pricePerUnit ?? 0) - (gkl1?.pricePerUnit ?? 0)
-  )
+  const frameReinforce = findWorkById(WORK_IDS.FRAME_REINFORCE)
+  const cornerReinforce = findWorkById(WORK_IDS.CORNER_REINFORCE)
+  const jointArming = findWorkById(WORK_IDS.JOINT_ARMING)
 
   return [
     {
       id: 'frame',
       label: 'На каркас',
       icon: 'mdi:frame',
-      works: [
+      works: [],
+      baseOptionsLabel: 'Материал и слои',
+      baseOptions: [
         {
-          name: gkl1?.name ?? 'Обшивка стен ГКЛ 1 слой на металлическом каркасе',
+          id: 'gkl-1',
+          name: 'ГКЛ 1 слой',
           price: gkl1?.pricePerUnit ?? 0,
           unit: formatUnit(gkl1?.normalizedUnit),
+          description: 'Для кладовых и гардеробных',
+        },
+        {
+          id: 'gkl-2',
+          name: 'ГКЛ 2 слоя',
+          price: gkl2?.pricePerUnit ?? 0,
+          unit: formatUnit(gkl2?.normalizedUnit),
+          recommended: true,
+          description: 'Прочнее, швы не трескаются',
+          badge: 'Рекомендуем',
+        },
+        {
+          id: 'gvl-1',
+          name: 'ГВЛ 1 слой',
+          price: gvl1?.pricePerUnit ?? 0,
+          unit: formatUnit(gvl1?.normalizedUnit),
+          description: 'Прочнее ГКЛ в 5 раз',
+        },
+        {
+          id: 'gvl-2',
+          name: 'ГВЛ 2 слоя',
+          price: gvl2?.pricePerUnit ?? 0,
+          unit: formatUnit(gvl2?.normalizedUnit),
+          description: 'Под тяжёлые шкафы и плитку',
         },
       ],
       extras: [
         {
-          id: '2layers',
-          name: 'Обшивка в 2 слоя (доплата)',
-          price: upgradeTo2Layers,
-          unit: formatUnit(gkl1?.normalizedUnit),
-        },
-        {
-          id: 'insulation',
-          name: insulation?.name ?? 'Укладка утеплителя/звукоизоляции',
+          id: 'insulation-frame',
+          name: insulation?.name ?? 'Утеплитель/звукоизоляция 50–100 мм',
           price: insulation?.pricePerUnit ?? 0,
           unit: formatUnit(insulation?.normalizedUnit),
+          recommended: true,
+        },
+        {
+          id: 'frame-reinforce',
+          name: frameReinforce?.name ?? 'Усиление каркаса под тяжёлые участки',
+          price: frameReinforce?.pricePerUnit ?? 0,
+          unit: formatUnit(frameReinforce?.normalizedUnit),
+        },
+        {
+          id: 'corner-reinforce',
+          name: cornerReinforce?.name ?? 'Обработка углов армированным профилем',
+          price: cornerReinforce?.pricePerUnit ?? 0,
+          unit: formatUnit(cornerReinforce?.normalizedUnit),
+        },
+        {
+          id: 'joint-arming',
+          name: jointArming?.name ?? 'Армирование стыков серпянкой',
+          price: jointArming?.pricePerUnit ?? 0,
+          unit: formatUnit(jointArming?.normalizedUnit),
         },
       ],
     },
@@ -249,14 +294,33 @@ export const createCalculatorTabs = (
       id: 'glue',
       label: 'На клей',
       icon: 'mdi:land-fields',
-      works: [
+      works: [],
+      baseOptionsLabel: 'Способ монтажа',
+      baseOptions: [
         {
-          name: gklGlue?.name ?? 'Обшивка стен ГКЛ на клеевом составе',
+          id: 'gkl-glue',
+          name: 'ГКЛ на клей',
           price: gklGlue?.pricePerUnit ?? 0,
           unit: formatUnit(gklGlue?.normalizedUnit),
+          recommended: true,
+          description: 'Перепад стен до 2 см, экономия площади',
+          badge: 'Быстрый монтаж',
         },
       ],
-      extras: [],
+      extras: [
+        {
+          id: 'corner-reinforce-glue',
+          name: cornerReinforce?.name ?? 'Обработка углов армированным профилем',
+          price: cornerReinforce?.pricePerUnit ?? 0,
+          unit: formatUnit(cornerReinforce?.normalizedUnit),
+        },
+        {
+          id: 'joint-arming-glue',
+          name: jointArming?.name ?? 'Армирование стыков серпянкой',
+          price: jointArming?.pricePerUnit ?? 0,
+          unit: formatUnit(jointArming?.normalizedUnit),
+        },
+      ],
     },
   ]
 }

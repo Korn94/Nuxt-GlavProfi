@@ -182,6 +182,8 @@ export const WORK_IDS = {
   GRUNTOVKA_PORIST: 764,
   /** Механическая насечка бетона */
   NASECHKA: 759,
+  /** Обработка пятен (масляные, жировые) */
+  OBRABOTKA_PYATEN: 761,
   /** Монтаж маяков */
   MAYAKI: 1141,
   /** Армирующая сетка */
@@ -190,147 +192,174 @@ export const WORK_IDS = {
   GIPS_BASIC: 1143,
   /** Штукатурка стен с армированием (слой 30–50 мм) */
   GIPS_ARM: 1144,
+  /** Выравнивание стен с перепадом >50 мм */
+  GIPS_BIG: 1145,
+  /** Штукатурка в труднодоступных зонах */
+  GIPS_TRUDNO: 1146,
   /** Штукатурка для влажных и технических помещений (цементная) */
   CEMENT: 1147,
   /** Влагостойкая штукатурка (бассейны, мойки) */
   CEMENT_VL: 1148,
+  /** Штукатурка с антисептическими добавками */
+  CEMENT_ANTISEPTIK: 1149,
+  /** Огнезащитная штукатурка (REI 30) — к базовой цене */
+  FIREPROOF_30: 1154,
+  /** Огнестойкая штукатурка (REI 60) — к базовой цене */
+  FIREPROOF_60: 1155,
   /** Отделка углов армирующим уголком */
   UGOL: 1142,
+  /** Демонтаж цементно-песчаной штукатурки */
+  DEMONTAZH_CEMENT: 644,
+  /** Демонтаж гипсовой штукатурки */
+  DEMONTAZH_GIPS: 645,
 } as const
 
 /**
- * Функция для создания табов калькулятора.
+ * 🆕 Функция для создания табов калькулятора штукатурки стен.
+ * Использует baseOptions для выбора типа штукатурки.
+ * Грунтовка и маяки автоматически включены в стоимость каждого варианта.
  */
 export const createCalculatorTabs = (
   findWorkById: (id: number) => NormalizedWorkItem | undefined
 ): CalculatorTab[] => {
   const grunt = findWorkById(WORK_IDS.GRUNTOVKA)
+  const gruntPorist = findWorkById(WORK_IDS.GRUNTOVKA_PORIST)
   const ochistka = findWorkById(WORK_IDS.OCHISTKA)
+  const obrabotkaPyaten = findWorkById(WORK_IDS.OBRABOTKA_PYATEN)
   const mayaki = findWorkById(WORK_IDS.MAYAKI)
   const setka = findWorkById(WORK_IDS.SETKA)
   const gipsBasic = findWorkById(WORK_IDS.GIPS_BASIC)
   const gipsArm = findWorkById(WORK_IDS.GIPS_ARM)
+  const gipsBig = findWorkById(WORK_IDS.GIPS_BIG)
+  const gipsTrudno = findWorkById(WORK_IDS.GIPS_TRUDNO)
   const cement = findWorkById(WORK_IDS.CEMENT)
+  const cementVl = findWorkById(WORK_IDS.CEMENT_VL)
+  const cementAntiseptik = findWorkById(WORK_IDS.CEMENT_ANTISEPTIK)
+  const fireproof30 = findWorkById(WORK_IDS.FIREPROOF_30)
+  const fireproof60 = findWorkById(WORK_IDS.FIREPROOF_60)
   const ugol = findWorkById(WORK_IDS.UGOL)
   const nasetchka = findWorkById(WORK_IDS.NASECHKA)
+  const demontazhCement = findWorkById(WORK_IDS.DEMONTAZH_CEMENT)
+  const demontazhGips = findWorkById(WORK_IDS.DEMONTAZH_GIPS)
+
+  // Базовая стоимость грунтовки + маяков (входит в каждый вариант)
+  const gruntPrice = grunt?.pricePerUnit ?? 0
+  const mayakiPrice = mayaki?.pricePerUnit ?? 0
 
   return [
     {
-      id: 'gips-basic',
-      label: 'Гипсовая',
+      id: 'shtukaturka',
+      label: 'Штукатурка',
       icon: 'mdi:hand-water',
-      works: [
+      works: [],
+      baseOptionsLabel: 'Тип штукатурки',
+      baseOptions: [
         {
-          name: grunt?.name ?? 'Грунтовка',
-          price: grunt?.pricePerUnit ?? 0,
-          unit: formatUnit(grunt?.normalizedUnit),
-        },
-        {
-          name: mayaki?.name ?? 'Монтаж маяков',
-          price: mayaki?.pricePerUnit ?? 0,
-          unit: formatUnit(mayaki?.normalizedUnit),
-        },
-        {
-          name: gipsBasic?.name ?? 'Штукатурка стен (слой 10–30 мм)',
-          price: gipsBasic?.pricePerUnit ?? 0,
+          id: 'gips-basic',
+          name: 'Гипсовая',
+          price: gruntPrice + mayakiPrice + (gipsBasic?.pricePerUnit ?? 0),
           unit: formatUnit(gipsBasic?.normalizedUnit),
-        },
-      ],
-      extras: [
-        {
-          id: 'ochistka',
-          name: ochistka?.name ?? 'Очистка стен от пыли, грязи',
-          price: ochistka?.pricePerUnit ?? 0,
-          unit: formatUnit(ochistka?.normalizedUnit),
+          description: 'Сухие помещения, перепады до 30 мм',
         },
         {
-          id: 'ugol',
-          name: ugol?.name ?? 'Отделка углов армирующим уголком',
-          price: ugol?.pricePerUnit ?? 0,
-          unit: 'м.п.',
-        },
-      ],
-    },
-    {
-      id: 'gips-arm',
-      label: 'С армированием',
-      icon: 'mdi:grid',
-      works: [
-        {
-          name: grunt?.name ?? 'Грунтовка',
-          price: grunt?.pricePerUnit ?? 0,
-          unit: formatUnit(grunt?.normalizedUnit),
-        },
-        {
-          name: mayaki?.name ?? 'Монтаж маяков',
-          price: mayaki?.pricePerUnit ?? 0,
-          unit: formatUnit(mayaki?.normalizedUnit),
-        },
-        {
-          name: setka?.name ?? 'Армирующая сетка',
-          price: setka?.pricePerUnit ?? 0,
-          unit: formatUnit(setka?.normalizedUnit),
-        },
-        {
-          name: gipsArm?.name ?? 'Штукатурка стен с армированием (слой 30–50 мм)',
-          price: gipsArm?.pricePerUnit ?? 0,
+          id: 'gips-arm',
+          name: 'С армированием',
+          price: gruntPrice + mayakiPrice + (setka?.pricePerUnit ?? 0) + (gipsArm?.pricePerUnit ?? 0),
           unit: formatUnit(gipsArm?.normalizedUnit),
-        },
-      ],
-      extras: [
-        {
-          id: 'ochistka',
-          name: ochistka?.name ?? 'Очистка стен от пыли, грязи',
-          price: ochistka?.pricePerUnit ?? 0,
-          unit: formatUnit(ochistka?.normalizedUnit),
+          recommended: true,
+          description: 'Перепады 30–50 мм, новостройки',
+          badge: 'Рекомендуем',
         },
         {
-          id: 'ugol',
-          name: ugol?.name ?? 'Отделка углов армирующим уголком',
-          price: ugol?.pricePerUnit ?? 0,
-          unit: 'м.п.',
-        },
-      ],
-    },
-    {
-      id: 'cement',
-      label: 'Цементная',
-      icon: 'mdi:water-percent',
-      works: [
-        {
-          name: grunt?.name ?? 'Грунтовка',
-          price: grunt?.pricePerUnit ?? 0,
-          unit: formatUnit(grunt?.normalizedUnit),
+          id: 'gips-big',
+          name: 'Перепад >50 мм',
+          price: gruntPrice + mayakiPrice + (setka?.pricePerUnit ?? 0) + (gipsBig?.pricePerUnit ?? 0),
+          unit: formatUnit(gipsBig?.normalizedUnit),
+          description: 'Сильная кривизна, толстый слой',
         },
         {
-          name: mayaki?.name ?? 'Монтаж маяков',
-          price: mayaki?.pricePerUnit ?? 0,
-          unit: formatUnit(mayaki?.normalizedUnit),
-        },
-        {
-          name: cement?.name ?? 'Штукатурка для влажных и технических помещений',
-          price: cement?.pricePerUnit ?? 0,
+          id: 'cement',
+          name: 'Цементная',
+          price: gruntPrice + mayakiPrice + (cement?.pricePerUnit ?? 0),
           unit: formatUnit(cement?.normalizedUnit),
+          description: 'Санузлы, кухни, под плитку',
+        },
+        {
+          id: 'cement-vl',
+          name: 'Влагостойкая',
+          price: gruntPrice + mayakiPrice + (cementVl?.pricePerUnit ?? 0),
+          unit: formatUnit(cementVl?.normalizedUnit),
+          description: 'Бассейны, мойки, бойлерные',
+        },
+        {
+          id: 'cement-antiseptik',
+          name: 'С антисептиком',
+          price: gruntPrice + mayakiPrice + (cementAntiseptik?.pricePerUnit ?? 0),
+          unit: formatUnit(cementAntiseptik?.normalizedUnit),
+          description: 'Защита от плесени и грибка',
         },
       ],
       extras: [
+        {
+          id: 'demontazh-gips',
+          name: demontazhGips?.name ?? 'Демонтаж старой гипсовой штукатурки',
+          price: demontazhGips?.pricePerUnit ?? 0,
+          unit: formatUnit(demontazhGips?.normalizedUnit),
+        },
+        {
+          id: 'demontazh-cement',
+          name: demontazhCement?.name ?? 'Демонтаж старой цементной штукатурки',
+          price: demontazhCement?.pricePerUnit ?? 0,
+          unit: formatUnit(demontazhCement?.normalizedUnit),
+        },
         {
           id: 'ochistka',
           name: ochistka?.name ?? 'Очистка стен от пыли, грязи',
           price: ochistka?.pricePerUnit ?? 0,
           unit: formatUnit(ochistka?.normalizedUnit),
-        },
-        {
-          id: 'setka',
-          name: setka?.name ?? 'Армирующая сетка (обязательно для толстого слоя)',
-          price: setka?.pricePerUnit ?? 0,
-          unit: formatUnit(setka?.normalizedUnit),
         },
         {
           id: 'nasetchka',
           name: nasetchka?.name ?? 'Механическая насечка бетона',
           price: nasetchka?.pricePerUnit ?? 0,
           unit: formatUnit(nasetchka?.normalizedUnit),
+        },
+        {
+          id: 'obrabotka-pyaten',
+          name: obrabotkaPyaten?.name ?? 'Обработка масляных и жировых пятен',
+          price: obrabotkaPyaten?.pricePerUnit ?? 0,
+          unit: formatUnit(obrabotkaPyaten?.normalizedUnit),
+        },
+        {
+          id: 'grunt-porist',
+          name: gruntPorist?.name ?? 'Грунтовка для пористых оснований (газобетон)',
+          price: gruntPorist?.pricePerUnit ?? 0,
+          unit: formatUnit(gruntPorist?.normalizedUnit),
+        },
+        {
+          id: 'ugol',
+          name: ugol?.name ?? 'Отделка углов армирующим уголком',
+          price: ugol?.pricePerUnit ?? 0,
+          unit: 'м.п.',
+          recommended: true,
+        },
+        {
+          id: 'trudnodostupnye',
+          name: gipsTrudno?.name ?? 'Штукатурка в труднодоступных зонах',
+          price: gipsTrudno?.pricePerUnit ?? 0,
+          unit: formatUnit(gipsTrudno?.normalizedUnit),
+        },
+        {
+          id: 'fireproof-30',
+          name: fireproof30?.name ?? 'Огнезащитная штукатурка REI 30 (доплата)',
+          price: fireproof30?.pricePerUnit ?? 0,
+          unit: formatUnit(fireproof30?.normalizedUnit),
+        },
+        {
+          id: 'fireproof-60',
+          name: fireproof60?.name ?? 'Огнестойкая штукатурка REI 60 (доплата)',
+          price: fireproof60?.pricePerUnit ?? 0,
+          unit: formatUnit(fireproof60?.normalizedUnit),
         },
       ],
     },
@@ -406,7 +435,7 @@ export const workStages: WorkStage[] = [
       'Наброс раствора, вытягивание правилом по маякам, затирка. При слое более 30 мм — армирование сеткой.',
     icon: 'mdi:hand-water',
     duration: '1–3 дня',
-    // highlight: true,
+    highlighted: true,
     result: 'Ровные стены',
   },
   {

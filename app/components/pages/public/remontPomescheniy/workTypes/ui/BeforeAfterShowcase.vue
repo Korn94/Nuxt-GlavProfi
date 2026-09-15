@@ -330,7 +330,7 @@ onBeforeUnmount(() => {
 
 .showcase-main-image {
   width: 100%;
-  height: 700px;
+  height: 900px;
   object-fit: cover;
   display: block;
 

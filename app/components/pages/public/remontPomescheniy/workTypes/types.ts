@@ -11,9 +11,7 @@ export interface OverviewAdvantage {
 export interface MethodOption {
   title: string
   icon: string
-  /** ID одной работы в прайс-листе */
   priceWorkId?: number
-  /** 🆕 Массив ID работ — цены суммируются (для комбинаций) */
   priceWorkIds?: number[]
   priceFrom?: number
   recommended?: boolean
@@ -26,9 +24,9 @@ export interface MethodOption {
 export interface InsightItem {
   title: string
   description: string
-  icon?: string           // фоллбэк в компоненте: mdi:information-outline
+  icon?: string
   highlight?: boolean
-  fact?: string           // короткая пилюля-факт
+  fact?: string
 }
 
 // === PriceFactors ===
@@ -50,6 +48,40 @@ export interface CalculatorExtraItem {
   name: string
   price: number
   unit: string
+  category?: string
+  recommended?: boolean
+}
+
+export interface ZatirkaOption {
+  id: string
+  name: string
+  price: number
+  unit: string
+  recommended?: boolean
+  description?: string
+}
+
+export interface TileSizeOption {
+  id: string
+  name: string
+  price: number
+  unit: string
+  recommended?: boolean
+  description?: string
+  workId?: number
+}
+
+/**
+ * 🆕 Универсальный вариант выбора (для ГКЛ, краски, и т.д.)
+ */
+export interface BaseOption {
+  id: string
+  name: string
+  price: number
+  unit: string
+  recommended?: boolean
+  description?: string
+  badge?: string
 }
 
 export interface CalculatorTab {
@@ -57,6 +89,12 @@ export interface CalculatorTab {
   label: string
   icon: string
   works: CalculatorWorkItem[]
+  zatirkaOptions?: ZatirkaOption[]
+  tileSizeOptions?: TileSizeOption[]
+  /** 🆕 Универсальные варианты выбора (альтернатива tileSizeOptions) */
+  baseOptions?: BaseOption[]
+  /** 🆕 Кастомный заголовок для блока baseOptions (по умолчанию "Вариант исполнения") */
+  baseOptionsLabel?: string
   extras: CalculatorExtraItem[]
 }
 

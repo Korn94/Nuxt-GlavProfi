@@ -194,9 +194,8 @@ export const WORK_IDS = {
 } as const
 
 /**
- * Функция для создания табов калькулятора.
- * 🔄 Все цены берутся из прайс-листа через findWorkById.
- * 🆕 По умолчанию — 1 слой, 2 слоя и утеплитель идут как доп. опции.
+ * 🆕 Функция для создания табов калькулятора ГКЛ-перегородок.
+ * Использует baseOptions для выбора количества слоёв (плашки).
  */
 export const createCalculatorTabs = (
   findWorkById: (id: number) => NormalizedWorkItem | undefined
@@ -205,42 +204,49 @@ export const createCalculatorTabs = (
   const gkl2 = findWorkById(WORK_IDS.PARTITION_2_LAYERS)
   const gvl1 = findWorkById(WORK_IDS.PARTITION_GVL)
   const gvl2 = findWorkById(WORK_IDS.PARTITION_GVL_2)
+  const fireproof = findWorkById(WORK_IDS.PARTITION_FIREPROOF)
   const insulation = findWorkById(WORK_IDS.INSULATION)
-
-  // Дельты вычисляются автоматически из прайса
-  const gkl2LayersSurcharge = Math.max(
-    0,
-    (gkl2?.pricePerUnit ?? 0) - (gkl1?.pricePerUnit ?? 0)
-  )
-  const gvl2LayersSurcharge = Math.max(
-    0,
-    (gvl2?.pricePerUnit ?? 0) - (gvl1?.pricePerUnit ?? 0)
-  )
 
   return [
     {
       id: 'gkl',
       label: 'ГКЛ',
       icon: 'mdi:layers-outline',
-      works: [
+      works: [],
+      // 🆕 Кастомный заголовок для блока выбора
+      baseOptionsLabel: 'Количество слоёв',
+      baseOptions: [
         {
-          name: gkl1?.name ?? 'Перегородка из ГКЛ в 1 слой с двух сторон',
+          id: 'gkl-1',
+          name: '1 слой',
           price: gkl1?.pricePerUnit ?? 0,
           unit: formatUnit(gkl1?.normalizedUnit),
+          description: 'Бюджетный вариант для кладовых',
+        },
+        {
+          id: 'gkl-2',
+          name: '2 слоя',
+          price: gkl2?.pricePerUnit ?? 0,
+          unit: formatUnit(gkl2?.normalizedUnit),
+          recommended: true,
+          description: 'Для жилых комнат и офисов',
+          badge: 'Рекомендуем',
+        },
+        {
+          id: 'gkl-fire',
+          name: 'Огнестойкая (ГКЛО)',
+          price: fireproof?.pricePerUnit ?? 0,
+          unit: formatUnit(fireproof?.normalizedUnit),
+          description: 'REI 30, для эвакуационных путей',
         },
       ],
       extras: [
         {
-          id: 'gkl-2layers',
-          name: 'Второй слой ГКЛ (доплата)',
-          price: gkl2LayersSurcharge,
-          unit: formatUnit(gkl1?.normalizedUnit),
-        },
-        {
-          id: 'insulation',
-          name: insulation?.name ?? 'Укладка утеплителя/звукоизоляции 100 мм',
+          id: 'insulation-gkl',
+          name: insulation?.name ?? 'Утеплитель/звукоизоляция 100 мм',
           price: insulation?.pricePerUnit ?? 0,
           unit: formatUnit(insulation?.normalizedUnit),
+          recommended: true,
         },
       ],
     },
@@ -248,25 +254,33 @@ export const createCalculatorTabs = (
       id: 'gvl',
       label: 'ГВЛ',
       icon: 'mdi:arm-flex',
-      works: [
+      works: [],
+      baseOptionsLabel: 'Количество слоёв',
+      baseOptions: [
         {
-          name: gvl1?.name ?? 'Перегородка из ГВЛ в 1 слой с двух сторон',
+          id: 'gvl-1',
+          name: '1 слой',
           price: gvl1?.pricePerUnit ?? 0,
           unit: formatUnit(gvl1?.normalizedUnit),
+          description: 'Прочнее ГКЛ в 5 раз',
+        },
+        {
+          id: 'gvl-2',
+          name: '2 слоя',
+          price: gvl2?.pricePerUnit ?? 0,
+          unit: formatUnit(gvl2?.normalizedUnit),
+          recommended: true,
+          description: 'Под тяжёлые шкафы и двери',
+          badge: 'Рекомендуем',
         },
       ],
       extras: [
         {
-          id: 'gvl-2layers',
-          name: 'Второй слой ГВЛ (доплата)',
-          price: gvl2LayersSurcharge,
-          unit: formatUnit(gvl1?.normalizedUnit),
-        },
-        {
-          id: 'insulation',
-          name: insulation?.name ?? 'Укладка утеплителя/звукоизоляции 100 мм',
+          id: 'insulation-gvl',
+          name: insulation?.name ?? 'Утеплитель/звукоизоляция 100 мм',
           price: insulation?.pricePerUnit ?? 0,
           unit: formatUnit(insulation?.normalizedUnit),
+          recommended: true,
         },
       ],
     },
