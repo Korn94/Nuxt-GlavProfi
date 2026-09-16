@@ -45,7 +45,10 @@ export default defineEventHandler(async (event) => {
     .where(
       and(
         eq(workAgreements.contractorType, contractorType),
-        eq(workAgreements.contractorId, contractorId)
+        eq(workAgreements.contractorId, contractorId),
+        // Отображаем только договорённости по активным объектам
+        // (завершённые/отменённые объекты с их договорённостями не выгружаем).
+        eq(objects.status, 'active')
       )
     )
     .orderBy(workAgreements.objectId, workAgreements.createdAt)
