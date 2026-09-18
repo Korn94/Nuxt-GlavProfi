@@ -667,10 +667,8 @@ const setCategory = async (categorySlug: string) => {
     padding: 0;
     margin: 0;
 
-    /* autoprefixer: off */
     column-width: 400px;
     column-gap: 24px;
-    /* autoprefixer: on */
   }
 
   &__item {

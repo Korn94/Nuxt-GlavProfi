@@ -179,9 +179,9 @@ usePriceSortable({
     flex-shrink: 0;
   }
 
-  &__list {
+  // &__list {
     /* контейнер для sortable */
-  }
+  // }
 
   &__admin {
     margin-top: 12px;
