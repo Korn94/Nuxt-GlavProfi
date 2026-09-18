@@ -104,14 +104,14 @@ defineEmits<{
     height: 28px;
     border: none;
     background: rgba(0, 0, 0, 0.06);
-    color: $text-gray;
+    color: $red;
     border-radius: 50%;
     cursor: pointer;
     transition: all 0.2s ease;
 
     &:hover {
-      background: rgba(0, 195, 245, 0.15);
-      color: $blue;
+      background: rgba(245, 0, 0, 0.15);
+      color: red;
     }
   }
 }

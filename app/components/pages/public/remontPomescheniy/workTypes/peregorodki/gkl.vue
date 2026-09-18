@@ -25,7 +25,19 @@
       />
     </section>
 
-    <!-- ==================== 4. ОПИСАНИЕ КАТЕГОРИИ ==================== -->
+    <!-- ==================== 4. КАЛЬКУЛЯТОР (Поднят выше для конверсии) ==================== -->
+    <section id="calculator" class="page-section page-section--light">
+      <PriceCalculatorTabs
+        title="Калькулятор <span>стоимости</span> перегородки"
+        subtitle="Выберите тип конструкции и площадь — получите предварительную смету сразу."
+        :tabs="calculatorTabs"
+        :loading="pricePending"
+        :default-area="10"
+        @order-estimate="scrollToCta"
+      />
+    </section>
+
+    <!-- ==================== 5. ОПИСАНИЕ КАТЕГОРИИ ==================== -->
     <section id="overview" class="page-section page-section--light">
       <WorkTypeOverview
         title="Почему перегородки из <span>ГКЛ — это выгодно</span>"
@@ -47,7 +59,26 @@
       </WorkTypeOverview>
     </section>
 
-    <!-- ==================== 5. СРАВНЕНИЕ МЕТОДОВ ==================== -->
+    <!-- ==================== 6. ПРЕДПРОСМОТР ЦЕН ==================== -->
+    <section id="price-list" class="page-section">
+      <PriceListTable
+        title="Полный прайс: <span>перегородки из ГКЛ</span>"
+        subtitle="Все работы по монтажу гипсокартонных перегородок. Точная смета — после бесплатного замера."
+        :sub-category-ids="[228, 231, 232]"
+        footer-note="* Цены указаны за работу без учёта стоимости материалов. Доплаты отмечены знаком «+ к цене». Монтаж дверей и коробок считается отдельно."
+      />
+    </section>
+
+    <!-- ==================== 7. ФАКТОРЫ ЦЕНЫ (Сразу после прайса, чтобы объяснить цифры) ==================== -->
+    <section id="price-factors" class="page-section page-section--light">
+      <PriceFactors
+        title="Что <span>влияет на итоговую цену</span>"
+        :factors="priceFactors"
+        footer-note="Точную смету инженер составит после бесплатного выезда на объект. Это ни к чему не обязывает."
+      />
+    </section>
+
+    <!-- ==================== 8. СРАВНЕНИЕ МЕТОДОВ (Образовательный блок для сомневающихся) ==================== -->
     <section id="methods" class="page-section">
       <MethodComparison
         title="Что <span>выбрать</span>: 1, 2 слоя или ГВЛ?"
@@ -58,7 +89,7 @@
       />
     </section>
 
-    <!-- ==================== 6. ТИПЫ МАТЕРИАЛОВ ==================== -->
+    <!-- ==================== 9. ТИПЫ МАТЕРИАЛОВ ==================== -->
     <section id="materials" class="page-section page-section--light">
       <MaterialsGuide
         title="Какой <span>гипсокартон</span> выбрать для перегородок"
@@ -69,7 +100,7 @@
       />
     </section>
 
-    <!-- ==================== 7. ТЕХНИЧЕСКИЕ НЮАНСЫ ==================== -->
+    <!-- ==================== 10. ТЕХНИЧЕСКИЕ НЮАНСЫ ==================== -->
     <section id="insights" class="page-section">
       <TechnicalInsights
         title="Ключевые <span>технические нюансы</span> монтажа"
@@ -132,49 +163,18 @@
       </TechnicalInsights>
     </section>
 
-    <!-- ==================== 8. ПРЕДПРОСМОТР ЦЕН ==================== -->
-    <section id="price-list" class="page-section">
-      <PriceListTable
-        title="Полный прайс: <span>перегородки из ГКЛ</span>"
-        subtitle="Все работы по монтажу гипсокартонных перегородок. Точная смета — после бесплатного замера."
-        :sub-category-ids="[228, 231, 232]"
-        footer-note="* Цены указаны за работу без учёта стоимости материалов. Доплаты отмечены знаком «+ к цене». Монтаж дверей и коробок считается отдельно."
-      />
+    <!-- ==================== 11. ГАРАНТИИ ==================== -->
+    <section id="guarantees" class="page-section">
+      <GuaranteesGrid title="Наши <span>гарантии</span>" :items="guarantees" />
     </section>
 
-    <!-- ==================== 9. ФАКТОРЫ ЦЕНЫ ==================== -->
-    <section id="price-factors" class="page-section page-section--light">
-      <PriceFactors
-        title="Что <span>влияет на итоговую цену</span>"
-        :factors="priceFactors"
-        footer-note="Точную смету инженер составит после бесплатного выезда на объект. Это ни к чему не обязывает."
-      />
-    </section>
-
-    <!-- ==================== 10. КАЛЬКУЛЯТОР ==================== -->
-    <section id="calculator" class="page-section">
-      <PriceCalculatorTabs
-        title="Калькулятор <span>стоимости</span> перегородки"
-        subtitle="Выберите тип конструкции и площадь — получите предварительную смету сразу."
-        :tabs="calculatorTabs"
-        :loading="pricePending"
-        :default-area="10"
-        @order-estimate="scrollToCta"
-      />
-    </section>
-
-    <!-- ==================== 11. ЭТАПЫ РАБОТ ==================== -->
+    <!-- ==================== 12. ЭТАПЫ РАБОТ ==================== -->
     <section id="stages" class="page-section page-section--light">
       <WorkStagesTimeline
         title="Как <span>мы работаем</span>: 7 этапов"
         subtitle="От звонка до сдачи готовой перегородки под отделку"
         :stages="workStages"
       />
-    </section>
-
-    <!-- ==================== 12. ГАРАНТИИ ==================== -->
-    <section id="guarantees" class="page-section">
-      <GuaranteesGrid title="Наши <span>гарантии</span>" :items="guarantees" />
     </section>
 
     <!-- ==================== 13. FAQ ==================== -->

@@ -1,5 +1,5 @@
 <!-- app/components/pages/public/remontPomescheniy/workTypes/shpaklevka/steny.vue -->
- <template>
+<template>
   <div class="page-shpaklevka-sten">
     <!-- ==================== 1. ШАПКА СТРАНИЦЫ ==================== -->
     <HeaderType
@@ -25,7 +25,19 @@
       />
     </section>
 
-    <!-- ==================== 4. ОПИСАНИЕ КАТЕГОРИИ ==================== -->
+    <!-- ==================== 4. КАЛЬКУЛЯТОР (Поднят выше для конверсии) ==================== -->
+    <section id="calculator" class="page-section page-section--light">
+      <PriceCalculatorTabs
+        title="Калькулятор <span>стоимости</span> шпаклёвки стен"
+        subtitle="Выберите уровень подготовки и площадь — получите предварительную смету сразу."
+        :tabs="calculatorTabs"
+        :loading="pricePending"
+        :default-area="30"
+        @order-estimate="scrollToCta"
+      />
+    </section>
+
+    <!-- ==================== 5. ОПИСАНИЕ КАТЕГОРИИ ==================== -->
     <section id="overview" class="page-section page-section--light">
       <WorkTypeOverview
         title="Зачем стенам <span>шпаклёвка</span>"
@@ -56,7 +68,26 @@
       </WorkTypeOverview>
     </section>
 
-    <!-- ==================== 5. СРАВНЕНИЕ ПОДХОДОВ ==================== -->
+    <!-- ==================== 6. ПРЕДПРОСМОТР ЦЕН ==================== -->
+    <section id="price-list" class="page-section">
+      <PriceListTable
+        title="Полный прайс: <span>шпаклёвка стен</span>"
+        subtitle="Все работы по подготовке стен: грунтовка, шпаклёвка, армирование, шлифовка."
+        :sub-category-ids="[250, 251, 252, 254, 255]"
+        footer-note="* Цены указаны за работу без учёта стоимости материалов. Доплаты отмечены знаком «+ к цене»."
+      />
+    </section>
+
+    <!-- ==================== 7. ФАКТОРЫ ЦЕНЫ (Сразу после прайса, чтобы объяснить цифры) ==================== -->
+    <section id="price-factors" class="page-section page-section--light">
+      <PriceFactors
+        title="Что <span>влияет на итоговую цену</span>"
+        :factors="priceFactors"
+        footer-note="Точную смету инженер составит после бесплатного выезда на объект. Это ни к чему не обязывает."
+      />
+    </section>
+
+    <!-- ==================== 8. СРАВНЕНИЕ ПОДХОДОВ (Образовательный блок для сомневающихся) ==================== -->
     <section id="methods" class="page-section">
       <MethodComparison
         title="Какой уровень <span>шпаклёвки</span> вам нужен?"
@@ -67,7 +98,7 @@
       />
     </section>
 
-    <!-- ==================== 6. ТИПЫ МАТЕРИАЛОВ ==================== -->
+    <!-- ==================== 9. ТИПЫ МАТЕРИАЛОВ ==================== -->
     <section id="materials" class="page-section page-section--light">
       <MaterialsGuide
         title="Какую <span>шпаклёвку</span> выбрать: гипс, цемент или полимер?"
@@ -78,7 +109,7 @@
       />
     </section>
 
-    <!-- ==================== 7. ТЕХНИЧЕСКИЕ НЮАНСЫ ==================== -->
+    <!-- ==================== 10. ТЕХНИЧЕСКИЕ НЮАНСЫ ==================== -->
     <section id="insights" class="page-section">
       <TechnicalInsights
         title="Что важно знать <span>о шпаклёвке</span> стен"
@@ -142,49 +173,18 @@
       </TechnicalInsights>
     </section>
 
-    <!-- ==================== 8. ПРЕДПРОСМОТР ЦЕН ==================== -->
-    <section id="price-list" class="page-section">
-      <PriceListTable
-        title="Полный прайс: <span>шпаклёвка стен</span>"
-        subtitle="Все работы по подготовке стен: грунтовка, шпаклёвка, армирование, шлифовка."
-        :sub-category-ids="[250, 251, 252, 254, 255]"
-        footer-note="* Цены указаны за работу без учёта стоимости материалов. Доплаты отмечены знаком «+ к цене»."
-      />
+    <!-- ==================== 11. ГАРАНТИИ ==================== -->
+    <section id="guarantees" class="page-section">
+      <GuaranteesGrid title="Наши <span>гарантии</span>" :items="guarantees" />
     </section>
 
-    <!-- ==================== 9. ФАКТОРЫ ЦЕНЫ ==================== -->
-    <section id="price-factors" class="page-section page-section--light">
-      <PriceFactors
-        title="Что <span>влияет на итоговую цену</span>"
-        :factors="priceFactors"
-        footer-note="Точную смету инженер составит после бесплатного выезда на объект. Это ни к чему не обязывает."
-      />
-    </section>
-
-    <!-- ==================== 10. КАЛЬКУЛЯТОР ==================== -->
-    <section id="calculator" class="page-section">
-      <PriceCalculatorTabs
-        title="Калькулятор <span>стоимости</span> шпаклёвки стен"
-        subtitle="Выберите уровень подготовки и площадь — получите предварительную смету сразу."
-        :tabs="calculatorTabs"
-        :loading="pricePending"
-        :default-area="30"
-        @order-estimate="scrollToCta"
-      />
-    </section>
-
-    <!-- ==================== 11. ЭТАПЫ РАБОТ ==================== -->
+    <!-- ==================== 12. ЭТАПЫ РАБОТ ==================== -->
     <section id="stages" class="page-section page-section--light">
       <WorkStagesTimeline
         title="Как <span>мы работаем</span>: 6 этапов"
         subtitle="От заявки до идеально гладких стен, готовых под отделку"
         :stages="workStages"
       />
-    </section>
-
-    <!-- ==================== 12. ГАРАНТИИ ==================== -->
-    <section id="guarantees" class="page-section">
-      <GuaranteesGrid title="Наши <span>гарантии</span>" :items="guarantees" />
     </section>
 
     <!-- ==================== 13. FAQ ==================== -->

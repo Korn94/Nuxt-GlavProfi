@@ -25,7 +25,20 @@
       />
     </section>
 
-    <!-- ==================== 4. ОПИСАНИЕ КАТЕГОРИИ ==================== -->
+    <!-- ==================== 4. КАЛЬКУЛЯТОР (Поднят выше для конверсии) ==================== -->
+    <section id="calculator" class="page-section page-section--light">
+      <PriceCalculatorTabs
+        title="Калькулятор <span>стоимости</span> монтажа ГКЛ"
+        subtitle="Выберите тип монтажа и площадь — получите предварительную смету сразу."
+        :tabs="calculatorTabs"
+        :loading="pricePending"
+        :default-area="20"
+        @order-estimate="scrollToCta"
+      />
+    </section>
+
+    
+    <!-- ==================== 7. ОПИСАНИЕ КАТЕГОРИИ ==================== -->
     <section id="overview" class="page-section page-section--light">
       <WorkTypeOverview
         title="Почему это <span>лучшее решение</span> для ваших стен"
@@ -53,7 +66,26 @@
       </WorkTypeOverview>
     </section>
 
-    <!-- ==================== 5. СРАВНЕНИЕ МЕТОДОВ ==================== -->
+    <!-- ==================== 5. ПРЕДПРОСМОТР ЦЕН ==================== -->
+    <section id="price-list" class="page-section">
+      <PriceListTable
+        title="Полный прайс: <span>обшивка стен ГКЛ</span>"
+        subtitle="Все работы по монтажу гипсокартона на стены. Точная смета — после бесплатного замера."
+        :sub-category-ids="[279, 370]"
+        footer-note="* Цены указаны за работу без учёта стоимости материалов. Доплаты отмечены знаком «+ к цене». Короба считаются в погонных метрах."
+      />
+    </section>
+
+    <!-- ==================== 6. ФАКТОРЫ ЦЕНЫ (Сразу после прайса, чтобы объяснить цифры) ==================== -->
+    <section id="price-factors" class="page-section page-section--light">
+      <PriceFactors
+        title="Что <span>влияет на итоговую цену</span>"
+        :factors="priceFactors"
+        footer-note="Точную смету инженер составит после бесплатного выезда на объект. Это ни к чему не обязывает."
+      />
+    </section>
+
+    <!-- ==================== 8. СРАВНЕНИЕ МЕТОДОВ (Образовательный блок для сомневающихся) ==================== -->
     <section id="methods" class="page-section">
       <MethodComparison
         title="Что <span>выбрать</span>: клей, каркас или штукатурку?"
@@ -64,7 +96,7 @@
       />
     </section>
 
-    <!-- ==================== 6. ТИПЫ МАТЕРИАЛОВ ==================== -->
+    <!-- ==================== 9. ТИПЫ МАТЕРИАЛОВ ==================== -->
     <section id="materials" class="page-section page-section--light">
       <MaterialsGuide
         title="Какой <span>гипсокартон</span> выбрать: типы и различия"
@@ -75,7 +107,7 @@
       />
     </section>
 
-    <!-- ==================== 7. ВТОРОЙ СЛОЙ ГКЛ ==================== -->
+    <!-- ==================== 10. ВТОРОЙ СЛОЙ ГКЛ ==================== -->
     <section id="insights" class="page-section">
       <TechnicalInsights
         title="Зачем нужен <span>второй слой</span> гипсокартона"
@@ -133,35 +165,9 @@
       </TechnicalInsights>
     </section>
 
-    <!-- ==================== 8. ПРЕДПРОСМОТР ЦЕН ==================== -->
-    <section id="price-list" class="page-section">
-      <PriceListTable
-        title="Полный прайс: <span>обшивка стен ГКЛ</span>"
-        subtitle="Все работы по монтажу гипсокартона на стены. Точная смета — после бесплатного замера."
-        :sub-category-ids="[279, 370]"
-        footer-note="* Цены указаны за работу без учёта стоимости материалов. Доплаты отмечены знаком «+ к цене». Короба считаются в погонных метрах."
-      />
-    </section>
-
-    <!-- ==================== 9. ФАКТОРЫ ЦЕНЫ ==================== -->
-    <section id="price-factors" class="page-section page-section--light">
-      <PriceFactors
-        title="Что <span>влияет на итоговую цену</span>"
-        :factors="priceFactors"
-        footer-note="Точную смету инженер составит после бесплатного выезда на объект. Это ни к чему не обязывает."
-      />
-    </section>
-
-    <!-- ==================== 10. КАЛЬКУЛЯТОР ==================== -->
-    <section id="calculator" class="page-section">
-      <PriceCalculatorTabs
-        title="Калькулятор <span>стоимости</span> монтажа ГКЛ"
-        subtitle="Выберите тип монтажа и площадь — получите предварительную смету сразу."
-        :tabs="calculatorTabs"
-        :loading="pricePending"
-        :default-area="20"
-        @order-estimate="scrollToCta"
-      />
+    <!-- ==================== 12. ГАРАНТИИ ==================== -->
+    <section id="guarantees" class="page-section">
+      <GuaranteesGrid title="Наши <span>гарантии</span>" :items="guarantees" />
     </section>
 
     <!-- ==================== 11. ЭТАПЫ РАБОТ ==================== -->
@@ -171,11 +177,6 @@
         subtitle="От звонка до сдачи готовых стен под отделку"
         :stages="workStages"
       />
-    </section>
-
-    <!-- ==================== 12. ГАРАНТИИ ==================== -->
-    <section id="guarantees" class="page-section">
-      <GuaranteesGrid title="Наши <span>гарантии</span>" :items="guarantees" />
     </section>
 
     <!-- ==================== 13. FAQ ==================== -->

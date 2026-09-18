@@ -550,18 +550,29 @@ const handleFormSubmitted = (formData: unknown) => {
   @include section-padding;
   background: $background-light;
   color: $text-dark;
+  width: 100%; // Гарантируем ширину 100% от родителя
+  overflow-x: hidden;
 
   .container {
     @include section-container;
+    overflow-x: hidden;
   }
 
   &__title {
     @include section-title;
+    word-wrap: break-word;
   }
 
   &__subtitle {
     @include section-subtitle;
     color: $text-gray;
+  }
+
+  button,
+  label,
+  input {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
 }
 
@@ -574,17 +585,13 @@ const handleFormSubmitted = (formData: unknown) => {
   color: $text-gray;
   gap: 1rem;
 
-  .loading-spinner {
-    color: $blue;
+  @media (max-width: 600px) {
+    padding: 3rem 1rem;
   }
 
-  .spin {
-    animation: spin 1s linear infinite;
-  }
-
-  p {
-    font-size: 0.95rem;
-  }
+  .loading-spinner { color: $blue; }
+  .spin { animation: spin 1s linear infinite; }
+  p { font-size: 0.95rem; }
 }
 
 @keyframes spin {
@@ -620,6 +627,12 @@ const handleFormSubmitted = (formData: unknown) => {
       color: $blue;
       border-bottom-color: $blue;
     }
+
+    @media (max-width: 600px) {
+      padding: 0.75rem 1rem;
+      font-size: 0.9rem;
+      gap: 0.4rem;
+    }
   }
 }
 
@@ -627,7 +640,8 @@ const handleFormSubmitted = (formData: unknown) => {
   display: grid;
   grid-template-columns: 1fr 340px;
   gap: 2.5rem;
-  
+  min-width: 0;
+
   @media (max-width: 900px) {
     grid-template-columns: 1fr;
     gap: 1.5rem;
@@ -635,6 +649,9 @@ const handleFormSubmitted = (formData: unknown) => {
 }
 
 .calculator-works {
+  min-width: 0;
+  max-width: 100%;
+
   &__title {
     font-size: 1.2rem;
     font-weight: 600;
@@ -657,6 +674,12 @@ const handleFormSubmitted = (formData: unknown) => {
     border-radius: $border-radius;
     margin-bottom: 0.5rem;
     transition: background 0.2s ease;
+    min-width: 0;
+
+    @media (max-width: 600px) {
+      padding: 0.8rem;
+      gap: 0.6rem;
+    }
 
     &:hover { background: #f0f2f5; }
 
@@ -665,37 +688,62 @@ const handleFormSubmitted = (formData: unknown) => {
       flex: 1;
       color: $text-dark;
       font-size: 0.98rem;
+      min-width: 0;
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
     .work-price {
       font-weight: 700;
       color: $blue;
       font-size: 1rem;
       white-space: nowrap;
+      flex-shrink: 0;
     }
   }
 }
 
-// === Универсальные опции выбора ===
 .calculator-options {
   margin-bottom: 1.5rem;
+  min-width: 0;
 
   h4 {
     font-size: 1rem;
     color: $text-dark;
     margin: 0 0 0.8rem;
+
+    @media (max-width: 600px) {
+      font-size: 0.95rem;
+    }
   }
 }
 
 .options-grid {
   display: grid;
   gap: 0.8rem;
+  min-width: 0;
 
   &--cards {
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+
+    @media (max-width: 600px) {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    @media (max-width: 400px) {
+      grid-template-columns: 1fr;
+    }
   }
 
   &--compact {
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+
+    @media (max-width: 600px) {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    @media (max-width: 400px) {
+      grid-template-columns: 1fr;
+    }
   }
 }
 
@@ -708,6 +756,12 @@ const handleFormSubmitted = (formData: unknown) => {
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: center;
+  box-sizing: border-box;
+  min-width: 0;
+
+  @media (max-width: 600px) {
+    padding: 0.8rem;
+  }
 
   &:hover:not(&--disabled) {
     border-color: $blue;
@@ -725,9 +779,7 @@ const handleFormSubmitted = (formData: unknown) => {
     cursor: not-allowed;
   }
 
-  input {
-    display: none;
-  }
+  input { display: none; }
 
   &__content {
     display: flex;
@@ -747,6 +799,11 @@ const handleFormSubmitted = (formData: unknown) => {
     font-weight: 700;
     color: $text-dark;
     font-size: 1.1rem;
+    word-break: break-word;
+
+    @media (max-width: 600px) {
+      font-size: 1rem;
+    }
   }
 
   &__badge {
@@ -789,6 +846,15 @@ const handleFormSubmitted = (formData: unknown) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  box-sizing: border-box;
+  min-width: 0;
+  overflow: hidden;
+
+  @media (max-width: 600px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
 
   &__label {
     font-size: 1.05rem;
@@ -798,6 +864,12 @@ const handleFormSubmitted = (formData: unknown) => {
 
   &__value {
     text-align: right;
+
+    @media (max-width: 600px) {
+      text-align: left;
+      width: 100%;
+    }
+
     .price {
       display: block;
       font-family: 'Rubik', sans-serif;
@@ -805,6 +877,10 @@ const handleFormSubmitted = (formData: unknown) => {
       font-weight: 700;
       color: $blue;
       line-height: 1;
+
+      @media (max-width: 600px) {
+        font-size: 1.75rem;
+      }
     }
     .note {
       display: block;
@@ -817,6 +893,7 @@ const handleFormSubmitted = (formData: unknown) => {
 
 .calculator-extras {
   margin-top: 1.5rem;
+  min-width: 0;
 
   h4 {
     font-size: 1rem;
@@ -841,6 +918,12 @@ const handleFormSubmitted = (formData: unknown) => {
   border-radius: $border-radius;
   cursor: pointer;
   transition: border-color 0.2s ease;
+  box-sizing: border-box;
+  min-width: 0;
+
+  @media (max-width: 600px) {
+    padding: 0.7rem;
+  }
 
   &:hover:not(&--disabled) { border-color: $blue; }
 
@@ -868,8 +951,21 @@ const handleFormSubmitted = (formData: unknown) => {
     border-color: transparent;
   }
 
-  .extra-name { flex: 1; color: $text-dark; font-size: 0.95rem; }
-  .extra-price { color: $text-gray; font-weight: 600; font-size: 0.9rem; }
+  .extra-name {
+    flex: 1;
+    color: $text-dark;
+    font-size: 0.95rem;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  .extra-price {
+    color: $text-gray;
+    font-weight: 600;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
 }
 
 .side-card {
@@ -880,12 +976,25 @@ const handleFormSubmitted = (formData: unknown) => {
   border: 1px solid $border-color;
   border-radius: 14px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+
+  @media (max-width: 900px) {
+    position: static;
+    top: auto;
+  }
+
+  @media (max-width: 600px) {
+    padding: 1.5rem;
+  }
 
   h3 {
     font-family: 'Rubik', sans-serif;
     font-size: 1.2rem;
     color: $text-dark;
     margin: 0 0 1.5rem;
+    word-break: break-word;
   }
 }
 
@@ -903,9 +1012,15 @@ const handleFormSubmitted = (formData: unknown) => {
   border: 1.5px solid $border-color;
   border-radius: 10px;
   overflow: hidden;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 
   button {
     width: 42px;
+    min-width: 42px;
+    flex-shrink: 0;
     background: transparent;
     border: none;
     color: $blue;
@@ -916,7 +1031,7 @@ const handleFormSubmitted = (formData: unknown) => {
   }
 
   input {
-    flex: 1;
+    flex: 1 1 0;
     background: transparent;
     border: none;
     text-align: center;
@@ -926,6 +1041,8 @@ const handleFormSubmitted = (formData: unknown) => {
     color: $text-dark;
     outline: none;
     min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
   }
 }
 
@@ -935,6 +1052,8 @@ const handleFormSubmitted = (formData: unknown) => {
   background: rgba(0, 195, 245, 0.06);
   border-radius: 10px;
   text-align: center;
+  box-sizing: border-box;
+  overflow: hidden;
 
   &__label {
     display: block;
@@ -949,6 +1068,11 @@ const handleFormSubmitted = (formData: unknown) => {
     font-weight: 700;
     color: $blue;
     line-height: 1.1;
+    word-break: break-word;
+
+    @media (max-width: 600px) {
+      font-size: 1.75rem;
+    }
   }
   &__note {
     display: block;
@@ -963,5 +1087,6 @@ const handleFormSubmitted = (formData: unknown) => {
   @include btn-primary;
   width: 100%;
   padding: 1rem;
+  box-sizing: border-box;
 }
 </style>

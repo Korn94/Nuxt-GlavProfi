@@ -26,18 +26,19 @@ const formatUnit = (unit?: WorkUnit): string => {
 
 /**
  * Навигация по секциям страницы (StickyNav)
+ * 🔄 Порядок строго соответствует template: before-after → calculator → overview → prices → methods...
  */
 export const navItems: StickyNavItem[] = [
   { id: 'before-after', label: 'До и после', icon: 'mdi:compare-horizontal' },
+  { id: 'calculator', label: 'Калькулятор', icon: 'mdi:calculator' },
   { id: 'overview', label: 'О услуге', icon: 'mdi:information-outline' },
+  { id: 'price-list', label: 'Цены', icon: 'mdi:currency-usd' },
+  { id: 'price-factors', label: 'Факторы цены', icon: 'mdi:cash-multiple' },
   { id: 'methods', label: 'Что выбрать', icon: 'mdi:help-circle' },
   { id: 'materials', label: 'Материалы', icon: 'mdi:layers-outline' },
   { id: 'insights', label: 'Тех. нюансы', icon: 'mdi:lightbulb-on-outline' },
-  { id: 'price-list', label: 'Цены', icon: 'mdi:currency-usd' },
-  { id: 'price-factors', label: 'Факторы цены', icon: 'mdi:cash-multiple' },
-  { id: 'calculator', label: 'Калькулятор', icon: 'mdi:calculator' },
-  { id: 'stages', label: 'Этапы работ', icon: 'mdi:timeline-clock' },
   { id: 'guarantees', label: 'Гарантии', icon: 'mdi:shield-check' },
+  { id: 'stages', label: 'Этапы работ', icon: 'mdi:timeline-clock' },
   { id: 'faq', label: 'Вопросы', icon: 'mdi:help-circle-outline' },
   { id: 'portfolio', label: 'Портфолио', icon: 'mdi:image-multiple' },
   { id: 'related', label: 'Другие работы', icon: 'mdi:view-grid-outline' },

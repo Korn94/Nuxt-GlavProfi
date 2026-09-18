@@ -1,5 +1,5 @@
 <!-- app/components/pages/public/remontPomescheniy/workTypes/shtukaturka/steny.vue -->
- <template>
+<template>
   <div class="page-shtukaturka-sten">
     <!-- ==================== 1. ШАПКА СТРАНИЦЫ ==================== -->
     <HeaderType
@@ -26,7 +26,19 @@
       />
     </section>
 
-    <!-- ==================== 4. ОПИСАНИЕ КАТЕГОРИИ ==================== -->
+    <!-- ==================== 4. КАЛЬКУЛЯТОР (Поднят выше для конверсии) ==================== -->
+    <section id="calculator" class="page-section page-section--light">
+      <PriceCalculatorTabs
+        title="Калькулятор <span>стоимости</span> штукатурки стен"
+        subtitle="Выберите тип штукатурки и площадь — получите предварительную смету сразу."
+        :tabs="calculatorTabs"
+        :loading="pricePending"
+        :default-area="40"
+        @order-estimate="scrollToCta"
+      />
+    </section>
+
+    <!-- ==================== 5. ОПИСАНИЕ КАТЕГОРИИ ==================== -->
     <section id="overview" class="page-section page-section--light">
       <WorkTypeOverview
         title="Зачем стенам <span>штукатурка</span>"
@@ -57,7 +69,26 @@
       </WorkTypeOverview>
     </section>
 
-    <!-- ==================== 5. СРАВНЕНИЕ ПОДХОДОВ ==================== -->
+    <!-- ==================== 6. ПРЕДПРОСМОТР ЦЕН ==================== -->
+    <section id="price-list" class="page-section">
+      <PriceListTable
+        title="Полный прайс: <span>штукатурка стен</span>"
+        subtitle="Все работы: подготовка, грунтовка, маяки, армирование, нанесение."
+        :sub-category-ids="[241, 242, 323, 324, 325, 327]"
+        footer-note="* Цены указаны за работу без учёта стоимости материалов. Доплаты отмечены знаком «+ к цене»."
+      />
+    </section>
+
+    <!-- ==================== 7. ФАКТОРЫ ЦЕНЫ (Сразу после прайса, чтобы объяснить цифры) ==================== -->
+    <section id="price-factors" class="page-section page-section--light">
+      <PriceFactors
+        title="Что <span>влияет на итоговую цену</span>"
+        :factors="priceFactors"
+        footer-note="Точную смету инженер составит после бесплатного выезда на объект. Это ни к чему не обязывает."
+      />
+    </section>
+
+    <!-- ==================== 8. СРАВНЕНИЕ ПОДХОДОВ (Образовательный блок для сомневающихся) ==================== -->
     <section id="methods" class="page-section">
       <MethodComparison
         title="Какой тип <span>штукатурки</span> выбрать?"
@@ -68,7 +99,7 @@
       />
     </section>
 
-    <!-- ==================== 6. ТИПЫ МАТЕРИАЛОВ ==================== -->
+    <!-- ==================== 9. ТИПЫ МАТЕРИАЛОВ ==================== -->
     <section id="materials" class="page-section page-section--light">
       <MaterialsGuide
         title="Какой <span>состав</span> выбрать: гипс, цемент или известь?"
@@ -79,7 +110,7 @@
       />
     </section>
 
-    <!-- ==================== 7. ТЕХНИЧЕСКИЕ НЮАНСЫ ==================== -->
+    <!-- ==================== 10. ТЕХНИЧЕСКИЕ НЮАНСЫ ==================== -->
     <section id="insights" class="page-section">
       <TechnicalInsights
         title="Что важно знать <span>о штукатурке</span> стен"
@@ -143,49 +174,18 @@
       </TechnicalInsights>
     </section>
 
-    <!-- ==================== 8. ПРЕДПРОСМОТР ЦЕН ==================== -->
-    <section id="price-list" class="page-section">
-      <PriceListTable
-        title="Полный прайс: <span>штукатурка стен</span>"
-        subtitle="Все работы: подготовка, грунтовка, маяки, армирование, нанесение."
-        :sub-category-ids="[241, 242, 323, 324, 325, 327]"
-        footer-note="* Цены указаны за работу без учёта стоимости материалов. Доплаты отмечены знаком «+ к цене»."
-      />
+    <!-- ==================== 11. ГАРАНТИИ ==================== -->
+    <section id="guarantees" class="page-section">
+      <GuaranteesGrid title="Наши <span>гарантии</span>" :items="guarantees" />
     </section>
 
-    <!-- ==================== 9. ФАКТОРЫ ЦЕНЫ ==================== -->
-    <section id="price-factors" class="page-section page-section--light">
-      <PriceFactors
-        title="Что <span>влияет на итоговую цену</span>"
-        :factors="priceFactors"
-        footer-note="Точную смету инженер составит после бесплатного выезда на объект. Это ни к чему не обязывает."
-      />
-    </section>
-
-    <!-- ==================== 10. КАЛЬКУЛЯТОР ==================== -->
-    <section id="calculator" class="page-section">
-      <PriceCalculatorTabs
-        title="Калькулятор <span>стоимости</span> штукатурки стен"
-        subtitle="Выберите тип штукатурки и площадь — получите предварительную смету сразу."
-        :tabs="calculatorTabs"
-        :loading="pricePending"
-        :default-area="40"
-        @order-estimate="scrollToCta"
-      />
-    </section>
-
-    <!-- ==================== 11. ЭТАПЫ РАБОТ ==================== -->
+    <!-- ==================== 12. ЭТАПЫ РАБОТ ==================== -->
     <section id="stages" class="page-section page-section--light">
       <WorkStagesTimeline
         title="Как <span>мы работаем</span>: 6 этапов"
         subtitle="От заявки до ровных стен, готовых под финишную отделку"
         :stages="workStages"
       />
-    </section>
-
-    <!-- ==================== 12. ГАРАНТИИ ==================== -->
-    <section id="guarantees" class="page-section">
-      <GuaranteesGrid title="Наши <span>гарантии</span>" :items="guarantees" />
     </section>
 
     <!-- ==================== 13. FAQ ==================== -->
