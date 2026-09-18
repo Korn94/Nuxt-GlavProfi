@@ -11,35 +11,23 @@
         </p>
         <h3 class="footer-title">Головной офис в Рязани</h3>
         <ul class="footer-details">
-          <li 
-            role="button" 
-            tabindex="0" 
-            @click="copyToClipboardLocal('622907683792', 'ИНН скопирован')"
-            @keydown.enter="copyToClipboardLocal('622907683792', 'ИНН скопирован')"
-            title="Нажмите, чтобы скопировать ИНН"
-          >
-            <strong>ИНН: </strong>
-            <span>622907683792</span>
+          <li>
+            <button class="footer-detail-btn" @click="copyToClipboardLocal('622907683792', 'ИНН скопирован')" title="Нажмите, чтобы скопировать ИНН">
+              <strong>ИНН: </strong>
+              <span>622907683792</span>
+            </button>
           </li>
-          <li 
-            role="button" 
-            tabindex="0" 
-            @click="openEmail()"
-            @keydown.enter="openEmail()"
-            title="Нажмите, чтобы открыть почтовый клиент"
-          >
-            <strong>Электронная почта: </strong>
-            <span>glavprofi@yandex.ru</span>
+          <li>
+            <button class="footer-detail-btn" @click="openEmail()" title="Нажмите, чтобы открыть почтовый клиент">
+              <strong>Электронная почта: </strong>
+              <span>glavprofi@yandex.ru</span>
+            </button>
           </li>
-          <li 
-            role="button" 
-            tabindex="0" 
-            @click="handlePhoneClick('+7 (910) 909-69-47')"
-            @keydown.enter="handlePhoneClick('+7 (910) 909-69-47')"
-            title="Нажмите, чтобы скопировать номер телефона"
-          >
-            <strong>Телефон: </strong>
-            <span>+7 (910) 909-69-47</span>
+          <li>
+            <button class="footer-detail-btn" @click="handlePhoneClick('+7 (910) 909-69-47')" title="Нажмите, чтобы скопировать номер телефона">
+              <strong>Телефон: </strong>
+              <span>+7 (910) 909-69-47</span>
+            </button>
           </li>
           <li>
             <strong>Наш офис: </strong>

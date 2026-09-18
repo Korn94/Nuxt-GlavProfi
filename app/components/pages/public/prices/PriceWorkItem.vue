@@ -1,23 +1,23 @@
-<!-- app\components\pages\public\prices\PriceWorkItem.vue -->
 <template>
   <dl class="work-item" itemscope itemtype="https://schema.org/Service">
-    <!-- ======================================== -->
-    <!-- 📌 НАЗВАНИЕ РАБОТЫ (dt)                  -->
-    <!-- ======================================== -->
-    <dt class="work-title-wrapper" itemprop="name">
-      <!-- Иконка копирования -->
-      <Icon
-        :name="item.isCopied ? 'solar:copy-bold-duotone' : 'solar:copy-linear'"
-        class="pointer ico"
+    <!-- Название работы -->
+    <dt class="work-item__title-wrap" itemprop="name">
+      <button
+        class="copy-btn"
+        :title="item.isCopied ? 'Скопировано' : 'Скопировать'"
         @click="dataStore.copyToClipboard(item)"
-      />
-      <!-- Название (кликабельное ТОЛЬКО если есть вложения) -->
+      >
+        <Icon
+          :name="item.isCopied ? 'solar:copy-bold-duotone' : 'solar:copy-linear'"
+          size="15"
+        />
+      </button>
+
       <span
-        class="work-title"
-        :class="{ pointer: hasNestedItems }"
+        class="work-item__title"
+        :class="{ 'is-clickable': hasNestedItems }"
         @click="hasNestedItems && uiStore.toggleSubItems(item.id)"
       >
-        <!-- Режим просмотра: с подсветкой поиска -->
         <span v-if="editStore.editingItemId !== item.id">
           <span
             v-for="(part, index) in splitText(item.name)"
@@ -27,99 +27,109 @@
             {{ part.text }}
           </span>
         </span>
-        <!-- Режим редактирования -->
         <input
           v-else
           v-model="editStore.editingItemData.name"
           class="edit-input"
           style="width: 80%"
         />
+
+        <Icon
+          v-if="hasNestedItems"
+          :name="isSubItemsOpen ? 'mdi:chevron-up' : 'mdi:chevron-down'"
+          size="16"
+          class="work-item__toggle"
+        />
       </span>
     </dt>
 
-    <!-- ======================================== -->
-    <!-- 💰 ЦЕНА И ЕДИНИЦА (dd)                   -->
-    <!-- ======================================== -->
-    <dd class="work-meta" itemprop="offers" itemscope itemtype="https://schema.org/Offer">
-      <span v-if="editStore.editingItemId !== item.id">
-        <span class="work-price" itemprop="price" :content="String(item.price)">
-          {{ Math.round(Number(item.price)) }} ₽ /
+    <!-- Цена -->
+    <dd class="work-item__meta" itemprop="offers" itemscope itemtype="https://schema.org/Offer">
+      <span v-if="editStore.editingItemId !== item.id" class="price-badge">
+        <span class="price-badge__value" itemprop="price" :content="String(item.price)">
+          {{ Math.round(Number(item.price)) }} ₽
         </span>
         <meta itemprop="priceCurrency" content="RUB" />
-        <span class="work-unit">{{ item.unit }}</span>
+        <span class="price-badge__unit">{{ item.unit }}</span>
       </span>
 
-      <!-- Режим редактирования цены -->
       <template v-else>
         <input
           v-model="editStore.editingItemData.unit"
-          class="edit-input edit-unit"
-          style="width: 50px"
+          class="edit-input"
+          style="width: 55px"
         />
         <input
           v-model.number="editStore.editingItemData.price"
-          class="edit-input edit-price"
-          style="width: 70px"
+          class="edit-input"
+          style="width: 80px"
         />
       </template>
     </dd>
 
-    <!-- ======================================== -->
-    <!-- 💾 КНОПКИ СОХРАНЕНИЯ (при редактировании) -->
-    <!-- ======================================== -->
+    <!-- Кнопки сохранения -->
     <div v-if="editStore.editingItemId === item.id" class="edit-buttons">
       <button @click="editStore.saveEditItem">Сохранить</button>
       <button @click="editStore.cancelEditItem">Отмена</button>
     </div>
 
-    <!-- ======================================== -->
-    <!-- 🛠️ КНОПКИ АДМИНА                         -->
-    <!-- ======================================== -->
-    <div class="work-actions" v-if="isAdmin">
-      <Icon
+    <!-- Админ-действия -->
+    <div v-if="isAdmin" class="work-item__actions">
+      <button
         v-if="!searchQuery.trim()"
-        name="mdi:drag"
-        size="16"
-        class="item-sort-handle"
-      />
-      <Icon name="bx:edit" size="16" @click.stop="editStore.startEditItem(item)" />
-      <Icon name="mdi:delete-forever" size="16" @click.stop="editStore.deleteItem(item.id)" />
+        class="icon-btn item-sort-handle"
+        title="Перетащить"
+      >
+        <Icon name="mdi:drag" size="15" />
+      </button>
+      <button class="icon-btn" title="Редактировать" @click.stop="editStore.startEditItem(item)">
+        <Icon name="bx:edit" size="15" />
+      </button>
+      <button
+        class="icon-btn icon-btn--danger"
+        title="Удалить"
+        @click.stop="editStore.deleteItem(item.id)"
+      >
+        <Icon name="mdi:delete-forever" size="15" />
+      </button>
     </div>
 
-    <!-- ======================================== -->
-    <!-- ➕ ФОРМА ДОБАВЛЕНИЯ ДЕТАЛИ                -->
-    <!-- ======================================== -->
-    <div v-if="isAdmin" class="add-detail-button">
-      <button @click="editStore.showAddDetail(item.id)">+ Добавить деталь</button>
-      <div v-if="editStore.showAddDetailForm === item.id" class="form">
+    <!-- Добавление деталей / доп. работ -->
+    <div v-if="isAdmin" class="work-item__admin-add">
+      <button
+        v-if="editStore.showAddDetailForm !== item.id"
+        class="mini-dashed-btn"
+        @click="editStore.showAddDetail(item.id)"
+      >
+        + деталь
+      </button>
+      <div v-else class="form form--inline">
         <input v-model="editStore.newDetail.name" placeholder="Название" />
         <PagesPublicPricesUiSelectOrInput v-model="editStore.newDetail.unit" />
         <input v-model.number="editStore.newDetail.price" placeholder="Цена" />
-        <button @click="editStore.addDetail">Сохранить</button>
-        <button @click="editStore.cancelAddDetail">Отмена</button>
+        <button @click="editStore.addDetail">OK</button>
+        <button @click="editStore.cancelAddDetail">✕</button>
       </div>
-    </div>
 
-    <!-- ======================================== -->
-    <!-- ➕ ФОРМА ДОБАВЛЕНИЯ ДОП. РАБОТЫ           -->
-    <!-- ======================================== -->
-    <div v-if="isAdmin" class="add-dopwork-button">
-      <button @click="editStore.showAddDopwork(item.id)">+ Добавить доп. работу</button>
-      <div v-if="editStore.showAddDopworkForm === item.id" class="form">
+      <button
+        v-if="editStore.showAddDopworkForm !== item.id"
+        class="mini-dashed-btn"
+        @click="editStore.showAddDopwork(item.id)"
+      >
+        + доп. работа
+      </button>
+      <div v-else class="form form--inline">
         <input v-model="editStore.newDopwork.label" placeholder="Метка" />
-        <input v-model="editStore.newDopwork.dopwork" placeholder="Название работы" />
+        <input v-model="editStore.newDopwork.dopwork" placeholder="Название" />
         <PagesPublicPricesUiSelectOrInput v-model="editStore.newDopwork.unit" />
         <input v-model.number="editStore.newDopwork.price" placeholder="Цена" />
-        <button @click="editStore.addDopwork">Сохранить</button>
-        <button @click="editStore.cancelAddDopwork">Отмена</button>
+        <button @click="editStore.addDopwork">OK</button>
+        <button @click="editStore.cancelAddDopwork">✕</button>
       </div>
     </div>
 
-    <!-- ======================================== -->
-    <!-- 🔽 ВЛОЖЕННЫЕ ЭЛЕМЕНТЫ                    -->
-    <!-- ======================================== -->
-    <dd class="work-nested" :class="{ 'is-open': isSubItemsOpen }">
-      <!-- ДЕТАЛИ РАБОТ -->
+    <!-- Вложенные -->
+    <dd class="work-item__nested" :class="{ 'is-open': isSubItemsOpen }">
       <dl v-if="item.details && item.details.length > 0" class="sub-items">
         <dl
           v-for="detail in item.details"
@@ -128,13 +138,17 @@
           itemscope
           itemtype="https://schema.org/Service"
         >
-          <dt class="work-title-wrapper" itemprop="name">
-            <Icon
-              :name="detail.isCopied ? 'solar:copy-line-duotone' : 'solar:copy-broken'"
-              class="pointer ico"
+          <dt class="sub-work-item__title-wrap" itemprop="name">
+            <button
+              class="copy-btn copy-btn--sm"
               @click="dataStore.copyToClipboard(detail)"
-            />
-            <span class="work-title">
+            >
+              <Icon
+                :name="detail.isCopied ? 'solar:copy-bold-duotone' : 'solar:copy-linear'"
+                size="13"
+              />
+            </button>
+            <span class="sub-work-item__title">
               <span v-if="editStore.editingDetailId !== detail.id">{{ detail.name }}</span>
               <input
                 v-else
@@ -145,26 +159,18 @@
             </span>
           </dt>
 
-          <dd class="work-meta" itemprop="offers" itemscope itemtype="https://schema.org/Offer">
-            <span v-if="editStore.editingDetailId !== detail.id">
-              <span class="work-price" itemprop="price" :content="String(detail.price)">
+          <dd class="sub-work-item__meta" itemprop="offers" itemscope itemtype="https://schema.org/Offer">
+            <span v-if="editStore.editingDetailId !== detail.id" class="price-badge price-badge--sm">
+              <span class="price-badge__value" itemprop="price" :content="String(detail.price)">
                 {{ Math.round(Number(detail.price)) }} ₽
               </span>
               <meta itemprop="priceCurrency" content="RUB" />
-              <span class="work-unit">{{ detail.unit || item.unit }}</span>
+              <span class="price-badge__unit">{{ detail.unit || item.unit }}</span>
             </span>
 
             <template v-else>
-              <input
-                v-model="editStore.editingDetailData.unit"
-                class="edit-input"
-                style="width: 50px"
-              />
-              <input
-                v-model.number="editStore.editingDetailData.price"
-                class="edit-input"
-                style="width: 70px"
-              />
+              <input v-model="editStore.editingDetailData.unit" class="edit-input" style="width: 55px" />
+              <input v-model.number="editStore.editingDetailData.price" class="edit-input" style="width: 80px" />
             </template>
           </dd>
 
@@ -173,24 +179,22 @@
             <button @click="editStore.cancelEditDetail">Отмена</button>
           </div>
 
-          <div class="work-actions" v-if="isAdmin">
-            <Icon
-              name="bx:edit"
-              size="16"
-              @click.stop="editStore.startEditDetail(detail)"
-            />
-            <Icon
-              name="mdi:delete-forever"
-              size="16"
-              @click.stop="editStore.deleteDetail(detail.id)"
-            />
+          <div v-if="isAdmin" class="work-item__actions">
+            <button class="icon-btn" @click.stop="editStore.startEditDetail(detail)">
+              <Icon name="bx:edit" size="14" />
+            </button>
+            <button class="icon-btn icon-btn--danger" @click.stop="editStore.deleteDetail(detail.id)">
+              <Icon name="mdi:delete-forever" size="14" />
+            </button>
           </div>
         </dl>
       </dl>
 
-      <!-- ДОП. РАБОТЫ -->
-      <dl v-if="item.dopworks && item.dopworks.length > 0" class="sub-items">
-        <p class="dop-work-title">Доп. работы</p>
+      <dl v-if="item.dopworks && item.dopworks.length > 0" class="sub-items sub-items--dop">
+        <p class="dop-work-title">
+          <Icon name="mdi:plus-circle-outline" size="14" />
+          <span>Доп. работы</span>
+        </p>
         <dl
           v-for="dopwork in item.dopworks"
           :key="dopwork.id"
@@ -198,51 +202,36 @@
           itemscope
           itemtype="https://schema.org/Service"
         >
-          <dt class="work-title-wrapper" itemprop="name">
-            <Icon
-              :name="dopwork.isCopied ? 'solar:copy-line-duotone' : 'solar:copy-broken'"
-              class="pointer ico"
-              @click="dataStore.copyToClipboard(dopwork)"
-            />
-            <span class="work-title">
+          <dt class="sub-work-item__title-wrap" itemprop="name">
+            <button class="copy-btn copy-btn--sm" @click="dataStore.copyToClipboard(dopwork)">
+              <Icon
+                :name="dopwork.isCopied ? 'solar:copy-bold-duotone' : 'solar:copy-linear'"
+                size="13"
+              />
+            </button>
+            <span class="sub-work-item__title">
               <span v-if="editStore.editingDopworkId !== dopwork.id">
-                {{ dopwork.label }} {{ dopwork.dopwork }}
+                <strong>{{ dopwork.label }}</strong> {{ dopwork.dopwork }}
               </span>
               <template v-else>
-                <input
-                  v-model="editStore.editingDopworkData.label"
-                  class="edit-input"
-                  style="width: 40%"
-                />
-                <input
-                  v-model="editStore.editingDopworkData.dopwork"
-                  class="edit-input"
-                  style="width: 40%"
-                />
+                <input v-model="editStore.editingDopworkData.label" class="edit-input" style="width: 35%" />
+                <input v-model="editStore.editingDopworkData.dopwork" class="edit-input" style="width: 45%" />
               </template>
             </span>
           </dt>
 
-          <dd class="work-meta" itemprop="offers" itemscope itemtype="https://schema.org/Offer">
-            <span v-if="editStore.editingDopworkId !== dopwork.id">
-              <span class="work-price" itemprop="price" :content="String(dopwork.price)">
+          <dd class="sub-work-item__meta" itemprop="offers" itemscope itemtype="https://schema.org/Offer">
+            <span v-if="editStore.editingDopworkId !== dopwork.id" class="price-badge price-badge--sm">
+              <span class="price-badge__value" itemprop="price" :content="String(dopwork.price)">
                 {{ Math.round(Number(dopwork.price)) }} ₽
               </span>
               <meta itemprop="priceCurrency" content="RUB" />
-              <span class="work-unit">{{ dopwork.unit || item.unit }}</span>
+              <span class="price-badge__unit">{{ dopwork.unit || item.unit }}</span>
             </span>
 
             <template v-else>
-              <input
-                v-model="editStore.editingDopworkData.unit"
-                class="edit-input"
-                style="width: 50px"
-              />
-              <input
-                v-model.number="editStore.editingDopworkData.price"
-                class="edit-input"
-                style="width: 70px"
-              />
+              <input v-model="editStore.editingDopworkData.unit" class="edit-input" style="width: 55px" />
+              <input v-model.number="editStore.editingDopworkData.price" class="edit-input" style="width: 80px" />
             </template>
           </dd>
 
@@ -251,17 +240,13 @@
             <button @click="editStore.cancelEditDopwork">Отмена</button>
           </div>
 
-          <div class="work-actions" v-if="isAdmin">
-            <Icon
-              name="bx:edit"
-              size="16"
-              @click.stop="editStore.startEditDopwork(dopwork)"
-            />
-            <Icon
-              name="mdi:delete-forever"
-              size="16"
-              @click.stop="editStore.deleteDopwork(dopwork.id)"
-            />
+          <div v-if="isAdmin" class="work-item__actions">
+            <button class="icon-btn" @click.stop="editStore.startEditDopwork(dopwork)">
+              <Icon name="bx:edit" size="14" />
+            </button>
+            <button class="icon-btn icon-btn--danger" @click.stop="editStore.deleteDopwork(dopwork.id)">
+              <Icon name="mdi:delete-forever" size="14" />
+            </button>
           </div>
         </dl>
       </dl>
@@ -274,47 +259,24 @@ import { computed } from 'vue'
 import { usePriceUIStore, usePriceDataStore, usePriceEditStore } from 'stores/price'
 import type { PriceWorkItem } from 'stores/price/types'
 
-// ========================================
-// 📥 ПРОПСЫ (минимальный набор)
-// ========================================
 const props = defineProps<{
   item: PriceWorkItem
   isAdmin: boolean
   searchQuery: string
 }>()
 
-// ========================================
-// 🏪 PINIA STORES (вместо inject)
-// ========================================
 const uiStore = usePriceUIStore()
 const dataStore = usePriceDataStore()
 const editStore = usePriceEditStore()
 
-// ========================================
-// 🧮 ВЫЧИСЛЯЕМЫЕ СВОЙСТВА
-// ========================================
-/**
- * Открыты ли вложенные элементы работы (детали + доп. работы).
- * В script нужен .value для refs из Pinia setup store.
- */
 const isSubItemsOpen = computed(() => !!uiStore.openSubItems[props.item.id])
 
-/**
- * ✅ ЕСТЬ ЛИ ВЛОЖЕННЫЕ ЭЛЕМЕНТЫ (детали или доп. работы).
- * Если вложений нет — toggle блокируется, курсор становится обычным.
- */
-const hasNestedItems = computed(() =>
-  (props.item.details?.length ?? 0) > 0 ||
-  (props.item.dopworks?.length ?? 0) > 0
+const hasNestedItems = computed(
+  () =>
+    (props.item.details?.length ?? 0) > 0 ||
+    (props.item.dopworks?.length ?? 0) > 0,
 )
 
-// ========================================
-// 🔍 ПОДСВЕТКА ПОИСКА
-// ========================================
-/**
- * Разбивает текст на части с пометкой совпадений с поисковым запросом.
- * Используется для визуальной подсветки найденных фрагментов.
- */
 const splitText = (text: string) => {
   if (!text || !props.searchQuery.trim()) {
     return [{ text, isMatch: false }]
@@ -336,7 +298,7 @@ const splitText = (text: string) => {
 
     parts.push({
       text: text.slice(index, index + query.length),
-      isMatch: true
+      isMatch: true,
     })
 
     lastIndex = index + query.length
@@ -347,264 +309,395 @@ const splitText = (text: string) => {
 </script>
 
 <style lang="scss" scoped>
+@use '@/assets/styles/variables' as *;
+
 span {
   color: unset;
 }
 
-.pointer {
-  cursor: pointer;
-}
-
-/* === Основная работа === */
+/* ═══════════════════════════════════════════ */
+/* ОСНОВНАЯ РАБОТА                             */
+/* ═══════════════════════════════════════════ */
 .work-item {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   justify-content: space-between;
-  padding: 10px;
-  border-bottom: 1px solid $border-color;
-  transition: all 0.3s ease;
+  gap: 8px;
+  padding: 10px 12px;
   margin: 0;
-
+  // border-radius: 8px;
+  // transition: background 0.2s ease;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  
   &:hover {
-    background: $sub-item-bg;
+    background: rgba(0, 195, 245, 0.04);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.2);
   }
 
-  .work-title-wrapper {
+  &__title-wrap {
     display: flex;
     align-items: center;
-    margin-bottom: 8px;
+    gap: 10px;
     flex: 1;
     min-width: 0;
+    margin: 0;
+  }
 
-    .ico {
-      margin-right: 1em;
-      transition: transform 0.3s ease;
-      flex-shrink: 0;
-      color: $blue;
+  &__title {
+    flex: 1;
+    font-size: 0.92rem;
+    color: $text-dark;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    display: flex;
+    align-items: center;
+    gap: 6px;
 
-      &:hover {
-        transform: scale(1.2);
-      }
+    &.is-clickable {
+      cursor: pointer;
     }
 
-    .work-title {
-      flex: 1;
-      white-space: pre-wrap;
-      font-size: 1rem;
+    .highlight {
+      background: linear-gradient(180deg, transparent 55%, rgba(0, 195, 245, 0.35) 55%);
       color: $text-dark;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      font-weight: 700;
+      padding: 0 2px;
+      border-radius: 2px;
+    }
 
-      .highlight {
-        background-color: $blue;
-        color: white;
-        font-weight: bold;
-        padding: 2px 5px;
-        border-radius: 3px;
-      }
-
-      @media (max-width: 768px) {
-        font-size: 0.8rem;
-      }
+    @media (max-width: 768px) {
+      font-size: 0.84rem;
     }
   }
 
-  .work-meta {
+  &__toggle {
+    color: $blue;
+    flex-shrink: 0;
+    opacity: 0.7;
+  }
+
+  &__meta {
     display: flex;
     align-items: center;
     gap: 8px;
-    min-width: 110px;
-    justify-content: flex-end;
-    text-align: right;
     margin: 0;
-
-    .work-unit,
-    .work-price {
-      display: inline-flex;
-      align-items: center;
-      width: auto;
-      margin: 0 2px;
-      font-size: 0.9rem;
-      color: #555;
-    }
+    flex-shrink: 0;
   }
 
-  .work-actions {
+  &__actions {
     display: flex;
-    gap: 10px;
-    margin-top: 5px;
-    width: 100%;
-
-    :deep(svg) {
-      cursor: pointer;
-      transition: transform 0.3s ease;
-
-      &:hover {
-        transform: scale(1.2);
-      }
-    }
-  }
-.work-actions .item-sort-handle {
-    cursor: grab;
-
-    &:active {
-      cursor: grabbing;
-    }
+    gap: 4px;
+    margin-left: auto;
+    flex-shrink: 0;
   }
 
-  .edit-buttons {
+  &__admin-add {
     display: flex;
-    gap: 10px;
-    margin-top: 5px;
+    gap: 8px;
+    flex-wrap: wrap;
     width: 100%;
-
-    button {
-      padding: 6px 12px;
-      font-size: 0.8rem;
-      border-radius: 4px;
-      cursor: pointer;
-      border: none;
-
-      &:first-child {
-        background: $blue;
-        color: white;
-      }
-
-      &:last-child {
-        background: #ddd;
-        color: #333;
-      }
-    }
+    padding-left: 34px;
   }
 
-  .edit-input {
-    padding: 4px 8px;
-    border: 1px solid $border-color;
-    border-radius: 4px;
-    font-size: 0.9rem;
-  }
-
-  .work-nested {
+  &__nested {
     width: 100%;
-    padding-left: 20px;
-    background: $sub-item-bg;
-    border-radius: 5px;
-    margin-left: 0;
-
-    /* Анимация раскрытия через CSS-класс вместо v-show */
+    margin: 0;
+    padding: 0;
     max-height: 0;
     overflow: hidden;
     opacity: 0;
-    transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+    transition: max-height 0.35s ease, opacity 0.3s ease, padding 0.3s ease;
 
     &.is-open {
       max-height: 5000px;
       opacity: 1;
-      padding-top: 1em;
-      padding-bottom: 1em;
-    }
-
-    .dop-work-title {
-      text-align: center;
-      font-weight: 600;
-      margin: 10px 0;
+      padding: 10px 0 6px 34px;
     }
   }
 }
 
-/* === Вложенные работы === */
+/* Бейдж цены */
+.price-badge {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 4px 10px;
+  background: rgba(0, 195, 245, 0.09);
+  border: 1px solid rgba(0, 195, 245, 0.2);
+  border-radius: 8px;
+  white-space: nowrap;
+
+  &__value {
+    font-weight: 600;
+    color: $text-dark;
+    font-size: 0.9rem;
+    // font-variant-numeric: tabular-nums;
+
+    @media (max-width: 768px) {
+      font-size: 0.82rem;
+    }
+  }
+
+  &__unit {
+    color: $text-gray;
+    font-size: 0.78rem;
+
+    @media (max-width: 768px) {
+      font-size: 0.72rem;
+    }
+  }
+
+  &--sm {
+    padding: 3px 8px;
+    background: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.06);
+
+    .price-badge__value {
+      color: $text-dark;
+      font-size: 0.82rem;
+    }
+
+    .price-badge__unit {
+      font-size: 0.72rem;
+    }
+  }
+}
+
+/* Кнопка копирования */
+.copy-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: rgba(0, 195, 245, 0.5);
+  border-radius: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+
+  &:hover {
+    color: $blue;
+    background: rgba(0, 195, 245, 0.1);
+  }
+
+  &--sm {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+/* Иконочные кнопки */
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  color: $text-gray;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(0, 195, 245, 0.12);
+    color: $blue;
+  }
+
+  &--danger:hover {
+    background: rgba(211, 47, 47, 0.1);
+    color: #d32f2f;
+  }
+}
+
+.item-sort-handle {
+  cursor: grab;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+/* ═══════════════════════════════════════════ */
+/* ВЛОЖЕННЫЕ                                   */
+/* ═══════════════════════════════════════════ */
 .sub-items {
-  padding: 5px 0;
+  padding: 0;
   margin: 0;
+
+  &--dop {
+    margin-top: 6px;
+    padding-top: 10px;
+    border-top: 1px dashed rgba(0, 0, 0, 0.08);
+  }
+}
+
+.dop-work-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 6px;
+  padding: 3px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: $blue;
+  background: rgba(0, 195, 245, 0.08);
+  border-radius: 6px;
 }
 
 .sub-work-item {
   display: flex;
   flex-wrap: wrap;
-  padding: 5px 0;
-  border-bottom: 1px solid $border-color;
-  gap: 4px;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 4px;
   margin: 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 6px;
+  transition: background 0.2s ease;
+
+  &:hover {
+    background: rgba(0, 195, 245, 0.03);
+  }
 
   &:last-child {
     border-bottom: none;
   }
 
-  .work-title-wrapper {
-    .work-title {
-      font-weight: normal;
-      color: #555;
-      font-size: 0.9rem;
+  &__title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+  }
 
-      @media (max-width: 768px) {
-        font-size: 0.8rem;
-      }
+  &__title {
+    flex: 1;
+    font-size: 0.86rem;
+    color: #555;
+    line-height: 1.4;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    strong {
+      color: $text-dark;
+      font-weight: 600;
+    }
+
+    @media (max-width: 768px) {
+      font-size: 0.8rem;
     }
   }
 
-  .work-meta {
-    .work-unit,
-    .work-price {
-      font-size: 0.85rem;
-    }
-  }
-
-  .work-actions {
-    gap: 10px;
-    margin-top: 4px;
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    flex-shrink: 0;
   }
 }
 
-/* Формы добавления */
-.add-detail-button,
-.add-dopwork-button {
-  margin-top: 0.5em;
+/* ═══════════════════════════════════════════ */
+/* ФОРМЫ / ИНПУТЫ                              */
+/* ═══════════════════════════════════════════ */
+.edit-input {
+  padding: 5px 9px;
+  border: 1.5px solid $blue;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 195, 245, 0.1);
+}
+
+.edit-buttons {
+  display: flex;
+  gap: 8px;
+  padding-left: 34px;
   width: 100%;
 
   button {
-    padding: 4px 10px;
-    font-size: 0.8rem;
-    border: 1px dashed $border-color;
-    background: transparent;
-    border-radius: 4px;
+    padding: 5px 12px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    border-radius: 6px;
     cursor: pointer;
-    color: #666;
+    border: none;
 
-    &:hover {
-      border-color: $blue;
-      color: $blue;
+    &:first-child {
+      background: $blue;
+      color: #fff;
+    }
+
+    &:last-child {
+      background: #eef0f3;
+      color: #333;
     }
   }
 }
 
-.form {
-  margin-top: 10px;
+.mini-dashed-btn {
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border: 1.5px dashed rgba(0, 195, 245, 0.4);
+  background: transparent;
+  color: $blue;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(0, 195, 245, 0.08);
+    border-color: $blue;
+  }
+}
+
+.form--inline {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 6px;
+  width: 100%;
+  padding: 8px;
+  background: #fafbfc;
+  border-radius: 8px;
 
   input {
-    padding: 6px 8px;
+    padding: 5px 9px;
     border: 1px solid $border-color;
-    border-radius: 4px;
-    font-size: 0.85rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    outline: none;
+
+    &:focus {
+      border-color: $blue;
+    }
   }
 
   button {
-    padding: 6px 12px;
+    padding: 5px 12px;
     border: none;
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
-    font-size: 0.85rem;
+    font-size: 0.78rem;
+    font-weight: 600;
 
     &:first-of-type {
       background: $blue;
-      color: white;
+      color: #fff;
     }
-
-    &:last-child {
-      background: #ddd;
+    &:last-of-type {
+      background: #eef0f3;
       color: #333;
     }
   }

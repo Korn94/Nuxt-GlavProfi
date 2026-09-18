@@ -1,23 +1,21 @@
-<!-- app\components\pages\public\prices\ui\Navigation.vue -->
 <template>
   <div class="navigation-wrapper">
-    <!-- Placeholder для сохранения высоты при fixed-позиционировании -->
     <div v-if="isFixed" class="placeholder"></div>
-    
-    <div 
-      class="navigation" 
-      :class="{ 'fixed': isFixed }"
-      ref="navRef"
-    >
-      <div class="inner">
-        <!-- Используем категории из пропсов (НЕ делаем отдельный запрос) -->
+    <!-- <h3>Страницы</h3> -->
+    <div class="navigation" :class="{ 'is-fixed': isFixed }" ref="navRef">
+      <div class="navigation__inner">
         <button
           v-for="category in props.categories"
           :key="category.id"
           :class="{ active: props.activeCategory === category.slug }"
           @click="emit('update:active-category', category.slug)"
         >
-          {{ category.name }}
+          <Icon
+            :name="getCategoryIcon(category.slug)"
+            size="18"
+            class="navigation__icon"
+          />
+          <span class="navigation__label">{{ category.name }}</span>
         </button>
       </div>
     </div>
@@ -25,11 +23,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
-
-// ========================================
-// 📥 ПРОПСЫ
-// ========================================
+import { ref, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps<{
   categories: Array<{ id: number; name: string; slug: string }>
@@ -40,152 +34,191 @@ const emit = defineEmits<{
   (e: 'update:active-category', value: string): void
 }>()
 
-// ========================================
-// 📊 ЛОКАЛЬНОЕ СОСТОЯНИЕ
-// ========================================
+// ═══════════════════════════════════════════
+// 🎨 КАРТА ИКОНОК ПО SLUG КАТЕГОРИИ
+// ═══════════════════════════════════════════
+const CATEGORY_ICONS: Record<string, string> = {
+  // Отделочные работы
+  'otdelochnye-raboty': 'mdi:format-paint',
+  // Сантехнические работы
+  'plumbing': 'mdi:pipe-wrench',
+  // Электромонтажные работы
+  'electricity': 'mdi:lightning-bolt',
+  // На всякий случай — если появятся другие категории
+  'remont': 'mdi:hammer-wrench',
+  'demontazh': 'mdi:hammer',
+  'potolki': 'mdi:ceiling-light',
+  'poly': 'mdi:waves',
+  'steny': 'mdi:wall',
+  'krovlya': 'mdi:home-roof',
+  'okna': 'mdi:window-closed-variant',
+  'dveri': 'mdi:door',
+  'plitka': 'mdi:grid',
+  'malyarnye': 'mdi:brush',
+}
 
+const DEFAULT_ICON = 'mdi:hammer-wrench'
+
+const getCategoryIcon = (slug: string): string =>
+  CATEGORY_ICONS[slug] || DEFAULT_ICON
+
+// ═══════════════════════════════════════════
+// 📌 FIXED-ПОВЕДЕНИЕ ПРИ СКРОЛЛЕ
+// ═══════════════════════════════════════════
 const navRef = ref<HTMLElement | null>(null)
 const isFixed = ref(false)
 
-// Сохраняем начальную позицию для расчёта fixed
 let initialOffsetTop = 0
 let headerHeight = 0
 
-// ========================================
-// 🎯 ОБРАБОТЧИК СКРОЛЛА
-// ========================================
-
 const handleScroll = () => {
   if (!navRef.value) return
-  
-  const currentScrollY = window.scrollY
-  isFixed.value = currentScrollY >= initialOffsetTop - headerHeight - 10
+  isFixed.value = window.scrollY >= initialOffsetTop - headerHeight - 10
 }
 
-// ========================================
-// 🔄 LIFECYCLE HOOKS
-// ========================================
-
-// ✅ ИСПРАВЛЕНО: onUnmounted вынесен на верхний уровень (не внутри onMounted)
-// Это гарантирует, что listener всегда будет удалён при размонтировании компонента
 onMounted(() => {
   if (navRef.value) {
-    // Вычисляем начальную позицию навигации
     const rect = navRef.value.getBoundingClientRect()
     initialOffsetTop = rect.top + window.scrollY
-    
-    // Получаем высоту хедера (если есть)
+
     const header = document.querySelector('header')
     headerHeight = header ? header.offsetHeight : 0
-    
-    // Регистрируем scroll listener
+
     window.addEventListener('scroll', handleScroll, { passive: true })
-    
-    // Сразу проверяем текущее положение
     handleScroll()
   }
 })
 
 onUnmounted(() => {
-  // ✅ Всегда удаляем listener при размонтировании
   window.removeEventListener('scroll', handleScroll)
 })
 </script>
 
 <style lang="scss" scoped>
+@use '@/assets/styles/variables' as *;
+
 .navigation-wrapper {
   position: relative;
 }
 
 .placeholder {
   width: 100%;
-  display: block;
+  height: 64px;
 }
 
 .navigation {
   width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  margin-bottom: 5px;
+  margin-bottom: 16px;
   white-space: nowrap;
   position: relative;
   z-index: 99;
-  background: transparent;
   transition: all 0.3s ease;
 
-  &.fixed {
+  &.is-fixed {
     position: fixed;
-    top: 60px; // Высота хедера
+    display: flex;
+    top: 60px;
     left: 0;
     right: 0;
-    background: $background-light;
-    padding: 5px;
-    z-index: 99;
-    transform: translateY(0);
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    
-    .inner {
+    margin: 0;
+    padding: 10px 16px;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: saturate(180%) blur(12px);
+    -webkit-backdrop-filter: saturate(180%) blur(12px);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+
+    .navigation__inner {
       justify-content: center;
-      width: 100%;
+      margin: 0 auto;
     }
   }
 
-  /* Стилизация полосы прокрутки */
   &::-webkit-scrollbar {
-    height: 6px;
+    height: 4px;
   }
-
   &::-webkit-scrollbar-thumb {
-    background: #ccc;
-    border-radius: 3px;
+    background: rgba(0, 195, 245, 0.3);
+    border-radius: 2px;
   }
-
   &::-webkit-scrollbar-track {
     background: transparent;
   }
-
   scrollbar-width: thin;
-  scrollbar-color: #ccc transparent;
+  scrollbar-color: rgba(0, 195, 245, 0.3) transparent;
 
-  .inner {
-    display: flex;
-    padding: 0;
-    transition: all 0.3s ease;
-    width: 100%;
-    gap: 5px;
-    
+  &__inner {
+    display: inline-flex;
+    gap: 6px;
+    padding: 4px;
+    background: #f5f7fa;
+    border: 1px solid $border-color;
+    border-radius: 12px;
+
     @media (max-width: 450px) {
-      padding: 0px;
-      background: $background-light;
+      border-radius: 10px;
+    }
+  }
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    padding: 9px 18px;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    border-radius: 9px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: $text-gray;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
+
+    &:hover:not(.active) {
+      background: rgba(0, 195, 245, 0.1);
+      color: $blue;
+
+      .navigation__icon {
+        color: $blue;
+        transform: scale(1.1);
+      }
     }
 
-    button {
-      flex: 1;
-      padding: 10px 15px;
-      cursor: pointer;
-      border: none;
-      background: #f7f7f7;
-      border-radius: 5px;
-      font-weight: 600;
-      font-size: .8em;
-      transition: all 0.3s ease;
-      border: 1px solid $border-color;
+    &.active {
+      background: $blue-gradient;
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(0, 195, 245, 0.35);
 
-      &.active {
-        background: $blue;
-        color: $text-light;
-      }
-
-      &:hover {
-        background: $blue;
-        color: $text-light;
+      .navigation__icon {
+        color: #fff;
       }
     }
+
+    @media (max-width: 600px) {
+      padding: 8px 12px;
+      font-size: 0.78rem;
+      gap: 6px;
+    }
+  }
+
+  &__icon {
+    flex-shrink: 0;
+    color: $text-gray;
+    transition: all 0.25s ease;
+  }
+
+  &__label {
+    display: inline-block;
+    line-height: 1;
   }
 }
 
 @media (max-width: 839px) {
-  .navigation.fixed {
+  .navigation.is-fixed {
     top: 0 !important;
   }
 }

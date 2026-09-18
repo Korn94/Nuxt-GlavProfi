@@ -1,38 +1,43 @@
-<!-- app\components\pages\public\prices\PriceSubcategory.vue -->
 <template>
   <div class="subcategory-block">
-    <!-- Заголовок подкатегории -->
-    <div class="subcategory-header">
-      <h3 @click="uiStore.toggleSubcategory(subcategory.id)">
-        {{ subcategory.name }}
-        <Icon
-          :name="isOpen ? 'mdi:keyboard-arrow-up' : 'mdi:keyboard-arrow-down'"
-        />
-      </h3>
-      <div v-if="isAdmin" class="subcategory-actions">
-        <!-- Ручка перетаскивания (подкатегория перетаскивается — только админ) -->
-        <Icon
-          v-if="!searchQuery.trim()"
-          name="mdi:drag"
-          size="18"
-          class="subcategory-sort-handle"
-        />
-        <Icon
-          name="bx:edit"
-          size="16"
-          style="cursor: pointer; margin-right: 10px;"
-          @click.stop="editStore.startEditSubcategory(subcategory)"
-        />
-        <Icon
-          name="mdi:delete-forever"
-          size="16"
-          style="cursor: pointer;"
-          @click.stop="editStore.deleteSubcategory(subcategory.id)"
-        />
-      </div>
-    </div>
+    <header
+      class="subcategory-block__header"
+      :class="{ 'is-open': isOpen }"
+      @click="uiStore.toggleSubcategory(subcategory.id)"
+    >
+      <Icon
+        name="mdi:chevron-right"
+        size="20"
+        class="subcategory-block__chevron"
+        :class="{ 'is-open': isOpen }"
+      />
+      <h3 class="subcategory-block__title">{{ subcategory.name }}</h3>
 
-    <!-- Форма редактирования подкатегории -->
+      <div v-if="isAdmin" class="subcategory-block__actions" @click.stop>
+        <button
+          v-if="!searchQuery.trim()"
+          class="icon-btn subcategory-sort-handle"
+          title="Перетащить"
+        >
+          <Icon name="mdi:drag" size="16" />
+        </button>
+        <button
+          class="icon-btn"
+          title="Редактировать"
+          @click.stop="editStore.startEditSubcategory(subcategory)"
+        >
+          <Icon name="bx:edit" size="15" />
+        </button>
+        <button
+          class="icon-btn icon-btn--danger"
+          title="Удалить"
+          @click.stop="editStore.deleteSubcategory(subcategory.id)"
+        >
+          <Icon name="mdi:delete-forever" size="15" />
+        </button>
+      </div>
+    </header>
+
     <div v-if="editStore.editingSubcategoryId === subcategory.id" class="form">
       <input
         v-model="editStore.editingSubcategoryData.name"
@@ -42,43 +47,45 @@
       <button @click="editStore.cancelEditSubcategory">Отмена</button>
     </div>
 
-    <!-- Список работ (контейнер для drag & drop в админ-режиме) -->
-    <dl ref="worksListRef" class="works-list" :class="{ 'is-open': isOpen }">
-      <PagesPublicPricesPriceWorkItem
-        v-for="item in subcategory.items"
-        :key="item.id"
-        :item="item"
-        :is-admin="isAdmin"
-        :search-query="searchQuery"
-      />
+    <Transition name="accordion">
+      <dl
+        v-show="isOpen"
+        ref="worksListRef"
+        class="works-list"
+      >
+        <PagesPublicPricesPriceWorkItem
+          v-for="item in subcategory.items"
+          :key="item.id"
+          :item="item"
+          :is-admin="isAdmin"
+          :search-query="searchQuery"
+        />
 
-      <!-- Кнопка добавления новой работы (только админ) -->
-      <div v-if="isAdmin" class="add-work-button">
-        <button @click="editStore.showAddItem(subcategory.id)">
-          + Добавить работу
-        </button>
+        <div v-if="isAdmin" class="add-work-button">
+          <button
+            v-if="editStore.showAddItemForm !== subcategory.id"
+            class="dashed-btn"
+            @click="editStore.showAddItem(subcategory.id)"
+          >
+            <Icon name="mdi:plus" size="16" />
+            <span>Добавить работу</span>
+          </button>
 
-        <!-- Форма добавления работы -->
-        <div
-          v-if="editStore.showAddItemForm === subcategory.id"
-          class="form add-form"
-        >
-          <input
-            v-model="editStore.newItem.name"
-            placeholder="Название"
-          />
-          <PagesPublicPricesUiSelectOrInput
-            v-model="editStore.newItem.unit"
-          />
-          <input
-            v-model.number="editStore.newItem.price"
-            placeholder="Цена"
-          />
-          <button @click="editStore.addItem">Сохранить</button>
-          <button @click="editStore.cancelAddItem">Отмена</button>
+          <div v-else class="form form--stack">
+            <input v-model="editStore.newItem.name" placeholder="Название" />
+            <PagesPublicPricesUiSelectOrInput v-model="editStore.newItem.unit" />
+            <input
+              v-model.number="editStore.newItem.price"
+              placeholder="Цена"
+            />
+            <div class="form__buttons">
+              <button @click="editStore.addItem">Сохранить</button>
+              <button @click="editStore.cancelAddItem">Отмена</button>
+            </div>
+          </div>
         </div>
-      </div>
-    </dl>
+      </dl>
+    </Transition>
   </div>
 </template>
 
@@ -88,33 +95,17 @@ import { usePriceUIStore, usePriceEditStore } from 'stores/price'
 import { usePriceSortable } from '~/composables/usePriceSortable'
 import type { PriceSubcategory } from 'stores/price/types'
 
-// ========================================
-// 📥 ПРОПСЫ (минимальный набор)
-// ========================================
 const props = defineProps<{
   subcategory: PriceSubcategory
   isAdmin: boolean
   searchQuery: string
 }>()
 
-// ========================================
-// 🏪 PINIA STORES (вместо inject)
-// ========================================
 const uiStore = usePriceUIStore()
 const editStore = usePriceEditStore()
 
-// ========================================
-// 🧮 ВЫЧИСЛЯЕМЫЕ СВОЙСТВА
-// ========================================
-/**
- * Открыта ли подкатегория.
- * Берём значение из UI-стора.
- */
 const isOpen = computed(() => !!uiStore.openSubcategories[props.subcategory.id])
 
-// ========================================
-// 🧲 Сортировка работ перетаскиванием (только админ, без активного поиска)
-// ========================================
 const worksListRef = ref<HTMLElement | null>(null)
 
 usePriceSortable({
@@ -124,139 +115,217 @@ usePriceSortable({
   isEnabled: () => props.isAdmin && !props.searchQuery.trim(),
   draggable: '.work-item',
   handle: '.item-sort-handle',
-  // Кнопка «+ Добавить работу» не участвует в сортировке
   filter: '.add-work-button',
 })
 </script>
 
 <style lang="scss" scoped>
+@use '@/assets/styles/variables' as *;
+
 .subcategory-block {
-  margin-bottom: 15px;
-}
-
-.subcategory-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 5px;
-  background: linear-gradient(to bottom, #ffffff, #f7f7f7);
-  transition: border 1.3s ease, box-shadow 1.3s ease;
-  border-radius: 5px;
+  margin-bottom: 10px;
   border: 1px solid $border-color;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
 
   &:hover {
-    border: 1px solid #00c3f5;
-    box-shadow: 0 4px 10px rgba(0, 195, 245, 0.2);
-    transition: border 0.3s ease, box-shadow 0.3s ease;
+    border-color: rgba(0, 195, 245, 0.4);
   }
 
-  h3 {
-    cursor: pointer;
-    font-size: 1rem;
-    width: 100%;
-    padding: 10px 15px;
-    margin: 0;
-
-    :deep(svg) {
-      margin-left: 1em;
-      width: 22px;
-      height: 22px;
-      transition: transform 0.3s ease;
-
-      &:hover {
-        transform: scale(1.2);
-        color: #fff;
-      }
-    }
-  }
-
-  .subcategory-actions {
+  &__header {
     display: flex;
-    margin-right: 1em;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 14px;
+    cursor: pointer;
+    background: linear-gradient(180deg, #fbfcfd 0%, #f5f7fa 100%);
+    user-select: none;
+    transition: background 0.2s ease;
 
-    :deep(svg) {
-      cursor: pointer;
-      transition: transform 0.3s ease;
-
-      &:hover {
-        transform: scale(1.2);
-      }
+    &:hover {
+      background: linear-gradient(180deg, #f5f9fc 0%, #eef5fa 100%);
     }
+
+    &.is-open {
+      background: linear-gradient(180deg, #f0f8fd 0%, #e9f5fc 100%);
+      border-bottom: 1px solid rgba(0, 195, 245, 0.2);
+    }
+  }
+
+  &__chevron {
+    color: $text-gray;
+    flex-shrink: 0;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s ease;
+
+    &.is-open {
+      transform: rotate(90deg);
+      color: $blue;
+    }
+  }
+
+  &__title {
+    flex: 1;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: $text-dark;
+    margin: 0;
+    line-height: 1.4;
+
+    @media (max-width: 768px) {
+      font-size: 0.88rem;
+    }
+  }
+
+  &__actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
   }
 }
 
-.subcategory-actions :deep(.subcategory-sort-handle) {
-  cursor: grab;
-  color: #888;
-  margin-right: 10px;
-  transition: transform 0.3s ease, color 0.3s ease;
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: $text-gray;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
 
   &:hover {
-    color: #00c3f5;
-    transform: scale(1.15);
+    background: rgba(0, 195, 245, 0.12);
+    color: $blue;
   }
+
+  &--danger:hover {
+    background: rgba(211, 47, 47, 0.1);
+    color: #d32f2f;
+  }
+}
+
+.subcategory-sort-handle {
+  cursor: grab;
 
   &:active {
     cursor: grabbing;
   }
 }
-/* SEO: Анимация раскрытия списка работ */
-/* ИСПРАВЛЕНО: убран v-show, теперь только CSS-класс is-open управляет видимостью */
-.works-list {
-  max-height: 0;
-  overflow: hidden;
-  opacity: 0;
-  visibility: hidden;
-  margin: 0;
-  padding: 0;
-  transition: max-height 0.3s ease, opacity 0.3s ease, visibility 0.3s;
 
-  &.is-open {
-    max-height: 50000px;
-    opacity: 1;
-    visibility: visible;
-  }
+.works-list {
+  margin: 0;
+  padding: 6px 8px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.accordion-enter-active,
+.accordion-leave-active {
+  transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.25s ease;
+  overflow: hidden;
+}
+
+.accordion-enter-from,
+.accordion-leave-to {
+  max-height: 0;
+  opacity: 0;
+}
+
+.accordion-enter-to,
+.accordion-leave-from {
+  max-height: 8000px;
+  opacity: 1;
 }
 
 .form {
-  margin-top: 10px;
   display: flex;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #fff;
+  border-bottom: 1px solid rgba(0, 195, 245, 0.15);
 
-  input {
-    padding: 8px;
-    margin-bottom: 5px;
-    border: 1px solid $border-color;
-    border-radius: 4px;
+  &--stack {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    padding: 12px 8px 4px;
+
+    @media (max-width: 600px) {
+      grid-template-columns: 1fr;
+    }
   }
 
-  button {
-    padding: 8px 12px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
+  input {
+    flex: 1;
+    min-width: 120px;
+    padding: 7px 10px;
+    border: 1px solid $border-color;
+    border-radius: 7px;
+    font-size: 0.85rem;
+    outline: none;
 
-    &:first-child {
-      background: $blue;
-      color: white;
+    &:focus {
+      border-color: $blue;
+      box-shadow: 0 0 0 3px rgba(0, 195, 245, 0.1);
     }
+  }
 
-    &:last-child {
-      background: #ddd;
-      color: #333;
+  &__buttons {
+    display: flex;
+    gap: 8px;
+    grid-column: 1 / -1;
+
+    button {
+      padding: 7px 14px;
+      border: none;
+      border-radius: 7px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.85rem;
+
+      &:first-child {
+        background: $blue;
+        color: #fff;
+      }
+      &:last-child {
+        background: #eef0f3;
+        color: #333;
+      }
     }
   }
 }
 
 .add-work-button {
-  margin-top: 1em;
-  text-align: center;
+  padding: 10px 6px;
 
-  .add-form {
-    display: flex;
-    gap: 1em;
-    margin-top: 1em;
+  .dashed-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border: 1.5px dashed $border-color;
+    background: transparent;
+    color: $text-gray;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+
+    &:hover {
+      border-color: $blue;
+      color: $blue;
+      background: rgba(0, 195, 245, 0.04);
+    }
   }
 }
 </style>

@@ -1,8 +1,7 @@
-<!-- app/components/pages/public/prices/ui/SearchBar.vue -->
- <template>
+<template>
   <div class="search-bar">
     <div class="search-bar__wrapper">
-      <Icon name="mdi:search" class="search-bar__icon" width="24" height="24" />
+      <Icon name="mdi:magnify" class="search-bar__icon" size="20" />
       <input
         type="text"
         :value="modelValue"
@@ -10,14 +9,16 @@
         class="search-bar__input"
         @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
       />
-      <Icon
-        v-if="modelValue"
-        name="mdi:close"
-        class="search-bar__clear"
-        width="24"
-        height="24"
-        @click="$emit('clear')"
-      />
+      <Transition name="fade">
+        <button
+          v-if="modelValue"
+          class="search-bar__clear"
+          type="button"
+          @click="$emit('clear')"
+        >
+          <Icon name="mdi:close" size="18" />
+        </button>
+      </Transition>
     </div>
   </div>
 </template>
@@ -34,46 +35,95 @@ defineEmits<{
 </script>
 
 <style lang="scss" scoped>
+@use '@/assets/styles/variables' as *;
+
 .search-bar {
-  margin-bottom: 15px;
+  margin-bottom: 20px;
 
   &__wrapper {
     position: relative;
     width: 100%;
+    display: flex;
+    align-items: center;
   }
 
   &__input {
     width: 100%;
-    padding: 10px 15px;
-    padding-left: 36px;
-    padding-right: 30px;
+    padding: 14px 46px 14px 46px;
     color: $text-dark;
-    border: 1px solid $border-color;
-    border-radius: 5px;
+    background: #f7f8fa;
+    border: 1.5px solid transparent;
+    border-radius: 12px;
     outline: none;
-    transition: all 0.3s ease;
-    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.05);
+    font-size: 0.95rem;
+    transition: all 0.25s ease;
+
+    &::placeholder {
+      color: #9aa3ae;
+    }
+
+    &:hover {
+      background: #f2f4f7;
+    }
 
     &:focus {
+      background: #fff;
       border-color: $blue;
-      box-shadow: 0 0 5px rgba(0, 195, 245, 0.5);
+      box-shadow: 0 0 0 4px rgba(0, 195, 245, 0.12);
+    }
+
+    @media (max-width: 600px) {
+      padding: 12px 42px 12px 42px;
+      font-size: 0.9rem;
     }
   }
 
   &__icon {
     position: absolute;
-    left: 10px;
+    left: 16px;
     top: 50%;
     transform: translateY(-50%);
     pointer-events: none;
+    color: #9aa3ae;
+    transition: color 0.25s ease;
+  }
+
+  &__wrapper:focus-within &__icon {
+    color: $blue;
   }
 
   &__clear {
     position: absolute;
-    right: 10px;
+    right: 12px;
     top: 50%;
     transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: rgba(0, 0, 0, 0.06);
+    color: $text-gray;
+    border-radius: 50%;
     cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: rgba(0, 195, 245, 0.15);
+      color: $blue;
+    }
   }
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(-50%) scale(0.8);
 }
 </style>

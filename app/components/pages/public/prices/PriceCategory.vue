@@ -1,45 +1,46 @@
-<!-- app\components\pages\public\prices\PriceCategory.vue -->
 <template>
-  <div class="category-block" :id="'category-' + category.id">
-    <!-- Заголовок категории -->
-    <div class="category-header">
-      <div>
-        <!-- Inline-редактирование названия категории -->
+  <section class="category-block" :id="'category-' + category.id">
+    <header class="category-block__header">
+      <div class="category-block__title-wrap">
+        <span class="category-block__marker"></span>
         <input
           v-if="editStore.editingCategoryId === category.id"
           v-model="editStore.editingCategoryData.name"
-          style="width: 80%"
+          class="category-block__edit-input"
         />
-        <h2 v-else>{{ category.name }}</h2>
+        <h2 v-else class="category-block__title">{{ category.name }}</h2>
       </div>
 
-      <!-- Кнопки админа -->
-      <div v-if="isAdmin" class="category-actions">
-        <Icon
-          v-if="editStore.editingCategoryId !== category.id"
-          name="bx:edit"
-          size="16"
-          style="cursor: pointer; margin-right: 10px;"
-          @click.stop="editStore.startEditCategory(category)"
-        />
-        <Icon
-          v-else
-          name="mdi:content-save-check-outline"
-          size="16"
-          style="cursor: pointer; margin-right: 10px;"
-          @click.stop="editStore.saveEditCategory"
-        />
-        <Icon
-          name="mdi:delete-forever"
-          size="16"
-          style="cursor: pointer;"
+      <div v-if="isAdmin" class="category-block__actions">
+        <button
+          class="icon-btn"
+          :title="editStore.editingCategoryId === category.id ? 'Сохранить' : 'Редактировать'"
+          @click.stop="
+            editStore.editingCategoryId === category.id
+              ? editStore.saveEditCategory()
+              : editStore.startEditCategory(category)
+          "
+        >
+          <Icon
+            :name="
+              editStore.editingCategoryId === category.id
+                ? 'mdi:content-save-check-outline'
+                : 'bx:edit'
+            "
+            size="16"
+          />
+        </button>
+        <button
+          class="icon-btn icon-btn--danger"
+          title="Удалить"
           @click.stop="editStore.deleteCategory(category.id)"
-        />
+        >
+          <Icon name="mdi:delete-forever" size="16" />
+        </button>
       </div>
-    </div>
+    </header>
 
-    <!-- Список подкатегорий (контейнер для drag & drop в админ-режиме) -->
-    <div ref="subcategoryListRef" class="subcategory-list">
+    <div ref="subcategoryListRef" class="category-block__list">
       <PagesPublicPricesPriceSubcategory
         v-for="subcategory in category.subcategories"
         :key="subcategory.id"
@@ -49,23 +50,23 @@
       />
     </div>
 
-    <!-- Кнопка добавления подкатегории (только админ) -->
-    <div v-if="isAdmin">
-      <button @click="editStore.showAddSubcategory(category.id)">
-        + Добавить подкатегорию
+    <div v-if="isAdmin" class="category-block__admin">
+      <button
+        v-if="editStore.showAddSubcategoryForm !== category.id"
+        class="dashed-btn"
+        @click="editStore.showAddSubcategory(category.id)"
+      >
+        <Icon name="mdi:plus" size="16" />
+        <span>Добавить подкатегорию</span>
       </button>
-    </div>
 
-    <!-- Форма добавления подкатегории -->
-    <div v-if="editStore.showAddSubcategoryForm === category.id" class="form">
-      <input
-        v-model="editStore.newSubcategory.name"
-        placeholder="Название"
-      />
-      <button @click="editStore.addSubcategory">Сохранить</button>
-      <button @click="editStore.cancelAddSubcategory">Отмена</button>
+      <div v-else class="form">
+        <input v-model="editStore.newSubcategory.name" placeholder="Название" />
+        <button @click="editStore.addSubcategory">Сохранить</button>
+        <button @click="editStore.cancelAddSubcategory">Отмена</button>
+      </div>
     </div>
-  </div>
+  </section>
 </template>
 
 <script setup lang="ts">
@@ -74,23 +75,13 @@ import { usePriceEditStore } from 'stores/price'
 import { usePriceSortable } from '~/composables/usePriceSortable'
 import type { PriceCategory } from 'stores/price/types'
 
-// ========================================
-// 📥 ПРОПСЫ (минимальный набор)
-// ========================================
 const props = defineProps<{
   category: PriceCategory
   isAdmin: boolean
   searchQuery: string
 }>()
 
-// ========================================
-// 🏪 PINIA STORE (вместо inject usePriceEdit)
-// ========================================
 const editStore = usePriceEditStore()
-
-// ========================================
-// 🧲 Сортировка подкатегорий перетаскиванием (только админ, без активного поиска)
-// ========================================
 const subcategoryListRef = ref<HTMLElement | null>(null)
 
 usePriceSortable({
@@ -104,103 +95,196 @@ usePriceSortable({
 </script>
 
 <style lang="scss" scoped>
+@use '@/assets/styles/variables' as *;
+
 .category-block {
   scroll-margin-top: 9em;
-  margin-bottom: 20px;
-  border-bottom: 1px solid #ddd;
+  margin-bottom: 24px;
+  padding: 20px 22px;
+  background: #fff;
+  border: 1px solid $border-color;
+  border-radius: 14px;
+  transition: all 0.3s ease;
 
   &:last-child {
-    border-bottom: none;
+    margin-bottom: 0;
   }
-}
 
-.subcategory-list {
-  /* Контейнер для Sortable — дети должны быть невидимо-сортированы по высоте */
-}
+  &:hover {
+    border-color: rgba(0, 195, 245, 0.35);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.05);
+  }
 
-.category-header {
-  margin-bottom: 10px;
-  display: flex;
-  justify-content: center;
-  gap: 1em;
+  @media (max-width: 768px) {
+    padding: 16px 14px;
+    border-radius: 12px;
+    margin-bottom: 16px;
+  }
 
-  h2 {
-    font-size: 1.5rem;
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1em;
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  }
+
+  &__title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  &__marker {
+    display: block;
+    width: 4px;
+    height: 26px;
+    background: $blue-gradient;
+    border-radius: 4px;
+    flex-shrink: 0;
+    box-shadow: 0 0 12px rgba(0, 195, 245, 0.4);
+  }
+
+  &__title {
+    font-family: 'Rubik', sans-serif;
+    font-size: 1.35rem;
+    font-weight: 700;
     color: $text-dark;
+    margin: 0;
+    line-height: 1.3;
 
     @media (max-width: 768px) {
-      font-size: 1.2rem;
+      font-size: 1.1rem;
     }
   }
 
-  input {
-    padding: 8px;
-    border: 1px solid $border-color;
-    border-radius: 4px;
+  &__edit-input {
+    width: 100%;
+    max-width: 480px;
+    padding: 8px 12px;
+    border: 1.5px solid $blue;
+    border-radius: 8px;
     font-size: 1rem;
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(0, 195, 245, 0.12);
+  }
+
+  &__actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  &__list {
+    /* контейнер для sortable */
+  }
+
+  &__admin {
+    margin-top: 12px;
   }
 }
 
-.category-actions {
+.icon-btn {
   display: flex;
-  margin-top: 0.5em;
-  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid $border-color;
+  background: #fff;
+  color: $text-gray;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
 
-  .ico,
-  :deep(svg) {
-    cursor: pointer;
-    transition: transform 0.3s ease;
+  &:hover {
+    border-color: $blue;
+    color: $blue;
+    background: rgba(0, 195, 245, 0.06);
+  }
 
-    &:hover {
-      transform: scale(1.2);
-    }
+  &--danger:hover {
+    border-color: #d32f2f;
+    color: #d32f2f;
+    background: rgba(211, 47, 47, 0.06);
+  }
+}
+
+.dashed-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1.5px dashed $border-color;
+  background: transparent;
+  color: $text-gray;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: $blue;
+    color: $blue;
+    background: rgba(0, 195, 245, 0.04);
   }
 }
 
 .form {
-  margin-top: 10px;
   display: flex;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 8px;
 
   input {
-    padding: 8px;
-    margin-bottom: 5px;
+    flex: 1;
+    min-width: 180px;
+    padding: 8px 12px;
     border: 1px solid $border-color;
-    border-radius: 4px;
+    border-radius: 8px;
+    outline: none;
+
+    &:focus {
+      border-color: $blue;
+    }
   }
 
   button {
-    padding: 8px 12px;
+    padding: 8px 14px;
     border: none;
-    border-radius: 4px;
+    border-radius: 8px;
     cursor: pointer;
+    font-weight: 600;
+    font-size: 0.85rem;
 
-    &:first-child {
+    &:first-of-type {
       background: $blue;
-      color: white;
+      color: #fff;
     }
-
-    &:last-child {
-      background: #ddd;
+    &:last-of-type {
+      background: #eef0f3;
       color: #333;
     }
   }
 }
 </style>
-<!-- Глобальные классы: библиотека навешивает их на дочерние элементы Sortable,
-     поэтому они вне scoped-контекста -->
+
 <style lang="scss">
 .price-sort-ghost {
-  opacity: 0.45;
+  opacity: 0.4;
+  background: rgba(0, 195, 245, 0.08) !important;
 }
-
 .price-sort-chosen {
-  border: 1px dashed #00c3f5;
+  border: 1.5px dashed #00c3f5 !important;
 }
-
 .price-sort-drag {
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
   background: #fff;
   cursor: grabbing;
+  transform: rotate(0.5deg);
 }
 </style>
