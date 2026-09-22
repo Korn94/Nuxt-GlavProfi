@@ -10,6 +10,7 @@
 import { defineEventHandler, readBody, createError } from 'h3'
 import { db } from '../../db'
 import { works } from '../../db/schema'
+import { logDailyWork } from '../../utils/workDailyLog'
 
 export default defineEventHandler(async (event) => {
   // ✅ Авторизация и права уже проверены мидлваром
@@ -36,6 +37,19 @@ export default defineEventHandler(async (event) => {
     operationDate: body.operationDate ? new Date(body.operationDate) : now,
     objectId: body.objectId
   }).$returningId()
+
+  // 📝 Журнал изменений подневки: фиксируем создание (только для подневки)
+  if (newWork?.id) {
+    await logDailyWork(event, 'created', {
+      id: newWork.id,
+      workSource: body.workSource || 'volume',
+      contractorType: body.contractorType,
+      contractorId: body.contractorId,
+      objectId: body.objectId,
+      operationDate: body.operationDate ? new Date(body.operationDate) : now,
+      workerAmount: body.workerAmount
+    })
+  }
 
   return newWork
 })

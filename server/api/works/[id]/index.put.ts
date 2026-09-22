@@ -20,6 +20,7 @@ import { defineEventHandler, readBody, getRouterParam, createError } from 'h3'
 import { db } from '../../../db'
 import { works, masters, workers, objects } from '../../../db/schema'
 import { eq, sql } from 'drizzle-orm'
+import { logDailyWork } from '../../../utils/workDailyLog'
 
 export default defineEventHandler(async (event) => {
   // ✅ Авторизация и права уже проверены мидлваром
@@ -199,4 +200,18 @@ export default defineEventHandler(async (event) => {
 
     return updatedWork
   })
+    .then(async (saved) => {
+      // 📝 Журнал изменений подневки: фиксируем обновление (только для подневки)
+      if (saved?.workSource === 'daily') {
+        const changes: Record<string, { from: unknown; to: unknown }> = {}
+        for (const key of Object.keys(updates)) {
+          changes[key] = {
+            from: (currentWork as any)[key],
+            to: (saved as any)[key]
+          }
+        }
+        await logDailyWork(event, 'updated', saved, changes)
+      }
+      return saved
+    })
 })

@@ -9,6 +9,17 @@
     >
       <!-- Кнопка управления ставками только для админов -->
       <template #actions>
+        <!-- 📝 Журнал изменений (только админ) -->
+        <button
+          v-if="isMounted && isAdminUser"
+          type="button"
+          class="crm-btn crm-btn--ghost crm-btn--sm"
+          @click="logModalOpen = true"
+          title="Журнал изменений подневки"
+        >
+          <Icon name="mdi:history" size="14" />
+          <span>Журнал изменений</span>
+        </button>
         <button
           v-if="isMounted && isAdminUser"
           type="button"
@@ -21,6 +32,12 @@
         </button>
       </template>
     </PagesCabinetUiLayoutPageTitle>
+
+    <!-- 📝 Журнал изменений подневки (только админ) -->
+    <DailyWorkLogModal
+      :visible="logModalOpen"
+      @update:visible="logModalOpen = $event"
+    />
 
     <!-- Управление ставками контрагентов (только админ) -->
     <RateManagementModal
@@ -158,6 +175,7 @@ import type { DailyWorker, DailyAssignment } from '~/types/daily-assignments'
 import CalendarCell from './ui/CalendarCell.vue'
 import DailyAssignmentSheet from './DailyAssignmentSheet.vue'
 import RateManagementModal from './RateManagementModal.vue'
+import DailyWorkLogModal from './DailyWorkLogModal.vue'
 
 // ── Пропсы для гибкости компонента ─────────────────────────────
 const props = defineProps<{
@@ -221,6 +239,7 @@ const selectedWorker = ref<DailyWorker | null>(null)
 const selectedDate = ref('')
 const showDeleteConfirm = ref(false)
 const rateModalOpen = ref(false)
+const logModalOpen = ref(false)
 
 // ── Вычисляемые свойства (прокси к стору) ─────────────────────
 const todayStr = computed(() => store.todayStr)

@@ -948,6 +948,42 @@ export const boardsActivityLog = mysqlTable('boards_activity_log', {
 }))
 
 // ============================================
+// 9. Журнал изменений ПОДНЕВКИ (daily-work)
+// Хранит, кто и когда создал/изменил/удалил записи подневки (works.workSource='daily').
+// Снапшот-поля дублируют ключевую информацию записи, чтобы журнал был читаемым без join'ов.
+// ============================================
+export const workDailyLog = mysqlTable('work_daily_log', {
+  id: serial('id').primaryKey(),
+  // Ссылка на запись подневки в `works`. onDelete: 'set null' — журнал переживает удаление подневки
+  workId: bigint('work_id', { mode: 'number', unsigned: true })
+    .references(() => works.id, { onDelete: 'set null' }),
+  // Кто совершил действие. onDelete: 'set null' — журнал сохраняется даже если пользователя удалили
+  userId: bigint('user_id', { mode: 'number', unsigned: true })
+    .references(() => users.id, { onDelete: 'set null' }),
+  action: varchar('action', {
+    length: 20,
+    enum: ['created', 'updated', 'deleted']
+  }).notNull(), // Тип действия
+  // Снапшот записи подневки (для читаемого отображения)
+  contractorType: varchar('contractor_type', {
+    length: 50,
+    enum: ['master', 'worker']
+  }),
+  contractorId: int('contractor_id'),
+  objectId: int('object_id'),
+  workDate: datetime('work_date'),
+  amount: decimal('amount', { precision: 10, scale: 2 }),
+  // JSON: для 'updated' — diff (что и как изменилось)
+  changes: text('changes'),
+  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`).notNull()
+}, (table) => ({
+  workIndex: index('work_daily_log_work_idx').on(table.workId),
+  userIndex: index('work_daily_log_user_idx').on(table.userId),
+  actionIndex: index('work_daily_log_action_idx').on(table.action),
+  createdAtIndex: index('work_daily_log_created_at_idx').on(table.createdAt)
+}))
+
+// ============================================
 // PERMISSIONS - СИСТЕМА ПРАВ ДОСТУПА (УПРОЩЁННАЯ)
 // ============================================
 

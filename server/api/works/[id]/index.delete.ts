@@ -16,6 +16,7 @@ import { defineEventHandler, getRouterParam, createError } from 'h3'
 import { db } from '../../../db'
 import { works, masters, workers, objects } from '../../../db/schema'
 import { eq, sql } from 'drizzle-orm'
+import { logDailyWork } from '../../../utils/workDailyLog'
 
 export default defineEventHandler(async (event) => {
   // ✅ Авторизация и права уже проверены мидлваром
@@ -63,9 +64,14 @@ export default defineEventHandler(async (event) => {
     // 🗑️ 3. Удаляем запись работы
     await tx.delete(works).where(eq(works.id, workId))
 
-    return {
-      message: 'Работа успешно удалена',
-      deletedWork
-    }
+    return deletedWork
   })
+
+  // 📝 Журнал изменений подневки: фиксируем удаление (только для подневки)
+  await logDailyWork(event, 'deleted', deletedWork)
+
+  return {
+    message: 'Работа успешно удалена',
+    deletedWork
+  }
 })

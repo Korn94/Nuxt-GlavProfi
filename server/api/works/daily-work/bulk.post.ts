@@ -10,6 +10,7 @@
 import { defineEventHandler, readBody, createError } from 'h3'
 import { db } from '../../../db'
 import { works } from '../../../db/schema'
+import { logDailyWork } from '../../../utils/workDailyLog'
 
 export interface BulkWorkPayload {
   workerId: number
@@ -53,6 +54,10 @@ export default defineEventHandler(async (event) => {
   }
 
   const result = await db.insert(works).values(recordsToInsert).$returningId()
+
+  // 📝 Журнал изменений подневки: фиксируем создание
+  const created = recordsToInsert.map((r, i) => ({ ...r, id: result[i]?.id }))
+  await logDailyWork(event, 'created', created)
 
   return {
     success: true,
