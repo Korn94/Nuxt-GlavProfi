@@ -14,34 +14,34 @@
       <table class="reward-table">
         <thead>
           <tr>
-            <th class="reward-table__th-tier">Тир</th>
+            <th class="reward-table__th-category">Категория</th>
             <th>Сумма договора</th>
             <th class="reward-table__th-right">Партнёрское вознаграждение</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td class="reward-table__tier">S</td>
+            <td class="reward-table__category">Базовая</td>
             <td class="reward-table__range">до 1 млн ₽</td>
             <td class="reward-table__value">30 000 ₽</td>
           </tr>
           <tr>
-            <td class="reward-table__tier">M</td>
+            <td class="reward-table__category">Стандарт</td>
             <td class="reward-table__range">1 – 2 млн ₽</td>
             <td class="reward-table__value">40 000 ₽</td>
           </tr>
           <tr>
-            <td class="reward-table__tier">L</td>
+            <td class="reward-table__category">Плюс</td>
             <td class="reward-table__range">2 – 3 млн ₽</td>
             <td class="reward-table__value">50 000 ₽</td>
           </tr>
           <tr>
-            <td class="reward-table__tier">XL</td>
+            <td class="reward-table__category">Крупная</td>
             <td class="reward-table__range">3 – 5 млн ₽</td>
             <td class="reward-table__value">70 000 ₽</td>
           </tr>
           <tr class="reward-table__row--highlight">
-            <td class="reward-table__tier">XXL</td>
+            <td class="reward-table__category">Максимум</td>
             <td class="reward-table__range">свыше 5 млн ₽</td>
             <td class="reward-table__value">
               100 000 ₽
@@ -71,15 +71,15 @@
             step="50000"
           />
 
-          <div class="calc__tier-bar">
+          <div class="calc__category-bar">
             <i
-              v-for="(_, i) in tierInfo"
+              v-for="(_, i) in categoryInfo"
               :key="i"
-              :class="{ active: currentTierIndex >= i }"
+              :class="{ active: currentCategoryIndex >= i }"
             />
           </div>
-          <div class="calc__tier-label">
-            Тир <b>{{ tierName }}</b> · договор {{ tierRange }}
+          <div class="calc__category-label">
+            Категория <b>{{ categoryName }}</b> · договор {{ categoryRange }}
           </div>
 
           <div class="calc__presets">
@@ -134,19 +134,19 @@ const presets = [
   { label: 'Объект · 8М', value: 8000000 },
 ]
 
-const tierInfo = [
-  { name: 'S', range: 'до 1 млн ₽' },
-  { name: 'M', range: '1 – 2 млн ₽' },
-  { name: 'L', range: '2 – 3 млн ₽' },
-  { name: 'XL', range: '3 – 5 млн ₽' },
-  { name: 'XXL', range: 'свыше 5 млн ₽' },
+const categoryInfo = [
+  { name: 'Базовая', range: 'до 1 млн ₽' },
+  { name: 'Стандарт', range: '1 – 2 млн ₽' },
+  { name: 'Плюс', range: '2 – 3 млн ₽' },
+  { name: 'Крупная', range: '3 – 5 млн ₽' },
+  { name: 'Максимум', range: 'свыше 5 млн ₽' },
 ]
 
 function formatNumber(n: number): string {
   return n.toLocaleString('ru-RU')
 }
 
-function getTierIndex(cost: number): number {
+function getCategoryIndex(cost: number): number {
   if (cost < 1000000) return 0
   if (cost < 2000000) return 1
   if (cost < 3000000) return 2
@@ -165,9 +165,9 @@ function getReward(cost: number): number {
 }
 
 const rewardAmount = computed(() => getReward(dealAmount.value))
-const currentTierIndex = computed(() => getTierIndex(dealAmount.value))
-const tierName = computed(() => tierInfo[currentTierIndex.value].name)
-const tierRange = computed(() => tierInfo[currentTierIndex.value].range)
+const currentCategoryIndex = computed(() => getCategoryIndex(dealAmount.value))
+const categoryName = computed(() => categoryInfo[currentCategoryIndex.value].name)
+const categoryRange = computed(() => categoryInfo[currentCategoryIndex.value].range)
 </script>
 
 <style lang="scss" scoped>
@@ -269,15 +269,20 @@ $dark: #171a1c;
     color: #666;
     font-weight: 800;
   }
-  &__th-tier { width: 60px; }
+  &__th-category { width: 100px; }
   &__th-right { text-align: right; }
   tr:last-child td { border-bottom: 0; }
 
-  &__tier {
-    font-weight: 900;
+  // Категория — не акцент, а тихая метка строки:
+  // меньше вес, приглушённый цвет, чуть меньше кегль.
+  &__category {
+    font-weight: 600;
     font-size: 13px;
-    color: #7a7d80;
-    letter-spacing: 0.06em;
+    color: #8a8e91;
+    letter-spacing: 0.01em;
+    line-height: 1.3;
+
+    @media (min-width: 481px) { white-space: nowrap; }
   }
 
   &__range { color: #3a3e41; font-weight: 500; }
@@ -299,14 +304,16 @@ $dark: #171a1c;
 
   @media (max-width: 768px) {
     th, td { padding: 16px 20px; font-size: 14.5px; }
+    &__th-category { width: 88px; }
+    &__category { font-size: 12.5px; }
     &__value { font-size: 16px; }
   }
   @media (max-width: 480px) {
     border-radius: 14px;
     th, td { padding: 12px 14px; font-size: 13px; }
     th { font-size: 10.5px; letter-spacing: 0.08em; }
-    &__th-tier { width: auto; }
-    &__tier { font-size: 11.5px; }
+    &__th-category { width: auto; }
+    &__category { font-size: 12px; }
     &__value {
       font-size: 14px;
       small { font-size: 11px; margin-top: 0; }
@@ -409,7 +416,7 @@ $dark: #171a1c;
   }
 }
 
-.calc__tier-bar {
+.calc__category-bar {
   display: flex;
   gap: 4px;
   margin-top: 20px;
@@ -428,7 +435,7 @@ $dark: #171a1c;
   }
 }
 
-.calc__tier-label {
+.calc__category-label {
   margin-top: 12px;
   font-size: 13px;
   color: #666;

@@ -222,7 +222,7 @@
               Сумма договора<b>2 150 000 ₽</b>
             </div>
             <div class="dash__footer-item">
-              Тир<b>L · 2–3 млн</b>
+              Категория<b>Плюс · 2–3 млн</b>
             </div>
             <div class="dash__footer-item">
               Вознаграждение<b>50 000 ₽</b>
@@ -408,18 +408,33 @@
           </p>
 
           <form class="modal__form" @submit.prevent="submitForm">
-            <input v-model="form.name" required placeholder="Ваше имя" />
-            <input v-model="form.phone" required placeholder="Телефон" />
+            <input
+              v-model="form.name"
+              @input="textFilter"
+              required
+              placeholder="Ваше имя"
+            />
+            <input
+              v-model="form.phone"
+              v-phone-format
+              type="tel"
+              required
+              placeholder="Телефон"
+              :class="{ 'error-border': phoneError }"
+            />
             <input v-model="form.company" placeholder="Агентство / компания" />
             <textarea
               v-model="form.comment"
               placeholder="Например: работаю с арендой коммерции"
             ></textarea>
 
-            <button class="btn btn--dark" type="submit">Отправить заявку</button>
+            <button class="btn btn--dark" type="submit" :disabled="isSubmitting">
+              {{ isSubmitting ? 'Отправка...' : 'Отправить заявку' }}
+            </button>
 
             <div class="modal__small">
-              В демо-версии форма не отправляет данные на сервер.
+              Нажимая кнопку, вы соглашаетесь на обработку персональных данных в соответствии с
+              <NuxtLink to="/privacy-policy">политикой конфиденциальности</NuxtLink>.
             </div>
           </form>
         </template>
@@ -428,8 +443,8 @@
           <div class="eyebrow">Спасибо</div>
           <h2 class="modal__title">Заявка отправлена.</h2>
           <p class="modal__text">
-            Это демонстрационная версия. Подключите форму к CRM, Telegram или backend, чтобы
-            заявки реально поступали менеджеру.
+            Мы получили ваш контакт и скоро свяжемся, чтобы обсудить условия партнёрской
+            программы и показать, как передавать лиды.
           </p>
         </template>
       </div>
@@ -438,34 +453,19 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { usePartnerLeadForm } from '~/composables/usePartnerLeadForm'
 
-const isModalOpen = ref(false)
-const isSubmitted = ref(false)
-
-const form = reactive({
-  name: '',
-  phone: '',
-  company: '',
-  comment: '',
-})
-
-function openModal() {
-  isModalOpen.value = true
-}
-
-function closeModal() {
-  isModalOpen.value = false
-
-  window.setTimeout(() => {
-    isSubmitted.value = false
-  }, 300)
-}
-
-function submitForm() {
-  // TODO: подключить к backend / CRM / Telegram
-  isSubmitted.value = true
-}
+const {
+  isModalOpen,
+  isSubmitted,
+  isSubmitting,
+  phoneError,
+  form,
+  open: openModal,
+  close: closeModal,
+  submit: submitForm,
+  textFilter,
+} = usePartnerLeadForm()
 </script>
 
 <style lang="scss" scoped>
@@ -993,6 +993,7 @@ $dark-2: #1f2326;
   text-decoration: none;
   transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
   &:hover { transform: translateY(-1px); }
+  &:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 }
 
 .btn--accent {
@@ -1116,6 +1117,8 @@ $dark-2: #1f2326;
   }
   textarea { min-height: 90px; resize: vertical; }
 
+  .error-border { border-color: #e5484d; }
+
   @media (max-width: 480px) {
     input, textarea { padding: 12px 14px; font-size: 14px; }
     textarea { min-height: 80px; }
@@ -1127,6 +1130,12 @@ $dark-2: #1f2326;
   color: #888;
   margin-top: 2px;
   line-height: 1.5;
+  text-align: left;
+
+  a {
+    color: $accent;
+    text-decoration: underline;
+  }
 }
 
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }

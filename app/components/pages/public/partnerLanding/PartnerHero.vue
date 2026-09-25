@@ -30,7 +30,7 @@
           </p>
 
           <div class="hero__actions">
-            <a class="btn btn--dark" href="#join">
+            <button class="btn btn--dark" type="button" @click="openPartnerForm">
               Стать партнёром
               <svg
                 width="16"
@@ -44,7 +44,7 @@
               >
                 <path d="M5 12h14M12 5l7 7-7 7" />
               </svg>
-            </a>
+            </button>
 
             <a class="btn btn--light" href="#calc">Посчитать вознаграждение</a>
           </div>
@@ -85,6 +85,11 @@
     </div>
   </header>
 </template>
+<script setup lang="ts">
+import { usePartnerLeadForm } from '~/composables/usePartnerLeadForm'
+
+const { open: openPartnerForm } = usePartnerLeadForm()
+</script>
 
 <style lang="scss" scoped>
 $accent: #4dd6ff;
