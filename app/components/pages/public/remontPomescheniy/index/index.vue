@@ -1,19 +1,35 @@
-<!-- app\components\pages\public\remontPomescheniy\index\index.vue -->
+<!-- app/components/pages/public/remontPomescheniy/index/index.vue -->
 <template>
   <div class="commercial-repair">
-    <!-- Hero и сетка помещений -->
-    <div class="wrap">
-      <PagesPublicRemontPomescheniyIndexBlocksHero />
+    <!-- 1. Компактное интро (светлый) -->
+    <PagesPublicRemontPomescheniyIndexBlocksPageIntro />
+
+    <!-- 2. Каталог помещений (темный) -->
+    <div id="premises-grid" class="wrap">
       <PagesPublicRemontPomescheniyIndexBlocksPremisesGrid />
     </div>
 
-    <!-- Основной контент страницы -->
-    <PagesPublicRemontPomescheniyIndexBlocksWorksGrid />
-    <PagesPublicRemontPomescheniyIndexBlocksProcessTimeline />
-    <PagesPublicRemontPomescheniyIndexBlocksCases />
-    <PagesPublicRemontPomescheniyIndexBlocksFaqAccordion />
-    <!-- <PagesPublicRemontPomescheniyIndexBlocksCTASection /> -->
+    <!-- 3. Виды работ (светлый) -->
+    <div id="works-grid">
+      <PagesPublicRemontPomescheniyIndexBlocksWorksGrid />
+    </div>
 
+    <!-- 4. Блок доверия (темный) -->
+    <PagesPublicRemontPomescheniyIndexBlocksWhyUsBlock />
+
+    <!-- 5. CTA секция (светлый) -->
+    <div id="cta-section">
+      <PagesPublicRemontPomescheniyIndexBlocksCTASection />
+    </div>
+
+    <!-- 6. Процесс работы (темный) -->
+    <PagesPublicRemontPomescheniyIndexBlocksProcessTimeline />
+
+    <!-- 7. Кейсы -->
+    <PagesPublicRemontPomescheniyIndexBlocksCases />
+
+    <!-- 8. FAQ -->
+    <PagesPublicRemontPomescheniyIndexBlocksFaqAccordion />
   </div>
 </template>
 
@@ -27,15 +43,20 @@
 .commercial-repair {
   position: relative;
   overflow: hidden;
+  margin-top: 5em;
 
   .wrap {
     background: $background-dark;
-    padding-top: 3em;
+    // padding-top: 3em;
     position: relative;
+    
     &::before {
       content: '';
       position: absolute;
-      top: 0; left: 0; width: 100%; height: 100%;
+      top: 0; 
+      left: 0; 
+      width: 100%; 
+      height: 100%;
       background: radial-gradient(circle at 5% 0%, $blue20 0%, transparent 10%);
       pointer-events: none;
     }
@@ -44,11 +65,10 @@
   .calculator-section {
     padding: $spacing-xl 0;
     background: $background-light;
-    min-height: 650px; /* Фиксирует место */
+    min-height: 650px;
   }
 }
 
-/* ✅ Плейсхолдер: одинаковый на сервере и клиенте */
 .calculator-placeholder {
   position: relative;
   min-height: 400px;
@@ -62,8 +82,10 @@
   height: 400px;
   color: $text-secondary;
   font-size: 1rem;
+  
   .spinner {
-    width: 32px; height: 32px;
+    width: 32px; 
+    height: 32px;
     border: 3px solid $border-color;
     border-top-color: $primary;
     border-radius: 50%;
@@ -72,5 +94,13 @@
   }
 }
 
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spin { 
+  to { transform: rotate(360deg); } 
+}
+
+@media (max-width: 640px) {
+  .commercial-repair {
+    margin-top: unset;
+  }
+}
 </style>

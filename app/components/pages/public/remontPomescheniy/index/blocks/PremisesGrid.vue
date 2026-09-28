@@ -1,23 +1,51 @@
 <!-- app/components/public/remont-pomescheniy/index/blocks/PremisesGrid.vue -->
 <template>
-  <section class="premises-grid" ref="sectionRef">
-    <div class="container">
-      <h2 class="premises-grid__title">Основные типы помещений, с которыми мы работаем</h2>
+  <section class="premises-grid">
+    <!-- Декоративная сетка на фоне -->
+    <div class="premises-grid__grid-pattern" aria-hidden="true"></div>
+    <div class="premises-grid__glow premises-grid__glow--top" aria-hidden="true"></div>
+    <div class="premises-grid__glow premises-grid__glow--bottom" aria-hidden="true"></div>
 
-      <!-- Панель управления: табы + переключатель вида -->
+    <div class="container">
+      <!-- Хедер секции -->
+      <div class="premises-grid__header">
+        <div class="premises-grid__header-left">
+          <div class="premises-grid__badge">
+            <Icon name="mdi:office-building-outline" size="14" />
+            <span>Типы объектов</span>
+          </div>
+
+          <h2 class="premises-grid__title">
+            Основные типы <span class="accent">помещений</span>
+          </h2>
+        </div>
+
+        <p class="premises-grid__subtitle">
+          С которыми мы работаем: от коммерческих и производственных
+          до медицинских и МОПов. Нажмите на карточку, чтобы открыть услугу.
+        </p>
+      </div>
+
+      <!-- Панель управления -->
       <div class="premises-grid__controls">
         <div class="premises-grid__tabs-wrapper">
           <div class="premises-grid__tabs">
-            <button v-for="tab in tabs" :key="tab.key"
-              :class="['premises-grid__tab', { active: activeTab === tab.key }]" @click="setTab(tab.key)">
+            <button
+              v-for="tab in tabs"
+              :key="tab.key"
+              :class="['premises-grid__tab', { active: activeTab === tab.key }]"
+              @click="setTab(tab.key)"
+            >
               {{ tab.label }}
             </button>
           </div>
         </div>
 
-        <!-- Кнопка переключения вида -->
-        <button class="premises-grid__view-toggle" @click="toggleView"
-          :title="viewMode === 'list' ? 'Показать сеткой' : 'Показать списком'">
+        <button
+          class="premises-grid__view-toggle"
+          @click="toggleView"
+          :title="viewMode === 'list' ? 'Показать сеткой' : 'Показать списком'"
+        >
           <Icon v-if="viewMode === 'list'" name="mdi:format-list-bulleted" size="16" />
           <Icon v-else name="mdi:view-grid-outline" size="16" />
           <span class="premises-grid__view-toggle-text">
@@ -29,148 +57,132 @@
       <!-- Группировка по категориям -->
       <template v-for="catKey in categoryOrder" :key="catKey">
         <div v-if="groupedItems[catKey]?.length" class="premises-grid__category">
-          <!-- Заголовок категории -->
           <h3 v-if="activeTab === 'all'" class="premises-grid__cat-title">
             {{ categoryLabels[catKey] }}
           </h3>
 
-          <!-- Список в режиме LIST (вертикальные блоки) -->
-          <div v-if="viewMode === 'list'" class="premises-grid__list--list">
+          <!-- ==================== РЕЖИМ СПИСКА ==================== -->
+          <div v-if="viewMode === 'list'" class="premises-list">
             <template v-for="item in groupedItems[catKey]" :key="item.slug">
-              <!-- 🔗 SEO: готовая карточка = NuxtLink (prefetch + <a href>) -->
+              <!-- Готовая карточка = NuxtLink -->
               <NuxtLink
                 v-if="item.isReady"
                 :to="getPageLink(item.slug)"
-                :class="['premises-grid__item--list', { 
+                :class="['premise-row', 'premise-row--clickable', {
                   'item-visible': animatedSlugs.has(item.slug),
-                  'is-clickable': true
                 }]"
               >
-                <!-- Контент (текст) -->
-                <div class="premises-grid__item-content">
-                  <h3 class="premises-grid__item-title">{{ item.title }}</h3>
-                  <p v-if="item.subtitle" class="premises-grid__item-subtitle">{{ item.subtitle }}</p>
-                  <p class="premises-grid__item-desc">{{ item.description }}</p>
+                <div class="premise-row__content">
+                  <h3 class="premise-row__title">{{ item.title }}</h3>
+                  <p v-if="item.subtitle" class="premise-row__subtitle">{{ item.subtitle }}</p>
+                  <p class="premise-row__desc">{{ item.description }}</p>
                 </div>
 
-                <!-- Сайдбар (цены + индикатор ссылки) -->
-                <div class="premises-grid__item-sidebar">
-                  <div class="premises-grid__item-prices">
-                    <span class="premises-grid__price-main">{{ item.price }}</span>
-                    <span class="premises-grid__price-example" v-if="item.priceExample">{{ item.priceExample }}</span>
+                <div class="premise-row__sidebar">
+                  <div class="premise-row__prices">
+                    <span class="premise-row__price-main">{{ item.price }}</span>
+                    <span v-if="item.priceExample" class="premise-row__price-example">{{ item.priceExample }}</span>
                   </div>
-                  
-                  <span class="premises-grid__item-link">
-                    Подробнее →
-                  </span>
+                  <span class="premise-row__link">Подробнее →</span>
                 </div>
 
-                <!-- Изображение -->
-                <div class="premises-grid__item-image">
-                  <img :src="item.image" :alt="item.title" loading="lazy" class="premises-grid__img">
+                <div class="premise-row__image">
+                  <img :src="item.image" :alt="item.title" loading="lazy" class="premise-row__img">
                 </div>
+
+                <span class="premise-row__corner" aria-hidden="true"></span>
               </NuxtLink>
 
-              <!-- 🔗 Неготовая карточка = div -->
+              <!-- Неготовая карточка = div -->
               <div
                 v-else
-                :class="['premises-grid__item--list', { 
+                :class="['premise-row', 'premise-row--disabled', {
                   'item-visible': animatedSlugs.has(item.slug),
-                  'is-clickable': false
                 }]"
               >
-                <!-- Контент (текст) -->
-                <div class="premises-grid__item-content">
-                  <h3 class="premises-grid__item-title">{{ item.title }}</h3>
-                  <p v-if="item.subtitle" class="premises-grid__item-subtitle">{{ item.subtitle }}</p>
-                  <p class="premises-grid__item-desc">{{ item.description }}</p>
+                <div class="premise-row__content">
+                  <h3 class="premise-row__title">{{ item.title }}</h3>
+                  <p v-if="item.subtitle" class="premise-row__subtitle">{{ item.subtitle }}</p>
+                  <p class="premise-row__desc">{{ item.description }}</p>
                 </div>
 
-                <!-- Сайдбар (цены + индикатор разработки) -->
-                <div class="premises-grid__item-sidebar">
-                  <div class="premises-grid__item-prices">
-                    <span class="premises-grid__price-main">{{ item.price }}</span>
-                    <span class="premises-grid__price-example" v-if="item.priceExample">{{ item.priceExample }}</span>
+                <div class="premise-row__sidebar">
+                  <div class="premise-row__prices">
+                    <span class="premise-row__price-main">{{ item.price }}</span>
+                    <span v-if="item.priceExample" class="premise-row__price-example">{{ item.priceExample }}</span>
                   </div>
-                  
-                  <span class="premises-grid__item-link premises-grid__item-link--disabled" title="Страница в разработке">
-                    <Icon name="mdi:link-off" size="14" style="vertical-align: middle; margin-left: 4px;" />
+                  <span class="premise-row__link premise-row__link--disabled">
+                    <Icon name="mdi:link-off" size="13" />
                     Страница в разработке
                   </span>
                 </div>
 
-                <!-- Изображение -->
-                <div class="premises-grid__item-image">
-                  <img :src="item.image" :alt="item.title" loading="lazy" class="premises-grid__img">
+                <div class="premise-row__image">
+                  <img :src="item.image" :alt="item.title" loading="lazy" class="premise-row__img">
                 </div>
               </div>
             </template>
           </div>
 
-          <!-- Список в режиме GRID (сетка карточек) -->
+          <!-- ==================== РЕЖИМ СЕТКИ ==================== -->
           <div v-else class="premises-grid__list--grid">
             <template v-for="item in groupedItems[catKey]" :key="item.slug">
-              <!-- 🔗 SEO: готовая карточка = NuxtLink -->
+              <!-- Готовая карточка = NuxtLink -->
               <NuxtLink
                 v-if="item.isReady"
                 :to="getPageLink(item.slug)"
-                :class="['premises-grid__item--grid', { 
+                :class="['premise-card', 'premise-card--clickable', {
                   'item-visible': animatedSlugs.has(item.slug),
-                  'is-clickable': true
                 }]"
               >
-                <!-- Изображение с наложенным текстом -->
-                <div class="premises-grid__card-image">
-                  <img :src="item.image" :alt="item.title" loading="lazy" class="premises-grid__img">
-                  <div class="premises-grid__card-overlay">
-                    <h3 class="premises-grid__card-title--overlay">{{ item.title }}</h3>
-                    <p v-if="item.subtitle" class="premises-grid__card-subtitle--overlay">{{ item.subtitle }}</p>
+                <div class="premise-card__image">
+                  <img :src="item.image" :alt="item.title" loading="lazy" class="premise-card__img">
+                  <div class="premise-card__overlay">
+                    <h3 class="premise-card__title">{{ item.title }}</h3>
+                    <p v-if="item.subtitle" class="premise-card__subtitle">{{ item.subtitle }}</p>
                   </div>
+                  <span class="premise-card__corner" aria-hidden="true"></span>
                 </div>
 
-                <!-- Контент под изображением -->
-                <div class="premises-grid__card-body">
-                  <p class="premises-grid__card-desc">{{ item.description }}</p>
+                <div class="premise-card__body">
+                  <p class="premise-card__desc">{{ item.description }}</p>
 
-                  <div class="premises-grid__prices">
-                    <span class="premises-grid__price-main">{{ item.price }}</span>
-                    <span class="premises-grid__price-example" v-if="item.priceExample">{{ item.priceExample }}</span>
-                    
-                    <span class="premises-grid__card-link">
-                      Подробнее →
-                    </span>
+                  <div class="premise-card__footer">
+                    <div class="premise-card__prices">
+                      <span class="premise-card__price-main">{{ item.price }}</span>
+                      <span v-if="item.priceExample" class="premise-card__price-example">{{ item.priceExample }}</span>
+                    </div>
+                    <span class="premise-card__link">Подробнее →</span>
                   </div>
                 </div>
               </NuxtLink>
 
-              <!-- 🔗 Неготовая карточка = div -->
+              <!-- Неготовая карточка = div -->
               <div
                 v-else
-                :class="['premises-grid__item--grid', { 
+                :class="['premise-card', 'premise-card--disabled', {
                   'item-visible': animatedSlugs.has(item.slug),
-                  'is-clickable': false
                 }]"
               >
-                <!-- Изображение с наложенным текстом -->
-                <div class="premises-grid__card-image">
-                  <img :src="item.image" :alt="item.title" loading="lazy" class="premises-grid__img">
-                  <div class="premises-grid__card-overlay">
-                    <h3 class="premises-grid__card-title--overlay">{{ item.title }}</h3>
-                    <p v-if="item.subtitle" class="premises-grid__card-subtitle--overlay">{{ item.subtitle }}</p>
+                <div class="premise-card__image">
+                  <img :src="item.image" :alt="item.title" loading="lazy" class="premise-card__img">
+                  <div class="premise-card__overlay">
+                    <h3 class="premise-card__title">{{ item.title }}</h3>
+                    <p v-if="item.subtitle" class="premise-card__subtitle">{{ item.subtitle }}</p>
                   </div>
                 </div>
 
-                <!-- Контент под изображением -->
-                <div class="premises-grid__card-body">
-                  <p class="premises-grid__card-desc">{{ item.description }}</p>
+                <div class="premise-card__body">
+                  <p class="premise-card__desc">{{ item.description }}</p>
 
-                  <div class="premises-grid__prices">
-                    <span class="premises-grid__price-main">{{ item.price }}</span>
-                    <span class="premises-grid__price-example" v-if="item.priceExample">{{ item.priceExample }}</span>
-                    
-                    <span class="premises-grid__card-link premises-grid__card-link--disabled" title="Страница в разработке">
-                      <Icon name="mdi:link-off" size="14" style="vertical-align: middle; margin-left: 4px;" />
-                      Страница в разработке
+                  <div class="premise-card__footer">
+                    <div class="premise-card__prices">
+                      <span class="premise-card__price-main">{{ item.price }}</span>
+                      <span v-if="item.priceExample" class="premise-card__price-example">{{ item.priceExample }}</span>
+                    </div>
+                    <span class="premise-card__link premise-card__link--disabled">
+                      <Icon name="mdi:link-off" size="13" />
+                      В разработке
                     </span>
                   </div>
                 </div>
@@ -178,7 +190,6 @@
             </template>
           </div>
 
-          <!-- Разделитель между категориями -->
           <hr v-if="!isLastCategory(catKey)" class="premises-grid__divider">
         </div>
       </template>
@@ -197,7 +208,6 @@ import { useGridControls } from '../../composables/useGridControls'
 
 const sectionRef = ref(null)
 
-// Табы для фильтрации помещений
 const premisesTabs = [
   { key: 'all', label: 'Все' },
   { key: 'commercial', label: 'Коммерческие' },
@@ -214,7 +224,6 @@ const categoryLabels: Record<string, string> = {
 
 const getPageLink = (slug: string) => `/remont-pomescheniy/${slug}`
 
-// Данные помещений (с ценами)
 const premises = [
   { slug: 'banki', title: 'Банки', subtitle: 'отделения, операционные залы, хранилища', category: 'commercial', price: 'от 14 000 ₽ за м²', priceExample: 'за 100 м² ~1.4–2.0 млн ₽', description: 'Работаем с учетом требований безопасности: усиленные перегородки, кабель-каналы под охранно-пожарную сигнализацию, зоны для инкассации. Выполняем монтаж по спец. ТЗ, соблюдаем режим конфиденциальности на объекте.', image: 'main/remont-pomescheniy/banki.webp', isReady: true },
   { slug: 'magaziny', title: 'Магазины', subtitle: 'ТЦ, стрит-ритейл, бутики', category: 'commercial', price: 'от 13 000 ₽ за м²', priceExample: 'за 100 м² ~1.3–1.9 млн ₽', description: 'Монтируем витринные группы, торговое оборудование, напольные покрытия по вашей спецификации. Работаем в график ТЦ (ночные смены) или в свободном режиме для отдельно стоящих зданий. Сдаем объект готовым к выкладке товара.', image: 'main/remont-pomescheniy/magaziny.webp', isReady: true },
@@ -230,7 +239,6 @@ const premises = [
   { slug: 'fasady', title: 'Фасады зданий', subtitle: '', category: 'other', price: 'от 3 500 ₽ за м²', priceExample: 'за 100 м² ~0.4–0.7 млн ₽', description: 'Монтаж фасадов: утепление, облицовка, герметизация. Проверяем основание, крепеж, точку росы до начала работ. Работаем на высоте с допуском, соблюдаем ГОСТ по теплоизоляции.', image: 'main/remont-pomescheniy/fasady.webp', isReady: true }
 ]
 
-// Используем composable для управления гридом
 const {
   activeTab,
   viewMode,
@@ -245,12 +253,11 @@ const {
   tabs
 } = useGridControls(() => premises, premisesTabs)
 
-// Группировка по категориям (специфично для PremisesGrid)
 const groupedItems = computed(() => {
-  const groups: Record<string, any[]> = { 
-    commercial: [], 
-    industrial: [], 
-    other: [] 
+  const groups: Record<string, any[]> = {
+    commercial: [],
+    industrial: [],
+    other: []
   }
   visibleItems.value.forEach(item => {
     if (groups[item.category]) {
@@ -263,42 +270,142 @@ const groupedItems = computed(() => {
 const isLastCategory = (key: string) => key === categoryOrder[categoryOrder.length - 1]
 </script>
 
-<style scoped lang="scss">
+<style lang="scss" scoped>
 @use '@/assets/styles/variables' as *;
-$services-text-secondary: $text-gray;
+@use '@/assets/styles/mixins' as *;
 
 .premises-grid {
-  padding: 4rem 0;
+  @include section-padding;
+  background: $background-dark;
+  color: $text-light;
+  position: relative;
+  overflow: hidden;
 
-  .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 2rem;
+  // === Фоновая «сетка» из тонких линий ===
+  &__grid-pattern {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: radial-gradient(ellipse at 50% 40%, #000 20%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse at 50% 40%, #000 20%, transparent 75%);
   }
 
-  &__title {
-    font-family: 'Rubik', sans-serif;
-    font-size: 2rem;
-    font-weight: 700;
-    color: $text-light;
-    margin-bottom: 2rem;
-    position: relative;
-    padding-bottom: 0.8rem;
+  // === Свечения ===
+  // === Свечения ===
+  &__glow {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(120px);
+    pointer-events: none;
+    z-index: 0;
 
-    &::after {
-      content: '';
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      width: 60px;
-      height: 3px;
-      background: $blue-gradient;
-      border-radius: 2px;
-      box-shadow: 0 0 10px $blue50;
+    &--top {
+      top: -180px;
+      right: -140px;
+      width: 560px;
+      height: 560px;
+      background: radial-gradient(circle, rgba(0, 195, 245, 0.16), transparent 70%);
+    }
+
+    &--bottom {
+      bottom: -200px;
+      left: -160px;
+      width: 480px;
+      height: 480px;
+      background: radial-gradient(circle, rgba(2, 254, 255, 0.1), transparent 70%);
     }
   }
 
-  // === Панель управления ===
+  .container {
+    @include section-container;
+    position: relative;
+    z-index: 1;
+  }
+
+  // ========================================
+  // ХЕДЕР СЕКЦИИ
+  // ========================================
+  &__header {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: end;
+    gap: 3rem;
+    margin-bottom: 3rem;
+
+    @media (max-width: 900px) {
+      grid-template-columns: 1fr;
+      gap: 1.2rem;
+      margin-bottom: 2.2rem;
+    }
+  }
+
+  &__header-left {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  &__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.9rem;
+    background: rgba(0, 195, 245, 0.08);
+    border: 1px solid rgba(0, 195, 245, 0.25);
+    border-radius: 100px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: $blue-light;
+
+    :deep(svg) {
+      color: $blue;
+    }
+  }
+
+  &__title {
+    @include section-title;
+    color: $text-light;
+    margin: 0;
+
+    &::after {
+      box-shadow: 0 0 14px $blue50;
+    }
+
+    .accent {
+      background: $blue-gradient;
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      color: transparent;
+    }
+  }
+
+  &__subtitle {
+    @include section-subtitle;
+    color: rgba($text-light, 0.7);
+    margin: 0 0 0.4rem;
+    max-width: 100%;
+
+    @media (max-width: 900px) {
+      margin-top: 0.5rem;
+    }
+
+    @media (max-width: 768px) {
+      font-size: 0.98rem;
+    }
+  }
+
+  // ========================================
+  // ПАНЕЛЬ УПРАВЛЕНИЯ
+  // ========================================
   &__controls {
     display: flex;
     justify-content: space-between;
@@ -320,7 +427,7 @@ $services-text-secondary: $text-gray;
 
   &__tabs {
     display: flex;
-    gap: 0.75rem;
+    gap: 0.6rem;
     min-width: max-content;
   }
 
@@ -377,118 +484,204 @@ $services-text-secondary: $text-gray;
     }
   }
 
-  // === Категории ===
-  &__category { margin-bottom: 3rem; }
+  // ========================================
+  // КАТЕГОРИИ
+  // ========================================
+  &__category {
+    margin-bottom: 3rem;
+
+    &:last-of-type {
+      margin-bottom: 0;
+    }
+  }
+
   &__cat-title {
-    font-size: 1.4rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1.35rem;
     font-weight: 600;
     color: $text-light;
     margin: 0 0 1.5rem;
-    padding-left: 1rem;
-    position: relative;
+
     &::before {
       content: '';
-      position: absolute;
-      left: 0;
-      top: 50%;
-      transform: translateY(-50%);
       width: 4px;
       height: 22px;
       background: $blue-gradient;
       border-radius: 2px;
+      box-shadow: 0 0 10px $blue50;
     }
   }
 
-  // === РЕЖИМ СПИСКА ===
-  &__list--list {
-    display: flex;
-    flex-direction: column;
-    gap: 1.2rem;
+  // ========================================
+  // СЕТКА
+  // ========================================
+  &__list--grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.25rem;
+
+    @media (max-width: 768px) {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
   }
 
-  &__item--list {
-    padding: 0;
-    overflow: hidden;
-    background: rgba(255, 255, 255, 0.04);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: $border-radius;
+  &__divider {
+    border: none;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
+    margin: 3rem 0 0;
+  }
+
+  &__footer {
     display: flex;
-    gap: 0;
-    align-items: stretch;
-    transition: all 0.35s ease;
+    justify-content: center;
+    padding-top: 2.5rem;
+  }
+}
+
+// ========================================
+// РЕЖИМ СПИСКА: ROW-КАРТОЧКА
+// ========================================
+.premises-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.premise-row {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
+  isolation: isolate;
+
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.045) 0%,
+    rgba(255, 255, 255, 0.015) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+
+  opacity: 0;
+  transform: translateY(20px);
+
+  &.item-visible {
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: radial-gradient(
+      circle at 0% 0%,
+      rgba(0, 195, 245, 0.12),
+      transparent 60%
+    );
     opacity: 0;
-    transform: translateX(-20px);
-    text-decoration: none;
-    color: inherit;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+  }
+
+  &--clickable {
+    cursor: pointer;
+
+    &:hover {
+      border-color: rgba(0, 195, 245, 0.4);
+      box-shadow:
+        0 20px 40px -15px rgba(0, 0, 0, 0.55),
+        0 0 0 1px rgba(0, 195, 245, 0.15) inset;
+
+      &::before { opacity: 1; }
+
+      .premise-row__img {
+        transform: scale(1.06);
+      }
+
+      .premise-row__link {
+        color: $blue-light;
+      }
+
+      .premise-row__corner {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+  }
+
+  &--disabled {
+    opacity: 0.55;
+    cursor: default;
 
     &.item-visible {
-      opacity: 1;
-      transform: translateX(0);
-      transition: opacity 0.6s ease, transform 0.6s ease;
+      opacity: 0.55;
     }
 
-    &.is-clickable:hover {
-      border-color: $blue;
-      background: rgba(0, 195, 245, 0.06);
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-      cursor: pointer;
-    }
-
-    &.is-clickable:hover &__item-image img {
-      transform: scale(1.05);
-    }
-
-    @media (max-width: 900px) {
-      flex-wrap: wrap;
-      gap: 0;
-    }
-    @media (max-width: 768px) {
-      flex-direction: column;
+    .premise-row__img {
+      filter: grayscale(0.35);
     }
   }
 
-  &__item-content {
+  // === Контент ===
+  &__content {
     flex: 1;
     min-width: 0;
-    padding: 1.8rem 1rem 1.8rem 1.8rem;
-
-    @media (max-width: 900px) { padding: 1.4rem; }
-    @media (max-width: 768px) { padding: 1.4rem; }
-  }
-
-  &__item-title {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: $text-light;
-    margin: 0 0 0.3rem;
-    line-height: 1.3;
-  }
-
-  &__item-subtitle {
-    font-size: 0.9rem;
-    color: $blue;
-    margin: 0 0 0.8rem;
-    opacity: 0.9;
-  }
-
-  &__item-desc {
-    font-size: 0.95rem;
-    line-height: 1.6;
-    color: rgba($text-light, 0.85);
-    margin-top: 1em;
-    padding-top: 1em;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-  }
-
-  &__item-sidebar {
+    padding: 1.75rem 1rem 1.75rem 1.75rem;
     display: flex;
     flex-direction: column;
-    justify-content: end;
+    gap: 0.5rem;
+
+    @media (max-width: 900px) {
+      padding: 1.5rem;
+    }
+  }
+
+  &__title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: $text-light;
+    margin: 0;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+  }
+
+  &__subtitle {
+    font-size: 0.85rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: $blue;
+    margin: 0;
+  }
+
+  &__desc {
+    font-size: 0.92rem;
+    line-height: 1.6;
+    color: rgba($text-light, 0.68);
+    margin: 0.6rem 0 0;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  // === Сайдбар ===
+  &__sidebar {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
     gap: 1rem;
     flex-shrink: 0;
-    min-width: 200px;
-    padding: 1.8rem 1rem 1.8rem 0;
+    min-width: 210px;
+    padding: 1.75rem 1.25rem 1.75rem 0;
 
     @media (max-width: 900px) {
       align-items: flex-start;
@@ -496,131 +689,191 @@ $services-text-secondary: $text-gray;
       min-width: auto;
       flex-direction: row;
       justify-content: space-between;
-      padding: 0 1rem 1rem 1.4rem;
+      padding: 0 1.5rem 1.25rem;
     }
+
     @media (max-width: 768px) {
       flex-direction: column;
       align-items: flex-start;
-      padding: 0 1.4rem 1rem;
+      padding: 0 1.5rem 1.25rem;
     }
   }
 
-  &__item-prices {
+  &__prices {
     display: flex;
     flex-direction: column;
     gap: 0.3rem;
-    @media (max-width: 900px) { align-items: flex-start; }
-    @media (max-width: 768px) { align-items: flex-start; }
   }
 
   &__price-main {
-    font-size: 1.25rem;
+    font-size: 1.2rem;
     font-weight: 700;
     color: $blue-light;
+    line-height: 1.2;
   }
 
   &__price-example {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     color: rgba($text-light, 0.5);
   }
 
-  &__item-link {
-    color: $blue;
-    font-weight: 500;
-    font-size: 0.95rem;
-    transition: color 0.3s ease;
-    white-space: nowrap;
+  &__link {
     display: inline-flex;
     align-items: center;
     gap: 0.3rem;
-
-    .is-clickable:hover & {
-      color: $blue-light;
-    }
+    color: $blue;
+    font-weight: 500;
+    font-size: 0.92rem;
+    white-space: nowrap;
+    transition: color 0.3s ease;
 
     &--disabled {
       color: rgba($text-light, 0.4);
       font-weight: 400;
-      
-      .is-clickable:hover & {
+
+      .premise-row--clickable:hover & {
         color: rgba($text-light, 0.4);
       }
     }
   }
 
-  &__item-image {
+  // === Изображение ===
+  &__image {
     flex-shrink: 0;
-    width: 220px;
-    height: auto;
+    width: 240px;
     aspect-ratio: 16 / 9;
     overflow: hidden;
     background: rgba(0, 0, 0, 0.2);
-    border-top-right-radius: $border-radius;
-    border-bottom-right-radius: $border-radius;
 
     @media (max-width: 900px) {
       width: 100%;
       aspect-ratio: 21 / 9;
-      border-radius: 0;
       order: 3;
     }
+
     @media (max-width: 768px) {
       aspect-ratio: 16 / 9;
-      border-bottom-left-radius: $border-radius;
-      border-bottom-right-radius: $border-radius;
     }
   }
 
-  &__item-image img {
+  &__img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
-    transition: transform 0.4s ease;
+    transition: transform 0.5s ease;
   }
 
-  // === РЕЖИМ СЕТКИ ===
-  &__list--grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 1.5rem;
-  }
-
-  &__item--grid {
-    background: rgba(255, 255, 255, 0.04);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: $border-radius;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    transition: all 0.35s ease;
+  // === Угловой акцент ===
+  &__corner {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 60px;
+    height: 60px;
     opacity: 0;
-    transform: translateY(20px);
-    will-change: opacity, transform;
-    text-decoration: none;
-    color: inherit;
+    transform: scale(0.6);
+    transition: all 0.4s ease;
+    pointer-events: none;
+    background: linear-gradient(
+      225deg,
+      rgba(0, 195, 245, 0.55) 0%,
+      transparent 60%
+    );
+    border-top-right-radius: 16px;
+    mask-image: linear-gradient(225deg, #000 0%, transparent 70%);
+    -webkit-mask-image: linear-gradient(225deg, #000 0%, transparent 70%);
+    z-index: 1;
+  }
+}
+
+// ========================================
+// РЕЖИМ СЕТКИ: CARD-КАРТОЧКА
+// ========================================
+.premise-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  isolation: isolate;
+
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.045) 0%,
+    rgba(255, 255, 255, 0.015) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+
+  opacity: 0;
+  transform: translateY(20px);
+
+  &.item-visible {
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: radial-gradient(
+      circle at 50% 0%,
+      rgba(0, 195, 245, 0.14),
+      transparent 60%
+    );
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+  }
+
+  &--clickable {
+    cursor: pointer;
+
+    &:hover {
+      transform: translateY(-6px);
+      border-color: rgba(0, 195, 245, 0.4);
+      box-shadow:
+        0 20px 40px -15px rgba(0, 0, 0, 0.55),
+        0 0 0 1px rgba(0, 195, 245, 0.15) inset;
+
+      &::before { opacity: 1; }
+
+      .premise-card__img {
+        transform: scale(1.06);
+      }
+
+      .premise-card__link {
+        color: $blue-light;
+      }
+
+      .premise-card__corner {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+  }
+
+  &--disabled {
+    opacity: 0.55;
+    cursor: default;
 
     &.item-visible {
-      opacity: 1;
-      transform: translateY(0);
-      transition: opacity 0.5s ease, transform 0.5s ease;
+      opacity: 0.55;
     }
 
-    &.is-clickable:hover {
-      transform: translateY(-6px);
-      box-shadow: 0 12px 25px rgba(0, 0, 0, 0.3);
-      border-color: $blue;
-      background: rgba(0, 195, 245, 0.06);
-      cursor: pointer;
-    }
-
-    &.is-clickable:hover &__img {
-      transform: scale(1.05);
+    .premise-card__img {
+      filter: grayscale(0.35);
     }
   }
 
-  &__card-image {
+  // === Изображение ===
+  &__image {
     position: relative;
     width: 100%;
     aspect-ratio: 16 / 9;
@@ -632,118 +885,173 @@ $services-text-secondary: $text-gray;
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: transform 0.4s ease;
+    transition: transform 0.5s ease;
   }
 
-  &__card-overlay {
+  &__overlay {
     position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 1rem 1.2rem;
-    background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%);
+    inset: auto 0 0 0;
+    padding: 1.1rem 1.25rem;
+    background: linear-gradient(
+      to top,
+      rgba(0, 0, 0, 0.78) 0%,
+      rgba(0, 0, 0, 0.35) 60%,
+      transparent 100%
+    );
     z-index: 1;
   }
 
-  &__card-title--overlay {
+  &__title {
     font-size: 1.15rem;
     font-weight: 600;
     color: #fff;
     margin: 0 0 0.2rem;
     line-height: 1.3;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    letter-spacing: -0.01em;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
   }
 
-  &__card-subtitle--overlay {
-    font-size: 0.85rem;
-    color: rgba(255,255,255,0.9);
+  &__subtitle {
+    font-size: 0.8rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.85);
     margin: 0;
   }
 
-  &__card-body {
-    padding: 1.2rem 1.4rem 1.4rem;
+  // === Тело ===
+  &__body {
+    padding: 1.25rem 1.35rem 1.35rem;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    gap: 0.8rem;
+    gap: 0.9rem;
     flex: 1;
   }
 
-  &__card-desc {
-    font-size: 0.95rem;
+  &__desc {
+    font-size: 0.9rem;
     line-height: 1.55;
-    color: rgba($text-light, 0.85);
+    color: rgba($text-light, 0.68);
     margin: 0;
+    flex: 1;
+  }
+
+  &__footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 1rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    flex-wrap: wrap;
   }
 
   &__prices {
     display: flex;
     flex-direction: column;
-    gap: 0.3rem;
-    padding-top: 0.6rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    gap: 0.2rem;
   }
 
-  &__card-link {
-    color: $blue;
-    font-weight: 500;
-    font-size: 0.95rem;
-    transition: color 0.3s ease;
-    align-self: flex-start;
+  &__price-main {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: $blue-light;
+    line-height: 1.2;
+  }
+
+  &__price-example {
+    font-size: 0.78rem;
+    color: rgba($text-light, 0.5);
+  }
+
+  &__link {
     display: inline-flex;
     align-items: center;
     gap: 0.3rem;
-    margin-top: 1em;
-    
-    .is-clickable:hover & {
-      color: $blue-light; 
-    }
+    color: $blue;
+    font-weight: 500;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    transition: color 0.3s ease;
 
     &--disabled {
       color: rgba($text-light, 0.4);
       font-weight: 400;
-      
-      .is-clickable:hover & {
+
+      .premise-card--clickable:hover & {
         color: rgba($text-light, 0.4);
       }
     }
   }
 
-  &__divider {
-    border: none;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
-    margin: 3rem 0 0;
-  }
-
-  &__footer {
-    display: flex;
-    justify-content: center;
-    padding-top: 1rem;
+  // === Угловой акцент ===
+  &__corner {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 70px;
+    height: 70px;
+    opacity: 0;
+    transform: scale(0.6);
+    transition: all 0.4s ease;
+    pointer-events: none;
+    background: linear-gradient(
+      225deg,
+      rgba(0, 195, 245, 0.55) 0%,
+      transparent 60%
+    );
+    border-top-right-radius: 16px;
+    mask-image: linear-gradient(225deg, #000 0%, transparent 70%);
+    -webkit-mask-image: linear-gradient(225deg, #000 0%, transparent 70%);
+    z-index: 2;
   }
 }
 
+// ========================================
+// АДАПТИВ
+// ========================================
 @media (max-width: 768px) {
   .premises-grid {
-    padding: 3rem 0;
-    
-    &__controls { 
-      flex-direction: column; 
+    padding-top: 4rem;
+    padding-bottom: 4rem;
+
+    &__glow {
+      &--top { width: 360px; height: 360px; }
+      &--bottom { width: 320px; height: 320px; }
+    }
+
+    &__controls {
+      flex-direction: column;
       align-items: stretch;
       gap: 1rem;
     }
-    
-    &__tabs-wrapper {
-      width: 100%;
-      max-width: 100%;
-      overflow-x: auto;
+
+    &__view-toggle {
+      justify-content: center;
     }
-    
-    &__title { font-size: 1.6rem; }
-    &__list--grid { grid-template-columns: 1fr; }
-    &__item--grid { padding: 0; }
-    &__cat-title { font-size: 1.25rem; }
-    &__item--list { padding: 1.4rem; }
+
+    &__cat-title {
+      font-size: 1.15rem;
+    }
+  }
+
+  .premise-row {
+    flex-direction: column;
+
+    &__content {
+      padding: 1.4rem;
+    }
+
+    &__sidebar {
+      padding: 0 1.4rem 1.25rem;
+    }
+  }
+
+  .premise-card {
+    &__body {
+      padding: 1.1rem 1.2rem 1.2rem;
+    }
   }
 }
 </style>

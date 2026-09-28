@@ -1,13 +1,30 @@
 <!-- app/components/pages/public/remontPomescheniy/blocks/WorksGrid.vue -->
 <template>
   <section class="works-grid">
-    <div class="container">
-      <h2 class="works-grid__title">Виды отделочных работ</h2>
-      <p class="works-grid__subtitle">
-        Полный цикл ремонта: от перегородок до финишной отделки. Нажмите на карточку для перехода к основной услуге.
-      </p>
+    <!-- Декоративная сетка на фоне -->
+    <div class="works-grid__grid-pattern" aria-hidden="true"></div>
 
-      <!-- Панель управления: табы + переключатель вида -->
+    <div class="container">
+      <!-- Хедер секции -->
+      <div class="works-grid__header">
+        <div class="works-grid__header-left">
+          <div class="works-grid__badge">
+            <Icon name="mdi:view-grid-outline" size="14" />
+            <span>Виды работ</span>
+          </div>
+
+          <h2 class="works-grid__title">
+            Виды <span class="accent">отделочных работ</span>
+          </h2>
+        </div>
+
+        <p class="works-grid__subtitle">
+          Полный цикл ремонта: от перегородок до финишной отделки.
+          Нажмите на карточку для перехода к основной услуге.
+        </p>
+      </div>
+
+      <!-- Панель управления -->
       <div class="works-grid__controls">
         <div class="works-grid__tabs-wrapper">
           <div class="works-grid__tabs">
@@ -39,7 +56,7 @@
       <div :class="['works-grid__list', `works-grid__list--${viewMode}`]">
         <template v-for="work in visibleItems" :key="work.slug">
 
-          <!-- ==================== КАРТОЧКА, ЕСЛИ ЕСТЬ ХОТЬ ОДНА ГОТОВАЯ СТРАНИЦА ==================== -->
+          <!-- ==================== КАРТОЧКА С ГОТОВЫМИ СТРАНИЦАМИ ==================== -->
           <NuxtLink
             v-if="hasReadyLinks(work)"
             :to="firstReadyUrl(work)"
@@ -48,8 +65,8 @@
           >
             <div
               :class="[
-                'works-grid__card',
-                'is-clickable',
+                'work-card',
+                'work-card--clickable',
                 { 'item-visible': animatedSlugs.has(work.slug) },
               ]"
               @click="(e) => { navigate(e); handleCardClick(work); }"
@@ -57,32 +74,30 @@
               role="link"
               tabindex="0"
             >
-              <div class="works-grid__card-image">
-                <img :src="work.image" :alt="work.title" loading="lazy" class="works-grid__img">
-                <div class="works-grid__card-overlay">
-                  <h3 class="works-grid__card-title">{{ work.title }}</h3>
-                  <span class="works-grid__card-count">{{ work.links.length }} услуг</span>
+              <div class="work-card__image">
+                <img :src="work.image" :alt="work.title" loading="lazy" class="work-card__img">
+                <div class="work-card__overlay">
+                  <h3 class="work-card__title">{{ work.title }}</h3>
+                  <span class="work-card__count">{{ work.links.length }} услуг</span>
                 </div>
               </div>
 
-              <div class="works-grid__card-body">
-                <p class="works-grid__card-desc">{{ work.description }}</p>
+              <div class="work-card__body">
+                <p class="work-card__desc">{{ work.description }}</p>
 
-                <div class="works-grid__card-links" @click.stop>
+                <div class="work-card__links" @click.stop>
                   <template v-for="link in work.links" :key="link.url">
-                    <!-- ✅ Готовая ссылка -->
                     <NuxtLink
                       v-if="link.isReady"
                       :to="link.url"
-                      class="works-grid__card-link"
+                      class="work-card__link"
                       :title="link.title"
                     >
                       {{ link.title }}
                     </NuxtLink>
-                    <!-- ❌ Неготовая ссылка -->
                     <span
                       v-else
-                      class="works-grid__card-link works-grid__card-link--disabled"
+                      class="work-card__link work-card__link--disabled"
                       :title="`${link.title} — в разработке`"
                     >
                       <Icon name="mdi:link-off" size="13" />
@@ -98,24 +113,24 @@
           <div
             v-else
             :class="[
-              'works-grid__card',
-              'works-grid__card--disabled',
+              'work-card',
+              'work-card--disabled',
               { 'item-visible': animatedSlugs.has(work.slug) },
             ]"
           >
-            <div class="works-grid__card-image">
-              <img :src="work.image" :alt="work.title" loading="lazy" class="works-grid__img">
-              <div class="works-grid__card-overlay">
-                <h3 class="works-grid__card-title">{{ work.title }}</h3>
-                <span class="works-grid__card-count">{{ work.links.length }} услуг</span>
+            <div class="work-card__image">
+              <img :src="work.image" :alt="work.title" loading="lazy" class="work-card__img">
+              <div class="work-card__overlay">
+                <h3 class="work-card__title">{{ work.title }}</h3>
+                <span class="work-card__count">{{ work.links.length }} услуг</span>
               </div>
             </div>
 
-            <div class="works-grid__card-body">
-              <p class="works-grid__card-desc">{{ work.description }}</p>
+            <div class="work-card__body">
+              <p class="work-card__desc">{{ work.description }}</p>
 
-              <div class="works-grid__card-links">
-                <span class="works-grid__card-link works-grid__card-link--disabled">
+              <div class="work-card__links">
+                <span class="work-card__link work-card__link--disabled">
                   <Icon name="mdi:link-off" size="13" />
                   Страницы в разработке
                 </span>
@@ -150,7 +165,6 @@ const workTabs = [
   { key: 'finish', label: 'Отделка' },
 ]
 
-// Каждая ссылка внутри работы имеет свой флаг isReady
 const works = [
   {
     slug: 'peregorodki',
@@ -286,18 +300,13 @@ const works = [
   },
 ]
 
-// === Вспомогательные функции для работы со ссылками ===
-
-/** Проверка: есть ли в карточке хотя бы одна готовая ссылка */
 const hasReadyLinks = (work: any): boolean => work.links.some((l: any) => l.isReady)
 
-/** URL первой готовой ссылки — куда ведёт клик по карточке */
 const firstReadyUrl = (work: any): string => {
   const first = work.links.find((l: any) => l.isReady)
   return first?.url ?? '#'
 }
 
-// === Composable ===
 const {
   activeTab,
   viewMode,
@@ -316,47 +325,119 @@ const handleCardClick = (work: any) => {
 }
 </script>
 
-<style scoped lang="scss">
+<style lang="scss" scoped>
 @use '@/assets/styles/variables' as *;
+@use '@/assets/styles/mixins' as *;
 
 .works-grid {
-  padding: 4rem 0;
+  @include section-padding;
   background: $background-light;
+  color: $text-dark;
+  position: relative;
+  overflow: hidden;
 
-  .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 2rem;
+  // === Фоновая «сетка» из тонких линий (светлая тема) ===
+  &__grid-pattern {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(0, 0, 0, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 0, 0, 0.035) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: radial-gradient(ellipse at 50% 40%, #000 20%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse at 50% 40%, #000 20%, transparent 75%);
   }
 
-  &__title {
-    font-family: 'Rubik', sans-serif;
-    font-size: 2rem;
-    font-weight: 700;
-    color: $text-dark;
-    margin-bottom: 0.5rem;
+  .container {
+    @include section-container;
     position: relative;
-    padding-bottom: 0.8rem;
+    z-index: 1;
+  }
 
-    &::after {
-      content: '';
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      width: 60px;
-      height: 3px;
-      background: $blue-gradient;
-      border-radius: 2px;
+  // ========================================
+  // ХЕДЕР СЕКЦИИ
+  // ========================================
+  &__header {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: end;
+    gap: 3rem;
+    margin-bottom: 2.5rem;
+
+    @media (max-width: 900px) {
+      grid-template-columns: 1fr;
+      gap: 1.2rem;
+      margin-bottom: 2rem;
     }
   }
 
-  &__subtitle {
-    color: $text-secondary;
-    font-size: 1rem;
-    margin-bottom: 2rem;
-    max-width: 600px;
+  &__header-left {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
   }
 
+  // === Бейдж ===
+  &__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.9rem;
+    background: rgba(0, 195, 245, 0.08);
+    border: 1px solid rgba(0, 195, 245, 0.25);
+    border-radius: 100px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: $text-gray;
+
+    :deep(svg) {
+      color: $blue;
+    }
+  }
+
+  // === Заголовок ===
+  &__title {
+    @include section-title;
+    color: $text-dark;
+    margin: 0;
+
+    &::after {
+      box-shadow: 0 0 14px rgba(0, 195, 245, 0.4);
+    }
+
+    .accent {
+      background: $blue-gradient;
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      color: transparent;
+    }
+  }
+
+  // === Подзаголовок (справа) ===
+  &__subtitle {
+    @include section-subtitle;
+    color: $text-gray;
+    margin: 0 0 0.4rem;
+    max-width: 100%;
+
+    @media (max-width: 900px) {
+      margin-top: 0.5rem;
+    }
+
+    @media (max-width: 768px) {
+      font-size: 0.98rem;
+    }
+  }
+
+  // ========================================
+  // ПАНЕЛЬ УПРАВЛЕНИЯ (табы + переключатель)
+  // ========================================
   &__controls {
     display: flex;
     justify-content: space-between;
@@ -382,10 +463,11 @@ const handleCardClick = (work: any) => {
     min-width: max-content;
   }
 
+  // === Табы ===
   &__tab {
     background: transparent;
     border: 1px solid $border-color;
-    color: $text-secondary;
+    color: $text-gray;
     padding: 0.6rem 1.4rem;
     border-radius: var(--border-radius, 6px);
     font-family: 'Rubik', sans-serif;
@@ -408,13 +490,14 @@ const handleCardClick = (work: any) => {
     }
   }
 
+  // === Переключатель вида ===
   &__view-toggle {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
     background: transparent;
     border: 1px solid $border-color;
-    color: $text-secondary;
+    color: $text-gray;
     padding: 0.6rem 1.4rem;
     border-radius: var(--border-radius, 6px);
     font-family: 'Rubik', sans-serif;
@@ -435,6 +518,9 @@ const handleCardClick = (work: any) => {
     }
   }
 
+  // ========================================
+  // СЕТКА / СПИСОК
+  // ========================================
   &__list {
     &--grid {
       display: grid;
@@ -449,69 +535,96 @@ const handleCardClick = (work: any) => {
     }
   }
 
-  &__card {
-    background: #fff;
-    border: 1px solid $border-color;
-    border-radius: $border-radius;
-    overflow: hidden;
+  &__footer {
     display: flex;
-    flex-direction: column;
-    transition: all 0.35s ease;
-    opacity: 0;
-    transform: translateY(20px);
-    text-decoration: none;
-    color: inherit;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    justify-content: center;
+    padding-top: 2rem;
+  }
+}
+
+// ========================================
+// КАРТОЧКА РАБОТЫ (светлая)
+// ========================================
+.work-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  background: #fff;
+  border: 1px solid $border-color;
+  border-radius: $border-radius;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.35s ease;
+  text-decoration: none;
+  color: inherit;
+
+  // Анимация появления
+  opacity: 0;
+  transform: translateY(20px);
+
+  &.item-visible {
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+
+  // === Кликабельная карточка ===
+  &--clickable {
     cursor: pointer;
 
-    &.item-visible {
-      opacity: 1;
-      transform: translateY(0);
-      transition: opacity 0.5s ease, transform 0.5s ease;
-    }
+    &:hover {
+      transform: translateY(-4px);
+      border-color: $blue;
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
 
-    &.is-clickable {
-      &:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
-        border-color: $blue;
-      }
-
-      &:hover &__img {
+      .work-card__img {
         transform: scale(1.05);
       }
     }
 
-    .works-grid__list--list & {
-      flex-direction: row;
-      align-items: stretch;
-
-      @media (max-width: 768px) {
-        flex-direction: column;
-      }
-    }
-
-    &--disabled {
-      opacity: 0.65;
-      cursor: default;
-      pointer-events: none;
-      background: #fafafa;
-
-      .works-grid__card-image img {
-        filter: grayscale(0.4);
-      }
+    &.item-visible:hover {
+      transform: translateY(-4px);
     }
   }
 
-  &__card-image {
+  // === Неактивная карточка ===
+  &--disabled {
+    opacity: 0.7;
+    cursor: default;
+    pointer-events: none;
+    background: #fafafa;
+
+    &.item-visible {
+      opacity: 0.7;
+    }
+
+    .work-card__img {
+      filter: grayscale(0.4);
+    }
+  }
+
+  // === Список-режим ===
+  .works-grid__list--list & {
+    flex-direction: row;
+    align-items: stretch;
+
+    @media (max-width: 768px) {
+      flex-direction: column;
+    }
+  }
+
+  // === Изображение ===
+  &__image {
     position: relative;
     width: 100%;
     aspect-ratio: 16 / 9;
     overflow: hidden;
     background: #f5f5f5;
+    flex-shrink: 0;
 
     .works-grid__list--list & {
-      width: 200px;
+      width: 260px;
       aspect-ratio: auto;
       height: auto;
 
@@ -529,29 +642,37 @@ const handleCardClick = (work: any) => {
     transition: transform 0.4s ease;
   }
 
-  &__card-overlay {
+  &__overlay {
     position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 1rem;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.7) 0%, transparent 100%);
+    inset: auto 0 0 0;
+    padding: 1.1rem 1.25rem;
+    background: linear-gradient(
+      to top,
+      rgba(0, 0, 0, 0.75) 0%,
+      rgba(0, 0, 0, 0.35) 60%,
+      transparent 100%
+    );
   }
 
-  &__card-title {
+  &__title {
     font-size: 1.15rem;
     font-weight: 600;
     color: #fff;
     margin: 0 0 0.2rem;
     line-height: 1.3;
+    letter-spacing: -0.01em;
   }
 
-  &__card-count {
-    font-size: 0.8rem;
+  &__count {
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
     color: rgba(255, 255, 255, 0.85);
   }
 
-  &__card-body {
+  // === Тело карточки ===
+  &__body {
     padding: 1.2rem;
     display: flex;
     flex-direction: column;
@@ -559,14 +680,15 @@ const handleCardClick = (work: any) => {
     flex: 1;
   }
 
-  &__card-desc {
+  &__desc {
     font-size: 0.9rem;
-    line-height: 1.5;
-    color: $text-secondary;
+    line-height: 1.55;
+    color: $text-gray;
     margin: 0;
   }
 
-  &__card-links {
+  // === Ссылки внутри карточки ===
+  &__links {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
@@ -575,7 +697,8 @@ const handleCardClick = (work: any) => {
     border-top: 1px solid $border-color;
   }
 
-  &__card-link {
+  // === Кнопки-ссылки внутри карточки ===
+  &__link {
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
@@ -598,33 +721,32 @@ const handleCardClick = (work: any) => {
 
     &--disabled {
       background: transparent;
-      border-color: rgba($text-secondary, 0.25);
-      color: rgba($text-secondary, 0.55);
+      border-color: rgba($text-gray, 0.25);
+      color: rgba($text-gray, 0.55);
       cursor: default;
       pointer-events: none;
       font-weight: 400;
 
       &:hover {
         background: transparent;
-        border-color: rgba($text-secondary, 0.25);
-        color: rgba($text-secondary, 0.55);
+        border-color: rgba($text-gray, 0.25);
+        color: rgba($text-gray, 0.55);
       }
     }
   }
-
-  &__footer {
-    display: flex;
-    justify-content: center;
-    padding-top: 2rem;
-  }
 }
 
+// ========================================
+// АДАПТИВ
+// ========================================
 @media (max-width: 768px) {
   .works-grid {
-    padding: 3rem 0;
+    padding-top: 4rem;
+    padding-bottom: 4rem;
 
-    &__title { font-size: 1.6rem; }
-    &__list--grid { grid-template-columns: 1fr; }
+    &__list--grid {
+      grid-template-columns: 1fr;
+    }
 
     &__controls {
       flex-direction: column;
@@ -632,11 +754,18 @@ const handleCardClick = (work: any) => {
       gap: 1rem;
     }
 
-    &__card-image {
-      .works-grid__list--list & {
-        width: 100%;
-        aspect-ratio: 16 / 9;
-      }
+    &__view-toggle {
+      justify-content: center;
+    }
+  }
+
+  .work-card {
+    &__title { font-size: 1.05rem; }
+    &__desc { font-size: 0.88rem; }
+    &__body { padding: 1.2rem; }
+
+    .works-grid__list--list & {
+      flex-direction: column;
     }
   }
 }

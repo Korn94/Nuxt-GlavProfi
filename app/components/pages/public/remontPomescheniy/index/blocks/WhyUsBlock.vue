@@ -1,50 +1,54 @@
-<!-- app/components/public/remont-pomescheniy/index/blocks/ProcessTimeline.vue -->
+<!-- app/components/pages/public/remontPomescheniy/index/blocks/WhyUsBlock.vue -->
 <template>
-  <section class="process-timeline">
+  <section class="why-us">
     <!-- Декоративная сетка на фоне -->
-    <div class="process-timeline__grid-pattern" aria-hidden="true"></div>
-    <div class="process-timeline__glow process-timeline__glow--top" aria-hidden="true"></div>
-    <div class="process-timeline__glow process-timeline__glow--bottom" aria-hidden="true"></div>
+    <div class="why-us__grid-pattern" aria-hidden="true"></div>
+    <div class="why-us__glow why-us__glow--top" aria-hidden="true"></div>
+    <div class="why-us__glow why-us__glow--bottom" aria-hidden="true"></div>
 
     <div class="container">
-      <!-- Хедер секции -->
-      <div class="process-timeline__header">
-        <div class="process-timeline__header-left">
-          <div class="process-timeline__badge">
-            <Icon name="mdi:progress-clock" size="14" />
-            <span>Процесс работы</span>
+      <!-- Хедер секции: бейдж + заголовок слева, подзаголовок справа -->
+      <div class="why-us__header">
+        <div class="why-us__header-left">
+          <div class="why-us__badge">
+            <Icon name="mdi:star-four-points" size="14" />
+            <span>Наши преимущества</span>
           </div>
 
-          <h2 class="process-timeline__title">
-            Как начать и что <span class="accent">ожидать?</span>
+          <h2 class="why-us__title">
+            Почему выбирают <span class="accent">ГлавПрофи</span>
           </h2>
         </div>
 
-        <p class="process-timeline__subtitle">
-          Простой процесс от заявки до сдачи. Всё начинается с заявки, дальше выезжаем
-          на замер или составляем КП (смету) по вашему проекту.
+        <p class="why-us__subtitle">
+          Работаем прозрачно: от аудита проекта до сдачи объекта.
+          Минимизируем риски и простой вашего бизнеса.
         </p>
       </div>
 
-      <!-- Сетка этапов -->
-      <div class="process-timeline__grid">
+      <!-- Сетка преимуществ -->
+      <div class="why-us__features">
         <div
-          v-for="(step, index) in steps"
-          :key="step.num"
-          class="step-card"
+          v-for="(feature, index) in features"
+          :key="index"
+          class="feature-card"
         >
-          <!-- Номер этапа -->
-          <span class="step-card__number">{{ step.num }}</span>
+          <!-- Номер карточки -->
+          <span class="feature-card__number">
+            {{ String(index + 1).padStart(2, '0') }}
+          </span>
 
-          <!-- Точка-индикатор -->
-          <div class="step-card__dot" aria-hidden="true"></div>
+          <!-- Иконка -->
+          <div class="feature-card__icon">
+            <Icon :name="feature.icon" size="26" />
+          </div>
 
           <!-- Контент -->
-          <h3 class="step-card__title">{{ step.title }}</h3>
-          <p class="step-card__desc">{{ step.desc }}</p>
+          <h3 class="feature-card__title">{{ feature.title }}</h3>
+          <p class="feature-card__desc">{{ feature.description }}</p>
 
           <!-- Угловая акцентная линия -->
-          <span class="step-card__corner" aria-hidden="true"></span>
+          <span class="feature-card__corner" aria-hidden="true"></span>
         </div>
       </div>
     </div>
@@ -52,36 +56,27 @@
 </template>
 
 <script setup>
-const steps = [
+// Преимущества в виде карточек
+const features = [
   {
-    num: '01',
-    title: 'Заявка и выезд инженера',
-    desc: 'Обсуждаем задачу, изучаем планировку/ТЗ. Инженер выезжает на объект: замеряет, фиксирует состояние оснований, коммуникаций.'
+    icon: 'material-symbols:search-check',
+    title: 'Аудит проекта до начала работ',
+    description: 'Проверяем проектную документацию и объект. Если видим риски в технологии или конфликты с реальным объектом — аргументированно сообщаем, чтобы вы не переплачивали.'
   },
   {
-    num: '02',
-    title: 'Смета и договор',
-    desc: 'Готовим понятную детализированную смету: по статьям, с объемами и расценками. Фиксируем сроки, порядок оплат, штрафы за просрочку.'
+    icon: 'material-symbols:verified',
+    title: 'Собственные бригады',
+    description: 'Профессиональные бригады для выполнения любых задач: ГКЛ, маляры, электрики, плиточники. Работаем как напрямую, так и в рамках субподряда.'
   },
   {
-    num: '03',
-    title: 'Материалы и логистика',
-    desc: 'Закупаем материалы по вашей спецификации или помогаем в закупке. Организуем доставку и хранение.'
+    icon: 'material-symbols:schedule',
+    title: 'Сроки и штрафы в договоре',
+    description: 'Сдаем объекты в срок. Сроки, смету и штрафы за просрочку фиксируем в договоре. Минимизируем простой вашего бизнеса.'
   },
   {
-    num: '04',
-    title: 'Работы и контроль',
-    desc: 'Выполняем работы по графику, ведём онлайн-таблицу с этапами работ. Прораб координирует бригады, вы получаете фото/видео с объекта.'
-  },
-  {
-    num: '05',
-    title: 'Сдача и документы',
-    desc: 'Проходим объект вместе с вами, фиксируем и устраняем замечания. Передаём ключи и исполнительную документацию.'
-  },
-  {
-    num: '06',
-    title: 'Сопровождение после сдачи',
-    desc: 'Вы всегда можете обратиться по вопросам доработок или изменениям в процессе эксплуатации.'
+    icon: 'material-symbols:gavel',
+    title: 'Работа по ГОСТ и СНиП',
+    description: 'Работаем по ТЗ, проектной документации или помогаем сформировать технически грамотное решение. Соблюдаем все нормы и стандарты.'
   }
 ]
 </script>
@@ -90,7 +85,7 @@ const steps = [
 @use '@/assets/styles/variables' as *;
 @use '@/assets/styles/mixins' as *;
 
-.process-timeline {
+.why-us {
   @include section-padding;
   background: $background-dark;
   color: $text-light;
@@ -121,15 +116,15 @@ const steps = [
 
     &--top {
       top: -180px;
-      left: -140px;
+      right: -140px;
       width: 560px;
       height: 560px;
-      background: radial-gradient(circle, rgba(0, 195, 245, 0.16), transparent 70%);
+      background: radial-gradient(circle, rgba(0, 195, 245, 0.18), transparent 70%);
     }
 
     &--bottom {
       bottom: -200px;
-      right: -160px;
+      left: -160px;
       width: 480px;
       height: 480px;
       background: radial-gradient(circle, rgba(2, 254, 255, 0.1), transparent 70%);
@@ -166,6 +161,7 @@ const steps = [
     gap: 1rem;
   }
 
+  // === Бейдж ===
   &__badge {
     display: inline-flex;
     align-items: center;
@@ -185,6 +181,7 @@ const steps = [
     }
   }
 
+  // === Заголовок ===
   &__title {
     @include section-title;
     color: $text-light;
@@ -203,6 +200,7 @@ const steps = [
     }
   }
 
+  // === Подзаголовок (справа) ===
   &__subtitle {
     @include section-subtitle;
     color: rgba($text-light, 0.7);
@@ -219,11 +217,11 @@ const steps = [
   }
 
   // ========================================
-  // СЕТКА ЭТАПОВ
+  // СЕТКА ПРЕИМУЩЕСТВ
   // ========================================
-  &__grid {
+  &__features {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 1.25rem;
 
     @media (max-width: 768px) {
@@ -234,9 +232,9 @@ const steps = [
 }
 
 // ========================================
-// КАРТОЧКА ЭТАПА
+// КАРТОЧКА ПРЕИМУЩЕСТВА
 // ========================================
-.step-card {
+.feature-card {
   position: relative;
   padding: 2rem 1.75rem 1.75rem;
   display: flex;
@@ -280,23 +278,24 @@ const steps = [
       opacity: 1;
     }
 
-    .step-card__number {
+    .feature-card__icon {
+      transform: translateY(-2px) scale(1.08);
+      background: rgba(0, 195, 245, 0.16);
+      box-shadow: 0 0 24px rgba(0, 195, 245, 0.35);
+    }
+
+    .feature-card__number {
       color: rgba(0, 195, 245, 0.5);
       transform: translateY(-2px);
     }
 
-    .step-card__dot {
-      transform: scale(1.2);
-      box-shadow: 0 0 18px rgba(0, 195, 245, 0.7);
-    }
-
-    .step-card__corner {
+    .feature-card__corner {
       opacity: 1;
       transform: scale(1);
     }
   }
 
-  // === Номер этапа ===
+  // === Номер карточки ===
   &__number {
     position: absolute;
     top: 1.25rem;
@@ -310,16 +309,19 @@ const steps = [
     z-index: 1;
   }
 
-  // === Точка-индикатор ===
-  &__dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: $blue;
-    box-shadow: 0 0 12px rgba(0, 195, 245, 0.5);
+  // === Иконка ===
+  &__icon {
+    width: 52px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    color: $blue;
+    background: rgba(0, 195, 245, 0.1);
+    border: 1px solid rgba(0, 195, 245, 0.18);
     transition: all 0.35s ease;
     flex-shrink: 0;
-    margin-bottom: 0.2rem;
   }
 
   // === Заголовок ===
@@ -328,7 +330,7 @@ const steps = [
     font-weight: 600;
     color: $text-light;
     line-height: 1.35;
-    margin: 0;
+    margin: 0.4rem 0 0;
     letter-spacing: -0.01em;
   }
 
@@ -366,7 +368,7 @@ const steps = [
 // АДАПТИВ
 // ========================================
 @media (max-width: 768px) {
-  .process-timeline {
+  .why-us {
     padding-top: 4rem;
     padding-bottom: 4rem;
 
@@ -376,8 +378,13 @@ const steps = [
     }
   }
 
-  .step-card {
+  .feature-card {
     padding: 1.6rem 1.4rem 1.5rem;
+
+    &__icon {
+      width: 46px;
+      height: 46px;
+    }
 
     &__title {
       font-size: 1.05rem;
