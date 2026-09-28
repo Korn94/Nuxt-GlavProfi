@@ -4,7 +4,7 @@ import { db } from '../../../db'
 import { portfolioCases } from '../../../db/schema'
 import { eq } from 'drizzle-orm'
 
-export default eventHandler(async (event) => {
+const handler = eventHandler(async (event) => {
   const params = event.context.params
   if (!params || !params.slug) {
     throw createError({
@@ -28,4 +28,13 @@ export default eventHandler(async (event) => {
   }
   
   return caseData
+})
+
+// SWR-кэш: при кратковременном сбое источника отдаём закэшированный ответ
+// вместо HTTP 500 (защита от "Ошибка 500 | ГлавПрофи" в индексе Яндекса).
+export default defineCachedEventHandler(handler, {
+  group: 'portfolio',
+  swr: true,
+  maxAge: 300,
+  staleMaxAge: 3600,
 })

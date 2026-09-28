@@ -22,9 +22,11 @@ const pool = mysql.createPool({
   password: dbConfig.password,
   database: dbConfig.database,
   waitForConnections: true,
-  connectionLimit: 10,
+  // Увеличенный лимит + меньший таймаут подключения защищают SSR от
+  // транзиентных HTTP 500 при пике ботов (исчерпание пула из 10 соединений).
+  connectionLimit: 30,
   queueLimit: 0,
-  connectTimeout: 30000,
+  connectTimeout: 10000,
   idleTimeout: 60000
 })
 

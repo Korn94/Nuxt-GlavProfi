@@ -69,6 +69,7 @@ export default defineNuxtConfig({
         'drizzle-orm',
         'drizzle-orm/mysql2',
         'mysql2/promise',
+        'vue-draggable-plus',
       ],
       exclude: ['jsonwebtoken']
     },

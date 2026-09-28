@@ -4,7 +4,7 @@ import { defineApi } from '../../../utils/defineApi'
 import { db } from '../../../db'
 import { pricePages } from '../../../db/schema'
 
-export default defineApi(async () => {
+const handler = defineApi(async () => {
   console.log('📋 Запрос списка страниц прайс-листа')
 
   const pages = await db
@@ -23,4 +23,12 @@ export default defineApi(async () => {
     metaDescription: page.metaDescription || `Описание для ${page.title}`,
     metaKeywords: page.metaKeywords || `ключевые, слова, для ${page.title}`
   }))
+})
+
+// SWR-кэш списка страниц прайса (короткий TTL — данные используются и в кабинете).
+export default defineCachedEventHandler(handler, {
+  group: 'price-pages',
+  swr: true,
+  maxAge: 60,
+  staleMaxAge: 600,
 })

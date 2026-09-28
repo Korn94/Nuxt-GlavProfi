@@ -94,10 +94,17 @@ export function usePriceStores() {
         `🔐 useAsyncData [price-${slug}]: роль="${role}", isAdminUser=${isAdminUser}, токен=${authStore.token ? '✅' : '❌'}`
       )
 
-      const priceData = await $fetch<ApiPriceListResponse>(
-        `/api/price/list/${slug}`,
-        { headers },
-      )
+      let priceData: ApiPriceListResponse | null = null
+      try {
+        priceData = await $fetch<ApiPriceListResponse>(
+          `/api/price/list/${slug}`,
+          { headers },
+        )
+      } catch (err) {
+        // Кратковременный сбой источника не должен ронять страницу в HTTP 500.
+        // Страница отрендерится с пустым прайсом (200), данные догрузятся на клиенте.
+        console.error(`[usePriceStores] Не удалось загрузить прайс [${slug}]:`, err)
+      }
 
       return { priceData, isAdminUser }
     },
@@ -191,7 +198,10 @@ export function usePriceStores() {
   )
 
   if (pagesError.value) {
-    throw createError({ statusCode: 500, message: 'Ошибка загрузки списка категорий' })
+    // Кратковременный сбой при загрузке списка категорий НЕ должен превращать
+    // страницу в HTTP 500 (иначе Яндекс индексирует "Ошибка 500 | ГлавПрофи").
+    // Просто оставляем пустую навигацию — сам прайс подтянется отдельным запросом.
+    console.error('[usePriceStores] Не удалось загрузить список категорий прайса:', pagesError.value)
   }
 
   const setCategory = (categorySlug: string) => {

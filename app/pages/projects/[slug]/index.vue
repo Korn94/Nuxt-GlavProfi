@@ -6,6 +6,7 @@
     :works="works" 
   />
   <div v-else-if="loading" class="loading">Загрузка...</div>
+  <div v-else-if="loadError" class="error">{{ loadError }}</div>
   <div v-else-if="error" class="error">{{ error }}</div>
 </template>
 
@@ -16,16 +17,29 @@ const slug = route.params.slug
 const { data, pending: loading, error } = await useAsyncData(
   `case-${slug}`,
   async () => {
-    const [caseRes, imagesRes, worksRes] = await Promise.all([
-      $fetch(`/api/portfolio/${slug}`),
+    let caseData = null
+    let loadError = null
+
+    try {
+      caseData = await $fetch(`/api/portfolio/${slug}`)
+    } catch (err) {
+      // 404 — кейс действительно не существует: оставляем честный 404 (error.vue)
+      if (err?.statusCode === 404 || err?.statusCode === 400) throw err
+      // 5xx / сеть — кратковременный сбой: рендерим 200 с сообщением, а не 500
+      loadError = 'Кейс временно недоступен. Пожалуйста, попробуйте ещё раз чуть позже.'
+      console.error(`[projects/${slug}] Не удалось загрузить кейс:`, err)
+    }
+
+    const [images, works] = await Promise.all([
       $fetch(`/api/portfolio/${slug}/images`).catch(() => []),
       $fetch(`/api/portfolio/${slug}/works`).catch(() => [])
     ])
-    return { caseData: caseRes, images: imagesRes, works: worksRes }
+    return { caseData, images, works, loadError }
   }
 )
 
 const caseData = computed(() => data.value?.caseData || null)
+const loadError = computed(() => data.value?.loadError || null)
 const images = computed(() => data.value?.images || [])
 const works = computed(() => data.value?.works || [])
 

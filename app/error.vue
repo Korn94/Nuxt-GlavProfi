@@ -100,6 +100,9 @@ useHead({
     { name: 'description', content: pageDescription },
     { property: 'og:title', content: pageTitle },
     { property: 'og:description', content: pageDescription },
+    // Страница ошибки не должна попадать в индекс и создавать кластеры
+    // одинаковых "Ошибка 500 | ГлавПрофи" в Яндекс.Вебмастере.
+    { name: 'robots', content: 'noindex, nofollow' }
   ]
 })
 </script>

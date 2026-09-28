@@ -13,7 +13,7 @@ import {
   priceAdditionalItems
 } from '../../../db/schema'
 
-export default defineApi(async (event) => {
+const handler = defineApi(async (event) => {
   const slug = getRouterParam(event, 'slug')
   
   if (!slug) {
@@ -105,4 +105,12 @@ export default defineApi(async (event) => {
   })
 
   return tree[0]
+})
+
+// SWR-кэш прайс-листа: защита от HTTP 500 при кратковременном сбое БД.
+export default defineCachedEventHandler(handler, {
+  group: 'price-list',
+  swr: true,
+  maxAge: 300,
+  staleMaxAge: 3600,
 })
