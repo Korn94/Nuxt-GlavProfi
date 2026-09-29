@@ -1,3 +1,4 @@
+<!-- app\components\pages\public\homePage\Feedback.vue -->
 <template>
   <div class="container">
     <h2 class="visually-hidden">Отзывы о компании ГлавПрофи</h2>

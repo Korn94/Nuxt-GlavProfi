@@ -1,3 +1,4 @@
+<!-- app\components\pages\public\homePage\Intro.vue -->
 <template>
   <div class="intro">
     <h2 class="visually-hidden">О компании ГлавПрофи</h2>

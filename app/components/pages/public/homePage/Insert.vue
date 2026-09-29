@@ -1,3 +1,4 @@
+<!-- app\components\pages\public\homePage\Insert.vue -->
 <template>
   <div class="box">
     <h2 class="visually-hidden">Наши работы</h2>

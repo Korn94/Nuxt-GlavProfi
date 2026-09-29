@@ -1,11 +1,23 @@
+<!-- app\components\pages\public\homePage\MiniPrice.vue -->
 <template>
   <section class="prices-showcase">
+    <!-- Декоративная сетка на фоне -->
+    <div class="prices-showcase__grid-pattern" aria-hidden="true"></div>
+
     <div class="container">
-      <!-- Заголовок -->
-      <header class="prices-showcase__header">
-        <h2 class="prices-showcase__title" v-html="title" />
+      <!-- Хедер секции -->
+      <div class="prices-showcase__header">
+        <div class="prices-showcase__header-left">
+          <div class="prices-showcase__badge">
+            <Icon name="mdi:tag-outline" size="14" />
+            <span>Прайс-лист</span>
+          </div>
+
+          <h2 class="prices-showcase__title" v-html="title" />
+        </div>
+
         <p v-if="subtitle" class="prices-showcase__subtitle">{{ subtitle }}</p>
-      </header>
+      </div>
 
       <!-- Промо-блок + статистика -->
       <div class="prices-showcase__top">
@@ -21,6 +33,7 @@
             {{ promoButtonText }}
             <Icon name="mdi:arrow-right" size="18" />
           </NuxtLink>
+          <span class="promo-card__corner" aria-hidden="true"></span>
         </div>
 
         <!-- Статистика -->
@@ -50,6 +63,7 @@
           <span class="category-card__arrow" aria-hidden="true">
             <Icon name="mdi:arrow-right" size="20" />
           </span>
+          <span class="category-card__corner" aria-hidden="true"></span>
         </NuxtLink>
       </div>
     </div>
@@ -130,24 +144,98 @@ withDefaults(
   @include section-padding;
   background: $background-light;
   color: $text-dark;
+  position: relative;
+  overflow: hidden;
+
+  // === Фоновая «сетка» из тонких линий (светлая тема) ===
+  &__grid-pattern {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(0, 0, 0, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 0, 0, 0.035) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: radial-gradient(ellipse at 50% 40%, #000 20%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse at 50% 40%, #000 20%, transparent 75%);
+  }
 
   .container {
     @include section-container;
+    position: relative;
+    z-index: 1;
+  }
+
+  // ========================================
+  // ХЕДЕР СЕКЦИИ
+  // ========================================
+  &__header {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: end;
+    gap: 3rem;
+    margin-bottom: 2.5rem;
+
+    @media (max-width: 900px) {
+      grid-template-columns: 1fr;
+      gap: 1.2rem;
+      margin-bottom: 2rem;
+    }
+  }
+
+  &__header-left {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  // === Бейдж ===
+  &__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.9rem;
+    background: rgba(0, 195, 245, 0.08);
+    border: 1px solid rgba(0, 195, 245, 0.25);
+    border-radius: 100px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: $text-gray;
+
+    :deep(svg) {
+      color: $blue;
+    }
   }
 
   // === Заголовок ===
-  &__header {
-    margin-bottom: 2.5rem;
-    max-width: 720px;
-  }
-
   &__title {
     @include section-title;
+    color: $text-dark;
+    margin: 0;
+
+    &::after {
+      box-shadow: 0 0 14px rgba(0, 195, 245, 0.4);
+    }
   }
 
+  // === Подзаголовок (справа) ===
   &__subtitle {
     @include section-subtitle;
     color: $text-gray;
+    margin: 0 0 0.4rem;
+    max-width: 100%;
+
+    @media (max-width: 900px) {
+      margin-top: 0.5rem;
+    }
+
+    @media (max-width: 768px) {
+      font-size: 0.98rem;
+    }
   }
 
   // === Верх: промо + статистика ===
@@ -163,18 +251,28 @@ withDefaults(
   }
 }
 
-// === Промо-карточка ===
+// ========================================
+// ПРОМО-КАРТОЧКА (тёмный стиль на светлом фоне)
+// ========================================
 .promo-card {
   position: relative;
   display: flex;
   flex-direction: column;
   gap: 1rem;
   padding: 2rem;
-  background: $background-gray;
-  // border: 1px solid $border-color;
-  border-radius: 14px;
   overflow: hidden;
-  transition: $transition;
+  isolation: isolate;
+
+  // Тёмный градиент как в work-card / feature-card
+  background: linear-gradient(
+    160deg,
+    #232427 0%,
+    #18191b 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 
   // Градиентная полоса сверху
   &::before {
@@ -185,21 +283,51 @@ withDefaults(
     right: 0;
     height: 4px;
     background: $blue-gradient;
+    z-index: 2;
+  }
+
+  // Мягкий голубой «отблеск»
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background: radial-gradient(
+      circle at 50% 0%,
+      rgba(0, 195, 245, 0.14),
+      transparent 60%
+    );
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
   }
 
   &:hover {
+    transform: translateY(-4px);
     border-color: rgba(0, 195, 245, 0.4);
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+    box-shadow:
+      0 20px 40px -12px rgba(0, 0, 0, 0.35),
+      0 0 0 1px rgba(0, 195, 245, 0.15) inset;
+
+    &::after { opacity: 1; }
+
+    .promo-card__corner {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
 
   &__label {
+    position: relative;
+    z-index: 1;
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
     align-self: flex-start;
     padding: 0.35rem 0.9rem;
     background: rgba(0, 195, 245, 0.1);
-    color: $blue;
+    color: $blue-light;
+    border: 1px solid rgba(0, 195, 245, 0.25);
     border-radius: 50px;
     font-family: 'Rubik', sans-serif;
     font-size: 0.78rem;
@@ -207,70 +335,128 @@ withDefaults(
     letter-spacing: 0.06em;
     text-transform: uppercase;
 
-    :deep(.icon) {
+    :deep(svg) {
+      color: $blue;
       flex-shrink: 0;
     }
   }
 
   &__title {
+    position: relative;
+    z-index: 1;
     font-family: 'Rubik', sans-serif;
     font-size: 1.5rem;
     font-weight: 700;
     color: $text-light;
     margin: 0;
     line-height: 1.3;
+    letter-spacing: -0.01em;
   }
 
   &__desc {
+    position: relative;
+    z-index: 1;
     font-size: 0.98rem;
     line-height: 1.6;
-    color: rgba($text-light, 0.65);
+    color: rgba($text-light, 0.68);
     margin: 0;
     flex: 1;
   }
 
   &__btn {
     @include btn-primary;
+    position: relative;
+    z-index: 1;
     align-self: flex-start;
+  }
+
+  // === Угловой акцент ===
+  &__corner {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 80px;
+    height: 80px;
+    opacity: 0;
+    transform: scale(0.6);
+    transition: all 0.4s ease;
+    pointer-events: none;
+    background: linear-gradient(
+      225deg,
+      rgba(0, 195, 245, 0.5) 0%,
+      transparent 60%
+    );
+    border-top-right-radius: 14px;
+    mask-image: linear-gradient(225deg, #000 0%, transparent 70%);
+    -webkit-mask-image: linear-gradient(225deg, #000 0%, transparent 70%);
+    z-index: 1;
   }
 }
 
-// === Статистика ===
+// ========================================
+// СТАТИСТИКА (светлые карточки)
+// ========================================
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
 
-  @media (max-width: 480px) {
+  @media (max-width: 400px) {
     grid-template-columns: 1fr;
   }
 }
 
 .stat-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 0.3rem;
   padding: 1.5rem 1rem;
+  text-align: center;
+  overflow: hidden;
+  isolation: isolate;
+
   background: #fff;
   border: 1px solid $border-color;
   border-radius: 14px;
-  text-align: center;
-  transition: $transition;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+
+  // Тонкая градиентная полоска сверху
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: $blue-gradient;
+    opacity: 0.75;
+    transition: opacity 0.35s ease;
+  }
 
   &:hover {
+    transform: translateY(-4px);
     border-color: $blue;
-    transform: translateY(-3px);
-    box-shadow: 0 8px 24px rgba(0, 195, 245, 0.12);
+    box-shadow: 0 12px 24px rgba(0, 195, 245, 0.12);
+
+    &::before { opacity: 1; }
+
+    .stat-card__value {
+      color: $blue-light;
+    }
   }
 
   &__value {
     font-family: 'Rubik', sans-serif;
     font-size: 1.8rem;
     font-weight: 800;
-    color: $blue;
+    color: $text-dark;
     line-height: 1.1;
+    transition: color 0.3s ease;
+    letter-spacing: -0.01em;
   }
 
   &__label {
@@ -280,7 +466,9 @@ withDefaults(
   }
 }
 
-// === Категории ===
+// ========================================
+// КАТЕГОРИИ (тёмные карточки)
+// ========================================
 .categories-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -292,14 +480,45 @@ withDefaults(
 }
 
 .category-card {
-  @include light-card;
+  position: relative;
   display: flex;
   align-items: flex-start;
   gap: 1.2rem;
   padding: 1.8rem;
   text-decoration: none;
+  overflow: hidden;
+  isolation: isolate;
+
+  background: linear-gradient(
+    160deg,
+    #232427 0%,
+    #18191b 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  color: $text-light;
+
+  // Мягкий голубой «отблеск»
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background: radial-gradient(
+      circle at 50% 0%,
+      rgba(0, 195, 245, 0.14),
+      transparent 60%
+    );
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+  }
 
   &__icon {
+    position: relative;
+    z-index: 1;
     flex-shrink: 0;
     display: flex;
     align-items: center;
@@ -307,12 +526,15 @@ withDefaults(
     width: 52px;
     height: 52px;
     background: rgba(0, 195, 245, 0.1);
+    border: 1px solid rgba(0, 195, 245, 0.2);
     color: $blue;
     border-radius: 12px;
-    transition: $transition;
+    transition: all 0.35s ease;
   }
 
   &__content {
+    position: relative;
+    z-index: 1;
     flex: 1;
     min-width: 0;
   }
@@ -321,49 +543,123 @@ withDefaults(
     font-family: 'Rubik', sans-serif;
     font-size: 1.15rem;
     font-weight: 700;
-    color: $text-dark;
+    color: $text-light;
     margin: 0 0 0.4rem;
     line-height: 1.3;
-    transition: color 0.2s ease;
+    letter-spacing: -0.01em;
+    transition: color 0.25s ease;
   }
 
   &__desc {
     font-size: 0.92rem;
     line-height: 1.55;
-    color: $text-gray;
+    color: rgba($text-light, 0.68);
     margin: 0;
   }
 
   &__arrow {
+    position: relative;
+    z-index: 1;
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     width: 36px;
     height: 36px;
-    background: #f0f2f5;
-    color: $text-gray;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba($text-light, 0.7);
     border-radius: 50%;
-    transition: $transition;
+    transition: all 0.35s ease;
     margin-top: 0.4rem;
+  }
+
+  // === Угловой акцент ===
+  &__corner {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 80px;
+    height: 80px;
+    opacity: 0;
+    transform: scale(0.6);
+    transition: all 0.4s ease;
+    pointer-events: none;
+    background: linear-gradient(
+      225deg,
+      rgba(0, 195, 245, 0.5) 0%,
+      transparent 60%
+    );
+    border-top-right-radius: 14px;
+    mask-image: linear-gradient(225deg, #000 0%, transparent 70%);
+    -webkit-mask-image: linear-gradient(225deg, #000 0%, transparent 70%);
+    z-index: 1;
   }
 
   // Ховер всей карточки
   &:hover {
+    transform: translateY(-6px);
+    border-color: rgba(0, 195, 245, 0.4);
+    box-shadow:
+      0 20px 40px -12px rgba(0, 0, 0, 0.35),
+      0 0 0 1px rgba(0, 195, 245, 0.15) inset;
+
+    &::before { opacity: 1; }
+
     .category-card__icon {
       background: $blue-gradient;
+      border-color: transparent;
       color: $background-dark;
+      box-shadow: 0 0 24px rgba(0, 195, 245, 0.35);
     }
 
     .category-card__title {
-      color: $blue;
+      color: $blue-light;
     }
 
     .category-card__arrow {
       background: $blue;
+      border-color: $blue;
       color: #fff;
       transform: translateX(4px);
     }
+
+    .category-card__corner {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+}
+
+// ========================================
+// АДАПТИВ
+// ========================================
+@media (max-width: 768px) {
+  .prices-showcase {
+    padding-top: 4rem;
+    padding-bottom: 4rem;
+  }
+
+  .promo-card {
+    padding: 1.6rem;
+    gap: 0.85rem;
+
+    &__title { font-size: 1.25rem; }
+    &__desc { font-size: 0.92rem; }
+  }
+
+  .stat-card {
+    padding: 1.25rem 0.9rem;
+
+    &__value { font-size: 1.5rem; }
+    &__label { font-size: 0.8rem; }
+  }
+
+  .category-card {
+    padding: 1.5rem;
+
+    &__title { font-size: 1.05rem; }
+    &__desc { font-size: 0.88rem; }
   }
 }
 </style>
