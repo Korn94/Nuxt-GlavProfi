@@ -1,4 +1,4 @@
-<!-- app/components/pages/public/remontPomescheniy/pageTypes/workTypes/ui/PriceCalculatorTabs.vue -->
+<!-- app\components\pages\public\remontPomescheniy\workTypes\ui\PriceCalculatorTabs.vue -->
 <template>
   <section class="price-calculator">
     <div class="container">
@@ -245,7 +245,6 @@ const selectedExtras = ref<string[]>([])
 
 onMounted(() => {
   mounted.value = true
-  initSelections()
 })
 
 // === Вычисляемые свойства ===
@@ -393,6 +392,11 @@ const initSelections = () => {
     }
   })
 }
+
+// SSR-безопасная инициализация выбора по умолчанию.
+// Выполняется и на сервере, и на клиенте в момент setup, чтобы итоговая цена
+// «по умолчанию» (totalPerUnit/totalCost) попадала в исходный HTML до гидратации.
+initSelections()
 
 // === Расчёт стоимости ===
 
