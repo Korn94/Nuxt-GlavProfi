@@ -3,7 +3,7 @@
   <div class="container">
     <h2 class="visually-hidden">Наши проекты и бренды</h2>
     <div class="content">
-      <p class="title">За <span>11 лет</span> выполнено<br> более <span>250+</span> проектов по<br> ремонту <span>коммерческих</span> объектов</p>
+      <p class="title">За <span>12 лет</span> выполнено<br> более <span>250+</span> проектов по<br> ремонту <span>коммерческих</span> объектов</p>
       <p class="brands">Среди них — помещения известных и премиальных брендов.</p>
     </div>
     <!-- УБРАЛИ inline-стили, всё теперь в классе .line -->
@@ -87,9 +87,9 @@
         margin: 0 0 1rem;
       }
 
-      .brands {
+      // .brands {
         // font-size удален, теперь он остается 1.1rem на всех экранах
-      }
+      // }
     }
 
     .imgbox {

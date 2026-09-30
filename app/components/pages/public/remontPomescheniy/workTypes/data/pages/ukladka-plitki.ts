@@ -140,7 +140,7 @@ export const technicalInsights: InsightItem[] = [
     title: 'Основание решает всё',
     description:
       'Плитка не прощает кривизны: на буграх клей сохнет неравномерно, и плитка трескается под нагрузкой. Допустимое отклонение основания — до 4 мм на 2 метра.',
-    icon: 'mdi:foundation',
+    icon: 'mdi:gradient-vertical',
   },
   {
     title: 'Гидроизоляция во влажных зонах',
@@ -153,7 +153,7 @@ export const technicalInsights: InsightItem[] = [
     title: 'Клей подбирается под плитку',
     description:
       'Керамогранит почти не впитывает воду, поэтому обычный дешёвый клей его не удержит. Для керамогранита нужен усиленный состав класса C2, для крупноформата — C2TE S1.',
-    icon: 'mdi:glue',
+    icon: 'mdi:basket-fill',
     fact: 'Класс клея указан на мешке: C1, C2, C2TE, S1',
   },
   {
@@ -658,7 +658,7 @@ export const priceFactors: PriceFactor[] = [
     title: 'Состояние основания',
     description:
       'Нужны стяжка, штукатурка или гидроизоляция — они входят в смету отдельными позициями и влияют на итог.',
-    icon: 'mdi:foundation',
+    icon: 'mdi:gradient-vertical',
   },
   {
     title: 'Раскладка и подрезка',

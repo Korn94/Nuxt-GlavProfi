@@ -24,7 +24,7 @@
     <div class="exp">
       <div class="box">
         <div class="ico"><Icon name="solar:city-broken" class="icon" /></div>
-        <p>11 лет на рынке<br />в Рязани и области</p>
+        <p>12 лет на рынке<br />в Рязани и области</p>
       </div>
       <div class="box">
         <div class="ico"><Icon name="solar:hand-shake-broken" class="icon" /></div>

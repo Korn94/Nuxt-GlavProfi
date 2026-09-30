@@ -1,5 +1,6 @@
+<!-- app\components\pages\public\homePage\Insert.vue -->
 <template>
-  <div class="box">
+  <div class="box" ref="boxRef">
     <h2 class="visually-hidden">Наши работы</h2>
 
     <!-- Декоративный фон -->
@@ -8,24 +9,93 @@
     <div class="box__grid-pattern"></div>
 
     <div class="box__content">
-      <!-- Вопрос -->
-      <p class="box__question" :style="{ '--delay': '0s' }">
+      <!-- Вопрос — виден сразу -->
+      <p class="box__question">
         Все обещают качественно и в срок?
       </p>
 
-      <!-- Главный акцент -->
-      <p class="box__headline" :style="{ '--delay': '0.12s' }">
-        <span class="box__headline-accent">Мы это делаем</span>
-        <span class="box__headline-sub">и показываем на реальных объектах</span>
+      <!-- Главный акцент: строка 2 «Мы это делаем» — при ~50%.
+         Подзаголовок: строка 3 «и показываем на реальных объектах» — при ~65%. -->
+      <p class="box__headline">
+        <span
+          class="box__headline-accent"
+          :class="{ 'is-visible': line2Visible }"
+        >Мы это делаем</span>
+        <span
+          class="box__headline-sub"
+          :class="{ 'is-visible': line3Visible }"
+        >и показываем на реальных объектах</span>
       </p>
 
-      <!-- Стрелка -->
-      <div class="box__arrow" :style="{ '--delay': '0.48s' }">
+      <!-- Стрелка — появляется следом за третьей строкой -->
+      <div class="box__arrow" :class="{ 'is-visible': arrowVisible }">
         <UiAnimationsArrow />
       </div>
     </div>
   </div>
 </template>
+<script setup>
+import { ref, onMounted, onUnmounted } from 'vue';
+
+const boxRef = ref(null);
+
+const line2Visible = ref(false); // «Мы это делаем»
+const line3Visible = ref(false); // «и показываем на реальных объектах»
+const arrowVisible = ref(false);
+
+// Насколько выше/ниже верха окна должен оказаться верх строки, чтобы она появилась.
+// 0.5  — строка доходит до 50% высоты окна (вторая строка).
+// 0.35 — ~65% от нижнего края (третья строка).
+// 0.2  — стрелка после третьей строки.
+const LINE2_AT = 0.5;
+const LINE3_AT = 0.35;
+const ARROW_AT = 0.2;
+
+let rafId = null;
+
+function isElementAbove(selector, fraction) {
+  const el = boxRef.value?.querySelector(selector);
+  if (!el) return false;
+  const vh = window.innerHeight || 1;
+  return el.getBoundingClientRect().top <= vh * fraction;
+}
+
+function update() {
+  rafId = null;
+
+  if (!line2Visible.value && isElementAbove('.box__headline-accent', LINE2_AT)) {
+    line2Visible.value = true;
+  }
+  // Третья строка только после второй, чтобы порядок не нарушался.
+  if (line2Visible.value && !line3Visible.value && isElementAbove('.box__headline-sub', LINE3_AT)) {
+    line3Visible.value = true;
+  }
+  if (line3Visible.value && !arrowVisible.value && isElementAbove('.box__arrow', ARROW_AT)) {
+    arrowVisible.value = true;
+  }
+}
+
+function onScroll() {
+  if (rafId == null) {
+    rafId = requestAnimationFrame(update);
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll, { passive: true });
+  // Проверяем сразу: если блок уже в видимой зоне при загрузке (например, короткая страница).
+  update();
+});
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', onScroll);
+  window.removeEventListener('resize', onScroll);
+  if (rafId != null) {
+    cancelAnimationFrame(rafId);
+  }
+});
+</script>
 
 <style lang="scss" scoped>
 @use '@/assets/styles/variables' as *;
@@ -122,9 +192,6 @@
     color: rgba($text-light, 0.55);
     text-align: center;
     margin: 0 0 0.5rem;
-    opacity: 0;
-    transform: translateY(16px);
-    animation: fadeUp 0.6s ease var(--delay, 0s) forwards;
   }
 
   // ---------- Главный акцент ----------
@@ -139,9 +206,6 @@
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
-    opacity: 0;
-    transform: translateY(16px);
-    animation: fadeUp 0.6s ease var(--delay, 0s) forwards;
 
     &-accent {
       background: linear-gradient(120deg, $blue 0%, $blue-light 100%);
@@ -150,6 +214,14 @@
       color: transparent;
       display: inline-block;
       position: relative;
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+
+      &.is-visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
 
       &::after {
         content: '';
@@ -171,6 +243,14 @@
       letter-spacing: -0.01em;
       color: rgba($text-light, 0.7);
       display: inline-block;
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+
+      &.is-visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
   }
 
@@ -247,11 +327,13 @@
     justify-content: center;
     align-items: center;
     color: $blue;
-    animation:
-      fadeUp 0.6s ease var(--delay, 0s) forwards,
-      bounceArrow 2.4s ease-in-out calc(var(--delay, 0s) + 0.6s) infinite;
+    animation: bounceArrow 2.4s ease-in-out 0.6s infinite;
     opacity: 0;
-    transform: translateY(16px);
+    transition: opacity 0.6s ease;
+
+    &.is-visible {
+      opacity: 1;
+    }
 
     :deep(svg) {
       filter: drop-shadow(0 0 12px rgba(0, 195, 245, 0.5));

@@ -3,7 +3,18 @@
   <div class="featured-projects">
     <h2 class="visually-hidden">Наши проекты</h2>
 
-    <div class="featured-grid">
+    <!-- Скелетон: пока данные не готовы (лентяная/повторная загрузка) -->
+    <div v-if="loading" class="featured-skeleton-grid" aria-hidden="true">
+      <div v-for="n in 2" :key="n" class="skeleton-card">
+        <div class="skeleton-card__media"></div>
+        <div class="skeleton-card__overlay">
+          <div class="skeleton-line skeleton-line--small"></div>
+          <div class="skeleton-line skeleton-line--large"></div>
+        </div>
+      </div>
+    </div>
+
+    <div v-else class="featured-grid">
       <router-link
         v-for="card in validFeaturedCards"
         :key="card.id"
@@ -35,25 +46,29 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { computed } from 'vue'
+
+// Загрузка данных на сервере (SSR).
+// Nuxt выполняет $fetch на сервере, встраивает результат в HTML и в payload;
+// на клиенте данные приходят из payload без повторного запроса, поэтому кейсы
+// видны и поисковикам, и пользователям с самого первого кадра.
+const { data, pending } = await useAsyncData(
+  'home-featured',
+  async () => {
+    try {
+      const data = await $fetch('/api/portfolio')
+      return data?.data || []
+    } catch (err) {
+      // Кратковременный сбой API — не роняем SSR-рендер (200 с пустым списком)
+      console.error('Ошибка при загрузке проектов:', err)
+      return []
+    }
+  }
+)
 
 // Состояние
-const loading = ref(true)
-const error = ref(null)
-const allCards = ref([])
-
-// Загрузка данных
-const fetchData = async () => {
-  try {
-    const data = await $fetch('/api/portfolio')
-    allCards.value = data?.data || []
-  } catch (err) {
-    error.value = 'Не удалось загрузить проекты.'
-    console.error('Ошибка при загрузке:', err)
-  } finally {
-    loading.value = false
-  }
-}
+const allCards = computed(() => data.value || [])
+const loading = computed(() => pending.value)
 
 // Выборка нужных кейсов по slug
 const featuredCards = computed(() => {
@@ -73,11 +88,6 @@ const getMainImage = (images) => {
   const mainImage = images.find(img => img.type === 'main')
   return mainImage?.url || images[0]?.url || '/images/placeholder.jpg'
 }
-
-// Загрузка при монтировании
-onMounted(() => {
-  fetchData()
-})
 </script>
 
 <style lang="scss" scoped>
@@ -166,6 +176,72 @@ onMounted(() => {
       margin: 0 0 0.75rem 0;
       line-height: 1.3;
     }
+  }
+}
+
+/* ====== Скелетон загрузки ====== */
+.featured-skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+
+  @media (max-width: 768px) {
+    gap: 5px;
+  }
+}
+
+.skeleton-card {
+  position: relative;
+  border-radius: 4px;
+  overflow: hidden;
+  height: 280px;
+  max-width: 600px;
+  background: #eef0f3;
+
+  &__media {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, #e9ebef 25%, #dfe2e8 37%, #e9ebef 63%);
+    background-size: 400% 100%;
+    animation: miniShimmer 1.4s ease infinite;
+  }
+
+  &__overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 20px;
+    height: 160px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+}
+
+.skeleton-line {
+  height: 16px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #dfe2e8 25%, #d3d7df 37%, #dfe2e8 63%);
+  background-size: 400% 100%;
+  animation: miniShimmer 1.4s ease infinite;
+
+  &--small {
+    width: 40%;
+  }
+
+  &--large {
+    width: 70%;
+  }
+}
+
+@keyframes miniShimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
   }
 }
 </style>
