@@ -238,6 +238,9 @@ export default defineNuxtConfig({
       '/prices/other': {
         redirect: { to: '/prices/otdelochnye-raboty', statusCode: 301 }
       },
+      '/commerc': {
+        redirect: { to: '/remont-pomescheniy', statusCode: 301 }
+      },
     }
   },
 

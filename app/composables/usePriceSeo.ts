@@ -185,7 +185,7 @@ export function usePriceSeo(
       { name: 'description', content: pageDescription.value },
       { property: 'og:title', content: pageTitle.value },
       { property: 'og:description', content: pageDescription.value },
-      { property: 'og:image', content: 'https://glavprofi.ru/images/og-image.jpg' },
+      { property: 'og:image', content: 'https://glavprofi.ru/og-image.jpg' },
       {
         name: 'keywords',
         content:
