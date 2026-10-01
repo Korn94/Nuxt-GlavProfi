@@ -3,4 +3,19 @@ User-agent: *
 Disallow: /cabinet
 Disallow: /login
 Disallow: /api
+
+# Служебные / технические страницы и загрузки
+Disallow: /uploads
+Disallow: /access-denied
+Disallow: /_nuxt/
+
+# Не индексировать мусорные и трекинговые URL-параметры
+Disallow: /*?utm_
+Disallow: /*?yabizcmpgn
+Disallow: /*?erid
+Disallow: /*?etext
+Disallow: /*?_ym_debug
+Disallow: /*?_ym_status-check
+Disallow: /*?_ytm_preview
+
 Sitemap: https://glavprofi.ru/sitemap.xml
