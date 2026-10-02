@@ -20,7 +20,7 @@
         <li :class="{ active: !isMenuActive && currentRoute === 'contacts' }">
           <a href="tel:+79109096947" @click="closeMenus">
             <Icon name="solar:phone-line-duotone" size="22px" />
-            <span class="label">Позвонить</span>
+            <span class="label">Заказать</span>
           </a>
         </li>
         <li :class="{ active: isMenuActive }" @click="toggleMenu">
