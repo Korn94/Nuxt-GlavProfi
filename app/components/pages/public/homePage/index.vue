@@ -48,9 +48,21 @@
 
       <!-- подзаголовок -->
       <p class="hero__subtitle">
+        Берём весь ремонт на себя: смета, материалы, работы и сдача.<br />
+        <strong>Вы не тратите время</strong> на контроль рабочих и решение сложных инженерных задач.
+      </p>
+      <!-- <p class="hero__subtitle">
+        Берём весь ремонт на себя: смета, материалы, работы и сдача — вы не тратите время на подрядчиков и на решение инженерных задач.
+      </p> -->
+      <!-- <p class="hero__subtitle">
+        Берём на себя весь цикл работ: от оценки объекта и подготовки сметы до ремонта и сдачи заказчику.
+      </p> -->
+
+      <!-- подзаголовок -->
+      <!-- <p class="hero__subtitle">
         Фиксированная смета в&nbsp;договоре. Собственные бригады.<br />
         <strong>Экономия до&nbsp;20%</strong> на&nbsp;материалах за&nbsp;счёт прямых контрактов с&nbsp;поставщиками.
-      </p>
+      </p> -->
 
       <!-- Кнопки -->
       <div class="hero__actions">
@@ -122,10 +134,10 @@ const trustPoints = [
 
 // Статистика
 const stats = [
-  { value: '250+', label: 'объектов от 80 до 3500 м²' },
+  { value: '250+', label: 'объектов от 80 до 3500+ м²' },
   // { value: '12 лет', label: 'на рынке' },
   { value: '5', label: 'бригад в штате без субподряда' },
-  { value: 'до 20%', label: 'экономии' },
+  { value: 'до 20%', label: 'экономии на материалах' },
 ];
 
 // Видео отдаём и на мобиле, и на десктопе.
@@ -133,7 +145,8 @@ const stats = [
 const videoSrc = computed(() =>
   isDesktop.value
     ? '/main/video/main-pk.mp4'
-    : '/main/video/main-mobile.mp4'
+    : '/main/video/main-pk.mp4'
+    // : '/main/video/main-mobile.mp4'
 );
 
 const openModal = () => (showModal.value = true);
@@ -290,7 +303,7 @@ onBeforeUnmount(() => {
     border: 1px solid rgba(0, 195, 245, 0.25);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    border-radius: 100px;
+    border-radius: $border-radius;
     color: rgba($text-light, 0.9);
     font-size: 0.85rem;
     font-weight: 500;
@@ -347,9 +360,9 @@ onBeforeUnmount(() => {
       font-weight: 600;
     }
 
-    @media (max-width: 768px) {
-      br { display: none; }
-    }
+    // @media (max-width: 768px) {
+    //   br { display: none; }
+    // }
   }
 
   // ---------- Кнопки ----------
@@ -403,7 +416,7 @@ onBeforeUnmount(() => {
     border: 1px solid rgba(255, 255, 255, 0.1);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    border-radius: 14px;
+    border-radius: $border-radius;
     margin-bottom: 2rem;
     width: fit-content;
     max-width: 100%;
@@ -486,7 +499,7 @@ onBeforeUnmount(() => {
   font-size: 0.95rem;
   font-weight: 600;
   letter-spacing: 0.01em;
-  border-radius: 12px;
+  border-radius: $border-radius;
   border: none;
   cursor: pointer;
   overflow: hidden;

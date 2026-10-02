@@ -82,7 +82,8 @@ const benefits = [
     rgba(0, 195, 245, 0.02) 100%
   );
   border: 1px solid rgba(0, 195, 245, 0.4);
-  border-radius: 18px;
+  // border-radius: 18px;
+  border-radius: $border-radius;
   overflow: hidden;
   opacity: 0;
   transform: translateY(24px);
@@ -157,7 +158,7 @@ const benefits = [
     width: 60px;
     height: 60px;
     margin-bottom: 1.5rem;
-    border-radius: 14px;
+    border-radius: $border-radius;
     background: linear-gradient(120deg, rgba(0, 195, 245, 0.22), rgba(2, 254, 255, 0.1));
     border: 1px solid rgba(0, 195, 245, 0.55);
     color: $blue-light;
