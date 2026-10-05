@@ -682,7 +682,7 @@ export const portfolioCases = mysqlTable('portfolio_cases', {
   slug: varchar('slug', { length: 255 }).unique().notNull(), // URL-friendly версия названия
   category: varchar('category', {
     length: 50,
-    enum: ['Кафе', 'Магазины', 'Клиники', 'Банки', 'Фитнес', 'Производственные',  'Фасады и Кровля', 'Прочее']
+    enum: ['Кафе', 'Магазины', 'Клиники', 'Банки', 'Фитнес', 'Салоны', 'Офисы', 'Производственные',  'Фасады и Кровля', 'Прочее']
   }).notNull(),
   address: text('address').notNull(), // Краткое описание для объекта
   objectDescription: text('object_description').notNull(), // Краткое описание для объекта
