@@ -122,12 +122,48 @@
 
     </div>
 
+    <!-- Модальное окно прогресса создания кейса -->
+    <PagesCabinetUiModal
+      :visible="uploading"
+      title="Создание кейса"
+      :closable="false"
+      :close-on-click-outside="false"
+      size="sm"
+    >
+      <!-- Ошибка -->
+      <div v-if="uploadError" class="upload-progress upload-progress--error">
+        <Icon name="mdi:alert-circle" size="40" />
+        <p class="upload-progress__error-text">{{ uploadError }}</p>
+        <button type="button" class="crm-btn" @click="dismissError">Закрыть</button>
+      </div>
+
+      <!-- Загрузка файлов -->
+      <div v-else-if="uploadPhase === 'upload'" class="upload-progress">
+        <div class="upload-progress__row">
+          <Icon name="mdi:content-save-outline" size="22" />
+          <span>Загрузка файлов… {{ uploadProgress }}%</span>
+        </div>
+        <div class="upload-progress__bar">
+          <div class="upload-progress__fill" :style="{ width: uploadProgress + '%' }"></div>
+        </div>
+      </div>
+
+      <!-- Обработка на сервере -->
+      <div v-else class="upload-progress">
+        <div class="upload-progress__row">
+          <Icon name="mdi:progress-clock" size="22" class="upload-progress__spin" />
+          <span>Загрузка завершена.<br />Создание кейса, это может занять некоторое время…</span>
+        </div>
+        <div class="upload-progress__bar upload-progress__bar--indeterminate"></div>
+      </div>
+    </PagesCabinetUiModal>
+
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, watch } from 'vue'
+import { useRouter, onBeforeRouteLeave } from 'vue-router'
 import { useAuthStore } from 'stores/auth'
 
 // Инициализация
@@ -201,24 +237,50 @@ const canSubmit = computed(() => {
 // Состояние загрузки
 const uploading = ref(false)
 
+// Прогресс отправки
+const uploadProgress = ref(0)                   // 0–100, реальный % загрузки файлов
+const uploadPhase = ref('upload')               // 'upload' → загрузка, 'processing' → обработка на сервере
+const uploadError = ref(null)                   // текст ошибки (показывается в модалке)
+
+// Блокируем уход со страницы во время отправки, чтобы не оборвать процесс
+onBeforeRouteLeave(() => {
+  if (uploading.value) {
+    return false
+  }
+})
+
+// Блокируем скролл фона, пока открыта модалка
+watch(uploading, (value) => {
+  document.body.style.overflow = value ? 'hidden' : ''
+})
+
+// Закрыть модалку с ошибкой (форма остаётся заполненной)
+const dismissError = () => {
+  uploadError.value = null
+  uploading.value = false
+}
+
 // Отправка формы
 const submitCase = async () => {
   try {
     uploading.value = true
-    
+    uploadError.value = null
+    uploadProgress.value = 0
+    uploadPhase.value = 'upload'
+
     // Валидация обязательных полей
     if (!form.value.mainImage?.file || !form.value.thumbnail?.file) {
       throw new Error('Необходимо загрузить главное изображение и миниатюру')
     }
-    
+
     const formData = new FormData()
-    
+
     // Добавление текстовых полей
     Object.entries(form.value).forEach(([key, value]) => {
       if (['beforeAfterPairs', 'gallery', 'mainImage', 'thumbnail', 'works'].includes(key)) return
       formData.append(key, value || '')
     })
-    
+
     // Добавление основных изображений
     const appendImage = (image, prefix) => {
       if (image?.file) {
@@ -227,7 +289,7 @@ const submitCase = async () => {
     }
     appendImage(form.value.mainImage, 'mainImage')
     appendImage(form.value.thumbnail, 'thumbnail')
-    
+
     // Добавление пар "до/после"
     if (form.value.beforeAfterPairs.length > 0) {
       formData.append('pairGroup', form.value.pairGroup || `Сравнение фото - ${Date.now()}`)
@@ -241,7 +303,7 @@ const submitCase = async () => {
       })
     }
     formData.append('pairCount', form.value.beforeAfterPairs.length)
-    
+
     // Добавление галереи
     form.value.gallery.forEach((image, index) => {
       if (image.file) {
@@ -249,35 +311,88 @@ const submitCase = async () => {
         formData.append(`galleryType[${index}]`, image.type)
       }
     })
-    
+
     // Работы
     form.value.works.forEach((work, index) => {
       formData.append(`workType[${index}]`, work.workType)
       formData.append(`workValue[${index}]`, work.value ?? '')
     })
-    
-    // Отправка запроса
-    const response = await fetch('/api/portfolio', {
-      method: 'POST',
-      body: formData,
-      credentials: 'same-origin'
-    })
-    
-    if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(errorData.statusMessage || 'Ошибка сети')
+
+    // 🔥 Отправка через XMLHttpRequest — даёт реальный прогресс загрузки файлов
+    let status = 0
+    let responseText = ''
+    let networkError = false
+
+    try {
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+        xhr.open('POST', '/api/portfolio')
+
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable && e.total > 0) {
+            // Держим 0–99 пока идёт передача тела, 100 % переключим при приёме ответа
+            uploadProgress.value = Math.min(99, Math.round((e.loaded / e.total) * 100))
+          }
+        }
+
+        xhr.onreadystatechange = () => {
+          if (xhr.readyState === XMLHttpRequest.DONE) {
+            status = xhr.status
+            responseText = typeof xhr.responseText === 'string' ? xhr.responseText : ''
+            resolve()
+          }
+        }
+
+        xhr.onerror = () => {
+          networkError = true
+          reject(new TypeError('net'))
+        }
+
+        try {
+          xhr.send(formData)
+        } catch {
+          networkError = true
+          reject(new TypeError('net'))
+        }
+      })
+    } catch {
+      throw new TypeError('net')
     }
-    
-    const result = await response.json()
-    
+
+    // Тело запроса отправлено — сервер обрабатывает (оптимизация, БД)
+    uploadProgress.value = 100
+    uploadPhase.value = 'processing'
+
+    if (status < 200 || status >= 300) {
+      let errorData = null
+      try { errorData = responseText ? JSON.parse(responseText) : null } catch { errorData = null }
+      const msg = errorData?.statusMessage
+        || (status >= 500 ? 'Сервер перегружен. Подождите и попробуйте ещё раз.' : `Ошибка сервера (${status})`)
+      throw new Error(msg)
+    }
+
     // 🔥 Редирект в админку, а не на публичную страницу
+    // Снимаем запрет навигации (onBeforeRouteLeave не должен блокировать уход)
+    uploading.value = false
     router.push(`/cabinet/portfolio`)
-    
+
   } catch (err) {
     console.error('Ошибка создания кейса:', err)
-    alert('Не удалось создать кейс. Проверьте данные и попробуйте снова.')
+
+    let finalMessage = 'Не удалось создать кейс. Проверьте данные и попробуйте снова.'
+    if (networkError || err instanceof TypeError) {
+      // TypeError может быть как сетевой ошибкой, так и внутренней логикой — трактуем как сеть
+      finalMessage = 'Нет соединения с сервером. Проверьте интернет и попробуйте ещё раз.'
+    } else if (err && err.message) {
+      finalMessage = err.message
+    }
+    uploadError.value = finalMessage
   } finally {
-    uploading.value = false
+    // uploading остаётся true, чтобы модалка с ошибкой не закрылась преждевременно.
+    // Закроем её кнопкой «Закрыть» (dismissError). При успехе — уходим редиректом.
+    if (!uploadError.value) {
+      uploading.value = false
+    }
   }
 }
 </script>
@@ -342,6 +457,92 @@ const submitCase = async () => {
     min-width: 140px;
     justify-content: center;
   }
+}
+
+// ── Прогресс создания кейса (модалка) ────────────────────────────
+.upload-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: var(--crm-text-sm);
+    color: var(--crm-text-primary);
+
+    span {
+      line-height: 1.4;
+    }
+  }
+
+  &__spin {
+    animation: upload-progress-spin 1s linear infinite;
+    flex-shrink: 0;
+  }
+
+  &__error-text {
+    margin: 0;
+    font-size: var(--crm-text-sm);
+    color: var(--crm-danger);
+    line-height: 1.5;
+  }
+
+  &__bar {
+    height: 10px;
+    background: var(--crm-bg-overlay);
+    border: 1px solid var(--crm-border);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+
+  &__fill {
+    height: 100%;
+    background: var(--crm-accent, #2f6fdb);
+    border-radius: 999px;
+    transition: width 0.15s ease;
+  }
+
+  // Индикатор «создание кейса…» (неопределённая длительность)
+  &__bar--indeterminate {
+    position: relative;
+    overflow: hidden;
+
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 40%;
+      border-radius: 999px;
+      background: var(--crm-accent, #2f6fdb);
+      animation: upload-progress-indeterminate 1.4s ease-in-out infinite;
+    }
+  }
+
+  // Ошибка — extra accent
+  &.upload-progress--error {
+    align-items: center;
+    text-align: center;
+    gap: 14px;
+
+    .crm-btn {
+      min-width: 120px;
+      justify-content: center;
+    }
+  }
+}
+
+@keyframes upload-progress-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes upload-progress-indeterminate {
+  0% { left: -40%; }
+  100% { left: 100%; }
 }
 
 // ── Адаптив ───────────────────────────────────────────────────────

@@ -2,38 +2,53 @@
  * 📍 Файл: `server/api/portfolio/index.post.ts`
  * 📍 Эндпоинт: `POST /api/portfolio`
  *
- * Назначение: Массовая загрузка кейса + оптимизация изображений
+ * Назначение: Создание кейса + стриминговая загрузка изображений на диск.
  * ⚠️ Требует роль `admin` или `manager`
  *
- * Логика:
- * - Асинхронные FS-операции (fs.promises) — не блокируют event loop
- * - Все DB-операции в одной транзакции (кейс + изображения + работы)
- * - Массив savedFiles для cleanup: если что-то упадёт — все файлы удалятся
- *
- * @body multipart/form-data — кейс с изображениями и работами
- * @returns { id: number, slug: string }
+ * 🛠 Что изменено (fix OOM + «мёртвые» файлы):
+ * - Стриминговый разбор multipart через busboy и запись файлов СРАЗУ на диск
+ *   (вместо readMultipartFormData, который держал всё тело запроса в RAM).
+ * - Вся оптимизация (sharp) выполняется ВНЕ транзакции БД.
+ * - Транзакция короткая: вставка кейса → перенос webp → INSERT картинок/работ.
+ * - Гарантированная очистка: при ошибке удаляются и temp-папка, и папка кейса.
  */
 
-import { eventHandler, createError, readMultipartFormData } from 'h3'
+import { eventHandler, createError, getRequestHeader, getRequestWebStream } from 'h3'
 import { db } from '../../db'
 import { portfolioCases, portfolioImages, portfoCaseWorks } from '../../db/schema'
 import { verifyAuth } from '../../utils/auth'
-import { randomUUID } from 'crypto'
-import { join } from 'path'
+import { randomUUID } from 'node:crypto'
+import { join } from 'node:path'
 import { sql } from 'drizzle-orm'
 import { transliterate } from '../../utils/transliteration'
-import { validateImage } from '../../utils/imageValidation'
+import { validateImage, allowedExt } from '../../utils/imageValidation'
+import { logPortfolio } from '../../utils/fileLogger'
+import busboy from 'busboy'
 import sharp from 'sharp'
-import { mkdir, writeFile, unlink, rm } from 'node:fs/promises'
+import { Readable } from 'node:stream'
+import { createWriteStream } from 'node:fs'
+import { mkdir, rm, rename, stat, open } from 'node:fs/promises'
 
 const UPLOAD_DIR_BASE = '/var/www/glavprofi_ru_usr40/data/www/uploads'
 
 // 🔥 Настройки оптимизации
 const IMAGE_CONFIG = {
   maxWidth: 1920,
-  thumbWidth: 400,
   webpQuality: 85,
-  maxFileSize: 20 * 1024 * 1024
+  maxFileSize: 20 * 1024 * 1024,
+  // Защита от «картинок-бомб» (огромных по пикселям изображений)
+  maxInputPixels: 60 * 1000 * 1000
+}
+
+const readFirstBytes = async (filePath: string, n: number): Promise<Buffer> => {
+  const fh = await open(filePath, 'r')
+  try {
+    const buf = Buffer.alloc(n)
+    const { bytesRead } = await fh.read(buf, 0, n, 0)
+    return buf.subarray(0, bytesRead)
+  } finally {
+    await fh.close()
+  }
 }
 
 export default eventHandler(async (event) => {
@@ -43,135 +58,160 @@ export default eventHandler(async (event) => {
     throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   }
 
-  // ───────── FORM DATA ─────────
-  const formData = await readMultipartFormData(event)
-  if (!formData) {
-    throw createError({ statusCode: 400, statusMessage: 'Form data missing' })
+  // ───────── MULTIPART HEADERS ─────────
+  const contentType = getRequestHeader(event, 'content-type') || ''
+  if (!contentType.startsWith('multipart/form-data')) {
+    throw createError({ statusCode: 400, statusMessage: 'Expected multipart/form-data' })
   }
+  const boundary = contentType.match(/boundary=([^;]*)(;|$)/i)?.[1]
+  if (!boundary) {
+    throw createError({ statusCode: 400, statusMessage: 'Boundary missing' })
+  }
+
+  // ───────── ВРЕМЕННАЯ ПАПКА ДЛЯ СТРИМИНГА ─────────
+  const jobDir = join(UPLOAD_DIR_BASE, `tmp-${randomUUID()}`)
+  await mkdir(jobDir, { recursive: true })
 
   const fields: Record<string, string> = {}
-  const files: Record<string, any> = {}
+  const files: Record<string, string> = {} // имя поля -> путь к файлу на диске
+  const originalFilenames: Record<string, string> = {}
+  let caseDir: string | undefined = undefined
 
-  for (const part of formData) {
-    if (part.filename) {
-      if (part.name) files[part.name] = part
-    } else if (part.name) {
-      fields[part.name] = part.data?.toString() || ''
-    }
-  }
-
-  // ───────── ПРОВЕРКА ОБЯЗАТЕЛЬНЫХ ФАЙЛОВ ─────────
-  const requiredFiles = ['mainImage', 'thumbnail']
-  for (const name of requiredFiles) {
-    if (!files[name] || !files[name].data || (files[name].data?.length || 0) === 0) {
-      throw createError({ statusCode: 400, statusMessage: `Отсутствует обязательный файл: ${name}` })
-    }
-  }
-
-  // ───────── ВАЛИДАЦИЯ ИЗОБРАЖЕНИЙ ─────────
-  for (const name of requiredFiles) {
-    const validation = validateImage(files[name])
-    if (!validation.valid) {
-      throw createError({ statusCode: 400, statusMessage: validation.error! })
-    }
-    if (files[name].data.length > IMAGE_CONFIG.maxFileSize) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: `Файл ${name} слишком большой. Максимум ${IMAGE_CONFIG.maxFileSize / 1024 / 1024} МБ`
-      })
-    }
-  }
-
-  const allFileParts = formData.filter(f => f.filename && f.name)
-  for (const part of allFileParts) {
-    if (
-      part.name?.startsWith('beforeImage[') ||
-      part.name?.startsWith('afterImage[') ||
-      part.name?.startsWith('gallery[')
-    ) {
-      const validation = validateImage(part as any)
-      if (!validation.valid) {
-        throw createError({ statusCode: 400, statusMessage: validation.error! })
-      }
-      if (part.data.length > IMAGE_CONFIG.maxFileSize) {
-        throw createError({
-          statusCode: 400,
-          statusMessage: `Файл слишком большой. Максимум ${IMAGE_CONFIG.maxFileSize / 1024 / 1024} МБ`
-        })
-      }
-    }
-  }
-
-  // ───────── SLUG ─────────
-  if (!fields.slug) {
-    const transliterated = transliterate(fields.title || '')
-    fields.slug = transliterated
-      .toLowerCase()
-      .trim()
-      .replace(/[\s\W]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .replace(/-+/g, '-')
-  }
-
-  // ───────── ВАЛИДАЦИЯ ОБЯЗАТЕЛЬНЫХ ПОЛЕЙ ─────────
-  const requiredFields = [
-    'title', 'slug', 'category',
-    'objectDescription', 'shortObject',
-    'space', 'duration', 'people',
-    'shortDescription'
-  ]
-  for (const field of requiredFields) {
-    if (!fields[field]) {
-      throw createError({ statusCode: 400, statusMessage: `Missing required field: ${field}` })
-    }
-  }
-
-  // ✅ Массив для cleanup — все созданные файлы
-  const savedFiles: string[] = []
-
-  // ✅ Функция cleanup — удаляет все созданные файлы
-  const cleanupFiles = async () => {
-    if (savedFiles.length === 0) return
-    console.log(`[Portfolio/Create] 🧹 Cleanup: удаляем ${savedFiles.length} файл(ов)...`)
+  const cleanup = async (removeCaseDir?: string) => {
+    const targets = [jobDir]
+    if (removeCaseDir) targets.push(removeCaseDir)
     await Promise.allSettled(
-      savedFiles.map(async (filePath) => {
-        try {
-          await unlink(filePath)
-        } catch (err: any) {
-          if (err.code !== 'ENOENT') {
-            console.warn(`[Portfolio/Create] ⚠️ Не удалось удалить файл: ${filePath}`)
-          }
-        }
+      targets.map(async (p): Promise<void> => {
+        try { await rm(p, { recursive: true, force: true }) } catch { /* ignore */ }
       })
     )
   }
 
-  // ✅ Функция оптимизации изображения (асинхронная!)
-  const optimizeImage = async (
-    file: any,
-    type: string,
-    caseId: number,
-    caseDir: string,
-    isMain: boolean = false
-  ) => {
-    try {
-      if (!file?.data) throw new Error(`Файл не передан для типа ${type}`)
+  try {
+    // ───────── 1. СТРИМИНГОВЫЙ РАЗБОР MULTIPART → ДИСК ─────────
+    await new Promise<void>((resolve, reject) => {
+      const bb = busboy({
+        headers: { 'content-type': contentType },
+        limits: { fileSize: IMAGE_CONFIG.maxFileSize, files: 0 }
+      })
 
-      const validation = validateImage(file)
-      if (!validation.valid) {
-        throw createError({ statusCode: 400, statusMessage: validation.error! })
+      let fileIndex = 0
+      bb.on('field', (name: string, val: string) => { fields[name] = val })
+
+      bb.on('file', (name: string, stream: NodeJS.ReadableStream, info: any) => {
+        const safe = `f${fileIndex++}_` + (name.replace(/[^a-zA-Z0-9_\-\[\]]/g, '_') || 'file')
+        const p = join(jobDir, safe)
+        files[name] = p
+        originalFilenames[name] = info.filename || name
+
+        const ws = createWriteStream(p)
+        stream.on('error', reject)
+        ws.on('error', reject)
+        // Превышен лимит размера файла — прерываем и отвечаем 400
+        stream.on('limit', () => {
+          ws.destroy()
+          bb.destroy()
+          reject(createError({
+            statusCode: 400,
+            statusMessage: `Файл ${info.filename} превышает максимальный размер ${IMAGE_CONFIG.maxFileSize / 1024 / 1024} МБ`
+          }))
+        })
+        stream.pipe(ws)
+      })
+
+      bb.on('error', reject)
+      bb.on('close', resolve)
+
+      const webBody = getRequestWebStream(event)
+      const src: NodeJS.ReadableStream = webBody
+        ? Readable.fromWeb(webBody as any)
+        : event.node.req as unknown as NodeJS.ReadableStream
+      src.on('error', reject)
+      src.pipe(bb)
+    })
+
+    await logPortfolio('INFO', 'streaming-complete', {
+      fieldsCount: Object.keys(fields).length,
+      filesCount: Object.keys(files).length
+    })
+
+    // ───────── 2. ПРОВЕРКА ОБЯЗАТЕЛЬНЫХ ФАЙЛОВ И СЛАГ ─────────
+    for (const name of ['mainImage', 'thumbnail']) {
+      if (!files[name]) {
+        throw createError({ statusCode: 400, statusMessage: `Отсутствует обязательный файл: ${name}` })
       }
+    }
 
-      const buffer = Buffer.from(file.data)
-      const uuid = randomUUID()
+    if (!fields.slug) {
+      const transliterated = transliterate(fields.title || '')
+      fields.slug = transliterated
+        .toLowerCase()
+        .trim()
+        .replace(/[\s\W]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .replace(/-+/g, '-')
+    }
 
-      let sharpInstance = sharp(buffer)
-      const metadata = await sharpInstance.metadata()
-      const width = metadata.width || 0
-      const height = metadata.height || 0
+    const requiredFields = [
+      'title', 'slug', 'category',
+      'objectDescription', 'shortObject',
+      'space', 'duration', 'people', 'shortDescription'
+    ]
+    for (const f of requiredFields) {
+      if (!fields[f]) {
+        throw createError({ statusCode: 400, statusMessage: `Missing required field: ${f}` })
+      }
+    }
 
-      if (width > IMAGE_CONFIG.maxWidth || height > IMAGE_CONFIG.maxWidth) {
-        sharpInstance = sharpInstance.resize({
+    // Валидация файла на диске: размер + расширение + magic bytes
+    const validateDiskImage = async (name: string) => {
+      const p = files[name]
+      const origName = originalFilenames[name]
+      if (!p || !origName) {
+        throw createError({ statusCode: 400, statusMessage: `Не удалось сохранить файл: ${name}` })
+      }
+      const { size } = await stat(p)
+      if (size > IMAGE_CONFIG.maxFileSize) {
+        throw createError({
+          statusCode: 400,
+          statusMessage: `Файл ${origName} слишком большой. Максимум ${IMAGE_CONFIG.maxFileSize / 1024 / 1024} МБ`
+        })
+      }
+      const ext = (origName.split('.').pop() || '').toLowerCase()
+      if (!allowedExt.includes(ext)) {
+        throw createError({ statusCode: 400, statusMessage: `Недопустимый формат файла: ${ext}` })
+      }
+      const magic = await readFirstBytes(p, 16)
+      const v = validateImage({ data: magic, filename: origName })
+      if (!v.valid) {
+        throw createError({ statusCode: 400, statusMessage: v.error || 'Недопустимое изображение' })
+      }
+    }
+
+    // ───────── 3. ОПТИМИЗАЦИЯ ВНЕ ТРАНЗАКЦИИ (только диск) ─────────
+    type Prepared = {
+      type: string
+      order: number
+      pairGroup?: string
+      filename: string
+    }
+    const prepared: Prepared[] = []
+
+    const optimizeToJobDir = async (
+      field: string,
+      type: string,
+      order: number,
+      pairGroup?: string
+    ): Promise<void> => {
+      await validateDiskImage(field)
+      const src = files[field]
+
+      let inst = sharp(src, { limitInputPixels: IMAGE_CONFIG.maxInputPixels })
+      const meta = await inst.metadata()
+      const w = meta.width || 0
+      const h = meta.height || 0
+      if (w > IMAGE_CONFIG.maxWidth || h > IMAGE_CONFIG.maxWidth) {
+        inst = inst.resize({
           width: IMAGE_CONFIG.maxWidth,
           height: IMAGE_CONFIG.maxWidth,
           fit: 'inside',
@@ -179,62 +219,48 @@ export default eventHandler(async (event) => {
         })
       }
 
-      const optimizedBuffer = await sharpInstance
+      const filename = `${randomUUID()}.webp`
+      await inst
         .rotate()
         .webp({ quality: IMAGE_CONFIG.webpQuality })
-        .toBuffer()
+        .toFile(join(jobDir, filename))
 
-      const filename = `${uuid}.webp`
-      const filePath = join(caseDir, filename)
-
-      // ✅ Асинхронная запись
-      await writeFile(filePath, optimizedBuffer)
-      savedFiles.push(filePath) // 🔥 Запоминаем для cleanup
-
-      const url = `/uploads/case-${caseId}/${filename}`
-
-      // Миниатюра для главного фото
-      let thumbUrl: string | null = null
-      if (isMain) {
-        const thumbBuffer = await sharp(buffer)
-          .resize({
-            width: IMAGE_CONFIG.thumbWidth,
-            height: IMAGE_CONFIG.thumbWidth,
-            fit: 'inside',
-            withoutEnlargement: true
-          })
-          .rotate()
-          .webp({ quality: IMAGE_CONFIG.webpQuality })
-          .toBuffer()
-
-        const thumbFilename = `${uuid}-thumb.webp`
-        const thumbPath = join(caseDir, thumbFilename)
-
-        await writeFile(thumbPath, thumbBuffer)
-        savedFiles.push(thumbPath) // 🔥 Запоминаем миниатюру для cleanup
-
-        thumbUrl = `/uploads/case-${caseId}/${thumbFilename}`
-      }
-
-      return {
-        caseId,
-        url,
-        thumbUrl,
-        type,
-        alt: `${type} фото с объекта ремонта для кейса ${caseId}`,
-        order: type === 'main' ? 0 : type === 'thumbnail' ? 1 : 2
-      }
-    } catch (error) {
-      console.error(`[Portfolio/Create] ❌ Ошибка оптимизации (${type}):`, error)
-      throw error
+      prepared.push({ type, order, pairGroup, filename })
     }
-  }
 
-  try {
-    // ✅ ВСЁ В ОДНОЙ ТРАНЗАКЦИИ
+    // Задачи в правильном порядке (последовательно — память не растёт)
+    const taskList: Array<() => Promise<void>> = []
+    taskList.push(() => optimizeToJobDir('mainImage', 'main', 0))
+    taskList.push(() => optimizeToJobDir('thumbnail', 'thumbnail', 1))
+
+    const pairIdx = new Set<number>()
+    Object.keys(files).forEach((k) => {
+      const m = k.match(/^(beforeImage|afterImage)\[(\d+)\]$/)
+      if (m) pairIdx.add(parseInt(m[2]!, 10))
+    })
+    ;[...pairIdx].sort((a, b) => a - b).forEach((i) => {
+      if (files[`beforeImage[${i}]`]) taskList.push(() => optimizeToJobDir(`beforeImage[${i}]`, 'before', 2 + i * 2, `pair-${i}`))
+      if (files[`afterImage[${i}]`]) taskList.push(() => optimizeToJobDir(`afterImage[${i}]`, 'after', 3 + i * 2, `pair-${i}`))
+    })
+
+    const galleryKeys = Object.keys(files)
+      .filter((k) => /^gallery\[\d+\]$/.test(k))
+      .sort((a, b) => parseInt((a.match(/\d+/) || ['0'])[0]!, 10) - parseInt((b.match(/\d+/) || ['0'])[0]!, 10))
+    galleryKeys.forEach((k) => {
+      const idx = parseInt((k.match(/\d+/) || ['0'])[0]!, 10)
+      const gtype = fields[`galleryType[${idx}]`] || 'after'
+      taskList.push(() => optimizeToJobDir(k, gtype, 100 + idx))
+    })
+
+    for (const t of taskList) await t()
+
+    await logPortfolio('INFO', 'optimization-complete', {
+      imagesPrepared: prepared.length
+    })
+
+    // ───────── 4. КОРОТКАЯ ТРАНЗАКЦИЯ БД ─────────
     const result = await db.transaction(async (tx) => {
-      // ───────── 1. ВСТАВКА КЕЙСА ─────────
-      const [newCase] = await tx.insert(portfolioCases).values({
+      const [newCase]: any = await tx.insert(portfolioCases).values({
         title: fields.title ?? '',
         slug: fields.slug ?? '',
         category: sql<string>`${fields.category}`,
@@ -256,117 +282,45 @@ export default eventHandler(async (event) => {
       if (!newCase?.id) {
         throw createError({ statusCode: 500, statusMessage: 'Ошибка получения ID кейса' })
       }
-
       const caseId = newCase.id
-      const caseDir = join(UPLOAD_DIR_BASE, `case-${caseId}`)
-
-      // ✅ Асинхронное создание папки
+      caseDir = join(UPLOAD_DIR_BASE, `case-${caseId}`)
       await mkdir(caseDir, { recursive: true })
 
-      // ───────── 2. СОХРАНЕНИЕ ИЗОБРАЖЕНИЙ ─────────
+      // Переносим webp из temp-папки в папку кейса и формируем строки вставки
       const imagesToInsert: any[] = []
-
-      // Главное изображение (с миниатюрой)
-      const mainResult = await optimizeImage(files.mainImage, 'main', caseId, caseDir, true)
-      imagesToInsert.push({
-        caseId: mainResult.caseId,
-        url: mainResult.url,
-        type: 'main',
-        alt: mainResult.alt,
-        order: 0
-      })
-
-      // Миниатюра (отдельный файл, если загружен другой)
-      if (files.thumbnail !== files.mainImage) {
-        const thumbResult = await optimizeImage(files.thumbnail, 'thumbnail', caseId, caseDir, false)
-        imagesToInsert.push({
-          caseId: thumbResult.caseId,
-          url: thumbResult.url,
-          type: 'thumbnail',
-          alt: thumbResult.alt,
-          order: 1
-        })
+      for (const p of prepared) {
+        await rename(join(jobDir, p.filename), join(caseDir, p.filename))
+        const row: any = {
+          caseId,
+          url: `/uploads/case-${caseId}/${p.filename}`,
+          type: p.type,
+          alt: `${p.type} фото с объекта ремонта для кейса ${caseId}`,
+          order: p.order
+        }
+        if (p.pairGroup) row.pairGroup = p.pairGroup
+        imagesToInsert.push(row)
       }
 
-      // Пары before/after
-      const beforeFiles = formData
-        .filter(f => f.name?.startsWith('beforeImage[') && f.filename)
-        .map(f => ({ index: parseInt(f.name!.match(/\d+/)?.[0] || '-1'), file: f }))
-        .filter(item => item.index >= 0)
-        .sort((a, b) => a.index - b.index)
-
-      const afterFiles = formData
-        .filter(f => f.name?.startsWith('afterImage[') && f.filename)
-        .map(f => ({ index: parseInt(f.name!.match(/\d+/)?.[0] || '-1'), file: f }))
-        .filter(item => item.index >= 0)
-        .sort((a, b) => a.index - b.index)
-
-      const maxLen = Math.max(beforeFiles.length, afterFiles.length)
-      for (let i = 0; i < maxLen; i++) {
-        const beforeFile = beforeFiles.find(f => f.index === i)
-        const afterFile = afterFiles.find(f => f.index === i)
-        const pairGroup = `pair-${i}`
-
-        if (beforeFile) {
-          const result = await optimizeImage(beforeFile.file, 'before', caseId, caseDir, false)
-          imagesToInsert.push({ ...result, type: 'before', pairGroup, order: 2 + i * 2 })
-        }
-        if (afterFile) {
-          const result = await optimizeImage(afterFile.file, 'after', caseId, caseDir, false)
-          imagesToInsert.push({ ...result, type: 'after', pairGroup, order: 3 + i * 2 })
-        }
-      }
-
-      // Галерея
-      const galleryFiles = Object.entries(files)
-        .filter(([key]) => key.startsWith('gallery['))
-        .map(([, value]) => value)
-
-      const galleryTypes: Record<number, string> = {}
-      Object.entries(fields).forEach(([key, value]) => {
-        if (key.startsWith('galleryType[')) {
-          const index = parseInt(key.match(/\d+/)?.[0] || '-1')
-          if (index >= 0) galleryTypes[index] = value
-        }
-      })
-
-      for (let i = 0; i < galleryFiles.length; i++) {
-        const type = galleryTypes[i] ?? 'after'
-        const result = await optimizeImage(galleryFiles[i], 'gallery', caseId, caseDir, false)
-        imagesToInsert.push({ ...result, type, order: 100 + i })
-      }
-
-      // ✅ Вставка изображений В ТРАНЗАКЦИИ
       if (imagesToInsert.length > 0) {
         await tx.insert(portfolioImages).values(imagesToInsert)
       }
 
-      // ───────── 3. РАБОТЫ ─────────
+      // Работы
       const workTypes: string[] = []
       const workValues: string[] = []
-      for (const key of Object.keys(fields)) {
-        if (key.startsWith('workType[')) {
-          const idx = parseInt(key.match(/\d+/)?.[0] ?? '-1', 10)
-          if (idx >= 0) workTypes[idx] = fields[key] ?? ''
-        }
-        if (key.startsWith('workValue[')) {
-          const idx = parseInt(key.match(/\d+/)?.[0] ?? '-1', 10)
-          if (idx >= 0) workValues[idx] = fields[key] ?? ''
-        }
-      }
-
+      Object.keys(fields).forEach((key) => {
+        const mT = key.match(/^workType\[(\d+)\]$/)
+        if (mT) workTypes[parseInt(mT[1]!, 10)] = fields[key] ?? ''
+        const mV = key.match(/^workValue\[(\d+)\]$/)
+        if (mV) workValues[parseInt(mV[1]!, 10)] = fields[key] ?? ''
+      })
       const worksToInsert = workTypes
-        .map((type, i) => ({ workType: type?.trim() ?? '', value: workValues[i]?.trim() ?? '' }))
-        .filter(w => w.workType)
+        .map((t, i) => ({ workType: t?.trim() ?? '', value: workValues[i]?.trim() ?? '' }))
+        .filter((w) => w.workType)
 
-      // ✅ Вставка работ В ТРАНЗАКЦИИ
       if (worksToInsert.length > 0) {
         await tx.insert(portfoCaseWorks).values(
-          worksToInsert.map(({ workType, value }) => ({
-            caseId,
-            workType,
-            value
-          }))
+          worksToInsert.map(({ workType, value }) => ({ caseId, workType, value }))
         )
       } else {
         await tx.insert(portfoCaseWorks).values({
@@ -379,25 +333,23 @@ export default eventHandler(async (event) => {
       return { id: caseId, slug: fields.slug }
     })
 
-    console.log(`[Portfolio/Create] ✅ Кейс создан: ID ${result.id}, файлов: ${savedFiles.length}`)
+    // ✅ Успех — temp-папка больше не нужна
+    await rm(jobDir, { recursive: true, force: true })
+    await logPortfolio('INFO', 'case-created', {
+      id: result.id,
+      slug: result.slug,
+      images: prepared.length
+    })
     return result
-
   } catch (error: any) {
-    // ❌ Если что-то упало — удаляем все сохранённые файлы
+    // ❌ Ошибка — удаляем и temp-папку, и папку кейса (никаких мёртвых файлов)
     console.error('[Portfolio/Create] ❌ Ошибка при создании кейса:', error)
-    await cleanupFiles()
-
-    // ✅ Также удаляем пустую папку кейса, если она создалась
-    const caseDir = savedFiles[0]?.replace(/\/[^\/]+$/, '')
-    if (caseDir) {
-      try {
-        await rm(caseDir, { recursive: true, force: true })
-        console.log(`[Portfolio/Create] 🗑️ Папка кейса удалена: ${caseDir}`)
-      } catch (rmErr) {
-        console.warn(`[Portfolio/Create] ⚠️ Не удалось удалить папку кейса: ${caseDir}`)
-      }
-    }
-
+    await cleanup(caseDir)
+    await logPortfolio('ERROR', 'case-create-failed', {
+      message: error?.message || String(error),
+      statusCode: error?.statusCode ?? null,
+      stack: error?.stack?.toString?.() || null
+    })
     if (error?.statusCode) throw error
     throw createError({ statusCode: 500, statusMessage: 'Ошибка при создании кейса' })
   }

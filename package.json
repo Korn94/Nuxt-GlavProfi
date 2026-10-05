@@ -33,6 +33,7 @@
     "animate.css": "^4.1.1",
     "bcryptjs": "^3.0.2",
     "buffer": "^6.0.3",
+    "busboy": "^1.6.0",
     "devtools": "^8.42.0",
     "echarts": "^6.0.0",
     "jsonwebtoken": "^9.0.2",
