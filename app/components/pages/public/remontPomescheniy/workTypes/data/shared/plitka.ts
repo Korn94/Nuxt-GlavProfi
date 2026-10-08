@@ -101,7 +101,7 @@ export const plitkaMaterials = [
     colorLabel: 'Под кирпич, шероховатая поверхность',
     badge: 'Ступени и улица',
     properties: [
-      { label: 'Антискольжение R11–R13', icon: 'mdi:footprint' },
+      { label: 'Антискольжение R11–R13', icon: 'mdi:footprints' },
       { label: 'Морозостойкость', icon: 'mdi:snowflake' },
     ],
     useFor: [

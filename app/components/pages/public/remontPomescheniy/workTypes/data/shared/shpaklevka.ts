@@ -62,7 +62,7 @@ export const shpaklevkaMaterials = [
     badge: 'Универсальная',
     properties: [
       { label: 'Быстро сохнет', icon: 'mdi:clock-fast' },
-      { label: 'Легко шлифуется', icon: 'mdi:sander' },
+      { label: 'Легко шлифуется', icon: 'mdi:fan' },
     ],
     useFor: [
       'Стены и потолки в сухих помещениях',

@@ -52,7 +52,7 @@
       <label class="upload-zone" :class="{ 'upload-zone--has-preview': thumbnail?.preview || (thumbnail?.id && !thumbnail?.file) }">
         <input type="file" accept="image/*" class="upload-input" @change="handleThumbnail" />
         <div class="upload-zone__content">
-          <Icon name="mdi:image-size-select-large-outline" size="20" class="upload-icon" />
+          <Icon name="mdi:image-size-select-large" size="20" class="upload-icon" />
           <span class="upload-text">Загрузить миниатюру</span>
         </div>
       </label>

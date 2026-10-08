@@ -37,8 +37,8 @@
           <button class="faq-item__question" @click="toggle(index)">
             <span class="faq-item__question-text">{{ item.question }}</span>
             <span class="faq-item__icon">
-              <Icon v-if="activeIndex === index" name="lucide:minus" size="20" />
-              <Icon v-else name="lucide:plus" size="20" />
+              <Icon v-if="activeIndex === index" name="mdi:minus" size="20" />
+              <Icon v-else name="mdi:plus" size="20" />
             </span>
           </button>
 

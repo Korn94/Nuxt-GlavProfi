@@ -1,6 +1,6 @@
 <template>
   <div class="arrow-container">
-    <Icon name="fe:arrow-down" class="arrow" />
+    <Icon name="mdi:keyboard-arrow-down" class="arrow" />
   </div>
 </template>
 

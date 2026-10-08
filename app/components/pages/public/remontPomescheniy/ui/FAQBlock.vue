@@ -38,7 +38,7 @@
 
             <span class="faq-item__icon" aria-hidden="true">
               <Icon
-                :name="isOpen(index) ? 'lucide:minus' : 'lucide:plus'"
+                :name="isOpen(index) ? 'mdi:minus' : 'mdi:plus'"
                 size="22"
               />
             </span>
