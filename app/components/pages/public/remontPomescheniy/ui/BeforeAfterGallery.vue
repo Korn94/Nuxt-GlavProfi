@@ -1,6 +1,6 @@
 <!-- app/components/pages/public/remontPomescheniy/pageTypes/ui/BeforeAfterGallery.vue -->
 <template>
-  <section class="before-after-gallery">
+  <section class="before-after-gallery" :class="`before-after-gallery--${theme}`">
     <div class="container">
       <header class="before-after-gallery__header">
         <h2 class="before-after-gallery__title" v-html="title" />
@@ -92,13 +92,11 @@
       >
         &#10094;
       </button>
-
       <img
         :src="useImageUrl(currentImage.url)"
         :alt="currentImage.alt || 'Фото'"
         class="lightbox-img"
       />
-
       <button
         class="lightbox-nav lightbox-nav--next"
         :disabled="currentImageIndex === allImagesForLightbox.length - 1"
@@ -106,7 +104,6 @@
       >
         &#10095;
       </button>
-
       <button class="lightbox-close" @click="closeLightbox">
         <Icon name="mdi:close" size="28" />
       </button>
@@ -117,6 +114,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useImageUrl } from '~/composables/useImageUrl'
+
 interface ProjectImage {
   url: string
   type?: string
@@ -141,11 +139,14 @@ const props = withDefaults(
     title?: string
     /** Ссылка на страницу со всеми проектами */
     allProjectsLink?: string
+    /** 🆕 Тема оформления: 'light' | 'dark' */
+    theme?: 'light' | 'dark'
   }>(),
   {
     title: 'Фото <span>до и после</span> ремонта',
     fetchUrl: '/api/portfolio',
     allProjectsLink: '/projects',
+    theme: 'light',
   }
 )
 
@@ -300,24 +301,49 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 @use '@/assets/styles/variables' as *;
-
-span {
-  color: unset;
-}
+@use '@/assets/styles/mixins' as *;
 
 .before-after-gallery {
-  padding: 5rem 0;
-  background: $background-light;
+  @include section-padding;
   position: relative;
 
-  .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 2rem;
+  // ========================================
+  // THEME: LIGHT (по умолчанию)
+  // ========================================
+  &--light {
+    --section-bg: #{$background-light};
+    --section-text: #{$text-dark};
+    --section-text-secondary: #{$text-gray};
+    --row-title-color: #{$text-dark};
+    --state-bg: transparent;
+    --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    --card-hover-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    --loader-border: #{$border-color};
+    --error-bg: rgba(166, 19, 0, 0.05);
+    --error-border: rgba(166, 19, 0, 0.2);
+  }
 
-    @media (max-width: 768px) {
-      padding: 0 1.2rem;
-    }
+  // ========================================
+  // THEME: DARK
+  // ========================================
+  &--dark {
+    --section-bg: #{$background-dark};
+    --section-text: #{$text-light};
+    --section-text-secondary: rgba(255, 255, 255, 0.6);
+    --row-title-color: #{$text-light};
+    --state-bg: transparent;
+    --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    --card-hover-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    --loader-border: rgba(255, 255, 255, 0.15);
+    --error-bg: rgba(166, 19, 0, 0.1);
+    --error-border: rgba(166, 19, 0, 0.3);
+  }
+
+  background: var(--section-bg);
+  color: var(--section-text);
+
+  .container {
+    @include section-container;
   }
 
   // === Заголовок ===
@@ -327,37 +353,7 @@ span {
   }
 
   &__title {
-    font-family: 'Rubik', sans-serif;
-    font-size: 2.2rem;
-    font-weight: 700;
-    color: $text-dark;
-    margin: 0 0 1rem;
-    line-height: 1.25;
-    position: relative;
-    padding-bottom: 1rem;
-
-    &::after {
-      content: '';
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      width: 80px;
-      height: 4px;
-      background: $blue-gradient;
-      border-radius: 2px;
-      box-shadow: 0 0 10px rgba(0, 195, 245, 0.3);
-    }
-
-    @media (max-width: 768px) {
-      font-size: 1.7rem;
-    }
-
-    :deep(span) {
-      background: $blue-gradient;
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-    }
+    @include section-title;
   }
 
   // === Состояния ===
@@ -369,13 +365,13 @@ span {
     gap: 1rem;
     padding: 4rem 2rem;
     text-align: center;
-    color: $text-gray;
+    color: var(--section-text-secondary);
 
     &--error {
       color: $red;
-      background: rgba(166, 19, 0, 0.05);
-      border: 1px solid rgba(166, 19, 0, 0.2);
-      border-radius: 6px;
+      background: var(--error-bg);
+      border: 1px solid var(--error-border);
+      border-radius: $border-radius;
     }
 
     p {
@@ -389,13 +385,13 @@ span {
     flex-direction: column;
     align-items: center;
     gap: 1rem;
-    color: $text-gray;
+    color: var(--section-text-secondary);
   }
 
   &__spinner {
     width: 36px;
     height: 36px;
-    border: 3px solid $border-color;
+    border: 3px solid var(--loader-border);
     border-top-color: $blue;
     border-radius: 50%;
     animation: spin 0.9s linear infinite;
@@ -407,7 +403,7 @@ span {
     background: transparent;
     border: 1px solid $red;
     color: $red;
-    border-radius: 6px;
+    border-radius: $border-radius;
     font-family: 'Rubik', sans-serif;
     font-weight: 500;
     font-size: 0.9rem;
@@ -433,7 +429,7 @@ span {
     font-family: 'Rubik', sans-serif;
     font-size: 1.3rem;
     font-weight: 600;
-    color: $text-dark;
+    color: var(--row-title-color);
     margin: 0 0 1rem;
     padding-left: 0.25rem;
   }
@@ -470,7 +466,7 @@ span {
     font-family: 'Rubik', sans-serif;
     font-weight: 600;
     font-size: 1rem;
-    border-radius: 6px;
+    border-radius: $border-radius;
     text-decoration: none;
     box-shadow: 0 6px 20px rgba(0, 195, 245, 0.3);
     transition: all 0.3s ease;
@@ -493,12 +489,12 @@ span {
     cursor: pointer;
     aspect-ratio: 4 / 3;
     background: $background-gray;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    box-shadow: var(--card-shadow);
     transition: transform 0.3s ease, box-shadow 0.3s ease;
 
     &:hover {
       transform: translateY(-4px);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+      box-shadow: var(--card-hover-shadow);
 
       img {
         transform: scale(1.08);
@@ -613,12 +609,6 @@ span {
 // === Адаптив ===
 @media (max-width: 768px) {
   .before-after-gallery {
-    padding: 3.5rem 0;
-
-    &__title {
-      font-size: 1.7rem;
-    }
-
     &__row-title {
       font-size: 1.1rem;
     }

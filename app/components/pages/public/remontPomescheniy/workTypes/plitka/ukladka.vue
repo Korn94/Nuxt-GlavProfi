@@ -26,8 +26,8 @@
       />
     </section>
 
-    <!-- ==================== 4. КАЛЬКУЛЯТОР (Поднят выше для конверсии) ==================== -->
-    <section id="calculator" class="page-section page-section--light">
+    <!-- ==================== 4. КАЛЬКУЛЯТОР ==================== -->
+    <section id="calculator" class="page-section">
       <PriceCalculatorTabs
         title="Калькулятор <span>стоимости</span> укладки плитки"
         subtitle="Выберите поверхность и площадь — получите предварительную смету сразу."
@@ -45,15 +45,17 @@
         subtitle="Демонтаж, подготовка основания, укладка, резка, затирка швов. Точная смета — после бесплатного замера."
         :sub-category-ids="[226, 257, 258, 259, 260, 261, 262, 263, 264, 368]"
         footer-note="* Цены указаны за работу без учёта стоимости материалов. Доплаты отмечены знаком «+ к цене». Резка по шаблону и отверстия считаются отдельно."
+        theme="light"
       />
     </section>
 
     <!-- ==================== 6. ФАКТОРЫ ЦЕНЫ ==================== -->
-    <section id="price-factors" class="page-section page-section--light">
+    <section id="price-factors" class="page-section page-section--dark-alt page-section--divider">
       <PriceFactors
         title="Что <span>влияет на итоговую цену</span>"
         :factors="priceFactors"
         footer-note="Точную смету инженер составит после бесплатного выезда на объект. Это ни к чему не обязывает."
+        theme="dark"
       />
     </section>
 
@@ -87,7 +89,7 @@
     </section>
 
     <!-- ==================== 8. СРАВНЕНИЕ МЕТОДОВ ==================== -->
-    <section id="methods" class="page-section page-section--light">
+    <section id="methods" class="page-section">
       <MethodComparison
         title="Что укладываем: <span>пол, стены или крупноформат?</span>"
         subtitle="У каждого типа плитки свои задачи, основание и клей. Разберёмся, чтобы вы не переплачивали."
@@ -97,7 +99,7 @@
       />
     </section>
 
-    <!-- ==================== 9. INLINE CTA (Быстрый захват лида) ==================== -->
+    <!-- ==================== 9. INLINE CTA ==================== -->
     <section id="quick-cta" class="page-section">
       <InlineCta
         title="Не знаете, какая плитка и основание <span>подойдут вашему помещению?</span>"
@@ -113,17 +115,18 @@
     </section>
 
     <!-- ==================== 10. ТИПЫ МАТЕРИАЛОВ ==================== -->
-    <section id="materials" class="page-section page-section--light">
+    <section id="materials" class="page-section">
       <MaterialsGuide
         title="Какую <span>плитку</span> выбрать: керамика, керамогранит, мозаика или клинкер?"
         subtitle="Они похожи внешне, но отличаются прочностью и назначением. Рассказываем, где какая работает."
         :materials="plitkaMaterials"
         :thicknesses="plitkaThicknesses"
         summary="На стены — <strong>керамика</strong>. На пол магазина или санузла — <strong>керамогранит 8–10 мм</strong>. На ступени и улицу — <strong>клинкер</strong>. Для бассейнов и криволинейных форм — <strong>мозаика</strong>. Точный формат и клей инженер посчитает на бесплатном замере."
+        theme="light"
       />
     </section>
 
-    <!-- ==================== 11. ТЕХНИЧЕСКИЕ НЮАНСЫ (Без дублирующей таблицы) ==================== -->
+    <!-- ==================== 11. ТЕХНИЧЕСКИЕ НЮАНСЫ ==================== -->
     <section id="insights" class="page-section">
       <TechnicalInsights
         title="Что важно знать <span>до укладки</span> плитки"
@@ -146,8 +149,12 @@
     </section>
 
     <!-- ==================== 12. ГАРАНТИИ ==================== -->
-    <section id="guarantees" class="page-section page-section--light">
-      <GuaranteesGrid title="Наши <span>гарантии</span>" :items="guarantees" />
+    <section id="guarantees" class="page-section">
+      <GuaranteesGrid
+        title="Наши <span>гарантии</span>"
+        :items="guarantees"
+        theme="light"
+      />
     </section>
 
     <!-- ==================== 13. ЭТАПЫ РАБОТ ==================== -->
@@ -160,11 +167,12 @@
     </section>
 
     <!-- ==================== 14. FAQ ==================== -->
-    <section id="faq" class="page-section page-section--light">
+    <section id="faq" class="page-section">
       <FAQBlock
         title="Ответы на <span>частые вопросы</span>"
         :items="faqItems"
         id-prefix="ukladka-plitki-faq"
+        theme="light"
       />
     </section>
 
@@ -173,11 +181,12 @@
       <BeforeAfterGallery
         title="Наши работы: <span>укладка плитки</span>"
         :slugs="projectSlugs"
+        theme="dark"
       />
     </section>
 
     <!-- ==================== 16. ПРОЕКТЫ ==================== -->
-    <section id="projects" class="page-section page-section--light">
+    <section id="projects" class="page-section">
       <ProjectsShowcase
         title="Наши реализованные проекты <span>для бизнеса в Рязани</span>"
         :slugs="projectSlugs"
@@ -198,12 +207,13 @@
     </section>
 
     <!-- ==================== 18. ДРУГИЕ РАБОТЫ ГРУППЫ ==================== -->
-    <section id="related" class="page-section page-section--light">
+    <section id="related" class="page-section">
       <RelatedWorkTypes
         title="Другие работы <span>по плитке</span>"
         subtitle="Каждый вид — на отдельной странице с ценами и калькулятором."
         :items="relatedPlitkaWorkTypes"
         :price-data="sections"
+        theme="light"
       />
     </section>
   </div>
@@ -263,7 +273,7 @@ import { usePriceFetcher } from '~/composables/calculator/usePriceFetcher'
 import type { NormalizedWorkItem } from '~/types/calculator'
 
 // ============================================================
-// 🆕 ОПРЕДЕЛЕНИЕ АКТИВНОЙ СТРАНИЦЫ ПО URL
+// ОПРЕДЕЛЕНИЕ АКТИВНОЙ СТРАНИЦЫ ПО URL
 // ============================================================
 const route = useRoute()
 const relatedPlitkaWorkTypes = computed(() =>
@@ -283,7 +293,7 @@ const breadcrumbItems = [
 ]
 
 // ============================================================
-// ДО / ПОСЛЕ (фото-плейсхолдеры, будут заменены)
+// ДО / ПОСЛЕ
 // ============================================================
 const beforeAfterItems = [
   { beforeImage: '/main/vidy-rabot/plitka/1-1.webp', afterImage: '/main/vidy-rabot/plitka/1.webp' },
@@ -292,7 +302,7 @@ const beforeAfterItems = [
 ]
 
 // ============================================================
-// ПРАЙС-ЛИСТ (единственный источник цен)
+// ПРАЙС-ЛИСТ
 // ============================================================
 const { sections, pending: pricePending } = usePriceFetcher()
 const findWorkById = (id: number): NormalizedWorkItem | undefined => {
@@ -304,7 +314,7 @@ const findWorkById = (id: number): NormalizedWorkItem | undefined => {
 }
 
 // ============================================================
-// 🔄 АВТОМАТИЧЕСКИЕ ЦЕНЫ ИЗ ПРАЙС-ЛИСТА
+// АВТОМАТИЧЕСКИЕ ЦЕНЫ ИЗ ПРАЙС-ЛИСТА
 // ============================================================
 const polWork = computed(() => findWorkById(WORK_IDS.POL_60x60))
 const stenaWork = computed(() => findWorkById(WORK_IDS.STENA_40x40))
@@ -312,12 +322,10 @@ const krupnoWork = computed(() => findWorkById(WORK_IDS.KRUPNOFORMAT))
 const pol30Work = computed(() => findWorkById(WORK_IDS.POL_30x30))
 const stena30Work = computed(() => findWorkById(WORK_IDS.STENA_30x30))
 
-/** Цены в ₽/м² для таблицы сравнения */
 const polPrice = computed(() => polWork.value ? Math.round(polWork.value.pricePerUnit) : 0)
 const stenaPrice = computed(() => stenaWork.value ? Math.round(stenaWork.value.pricePerUnit) : 0)
 const krupnoPrice = computed(() => krupnoWork.value ? Math.round(krupnoWork.value.pricePerUnit) : 0)
 
-/** Минимальная цена для SEO (самый доступный формат) */
 const minPrice = computed(() => {
   const prices = [
     pol30Work.value?.pricePerUnit ?? 0,
@@ -326,14 +334,13 @@ const minPrice = computed(() => {
   return prices.length ? Math.round(Math.min(...prices)) : 0
 })
 
-/** Форматирование цены для отображения */
 const formatPrice = (price: number): string => {
   if (!price) return '—'
   return `${price.toLocaleString('ru-RU')} ₽/м²`
 }
 
 // ============================================================
-// 🔄 ВЫЧИСЛЯЕМЫЕ ТЕКСТЫ С ЦЕНАМИ
+// ВЫЧИСЛЯЕМЫЕ ТЕКСТЫ С ЦЕНАМИ
 // ============================================================
 const insightsSummary = computed(() => {
   const delta = krupnoPrice.value - polPrice.value
@@ -357,7 +364,7 @@ const scrollToCta = () => {
 }
 
 // ============================================================
-// SEO (передаём computed — useWorkTypeSeo разворачивает через toValue)
+// SEO
 // ============================================================
 useWorkTypeSeo({
   ...seoData,
@@ -386,6 +393,49 @@ useWorkTypeSeo({
   &--light {
     background: $background-light;
     color: $text-dark;
+  }
+
+  // Альтернативный тёмный оттенок
+  &--dark-alt {
+    background: #141517;
+  }
+
+  // Ромб + линия для разделения двух тёмных блоков
+  &--divider {
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -6px;
+      left: 50%;
+      transform: translateX(-50%) rotate(45deg);
+      width: 12px;
+      height: 12px;
+      background: $blue-gradient;
+      border-radius: 2px;
+      z-index: 2;
+      box-shadow: 0 0 16px rgba(0, 195, 245, 0.6);
+    }
+
+    &::before {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      max-width: 900px;
+      height: 1px;
+      background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(0, 195, 245, 0.2) 25%,
+        rgba(0, 195, 245, 0.5) 50%,
+        rgba(0, 195, 245, 0.2) 75%,
+        transparent 100%
+      );
+      z-index: 1;
+      pointer-events: none;
+    }
   }
 }
 </style>

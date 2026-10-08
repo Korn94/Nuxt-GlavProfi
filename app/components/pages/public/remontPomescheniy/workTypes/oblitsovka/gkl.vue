@@ -25,8 +25,8 @@
       />
     </section>
 
-    <!-- ==================== 4. КАЛЬКУЛЯТОР (Поднят выше для конверсии) ==================== -->
-    <section id="calculator" class="page-section page-section--light">
+    <!-- ==================== 4. КАЛЬКУЛЯТОР ==================== -->
+    <section id="calculator" class="page-section">
       <PriceCalculatorTabs
         title="Калькулятор <span>стоимости</span> монтажа ГКЛ"
         subtitle="Выберите тип монтажа и площадь — получите предварительную смету сразу."
@@ -44,15 +44,17 @@
         subtitle="Все работы по монтажу гипсокартона на стены. Точная смета — после бесплатного замера."
         :sub-category-ids="[279, 370]"
         footer-note="* Цены указаны за работу без учёта стоимости материалов. Доплаты отмечены знаком «+ к цене». Короба считаются в погонных метрах."
+        theme="light"
       />
     </section>
 
     <!-- ==================== 6. ФАКТОРЫ ЦЕНЫ ==================== -->
-    <section id="price-factors" class="page-section page-section--light">
+    <section id="price-factors" class="page-section page-section--dark-alt page-section--divider">
       <PriceFactors
         title="Что <span>влияет на итоговую цену</span>"
         :factors="priceFactors"
         footer-note="Точную смету инженер составит после бесплатного выезда на объект. Это ни к чему не обязывает."
+        theme="dark"
       />
     </section>
 
@@ -85,7 +87,7 @@
     </section>
 
     <!-- ==================== 8. СРАВНЕНИЕ МЕТОДОВ ==================== -->
-    <section id="methods" class="page-section page-section--light">
+    <section id="methods" class="page-section">
       <MethodComparison
         title="Что <span>выбрать</span>: клей, каркас или штукатурку?"
         subtitle="Каждый способ подходит для разных задач. Разберём плюсы, минусы и сценарии применения."
@@ -95,7 +97,7 @@
       />
     </section>
 
-    <!-- ==================== 9. INLINE CTA (Быстрый захват лида) ==================== -->
+    <!-- ==================== 9. INLINE CTA ==================== -->
     <section id="quick-cta" class="page-section">
       <InlineCta
         title="Не знаете, какой способ монтажа <span>подойдёт вашим стенам?</span>"
@@ -111,17 +113,18 @@
     </section>
 
     <!-- ==================== 10. ТИПЫ МАТЕРИАЛОВ ==================== -->
-    <section id="materials" class="page-section page-section--light">
+    <section id="materials" class="page-section">
       <MaterialsGuide
         title="Какой <span>гипсокартон</span> выбрать: типы и различия"
         subtitle="Не все листы одинаковы. Рассказываем, какой материал подойдёт под вашу задачу — и когда стоит переплатить за ГВЛ."
         :materials="gklMaterials"
         :thicknesses="gklThicknesses"
         summary="Для офисов и жилых комнат достаточно <strong>ГКЛ 12,5 мм</strong>. Для санузлов и кухонь — <strong>ГКЛВ</strong>. Если планируете вешать тяжёлые шкафы или делать пол — берите <strong>ГВЛ</strong>: он дороже, но в разы прочнее. Точную комплектацию инженер посчитает на бесплатном замере."
+        theme="light"
       />
     </section>
 
-    <!-- ==================== 11. ВТОРОЙ СЛОЙ ГКЛ (Без дублирующей таблицы) ==================== -->
+    <!-- ==================== 11. ВТОРОЙ СЛОЙ ГКЛ ==================== -->
     <section id="insights" class="page-section">
       <TechnicalInsights
         title="Зачем нужен <span>второй слой</span> гипсокартона"
@@ -144,8 +147,12 @@
     </section>
 
     <!-- ==================== 12. ГАРАНТИИ ==================== -->
-    <section id="guarantees" class="page-section page-section--light">
-      <GuaranteesGrid title="Наши <span>гарантии</span>" :items="guarantees" />
+    <section id="guarantees" class="page-section">
+      <GuaranteesGrid
+        title="Наши <span>гарантии</span>"
+        :items="guarantees"
+        theme="light"
+      />
     </section>
 
     <!-- ==================== 13. ЭТАПЫ РАБОТ ==================== -->
@@ -158,11 +165,12 @@
     </section>
 
     <!-- ==================== 14. FAQ ==================== -->
-    <section id="faq" class="page-section page-section--light">
+    <section id="faq" class="page-section">
       <FAQBlock
         title="Ответы на <span>частые вопросы</span>"
         :items="faqItems"
         id-prefix="oblitsovka-gkl-faq"
+        theme="light"
       />
     </section>
 
@@ -171,11 +179,12 @@
       <BeforeAfterGallery
         title="Наши работы: <span>стены из ГКЛ</span>"
         :slugs="projectSlugs"
+        theme="dark"
       />
     </section>
 
     <!-- ==================== 16. ПРОЕКТЫ ==================== -->
-    <section id="projects" class="page-section page-section--light">
+    <section id="projects" class="page-section">
       <ProjectsShowcase
         title="Наши реализованные проекты <span>для бизнеса в Рязани</span>"
         :slugs="projectSlugs"
@@ -196,12 +205,13 @@
     </section>
 
     <!-- ==================== 18. ДРУГИЕ ГКЛ РАБОТЫ ==================== -->
-    <section id="related" class="page-section page-section--light">
+    <section id="related" class="page-section">
       <RelatedWorkTypes
         title="Другие <span>гипсокартонные работы</span>"
         subtitle="Каждый вид работ — на отдельной странице с подробным описанием, ценами и калькулятором."
         :items="relatedGklWorkTypes"
         :price-data="sections"
+        theme="light"
       />
     </section>
   </div>
@@ -264,14 +274,10 @@ import { usePriceFetcher } from '~/composables/calculator/usePriceFetcher'
 import type { NormalizedWorkItem } from '~/types/calculator'
 
 // ============================================================
-// 🆕 ОПРЕДЕЛЕНИЕ АКТИВНОЙ СТРАНИЦЫ ПО URL
+// ОПРЕДЕЛЕНИЕ АКТИВНОЙ СТРАНИЦЫ ПО URL
 // ============================================================
 const route = useRoute()
 
-/**
- * 🔄 Автоматически помечает текущую страницу в блоке "Другие работы".
- * Не нужно хардкодить `active: true` в shared-данных.
- */
 const relatedGklWorkTypes = computed(() =>
   gklWorkTypes.map(item => ({
     ...item,
@@ -298,7 +304,7 @@ const beforeAfterItems = [
 ]
 
 // ============================================================
-// ПРАЙС-ЛИСТ (единственный источник цен)
+// ПРАЙС-ЛИСТ
 // ============================================================
 const { sections, pending: pricePending } = usePriceFetcher()
 
@@ -311,16 +317,14 @@ const findWorkById = (id: number): NormalizedWorkItem | undefined => {
 }
 
 // ============================================================
-// 🔄 АВТОМАТИЧЕСКИЕ ЦЕНЫ ИЗ ПРАЙС-ЛИСТА
+// АВТОМАТИЧЕСКИЕ ЦЕНЫ ИЗ ПРАЙС-ЛИСТА
 // ============================================================
 const gkl1 = computed(() => findWorkById(WORK_IDS.GKL_1_LAYER))
 const gkl2 = computed(() => findWorkById(WORK_IDS.GKL_2_LAYERS))
 
-/** Цены в ₽/м² (округлённые) */
 const gkl1Price = computed(() => gkl1.value ? Math.round(gkl1.value.pricePerUnit) : 0)
 const gkl2Price = computed(() => gkl2.value ? Math.round(gkl2.value.pricePerUnit) : 0)
 
-/** Дельта между 1 и 2 слоями (для summary в TechnicalInsights) */
 const priceDelta1to2 = computed(() => {
   if (gkl1Price.value && gkl2Price.value) {
     return gkl2Price.value - gkl1Price.value
@@ -328,17 +332,15 @@ const priceDelta1to2 = computed(() => {
   return 0
 })
 
-/** Форматирование цены для отображения */
 const formatPrice = (price: number): string => {
   if (!price) return '—'
   return `${price.toLocaleString('ru-RU')} ₽/м²`
 }
 
-/** Минимальная цена для SEO (из прайса) */
 const minPrice = computed(() => gkl1Price.value || 0)
 
 // ============================================================
-// 🔄 ВЫЧИСЛЯЕМЫЕ ТЕКСТЫ С ЦЕНАМИ
+// ВЫЧИСЛЯЕМЫЕ ТЕКСТЫ С ЦЕНАМИ
 // ============================================================
 const insightsSummary = computed(() => {
   if (priceDelta1to2.value > 0) {
@@ -361,7 +363,7 @@ const scrollToCta = () => {
 }
 
 // ============================================================
-// SEO (передаём computed — useWorkTypeSeo разворачивает через toValue)
+// SEO
 // ============================================================
 useWorkTypeSeo({
   ...seoData,
@@ -390,6 +392,49 @@ useWorkTypeSeo({
   &--light {
     background: $background-light;
     color: $text-dark;
+  }
+
+  // Альтернативный тёмный оттенок
+  &--dark-alt {
+    background: #141517;
+  }
+
+  // Ромб + линия для разделения двух тёмных блоков
+  &--divider {
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -6px;
+      left: 50%;
+      transform: translateX(-50%) rotate(45deg);
+      width: 12px;
+      height: 12px;
+      background: $blue-gradient;
+      border-radius: 2px;
+      z-index: 2;
+      box-shadow: 0 0 16px rgba(0, 195, 245, 0.6);
+    }
+
+    &::before {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      max-width: 900px;
+      height: 1px;
+      background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(0, 195, 245, 0.2) 25%,
+        rgba(0, 195, 245, 0.5) 50%,
+        rgba(0, 195, 245, 0.2) 75%,
+        transparent 100%
+      );
+      z-index: 1;
+      pointer-events: none;
+    }
   }
 }
 </style>

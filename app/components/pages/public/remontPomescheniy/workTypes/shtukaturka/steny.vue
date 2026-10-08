@@ -26,8 +26,8 @@
       />
     </section>
 
-    <!-- ==================== 4. КАЛЬКУЛЯТОР (Поднят выше для конверсии) ==================== -->
-    <section id="calculator" class="page-section page-section--light">
+    <!-- ==================== 4. КАЛЬКУЛЯТОР ==================== -->
+    <section id="calculator" class="page-section">
       <PriceCalculatorTabs
         title="Калькулятор <span>стоимости</span> штукатурки стен"
         subtitle="Выберите тип штукатурки и площадь — получите предварительную смету сразу."
@@ -45,15 +45,17 @@
         subtitle="Все работы: подготовка, грунтовка, маяки, армирование, нанесение."
         :sub-category-ids="[241, 242, 323, 324, 325, 327]"
         footer-note="* Цены указаны за работу без учёта стоимости материалов. Доплаты отмечены знаком «+ к цене»."
+        theme="light"
       />
     </section>
 
     <!-- ==================== 6. ФАКТОРЫ ЦЕНЫ ==================== -->
-    <section id="price-factors" class="page-section page-section--light">
+    <section id="price-factors" class="page-section page-section--dark-alt page-section--divider">
       <PriceFactors
         title="Что <span>влияет на итоговую цену</span>"
         :factors="priceFactors"
         footer-note="Точную смету инженер составит после бесплатного выезда на объект. Это ни к чему не обязывает."
+        theme="dark"
       />
     </section>
 
@@ -89,7 +91,7 @@
     </section>
 
     <!-- ==================== 8. СРАВНЕНИЕ ПОДХОДОВ ==================== -->
-    <section id="methods" class="page-section page-section--light">
+    <section id="methods" class="page-section">
       <MethodComparison
         title="Какой тип <span>штукатурки</span> выбрать?"
         subtitle="Зависит от влажности помещения, перепадов стен и типа основания."
@@ -99,7 +101,7 @@
       />
     </section>
 
-    <!-- ==================== 9. INLINE CTA (Быстрый захват лида) ==================== -->
+    <!-- ==================== 9. INLINE CTA ==================== -->
     <section id="quick-cta" class="page-section">
       <InlineCta
         title="Не знаете, какая штукатурка <span>подойдёт вашим стенам?</span>"
@@ -115,17 +117,18 @@
     </section>
 
     <!-- ==================== 10. ТИПЫ МАТЕРИАЛОВ ==================== -->
-    <section id="materials" class="page-section page-section--light">
+    <section id="materials" class="page-section">
       <MaterialsGuide
         title="Какой <span>состав</span> выбрать: гипс, цемент или известь?"
         subtitle="Каждый тип подходит для своих условий. Разбираем плюсы, минусы и области применения."
         :materials="shtukaturkaMaterials"
         :thicknesses="shtukaturkaThicknesses"
         summary="Для офисов и жилых комнат — <strong>гипсовая штукатурка</strong>. Для санузлов и кухонь — <strong>цементная</strong>. Для новостроек с усадкой — <strong>с армированием</strong>. При площадях от 100 м² — <strong>машинная</strong>. Точный подбор сделает инженер на бесплатном замере."
+        theme="light"
       />
     </section>
 
-    <!-- ==================== 11. ТЕХНИЧЕСКИЕ НЮАНСЫ (Без дублирующей таблицы) ==================== -->
+    <!-- ==================== 11. ТЕХНИЧЕСКИЕ НЮАНСЫ ==================== -->
     <section id="insights" class="page-section">
       <TechnicalInsights
         title="Что важно знать <span>о штукатурке</span> стен"
@@ -148,8 +151,12 @@
     </section>
 
     <!-- ==================== 12. ГАРАНТИИ ==================== -->
-    <section id="guarantees" class="page-section page-section--light">
-      <GuaranteesGrid title="Наши <span>гарантии</span>" :items="guarantees" />
+    <section id="guarantees" class="page-section">
+      <GuaranteesGrid
+        title="Наши <span>гарантии</span>"
+        :items="guarantees"
+        theme="light"
+      />
     </section>
 
     <!-- ==================== 13. ЭТАПЫ РАБОТ ==================== -->
@@ -162,11 +169,12 @@
     </section>
 
     <!-- ==================== 14. FAQ ==================== -->
-    <section id="faq" class="page-section page-section--light">
+    <section id="faq" class="page-section">
       <FAQBlock
         title="Ответы на <span>частые вопросы</span>"
         :items="faqItems"
         id-prefix="shtukaturka-sten-faq"
+        theme="light"
       />
     </section>
 
@@ -175,11 +183,12 @@
       <BeforeAfterGallery
         title="Наши работы: <span>штукатурка стен</span>"
         :slugs="projectSlugs"
+        theme="dark"
       />
     </section>
 
     <!-- ==================== 16. ПРОЕКТЫ ==================== -->
-    <section id="projects" class="page-section page-section--light">
+    <section id="projects" class="page-section">
       <ProjectsShowcase
         title="Наши реализованные проекты <span>для бизнеса в Рязани</span>"
         :slugs="projectSlugs"
@@ -200,12 +209,13 @@
     </section>
 
     <!-- ==================== 18. ДРУГИЕ РАБОТЫ ГРУППЫ ==================== -->
-    <section id="related" class="page-section page-section--light">
+    <section id="related" class="page-section">
       <RelatedWorkTypes
         title="Другие работы <span>по штукатурке</span>"
         subtitle="Каждый вид — на отдельной странице с ценами и калькулятором."
         :items="relatedShtukaturkaWorkTypes"
         :price-data="sections"
+        theme="light"
       />
     </section>
   </div>
@@ -272,7 +282,7 @@ import { usePriceFetcher } from '~/composables/calculator/usePriceFetcher'
 import type { NormalizedWorkItem } from '~/types/calculator'
 
 // ============================================================
-// 🆕 ОПРЕДЕЛЕНИЕ АКТИВНОЙ СТРАНИЦЫ ПО URL
+// ОПРЕДЕЛЕНИЕ АКТИВНОЙ СТРАНИЦЫ ПО URL
 // ============================================================
 const route = useRoute()
 
@@ -305,7 +315,7 @@ const beforeAfterItems = [
 ]
 
 // ============================================================
-// ПРАЙС-ЛИСТ (единственный источник цен)
+// ПРАЙС-ЛИСТ
 // ============================================================
 const { sections, pending: pricePending } = usePriceFetcher()
 
@@ -318,28 +328,25 @@ const findWorkById = (id: number): NormalizedWorkItem | undefined => {
 }
 
 // ============================================================
-// 🔄 АВТОМАТИЧЕСКИЕ ЦЕНЫ ИЗ ПРАЙС-ЛИСТА
+// АВТОМАТИЧЕСКИЕ ЦЕНЫ ИЗ ПРАЙС-ЛИСТА
 // ============================================================
 const gipsWork = computed(() => findWorkById(WORK_IDS.GIPS_BASIC))
 const armWork = computed(() => findWorkById(WORK_IDS.GIPS_ARM))
 const cementWork = computed(() => findWorkById(WORK_IDS.CEMENT))
 
-/** Цены в ₽/м² для таблицы сравнения (только основная работа, без грунта/маяков) */
 const gipsPrice = computed(() => gipsWork.value ? Math.round(gipsWork.value.pricePerUnit) : 0)
 const armPrice = computed(() => armWork.value ? Math.round(armWork.value.pricePerUnit) : 0)
 const cementPrice = computed(() => cementWork.value ? Math.round(cementWork.value.pricePerUnit) : 0)
 
-/** Минимальная цена для SEO (берём самую дешёвую — гипсовую) */
 const minPrice = computed(() => gipsPrice.value || 0)
 
-/** Форматирование цены для отображения */
 const formatPrice = (price: number): string => {
   if (!price) return '—'
   return `${price.toLocaleString('ru-RU')} ₽/м²`
 }
 
 // ============================================================
-// 🔄 ВЫЧИСЛЯЕМЫЕ ТЕКСТЫ
+// ВЫЧИСЛЯЕМЫЕ ТЕКСТЫ
 // ============================================================
 const insightsSummary = computed(() => {
   const delta = armPrice.value - gipsPrice.value
@@ -392,6 +399,49 @@ useWorkTypeSeo({
   &--light {
     background: $background-light;
     color: $text-dark;
+  }
+
+  // Альтернативный тёмный оттенок
+  &--dark-alt {
+    background: #141517;
+  }
+
+  // Ромб + линия для разделения двух тёмных блоков
+  &--divider {
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -6px;
+      left: 50%;
+      transform: translateX(-50%) rotate(45deg);
+      width: 12px;
+      height: 12px;
+      background: $blue-gradient;
+      border-radius: 2px;
+      z-index: 2;
+      box-shadow: 0 0 16px rgba(0, 195, 245, 0.6);
+    }
+
+    &::before {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      max-width: 900px;
+      height: 1px;
+      background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(0, 195, 245, 0.2) 25%,
+        rgba(0, 195, 245, 0.5) 50%,
+        rgba(0, 195, 245, 0.2) 75%,
+        transparent 100%
+      );
+      z-index: 1;
+      pointer-events: none;
+    }
   }
 }
 </style>

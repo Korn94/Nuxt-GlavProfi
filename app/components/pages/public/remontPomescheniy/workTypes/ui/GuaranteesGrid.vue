@@ -1,6 +1,6 @@
 <!-- app/components/pages/public/remontPomescheniy/pageTypes/workTypes/ui/GuaranteesGrid.vue -->
 <template>
-  <section class="guarantees">
+  <section class="guarantees" :class="`guarantees--${theme}`">
     <div class="container">
       <h2 class="guarantees__title" v-html="title" />
       <p class="guarantees__subtitle" v-if="subtitle">{{ subtitle }}</p>
@@ -29,11 +29,17 @@ export interface GuaranteeItem {
   icon?: string
 }
 
-defineProps<{
-  title: string
-  subtitle?: string
-  items: GuaranteeItem[]
-}>()
+withDefaults(
+  defineProps<{
+    title: string
+    subtitle?: string
+    items: GuaranteeItem[]
+    theme?: 'light' | 'dark'
+  }>(),
+  {
+    theme: 'light',
+  }
+)
 </script>
 
 <style lang="scss" scoped>
@@ -42,8 +48,35 @@ defineProps<{
 
 .guarantees {
   @include section-padding;
-  background: $background-light;
-  color: $text-dark;
+
+  // === THEME: LIGHT (default) ===
+  &--light {
+    --section-bg: #{$background-light};
+    --section-text: #{$text-dark};
+    --section-text-secondary: #{$text-gray};
+    --card-bg: #fff;
+    --card-border: #{$border-color};
+    --card-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+    --card-hover-shadow: 0 12px 32px rgba(0, 0, 0, 0.1);
+    --icon-bg: rgba(0, 195, 245, 0.1);
+    --icon-color: #{$blue};
+  }
+
+  // === THEME: DARK ===
+  &--dark {
+    --section-bg: #{$background-dark};
+    --section-text: #{$text-light};
+    --section-text-secondary: rgba(255, 255, 255, 0.6);
+    --card-bg: rgba(255, 255, 255, 0.035);
+    --card-border: rgba(255, 255, 255, 0.08);
+    --card-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    --card-hover-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+    --icon-bg: rgba(0, 195, 245, 0.12);
+    --icon-color: #{$blue-light};
+  }
+
+  background: var(--section-bg);
+  color: var(--section-text);
 
   .container {
     @include section-container;
@@ -55,7 +88,7 @@ defineProps<{
 
   &__subtitle {
     @include section-subtitle;
-    color: $text-gray;
+    color: var(--section-text-secondary);
   }
 
   &__grid {
@@ -66,8 +99,18 @@ defineProps<{
 }
 
 .guarantee-card {
-  @include light-card;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
   padding: 2rem;
+  box-shadow: var(--card-shadow);
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--card-hover-shadow);
+    border-color: $blue;
+  }
 
   &__icon {
     width: 60px;
@@ -75,8 +118,8 @@ defineProps<{
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 195, 245, 0.1);
-    color: $blue;
+    background: var(--icon-bg);
+    color: var(--icon-color);
     border-radius: 14px;
     margin-bottom: 1.2rem;
   }
@@ -85,14 +128,14 @@ defineProps<{
     font-family: 'Rubik', sans-serif;
     font-size: 1.15rem;
     font-weight: 700;
-    color: $text-dark;
+    color: var(--section-text);
     margin: 0 0 0.6rem;
   }
 
   &__desc {
     font-size: 0.95rem;
     line-height: 1.55;
-    color: $text-gray;
+    color: var(--section-text-secondary);
     margin: 0;
   }
 }

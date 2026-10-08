@@ -1,6 +1,6 @@
 <!-- app/components/pages/public/remontPomescheniy/workTypes/ui/PriceListTable.vue -->
 <template>
-  <section class="price-list-table">
+  <section class="price-list-table" :class="`price-list-table--${theme}`">
     <div class="container">
       <header v-if="title" class="price-list-table__header">
         <h2 class="price-list-table__title" v-html="title" />
@@ -22,7 +22,6 @@
           <h3 v-if="showSubCategoryTitles && groups.length > 1" class="price-group__title">
             {{ group.subCategoryName }}
           </h3>
-
           <div class="price-group__table-wrap">
             <table class="price-table">
               <thead>
@@ -72,7 +71,7 @@
           {{ footerNote }}
         </p>
 
-        <!-- 🆕 Кнопка перехода на полный прайс-лист -->
+        <!-- Кнопка перехода на полный прайс-лист -->
         <div v-if="viewAllLink" class="price-list-table__view-all">
           <NuxtLink :to="viewAllLink" class="view-all-btn">
             <Icon name="mdi:cube-scan" size="20" />
@@ -108,11 +107,14 @@ const props = withDefaults(
     viewAllLink?: string
     /** 🆕 Текст кнопки перехода */
     viewAllText?: string
+    /** 🆕 Тема оформления: 'light' | 'dark' */
+    theme?: 'light' | 'dark'
   }>(),
   {
     showSubCategoryTitles: true,
     viewAllLink: '/prices/otdelochnye-raboty',
     viewAllText: 'Смотреть полный прайс-лист',
+    theme: 'light',
   }
 )
 
@@ -157,9 +159,40 @@ function isSurcharge(item: DBPriceItem): boolean {
 
 .price-list-table {
   @include section-padding;
-  background: $background-light;
-  color: $text-dark;
   position: relative;
+
+  // ========================================
+  // THEME: LIGHT (по умолчанию)
+  // ========================================
+  &--light {
+    --section-bg: #{$background-light};
+    --section-text: #{$text-dark};
+    --section-text-secondary: #{$text-gray};
+    --table-bg: #fff;
+    --table-header-bg: rgba(131, 131, 131, 0.1);
+    --table-border: #{$border-color};
+    --table-row-hover: rgba(0, 195, 245, 0.03);
+    --table-row-border: #f0f0f0;
+    --title-accent: #{$blue};
+  }
+
+  // ========================================
+  // THEME: DARK
+  // ========================================
+  &--dark {
+    --section-bg: #{$background-dark};
+    --section-text: #{$text-light};
+    --section-text-secondary: rgba(255, 255, 255, 0.6);
+    --table-bg: rgba(255, 255, 255, 0.035);
+    --table-header-bg: rgba(255, 255, 255, 0.06);
+    --table-border: rgba(255, 255, 255, 0.1);
+    --table-row-hover: rgba(0, 195, 245, 0.08);
+    --table-row-border: rgba(255, 255, 255, 0.06);
+    --title-accent: #{$blue};
+  }
+
+  background: var(--section-bg);
+  color: var(--section-text);
 
   .container {
     @include section-container;
@@ -176,7 +209,7 @@ function isSurcharge(item: DBPriceItem): boolean {
 
   &__subtitle {
     @include section-subtitle;
-    color: $text-gray;
+    color: var(--section-text-secondary);
   }
 
   &__loading {
@@ -184,7 +217,7 @@ function isSurcharge(item: DBPriceItem): boolean {
     align-items: center;
     gap: 0.8rem;
     padding: 3rem 2rem;
-    color: $text-gray;
+    color: var(--section-text-secondary);
     justify-content: center;
 
     .spin {
@@ -199,7 +232,7 @@ function isSurcharge(item: DBPriceItem): boolean {
     align-items: center;
     gap: 1rem;
     padding: 3rem 2rem;
-    color: $text-gray;
+    color: var(--section-text-secondary);
     text-align: center;
 
     p { margin: 0; }
@@ -208,11 +241,10 @@ function isSurcharge(item: DBPriceItem): boolean {
   &__footer {
     margin-top: 1.5rem;
     font-size: 0.88rem;
-    color: $text-gray;
+    color: var(--section-text-secondary);
     font-style: italic;
   }
 
-  // 🆕 Контейнер кнопки "Полный прайс"
   &__view-all {
     display: flex;
     justify-content: center;
@@ -237,13 +269,14 @@ function isSurcharge(item: DBPriceItem): boolean {
     margin: 0 0 1rem;
     padding-bottom: 0.5rem;
     border-bottom: 2px solid rgba(0, 195, 245, 0.3);
+    color: var(--section-text);
   }
 
   &__table-wrap {
     overflow-x: auto;
     border-radius: 14px;
-    border: 1px solid $border-color;
-    background: #fff;
+    border: 1px solid var(--table-border);
+    background: var(--table-bg);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
   }
 }
@@ -261,9 +294,9 @@ function isSurcharge(item: DBPriceItem): boolean {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: $text-gray;
-    background: rgba(131, 131, 131, 0.1);
-    border-bottom: 1px solid $border-color;
+    color: var(--section-text-secondary);
+    background: var(--table-header-bg);
+    border-bottom: 1px solid var(--table-border);
     white-space: nowrap;
 
     &--name { width: 100%; }
@@ -274,10 +307,10 @@ function isSurcharge(item: DBPriceItem): boolean {
   &__row {
     transition: background 0.2s ease;
 
-    &:hover { background: rgba(0, 195, 245, 0.03); }
+    &:hover { background: var(--table-row-hover); }
 
     &:not(:last-child) {
-      border-bottom: 1px solid #f0f0f0;
+      border-bottom: 1px solid var(--table-row-border);
     }
   }
 
@@ -286,13 +319,13 @@ function isSurcharge(item: DBPriceItem): boolean {
     vertical-align: middle;
 
     &--name {
-      color: $text-dark;
+      color: var(--section-text);
       line-height: 1.4;
     }
 
     &--unit {
       text-align: center;
-      color: $text-gray;
+      color: var(--section-text-secondary);
       font-size: 0.88rem;
       white-space: nowrap;
     }
@@ -308,11 +341,11 @@ function isSurcharge(item: DBPriceItem): boolean {
 .price-value {
   font-size: 1.05rem;
   font-weight: 700;
-  color: $text-dark;
+  color: var(--section-text);
 }
 
 .price-currency {
-  color: $text-gray;
+  color: var(--section-text-secondary);
   margin-left: 0.2rem;
   font-size: 0.9rem;
 }
@@ -337,7 +370,6 @@ function isSurcharge(item: DBPriceItem): boolean {
   font-size: 0.92rem;
 }
 
-// 🆕 Стили кнопки "Смотреть полный прайс-лист"
 .view-all-btn {
   display: inline-flex;
   align-items: center;
@@ -382,6 +414,7 @@ function isSurcharge(item: DBPriceItem): boolean {
     &__th {
       padding: 0.8rem 0.8rem;
       font-size: 0.72rem;
+
       &--unit { width: 70px; }
       &--price { width: 120px; }
     }

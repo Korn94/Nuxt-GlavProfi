@@ -159,7 +159,7 @@ const specRows = computed<SpecRow[]>(() => {
   const rows: SpecRow[] = [
     {
       key: 'price',
-      label: 'Цена от',
+      label: 'Цена',
       icon: 'mdi:currency-usd',
       get: (m) => (m.priceFrom ? `${m.priceFrom} ₽/м²` : '—'),
     },
@@ -216,6 +216,10 @@ const specRows = computed<SpecRow[]>(() => {
   &__header {
     margin-bottom: 2rem;
     max-width: 720px;
+
+    @media (max-width: 640px) {
+      margin-bottom: 1.5rem;
+    }
   }
 
   &__title {
@@ -230,6 +234,10 @@ const specRows = computed<SpecRow[]>(() => {
 
   &__summary {
     @include summary-block(light);
+
+    @media (max-width: 640px) {
+      padding: 1.1rem 1.2rem;
+    }
   }
 }
 
@@ -245,18 +253,23 @@ const specRows = computed<SpecRow[]>(() => {
 
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
+    gap: 0.75rem;
   }
 }
 
 .method-chip {
   display: flex;
-  align-items: center;
+  align-items: flex-start; /* выравнивание по верху для единообразия */
   gap: 0.85rem;
   padding: 0.9rem 1.1rem;
   background: #fff;
   border: 1px solid $border-color;
   border-radius: 12px;
   transition: var(--transition);
+
+  @media (max-width: 768px) {
+    padding: 1rem 1.1rem;
+  }
 
   &--recommended {
     border-color: $blue;
@@ -274,6 +287,12 @@ const specRows = computed<SpecRow[]>(() => {
     border-radius: 10px;
     background: rgba(0, 195, 245, 0.1);
     color: $blue;
+    margin-top: 2px; /* выравнивание с первой строкой текста */
+
+    @media (max-width: 768px) {
+      width: 40px;
+      height: 40px;
+    }
   }
 
   &--recommended &__icon {
@@ -316,13 +335,13 @@ const specRows = computed<SpecRow[]>(() => {
   &__tagline {
     font-size: 0.82rem;
     color: $text-gray;
-    margin-top: 2px;
+    margin-top: 4px;
     line-height: 1.4;
   }
 }
 
 /* ========================================
-   2. ТАБЛИЦА ХАРАКТЕРИСТИК
+   2. ТАБЛИЦА ХАРАКТЕРИСТИК (ДЕСКТОП)
    ======================================== */
 
 .method-compare__table-wrap {
@@ -331,11 +350,16 @@ const specRows = computed<SpecRow[]>(() => {
   overflow: hidden;
   border: 1px solid $border-color;
   background: #fff;
+
+  @media (max-width: 640px) {
+    margin-bottom: 1.5rem;
+  }
 }
 
 .method-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
 
   &__label {
     display: flex;
@@ -348,9 +372,12 @@ const specRows = computed<SpecRow[]>(() => {
     color: $text-gray;
     background: #fafafa;
     border-bottom: 1px solid $border-color;
+    border-right: 1px solid $border-color;
     text-align: left;
-    width: 200px;
-    white-space: nowrap;
+    vertical-align: middle;
+    min-width: 180px;
+    max-width: 260px;
+    width: 25%;
   }
 
   &__icon {
@@ -363,8 +390,14 @@ const specRows = computed<SpecRow[]>(() => {
     font-size: 0.94rem;
     font-weight: 500;
     color: $text-dark;
-    border-left: 1px solid $border-color;
     border-bottom: 1px solid $border-color;
+    border-right: 1px solid $border-color;
+    vertical-align: middle;
+    text-align: center;
+
+    &:last-child {
+      border-right: none;
+    }
 
     &.is-recommended {
       background: rgba(0, 195, 245, 0.045);
@@ -390,6 +423,7 @@ const specRows = computed<SpecRow[]>(() => {
 
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
+    gap: 0.75rem;
   }
 }
 
@@ -400,6 +434,11 @@ const specRows = computed<SpecRow[]>(() => {
   border: 1px solid $border-color;
   border-radius: 14px;
   padding: 1.2rem 1.3rem;
+
+  @media (max-width: 640px) {
+    padding: 1rem 1.05rem;
+    border-radius: 12px;
+  }
 
   &--recommended {
     border-color: $blue;
@@ -459,7 +498,7 @@ const specRows = computed<SpecRow[]>(() => {
 }
 
 /* ========================================
-   АДАПТИВ: ТАБЛИЦА → СТЕК НА МОБИЛЬНЫХ
+   АДАПТИВ: ТАБЛИЦА → КАРТОЧКИ НА МОБИЛЬНЫХ
    ======================================== */
 
 @media (max-width: 640px) {
@@ -467,6 +506,7 @@ const specRows = computed<SpecRow[]>(() => {
     background: transparent;
     border: none;
     border-radius: 0;
+    overflow: visible;
   }
 
   .method-table,
@@ -477,69 +517,102 @@ const specRows = computed<SpecRow[]>(() => {
     display: block;
     width: auto;
     border: none;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .method-table tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
   }
 
   .method-table tr {
     background: #fff;
     border: 1px solid $border-color;
     border-radius: 12px;
-    padding: 0.9rem 1rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .method-table tr:last-child {
-    margin-bottom: 0;
+    padding: 1rem 1.1rem;
+    margin: 0;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
   }
 
   .method-table__label {
     background: transparent;
-    padding: 0 0 0.5rem;
-    font-size: 0.85rem;
-    color: $text-dark;
-    border-bottom: 1px dashed $border-color;
+    padding: 0 0 0.6rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: $text-gray;
+    border-bottom: 1px solid $border-color;
+    border-right: none;
     width: auto;
     white-space: normal;
+    margin-bottom: 0.5rem;
+
+    .method-table__icon {
+      display: none;
+    }
   }
 
   .method-table__value {
-    padding: 0.4rem 0 0.4rem 1.5rem;
-    position: relative;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 0.5rem;
     border-left: none;
-    font-size: 0.9rem;
+    border-right: none;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    font-size: 0.94rem;
+    font-weight: 500;
+    line-height: 1.45;
+    text-align: left;
+    color: $text-dark;
 
+    &:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    /* Тонкое выделение рекомендуемого метода */
     &.is-recommended {
-      background: transparent;
+      color: $blue;
+      font-weight: 600;
     }
 
     &::before {
       content: attr(data-label);
-      position: absolute;
-      left: 0;
-      top: 0.55rem;
-      width: 1.2rem;
-      height: 1.2rem;
-      border-radius: 50%;
-      background: rgba(0, 195, 245, 0.1);
-      color: $blue;
-      font-size: 0.7rem;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      order: -1;
+      flex: 1 1 auto;
+      min-width: 0;
+      font-size: 0.84rem;
+      font-weight: 500;
+      color: $text-gray;
       overflow: hidden;
-      text-indent: -9999px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-right: 1em;
     }
 
-    &::after {
-      content: '';
-      position: absolute;
-      left: 0;
-      top: 0.55rem;
-      width: 1.2rem;
-      height: 1.2rem;
-      border-radius: 50%;
-      border: 1.5px solid $blue;
-      opacity: 0.4;
+    &.is-recommended::before {
+      color: $text-dark;
+      font-weight: 600;
+    }
+  }
+}
+
+@media (max-width: 380px) {
+  .method-table tr {
+    padding: 0.85rem 0.9rem;
+  }
+
+  .method-table__value {
+    font-size: 0.9rem;
+    padding: 0.65rem 0.4rem;
+
+    &::before {
+      font-size: 0.78rem;
     }
   }
 }

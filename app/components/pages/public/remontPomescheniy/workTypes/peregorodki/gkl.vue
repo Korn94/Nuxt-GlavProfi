@@ -26,7 +26,7 @@
     </section>
 
     <!-- ==================== 4. КАЛЬКУЛЯТОР (Поднят выше для конверсии) ==================== -->
-    <section id="calculator" class="page-section page-section--light">
+    <section id="calculator" class="page-section">
       <PriceCalculatorTabs
         title="Калькулятор <span>стоимости</span> перегородки"
         subtitle="Выберите тип конструкции и площадь — получите предварительную смету сразу."
@@ -38,21 +38,23 @@
     </section>
 
     <!-- ==================== 5. ПРЕДПРОСМОТР ЦЕН ==================== -->
-    <section id="price-list" class="page-section">
+    <section id="price-list" class="page-section ">
       <PriceListTable
         title="Полный прайс: <span>перегородки из ГКЛ</span>"
         subtitle="Все работы по монтажу гипсокартонных перегородок. Точная смета — после бесплатного замера."
         :sub-category-ids="[228, 231, 232]"
         footer-note="* Цены указаны за работу без учёта стоимости материалов. Доплаты отмечены знаком «+ к цене». Монтаж дверей и коробок считается отдельно."
+        theme="light"
       />
     </section>
 
     <!-- ==================== 6. ФАКТОРЫ ЦЕНЫ (Сразу после прайса, чтобы объяснить цифры) ==================== -->
-    <section id="price-factors" class="page-section page-section--light">
+    <section id="price-factors" class="page-section page-section--dark-alt page-section--divider">
       <PriceFactors
         title="Что <span>влияет на итоговую цену</span>"
         :factors="priceFactors"
         footer-note="Точную смету инженер составит после бесплатного выезда на объект. Это ни к чему не обязывает."
+        theme="dark"
       />
     </section>
 
@@ -79,7 +81,7 @@
     </section>
 
     <!-- ==================== 8. СРАВНЕНИЕ МЕТОДОВ (Выбор конструкции) ==================== -->
-    <section id="methods" class="page-section page-section--light">
+    <section id="methods" class="page-section">
       <MethodComparison
         title="Что <span>выбрать</span>: 1, 2 слоя или ГВЛ?"
         subtitle="Количество слоёв определяет прочность, звукоизоляцию и цену. Разберём плюсы, минусы и сценарии применения."
@@ -105,13 +107,14 @@
     </section>
 
     <!-- ==================== 10. ТИПЫ МАТЕРИАЛОВ ==================== -->
-    <section id="materials" class="page-section page-section--light">
+    <section id="materials" class="page-section">
       <MaterialsGuide
         title="Какой <span>гипсокартон</span> выбрать для перегородок"
         subtitle="Тип листа зависит от назначения помещения. Рассказываем, где использовать ГКЛ, ГКЛВ, ГВЛ и ГКЛО."
         :materials="gklMaterials"
         :thicknesses="gklThicknesses"
         summary="Для стандартных перегородок в жилых комнатах и офисах достаточно <strong>ГКЛ 12,5 мм</strong>. Для санузлов и кухонь — <strong>ГКЛВ</strong>. Если планируете вешать тяжёлые шкафы без закладных — берите <strong>ГВЛ</strong>: он держит до 30 кг на дюбель."
+        theme="light"
       />
     </section>
 
@@ -138,8 +141,12 @@
     </section>
 
     <!-- ==================== 12. ГАРАНТИИ ==================== -->
-    <section id="guarantees" class="page-section page-section--light">
-      <GuaranteesGrid title="Наши <span>гарантии</span>" :items="guarantees" />
+    <section id="guarantees" class="page-section">
+      <GuaranteesGrid 
+        title="Наши <span>гарантии</span>" 
+        :items="guarantees"
+        theme="light"
+      />
     </section>
 
     <!-- ==================== 13. ЭТАПЫ РАБОТ ==================== -->
@@ -152,11 +159,12 @@
     </section>
 
     <!-- ==================== 14. FAQ ==================== -->
-    <section id="faq" class="page-section page-section--light">
+    <section id="faq" class="page-section">
       <FAQBlock
         title="Ответы на <span>частые вопросы</span>"
         :items="faqItems"
         id-prefix="gkl-peregorodki-faq"
+        theme="light"
       />
     </section>
 
@@ -165,11 +173,12 @@
       <BeforeAfterGallery
         title="Наши работы: <span>перегородки из ГКЛ</span>"
         :slugs="projectSlugs"
+        theme="dark"
       />
     </section>
     
     <!-- ==================== 16. ПРОЕКТЫ ==================== -->
-    <section id="projects" class="page-section page-section--light">
+    <section id="projects" class="page-section">
       <ProjectsShowcase
         title="Наши реализованные проекты <span>для бизнеса в Рязани</span>"
         :slugs="projectSlugs"
@@ -190,12 +199,13 @@
     </section>
 
     <!-- ==================== 18. ДРУГИЕ ГКЛ РАБОТЫ ==================== -->
-    <section id="related" class="page-section page-section--light">
+    <section id="related" class="page-section">
       <RelatedWorkTypes
         title="Другие <span>гипсокартонные работы</span>"
         subtitle="Каждый вид работ — на отдельной странице с подробным описанием, ценами и калькулятором."
         :items="relatedGklWorkTypes"
         :price-data="sections"
+        theme="light"
       />
     </section>
   </div>
@@ -393,6 +403,47 @@ useWorkTypeSeo({
   &--light {
     background: $background-light;
     color: $text-dark;
+  }
+
+  &--dark-alt {
+    background: #141517;
+  }
+
+  &--divider {
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -6px;
+      left: 50%;
+      transform: translateX(-50%) rotate(45deg);
+      width: 12px;
+      height: 12px;
+      background: $blue-gradient;
+      border-radius: 2px;
+      z-index: 2;
+      box-shadow: 0 0 16px rgba(0, 195, 245, 0.6);
+    }
+
+    &::before {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      max-width: 900px;
+      height: 1px;
+      background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(0, 195, 245, 0.2) 25%,
+        rgba(0, 195, 245, 0.5) 50%,
+        rgba(0, 195, 245, 0.2) 75%,
+        transparent 100%
+      );
+      z-index: 1; // ← ДОБАВИТЬ ЭТО
+      pointer-events: none;
+    }
   }
 }
 </style>

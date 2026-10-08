@@ -1,6 +1,6 @@
 <!-- app/components/pages/public/remontPomescheniy/pageTypes/ui/FAQBlock.vue -->
 <template>
-  <section class="faq-block">
+  <section class="faq-block" :class="`faq-block--${theme}`">
     <div class="container">
       <!-- Заголовок -->
       <slot name="header">
@@ -29,13 +29,11 @@
             <div class="faq-item__question-marker">
               <span>{{ String(index + 1).padStart(2, '0') }}</span>
             </div>
-
             <div class="faq-item__question-text">
               <slot name="question" :item="item" :index="index">
                 {{ item.question }}
               </slot>
             </div>
-
             <span class="faq-item__icon" aria-hidden="true">
               <Icon
                 :name="isOpen(index) ? 'mdi:minus' : 'mdi:plus'"
@@ -112,10 +110,13 @@ const props = withDefaults(
     allowMultiple?: boolean
     /** Уникальный префикс для ID (если на странице несколько FAQ) */
     idPrefix?: string
+    /** 🆕 Тема оформления: 'light' | 'dark' */
+    theme?: 'light' | 'dark'
   }>(),
   {
     allowMultiple: false,
     idPrefix: 'faq',
+    theme: 'dark',
   }
 )
 
@@ -161,10 +162,75 @@ const closeAll = () => {
 
 .faq-block {
   @include section-padding;
-  background: $background-dark;
-  color: $text-light;
   position: relative;
   overflow: hidden;
+
+  // ========================================
+  // THEME: DARK (по умолчанию)
+  // ========================================
+  &--dark {
+    --section-bg: #{$background-dark};
+    --section-text: #{$text-light};
+    --section-text-secondary: rgba(255, 255, 255, 0.78);
+    --card-bg: rgba(255, 255, 255, 0.035);
+    --card-border: rgba(255, 255, 255, 0.08);
+    --card-hover-bg: rgba(255, 255, 255, 0.05);
+    --card-hover-border: rgba(0, 195, 245, 0.25);
+    --card-open-bg: rgba(0, 195, 245, 0.05);
+    --card-open-border: #{$blue};
+    --card-open-shadow: 0 6px 24px rgba(0, 195, 245, 0.1);
+    --question-text: #{$text-light};
+    --question-text-open: #{$blue-light};
+    --answer-text: rgba(255, 255, 255, 0.88);
+    --answer-border: rgba(255, 255, 255, 0.08);
+    --marker-bg: rgba(0, 195, 245, 0.12);
+    --marker-text: #{$blue-light};
+    --marker-open-bg: #{$blue-gradient};
+    --marker-open-text: #{$background-dark};
+    --icon-bg: rgba(255, 255, 255, 0.05);
+    --icon-color: #{$blue};
+    --icon-open-bg: rgba(0, 195, 245, 0.18);
+    --icon-open-color: #{$blue-light};
+    --toggle-border: rgba(255, 255, 255, 0.2);
+    --toggle-text: rgba(255, 255, 255, 0.75);
+    --toggle-hover-bg: rgba(0, 195, 245, 0.06);
+    --glow-color: rgba(0, 195, 245, 0.06);
+  }
+
+  // ========================================
+  // THEME: LIGHT
+  // ========================================
+  &--light {
+    --section-bg: #{$background-light};
+    --section-text: #{$text-dark};
+    --section-text-secondary: #{$text-gray};
+    --card-bg: #fff;
+    --card-border: #{$border-color};
+    --card-hover-bg: rgba(0, 195, 245, 0.02);
+    --card-hover-border: rgba(0, 195, 245, 0.4);
+    --card-open-bg: rgba(0, 195, 245, 0.03);
+    --card-open-border: #{$blue};
+    --card-open-shadow: 0 6px 24px rgba(0, 195, 245, 0.08);
+    --question-text: #{$text-dark};
+    --question-text-open: #{$blue};
+    --answer-text: #{$text-dark};
+    --answer-border: #{$border-color};
+    --marker-bg: rgba(0, 195, 245, 0.1);
+    --marker-text: #{$blue};
+    --marker-open-bg: #{$blue-gradient};
+    --marker-open-text: #fff;
+    --icon-bg: rgba(0, 0, 0, 0.04);
+    --icon-color: #{$blue};
+    --icon-open-bg: rgba(0, 195, 245, 0.15);
+    --icon-open-color: #{$blue};
+    --toggle-border: #{$border-color};
+    --toggle-text: #{$text-gray};
+    --toggle-hover-bg: rgba(0, 195, 245, 0.04);
+    --glow-color: rgba(0, 195, 245, 0.03);
+  }
+
+  background: var(--section-bg);
+  color: var(--section-text);
 
   &::before {
     content: '';
@@ -173,13 +239,13 @@ const closeAll = () => {
     left: -8%;
     width: 500px;
     height: 500px;
-    background: radial-gradient(circle, rgba(0, 195, 245, 0.06) 0%, transparent 65%);
+    background: radial-gradient(circle, var(--glow-color) 0%, transparent 65%);
     border-radius: 50%;
     pointer-events: none;
   }
 
   .container {
-    @include section-container; // FAQ делаем уже для читаемости
+    @include section-container;
   }
 
   // === Заголовок ===
@@ -188,12 +254,12 @@ const closeAll = () => {
   }
 
   &__title {
-    @include section-title; // Уже использует миксин
+    @include section-title;
   }
 
   &__subtitle {
     @include section-subtitle;
-    color: rgba($text-light, 0.78);
+    color: var(--section-text-secondary);
   }
 
   // === Список ===
@@ -209,8 +275,21 @@ const closeAll = () => {
   }
 
   &__footer-inner {
-    @include summary-block(dark);
-    margin-top: 0; // Убираем margin-top из миксина
+    margin-top: 2.5rem;
+    padding: 1.5rem 1.8rem;
+    background: rgba(0, 195, 245, 0.06);
+    border: 1px solid rgba(0, 195, 245, 0.2);
+    border-left: 4px solid $blue;
+    border-radius: $border-radius;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+
+    @media (max-width: 640px) {
+      padding: 1.2rem 1.4rem;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
   }
 
   &__footer-icon {
@@ -232,8 +311,8 @@ const closeAll = () => {
     gap: 0.45rem;
     padding: 0.55rem 1.1rem;
     background: transparent;
-    border: 1px solid rgba($text-light, 0.2);
-    color: rgba($text-light, 0.75);
+    border: 1px solid var(--toggle-border);
+    color: var(--toggle-text);
     font-family: 'Rubik', sans-serif;
     font-weight: 500;
     font-size: 0.88rem;
@@ -243,26 +322,29 @@ const closeAll = () => {
 
     &:hover {
       border-color: $blue;
-      color: $blue-light;
-      background: rgba(0, 195, 245, 0.06);
+      color: $blue;
+      background: var(--toggle-hover-bg);
     }
   }
 }
 
 // === Элемент FAQ ===
 .faq-item {
-  @include dark-card;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  transition: all 0.3s ease;
   overflow: hidden;
 
   &:hover {
-    border-color: rgba(0, 195, 245, 0.25);
-    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--card-hover-border);
+    background: var(--card-hover-bg);
   }
 
   &--open {
-    border-color: $blue;
-    background: rgba(0, 195, 245, 0.05);
-    box-shadow: 0 6px 24px rgba(0, 195, 245, 0.1);
+    border-color: var(--card-open-border);
+    background: var(--card-open-bg);
+    box-shadow: var(--card-open-shadow);
   }
 
   // === Кнопка вопроса ===
@@ -300,8 +382,8 @@ const closeAll = () => {
     justify-content: center;
     width: 38px;
     height: 38px;
-    background: rgba(0, 195, 245, 0.12);
-    color: $blue-light;
+    background: var(--marker-bg);
+    color: var(--marker-text);
     border-radius: 10px;
     font-family: 'Rubik', sans-serif;
     font-size: 0.88rem;
@@ -309,8 +391,8 @@ const closeAll = () => {
     transition: all 0.3s ease;
 
     .faq-item--open & {
-      background: $blue-gradient;
-      color: $background-dark;
+      background: var(--marker-open-bg);
+      color: var(--marker-open-text);
     }
   }
 
@@ -319,7 +401,7 @@ const closeAll = () => {
     font-family: 'Rubik', sans-serif;
     font-size: 1.08rem;
     font-weight: 500;
-    color: $text-light;
+    color: var(--question-text);
     line-height: 1.45;
     transition: color 0.25s ease;
 
@@ -328,7 +410,7 @@ const closeAll = () => {
     }
 
     .faq-item--open & {
-      color: $blue-light;
+      color: var(--question-text-open);
       font-weight: 600;
     }
   }
@@ -341,13 +423,13 @@ const closeAll = () => {
     width: 34px;
     height: 34px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.05);
-    color: $blue;
+    background: var(--icon-bg);
+    color: var(--icon-color);
     transition: all 0.3s ease;
 
     .faq-item--open & {
-      background: rgba(0, 195, 245, 0.18);
-      color: $blue-light;
+      background: var(--icon-open-bg);
+      color: var(--icon-open-color);
       transform: rotate(180deg);
     }
 
@@ -378,7 +460,7 @@ const closeAll = () => {
     :deep(p) {
       font-size: 0.98rem;
       line-height: 1.65;
-      color: rgba($text-light, 0.88);
+      color: var(--answer-text);
       margin: 0;
 
       &:not(:last-child) {
@@ -387,13 +469,13 @@ const closeAll = () => {
 
       &:first-child {
         padding-top: 1rem;
-        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        border-top: 1px solid var(--answer-border);
       }
     }
 
     :deep(strong),
     :deep(b) {
-      color: $text-light;
+      color: var(--section-text);
       font-weight: 600;
     }
 
@@ -405,7 +487,7 @@ const closeAll = () => {
       li {
         font-size: 0.95rem;
         line-height: 1.6;
-        color: rgba($text-light, 0.88);
+        color: var(--answer-text);
         margin-bottom: 0.3rem;
       }
     }
@@ -414,7 +496,10 @@ const closeAll = () => {
       color: $blue;
       text-decoration: none;
       font-weight: 500;
-      &:hover { color: $blue-light; }
+
+      &:hover {
+        color: $blue-light;
+      }
     }
   }
 }

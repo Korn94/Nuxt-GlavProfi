@@ -1,5 +1,6 @@
+<!-- app/components/pages/public/remontPomescheniy/workTypes/ui/MaterialsGuide.vue -->
 <template>
-  <section class="materials-guide">
+  <section class="materials-guide" :class="`materials-guide--${theme}`">
     <div class="container">
       <!-- Заголовок -->
       <header class="materials-guide__header">
@@ -147,13 +148,20 @@ export interface ThicknessOption {
   purpose: string
 }
 
-defineProps<{
-  title: string
-  subtitle?: string
-  materials: MaterialCardData[]
-  thicknesses?: ThicknessOption[]
-  summary?: string
-}>()
+withDefaults(
+  defineProps<{
+    title: string
+    subtitle?: string
+    materials: MaterialCardData[]
+    thicknesses?: ThicknessOption[]
+    summary?: string
+    /** 🆕 Тема оформления: 'light' | 'dark' */
+    theme?: 'light' | 'dark'
+  }>(),
+  {
+    theme: 'dark',
+  }
+)
 </script>
 
 <style lang="scss" scoped>
@@ -162,10 +170,61 @@ defineProps<{
 
 .materials-guide {
   @include section-padding;
-  background: $background-dark;
-  color: $text-light;
   position: relative;
   overflow: hidden;
+
+  // ========================================
+  // THEME: DARK (по умолчанию)
+  // ========================================
+  &--dark {
+    --section-bg: #{$background-dark};
+    --section-text: #{$text-light};
+    --section-text-secondary: rgba(255, 255, 255, 0.7);
+    --section-text-muted: rgba(255, 255, 255, 0.55);
+    --card-bg: rgba(255, 255, 255, 0.035);
+    --card-border: rgba(255, 255, 255, 0.08);
+    --card-hover-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+    --props-bg: rgba(255, 255, 255, 0.06);
+    --props-text: rgba(255, 255, 255, 0.8);
+    --list-text: rgba(255, 255, 255, 0.82);
+    --thickness-bg: rgba(0, 195, 245, 0.05);
+    --thickness-border: rgba(0, 195, 245, 0.15);
+    --thickness-hover-bg: rgba(0, 195, 245, 0.08);
+    --thickness-hover-border: rgba(0, 195, 245, 0.4);
+    --summary-bg: rgba(0, 195, 245, 0.06);
+    --summary-border: rgba(0, 195, 245, 0.2);
+    --summary-text: rgba(255, 255, 255, 0.88);
+    --glow-color: rgba(0, 195, 245, 0.05);
+    --image-overlay: rgba($background-dark, 0.5);
+  }
+
+  // ========================================
+  // THEME: LIGHT
+  // ========================================
+  &--light {
+    --section-bg: #{$background-light};
+    --section-text: #{$text-dark};
+    --section-text-secondary: #{$text-gray};
+    --section-text-muted: rgba(0, 0, 0, 0.45);
+    --card-bg: #fff;
+    --card-border: #{$border-color};
+    --card-hover-shadow: 0 12px 32px rgba(0, 0, 0, 0.1);
+    --props-bg: rgba(0, 0, 0, 0.04);
+    --props-text: #{$text-dark};
+    --list-text: #{$text-dark};
+    --thickness-bg: rgba(0, 195, 245, 0.04);
+    --thickness-border: rgba(0, 195, 245, 0.2);
+    --thickness-hover-bg: rgba(0, 195, 245, 0.08);
+    --thickness-hover-border: rgba(0, 195, 245, 0.4);
+    --summary-bg: rgba(0, 195, 245, 0.04);
+    --summary-border: rgba(0, 195, 245, 0.2);
+    --summary-text: #{$text-dark};
+    --glow-color: rgba(0, 195, 245, 0.03);
+    --image-overlay: rgba(255, 255, 255, 0.3);
+  }
+
+  background: var(--section-bg);
+  color: var(--section-text);
 
   &::before {
     content: '';
@@ -174,7 +233,7 @@ defineProps<{
     left: -5%;
     width: 500px;
     height: 500px;
-    background: radial-gradient(circle, rgba(0, 195, 245, 0.05) 0%, transparent 65%);
+    background: radial-gradient(circle, var(--glow-color) 0%, transparent 65%);
     border-radius: 50%;
     pointer-events: none;
   }
@@ -190,17 +249,59 @@ defineProps<{
   }
 
   &__title {
-    @include section-title; // БЫЛО: 25 строк дублирования
+    @include section-title;
   }
 
   &__subtitle {
     @include section-subtitle;
-    color: rgba($text-light, 0.7);
+    color: var(--section-text-secondary);
   }
 
   // === Итоговая рекомендация ===
   &__summary {
-    @include summary-block(dark); // БЫЛО: 40 строк, СТАЛО: 1 строка
+    margin-top: 2.5rem;
+    padding: 1.5rem 1.8rem;
+    background: var(--summary-bg);
+    border: 1px solid var(--summary-border);
+    border-left: 4px solid $blue;
+    border-radius: $border-radius;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+
+    @media (max-width: 640px) {
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .summary-icon {
+      color: $blue;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    p {
+      font-size: 0.98rem;
+      line-height: 1.65;
+      margin: 0;
+      color: var(--summary-text);
+
+      :deep(strong),
+      :deep(b) {
+        color: $blue;
+        font-weight: 600;
+      }
+
+      :deep(a) {
+        color: $blue;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+
+        &:hover {
+          color: $blue-light;
+        }
+      }
+    }
   }
 }
 
@@ -217,21 +318,26 @@ defineProps<{
 
 // === Карточка материала ===
 .material-card {
-  @include dark-card;
   position: relative;
   display: flex;
   flex-direction: column;
   padding: 1.6rem;
   padding-top: 1.8rem;
   overflow: hidden;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  transition: all 0.3s ease;
 
   &:has(.material-card__image) {
     padding-top: 0;
   }
 
   &:hover {
+    transform: translateY(-4px);
     border-color: var(--material-color);
-    
+    box-shadow: var(--card-hover-shadow);
+
     .material-card__image img {
       transform: scale(1.06);
     }
@@ -258,7 +364,7 @@ defineProps<{
       content: '';
       position: absolute;
       inset: 0;
-      background: linear-gradient(to top, rgba($background-dark, 0.5) 0%, transparent 40%);
+      background: linear-gradient(to top, var(--image-overlay) 0%, transparent 40%);
       pointer-events: none;
     }
 
@@ -290,7 +396,7 @@ defineProps<{
 
   &__badge {
     padding: 0.25rem 0.7rem;
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--props-bg);
     border: 1px solid var(--material-color);
     color: var(--material-color);
     font-family: 'Rubik', sans-serif;
@@ -306,7 +412,7 @@ defineProps<{
     font-family: 'Rubik', sans-serif;
     font-size: 1.05rem;
     font-weight: 600;
-    color: $text-light;
+    color: var(--section-text);
     margin: 0 0 0.4rem;
     line-height: 1.35;
   }
@@ -316,7 +422,7 @@ defineProps<{
     align-items: center;
     gap: 0.4rem;
     font-size: 0.82rem;
-    color: rgba($text-light, 0.55);
+    color: var(--section-text-muted);
     margin: 0 0 1rem;
 
     :deep(.icon) {
@@ -338,11 +444,11 @@ defineProps<{
     align-items: center;
     gap: 0.35rem;
     padding: 0.3rem 0.7rem;
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--props-bg);
     border-radius: 50px;
     font-size: 0.78rem;
     font-weight: 500;
-    color: rgba($text-light, 0.8);
+    color: var(--props-text);
 
     :deep(.icon) {
       color: var(--material-color);
@@ -379,7 +485,7 @@ defineProps<{
     }
 
     &--avoid {
-      color: rgba($text-light, 0.5);
+      color: var(--section-text-muted);
 
       :deep(.icon) {
         color: $red;
@@ -401,7 +507,7 @@ defineProps<{
       gap: 0.45rem;
       font-size: 0.9rem;
       line-height: 1.5;
-      color: rgba($text-light, 0.82);
+      color: var(--list-text);
     }
 
     .list-icon {
@@ -423,8 +529,8 @@ defineProps<{
 .thickness-block {
   margin-top: 2.5rem;
   padding: 1.8rem;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
   border-radius: 14px;
 
   &__title {
@@ -434,7 +540,7 @@ defineProps<{
     font-family: 'Rubik', sans-serif;
     font-size: 1.15rem;
     font-weight: 700;
-    color: $text-light;
+    color: var(--section-text);
     margin: 0 0 1.2rem;
 
     :deep(.icon) {
@@ -454,14 +560,14 @@ defineProps<{
   flex-direction: column;
   text-align: center;
   padding: 0.9rem 1.1rem;
-  background: rgba(0, 195, 245, 0.05);
-  border: 1px solid rgba(0, 195, 245, 0.15);
+  background: var(--thickness-bg);
+  border: 1px solid var(--thickness-border);
   border-radius: 10px;
   transition: all 0.3s ease;
 
   &:hover {
-    border-color: rgba(0, 195, 245, 0.4);
-    background: rgba(0, 195, 245, 0.08);
+    border-color: var(--thickness-hover-border);
+    background: var(--thickness-hover-bg);
   }
 
   &__value {
@@ -469,14 +575,14 @@ defineProps<{
     font-family: 'Rubik', sans-serif;
     font-size: 1.15rem;
     font-weight: 800;
-    color: $blue-light;
+    color: $blue;
     min-width: 64px;
   }
 
   &__purpose {
     font-size: 0.88rem;
     line-height: 1.45;
-    color: rgba($text-light, 0.75);
+    color: var(--section-text-secondary);
   }
 }
 </style>
