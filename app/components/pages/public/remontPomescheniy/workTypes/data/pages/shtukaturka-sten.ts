@@ -78,6 +78,13 @@ export const comparisonMethods: MethodOption[] = [
     icon: 'mdi:hand-water',
     priceWorkId: 1143,
     tagline: 'Оптимально для сухих жилых комнат',
+    specs: {
+      maxLayer:           'До 30 мм',
+      dryingTime:         '5–7 дней',
+      moistureResistance: 'Нет',
+      suitableFor:        'Шпаклёвка, обои, покраска',
+      bestFor:            'Сухие жилые комнаты',
+    },
     whenToUse: [
       'Сухие помещения: спальни, гостиные, коридоры',
       'Перепады по стене до 30 мм',
@@ -96,6 +103,13 @@ export const comparisonMethods: MethodOption[] = [
     priceWorkIds: [1144],
     recommended: true,
     tagline: 'Страховка от трещин в новостройках',
+    specs: {
+      maxLayer:           'До 50 мм',
+      dryingTime:         '7–10 дней',
+      moistureResistance: 'Нет',
+      suitableFor:        'Шпаклёвка, обои, покраска',
+      bestFor:            'Новостройки, стыки материалов',
+    },
     whenToUse: [
       'Новостройки (дом даёт усадку 2-3 года)',
       'Перепады от 30 до 50 мм (толстый слой)',
@@ -112,6 +126,13 @@ export const comparisonMethods: MethodOption[] = [
     icon: 'mdi:water-percent',
     priceWorkId: 1147,
     tagline: 'Монолитная прочность и влагостойкость',
+    specs: {
+      maxLayer:           'До 50 мм',
+      dryingTime:         '14–21 день',
+      moistureResistance: 'Высокая',
+      suitableFor:        'Плитка, камень, мозаика',
+      bestFor:            'Санузлы, фасады, бассейны',
+    },
     whenToUse: [
       'Влажные зоны: санузлы, ванные, душевые, бассейны',
       'Фасады, цоколи, неотапливаемые балконы',

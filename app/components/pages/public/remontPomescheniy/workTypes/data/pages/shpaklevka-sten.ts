@@ -74,6 +74,13 @@ export const comparisonMethods: MethodOption[] = [
     icon: 'mdi:layers-outline',
     priceWorkId: 806,
     tagline: 'Быстрая подготовка под плотные обои',
+    specs: {
+      layerThickness: 'До 3 мм',
+      finishType:     'Обои, декоративная штукатурка',
+      smoothness:     'Шероховатая',
+      duration:       '1 день',
+      qualityControl: 'Визуальный осмотр',
+    },
     whenToUse: [
       'Под плотные виниловые или флизелиновые обои',
       'Под декоративную штукатурку с крупным рельефом',
@@ -92,6 +99,13 @@ export const comparisonMethods: MethodOption[] = [
     priceWorkIds: [806, 811],
     recommended: true,
     tagline: 'Идеальная гладкость под покраску и тонкие обои',
+    specs: {
+      layerThickness: 'До 5 мм (2 слоя)',
+      finishType:     'Покраска, тонкие обои',
+      smoothness:     'Гладкая',
+      duration:       '2–3 дня',
+      qualityControl: 'Под лампу',
+    },
     whenToUse: [
       'Идеальная гладкость под матовую и глянцевую покраску',
       'Под тонкие бумажные и текстильные обои',
@@ -108,6 +122,13 @@ export const comparisonMethods: MethodOption[] = [
     icon: 'mdi:spotlight-beam',
     priceWorkIds: [806, 813],
     tagline: 'Премиум-отделка без единой тени',
+    specs: {
+      layerThickness: 'До 5 мм (3 слоя)',
+      finishType:     'Глянцевая покраска, тёмные цвета',
+      smoothness:     'Зеркальная',
+      duration:       '3–4 дня',
+      qualityControl: 'Под прожектором',
+    },
     whenToUse: [
       'Покраска в тёмные, насыщенные и глянцевые цвета',
       'Помещения с боковым или направленным светом (треки, бра)',

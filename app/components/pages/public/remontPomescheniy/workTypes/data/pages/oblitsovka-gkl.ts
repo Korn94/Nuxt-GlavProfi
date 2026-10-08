@@ -84,6 +84,13 @@ export const comparisonMethods: MethodOption[] = [
     icon: 'mdi:land-fields',
     priceWorkId: 939,
     tagline: 'Экономия площади и быстрый монтаж',
+    specs: {
+      spaceLoss:      '~1.5 см',
+      maxDeviation:   'До 2 см',
+      speed:          '1 день / комната',
+      communications: 'Только по стене',
+      soundproof:     '~40 дБ',
+    },
     whenToUse: [
       'Перепад стен не более 2 см на 2 метра',
       'Нужно сохранить максимум площади (узкие коридоры)',
@@ -103,6 +110,13 @@ export const comparisonMethods: MethodOption[] = [
     priceWorkId: 1598,
     recommended: true,
     tagline: 'Идеальные стены и скрытые коммуникации',
+    specs: {
+      spaceLoss:      '5–10 см',
+      maxDeviation:   'Любая кривизна',
+      speed:          '2–3 дня',
+      communications: 'Внутри каркаса',
+      soundproof:     '~58 дБ (с минватой)',
+    },
     whenToUse: [
       'Кривые стены с перепадами более 2 см',
       'Нужно скрыть проводку, интернет-кабели и трубы без штробления',
@@ -120,6 +134,13 @@ export const comparisonMethods: MethodOption[] = [
     icon: 'mdi:format-paint',
     priceWorkId: 1143,
     tagline: 'Монолитная прочность под плитку и камень',
+    specs: {
+      spaceLoss:      '1–5 см',
+      maxDeviation:   'Любая кривизна',
+      speed:          '5–7 дней (с сушкой)',
+      communications: 'Только штробление',
+      soundproof:     '~45 дБ',
+    },
     whenToUse: [
       'Влажные помещения (ванные, душевые, санузлы)',
       'Под укладку тяжёлой плитки, керамогранита и камня',

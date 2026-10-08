@@ -154,46 +154,81 @@ interface SpecRow {
   get: (m: MethodOption) => string
 }
 
-/** Строки таблицы — только те, у которых есть данные хотя бы у одного метода */
+/** Метаданные для известных характеристик (иконки и читаемые названия) */
+const SPEC_META: Record<string, { label: string; icon: string }> = {
+  // Для ГКЛ / Перегородок
+  soundproof: { label: 'Звукоизоляция', icon: 'mdi:volume-off' },
+  thickness:  { label: 'Толщина',        icon: 'mdi:arrow-expand-horizontal' },
+  strength:   { label: 'Прочность',      icon: 'mdi:shield-outline' },
+  weight:     { label: 'Вес',            icon: 'mdi:weight' },
+  fireRating: { label: 'Огнестойкость',  icon: 'mdi:fire' },
+  
+  // Для Плитки / Полов
+  format:     { label: 'Формат',         icon: 'mdi:resize' },
+  base:       { label: 'Основание',      icon: 'mdi:gradient-vertical' },
+  load:       { label: 'Нагрузка',       icon: 'mdi:arm-flex-outline' },
+  care:       { label: 'Уход',           icon: 'mdi:sparkles' },
+
+  // Для выравнивания стен (обшивка ГКЛ)
+  spaceLoss:       { label: 'Съедает площади',  icon: 'mdi:arrow-collapse-horizontal' },
+  maxDeviation:    { label: 'Макс. перепад',    icon: 'mdi:wall' },
+  speed:           { label: 'Скорость монтажа', icon: 'mdi:clock-fast' },
+  communications:  { label: 'Коммуникации',     icon: 'mdi:pipe' },
+
+  // Для шпаклёвки стен
+  layerThickness:  { label: 'Толщина слоя',     icon: 'mdi:layers-outline' },
+  finishType:      { label: 'Под покрытие',     icon: 'mdi:palette-outline' },
+  smoothness:      { label: 'Гладкость',        icon: 'mdi:circle-outline' },
+  duration:        { label: 'Срок выполнения',  icon: 'mdi:clock-outline' },
+  qualityControl:  { label: 'Контроль качества', icon: 'mdi:eye-check-outline' },
+
+  // Для штукатурки стен
+  maxLayer:           { label: 'Макс. слой',        icon: 'mdi:arrow-expand-vertical' },
+  dryingTime:         { label: 'Срок высыхания',    icon: 'mdi:clock-outline' },
+  moistureResistance: { label: 'Влагостойкость',    icon: 'mdi:water-percent' },
+  suitableFor:        { label: 'Под покрытие',      icon: 'mdi:palette-outline' },
+  bestFor:            { label: 'Оптимально для',    icon: 'mdi:home-outline' },
+  
+  // Общие
+  durability: { label: 'Срок службы',    icon: 'mdi:clock-outline' },
+  complexity: { label: 'Сложность',      icon: 'mdi:wrench-outline' },
+}
+
+/** Форматирование цены с пробелами: 1 250 ₽/м² */
+const formatPrice = (price?: number): string => {
+  if (!price) return '—'
+  return `${price.toLocaleString('ru-RU')} ₽/м²`
+}
+
+/** Строки таблицы: цена + динамические характеристики из specs */
 const specRows = computed<SpecRow[]>(() => {
   const rows: SpecRow[] = [
     {
       key: 'price',
       label: 'Цена',
       icon: 'mdi:currency-usd',
-      get: (m) => (m.priceFrom ? `${m.priceFrom} ₽/м²` : '—'),
-    },
-    {
-      key: 'soundproof',
-      label: 'Звукоизоляция',
-      icon: 'mdi:volume-off',
-      get: (m) => m.specs?.soundproof || '—',
-    },
-    {
-      key: 'thickness',
-      label: 'Толщина',
-      icon: 'mdi:arrow-expand-horizontal',
-      get: (m) => m.specs?.thickness || '—',
-    },
-    {
-      key: 'strength',
-      label: 'Прочность',
-      icon: 'mdi:shield-outline',
-      get: (m) => m.specs?.strength || '—',
-    },
-    {
-      key: 'weight',
-      label: 'Вес',
-      icon: 'mdi:weight',
-      get: (m) => m.specs?.weight || '—',
-    },
-    {
-      key: 'fire',
-      label: 'Огнестойкость',
-      icon: 'mdi:fire',
-      get: (m) => m.specs?.fireRating || '—',
+      get: (m) => formatPrice(m.priceFrom),
     },
   ]
+
+  // 1. Собираем уникальные ключи из specs всех переданных методов
+  const specKeys = new Set<string>()
+  resolvedMethods.value.forEach((m) => {
+    if (m.specs) Object.keys(m.specs).forEach((k) => specKeys.add(k))
+  })
+
+  // 2. Добавляем строки для найденных характеристик
+  specKeys.forEach((key) => {
+    const meta = SPEC_META[key] || { label: key, icon: 'mdi:information-outline' }
+    rows.push({
+      key,
+      label: meta.label,
+      icon: meta.icon,
+      get: (m) => m.specs?.[key] || '—',
+    })
+  })
+
+  // 3. Фильтруем строки, где хотя бы у одного метода есть значение
   return rows.filter((row) =>
     resolvedMethods.value.some((m) => row.get(m) !== '—')
   )
@@ -376,8 +411,8 @@ const specRows = computed<SpecRow[]>(() => {
     text-align: left;
     vertical-align: middle;
     min-width: 180px;
-    max-width: 260px;
-    width: 25%;
+    max-width: 460px;
+    // width: 25%;
   }
 
   &__icon {
@@ -507,8 +542,10 @@ const specRows = computed<SpecRow[]>(() => {
     border: none;
     border-radius: 0;
     overflow: visible;
+    margin-bottom: 1.5rem;
   }
 
+  /* Сбрасываем табличные роли */
   .method-table,
   .method-table tbody,
   .method-table tr,
@@ -524,80 +561,88 @@ const specRows = computed<SpecRow[]>(() => {
   .method-table tbody {
     display: flex;
     flex-direction: column;
-    gap: 0.85rem;
+    gap: 0.75rem;
   }
 
+  /* Карточка = одна характеристика */
   .method-table tr {
     background: #fff;
     border: 1px solid $border-color;
-    border-radius: 12px;
-    padding: 1rem 1.1rem;
-    margin: 0;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   }
 
-  .method-table__label {
-    background: transparent;
-    padding: 0 0 0.6rem;
+  /* Шапка карточки: название характеристики */
+  .method-table th.method-table__label {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.65rem 1rem;
+    background: #f7f9fb;
+    font-family: 'Rubik', sans-serif;
     font-size: 0.72rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.06em;
     color: $text-gray;
     border-bottom: 1px solid $border-color;
-    border-right: none;
-    width: auto;
-    white-space: normal;
-    margin-bottom: 0.5rem;
+    text-align: left;
 
     .method-table__icon {
-      display: none;
+      color: $blue;
+      flex-shrink: 0;
     }
   }
 
-  .method-table__value {
+  /* Строка значения: метод слева, значение справа */
+  .method-table td.method-table__value {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
     gap: 1rem;
-    padding: 0.75rem 0.5rem;
-    border-left: none;
-    border-right: none;
+    padding: 0.7rem 1rem;
     border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-    font-size: 0.94rem;
-    font-weight: 500;
+    font-size: 0.92rem;
+    font-weight: 600;
     line-height: 1.45;
-    text-align: left;
+    text-align: right;
     color: $text-dark;
 
     &:last-child {
       border-bottom: none;
-      padding-bottom: 0;
     }
 
-    /* Тонкое выделение рекомендуемого метода */
-    &.is-recommended {
-      color: $blue;
-      font-weight: 600;
-    }
-
+    /* Метка метода слева */
     &::before {
       content: attr(data-label);
-      order: -1;
       flex: 1 1 auto;
       min-width: 0;
-      font-size: 0.84rem;
+      font-size: 0.88rem;
       font-weight: 500;
       color: $text-gray;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      margin-right: 1em;
+      text-align: left;
     }
+  }
+}
 
-    &.is-recommended::before {
-      color: $text-dark;
-      font-weight: 600;
+@media (max-width: 380px) {
+  .method-table tr {
+    border-radius: 12px;
+  }
+
+  .method-table th.method-table__label {
+    padding: 0.6rem 0.85rem;
+    font-size: 0.68rem;
+  }
+
+  .method-table td.method-table__value {
+    padding: 0.65rem 0.85rem;
+    font-size: 0.9rem;
+    gap: 0.75rem;
+
+    &::before {
+      font-size: 0.82rem;
     }
   }
 }

@@ -78,6 +78,12 @@ export const comparisonMethods: MethodOption[] = [
     icon: 'mdi:checkerboard',
     priceWorkId: 836,
     tagline: 'Практичность и долговечность на десятилетия',
+    specs: {
+      format: '30×30 – 60×60 см',
+      base: 'Ровная стяжка',
+      load: 'Высокая (мебель, каблуки)',
+      care: 'Влажная уборка',
+    },
     whenToUse: [
       'Ванные, санузлы, прихожие, кухни',
       'Поверх системы «тёплый пол» (отлично проводит тепло)',
@@ -95,6 +101,12 @@ export const comparisonMethods: MethodOption[] = [
     icon: 'mdi:wall',
     priceWorkId: 842,
     tagline: 'Гигиеничность и защита от влаги',
+    specs: {
+      format: '30×30 – 60×120 см',
+      base: 'Штукатурка по маякам',
+      load: 'Низкая',
+      care: 'Дезинфекция, мытьё',
+    },
     whenToUse: [
       'Ванные комнаты, душевые и кухонные фартуки',
       'Легко мыть, дезинфицировать, не впитывает запахи',
@@ -113,6 +125,12 @@ export const comparisonMethods: MethodOption[] = [
     priceWorkId: 846,
     recommended: true,
     tagline: 'Эстетика монолита без грязи в швах',
+    specs: {
+      format: '120×120 см и больше',
+      base: 'Идеальный наливной пол',
+      load: 'Экстремальная (рохли, тележки)',
+      care: 'Минимум швов — легко мыть',
+    },
     whenToUse: [
       'Шоурумы, холлы, дорогие интерьеры',
       'Минимум швов — грязи и плесени негде скапливаться',
