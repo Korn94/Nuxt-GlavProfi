@@ -38,8 +38,27 @@
       />
     </section>
 
-    <!-- ==================== 5. ОПИСАНИЕ КАТЕГОРИИ ==================== -->
-    <section id="overview" class="page-section page-section--light">
+    <!-- ==================== 5. ПРЕДПРОСМОТР ЦЕН ==================== -->
+    <section id="price-list" class="page-section">
+      <PriceListTable
+        title="Полный прайс: <span>плиточные работы</span>"
+        subtitle="Демонтаж, подготовка основания, укладка, резка, затирка швов. Точная смета — после бесплатного замера."
+        :sub-category-ids="[226, 257, 258, 259, 260, 261, 262, 263, 264, 368]"
+        footer-note="* Цены указаны за работу без учёта стоимости материалов. Доплаты отмечены знаком «+ к цене». Резка по шаблону и отверстия считаются отдельно."
+      />
+    </section>
+
+    <!-- ==================== 6. ФАКТОРЫ ЦЕНЫ ==================== -->
+    <section id="price-factors" class="page-section page-section--light">
+      <PriceFactors
+        title="Что <span>влияет на итоговую цену</span>"
+        :factors="priceFactors"
+        footer-note="Точную смету инженер составит после бесплатного выезда на объект. Это ни к чему не обязывает."
+      />
+    </section>
+
+    <!-- ==================== 7. ОПИСАНИЕ КАТЕГОРИИ ==================== -->
+    <section id="overview" class="page-section">
       <WorkTypeOverview
         title="Почему плитка — <span>лучшее покрытие</span> для влажных и проходных зон"
         description="Плитка и керамогранит не боятся воды, жира, химии и проходной нагрузки. Поэтому их укладывают там, где другие покрытия не живут: санузлы, кухни, магазины, клиники, пищевые производства."
@@ -67,27 +86,8 @@
       </WorkTypeOverview>
     </section>
 
-    <!-- ==================== 6. ПРЕДПРОСМОТР ЦЕН ==================== -->
-    <section id="price-list" class="page-section">
-      <PriceListTable
-        title="Полный прайс: <span>плиточные работы</span>"
-        subtitle="Демонтаж, подготовка основания, укладка, резка, затирка швов. Точная смета — после бесплатного замера."
-        :sub-category-ids="[226, 257, 258, 259, 260, 261, 262, 263, 264, 368]"
-        footer-note="* Цены указаны за работу без учёта стоимости материалов. Доплаты отмечены знаком «+ к цене». Резка по шаблону и отверстия считаются отдельно."
-      />
-    </section>
-
-    <!-- ==================== 7. ФАКТОРЫ ЦЕНЫ (Сразу после прайса, чтобы объяснить цифры) ==================== -->
-    <section id="price-factors" class="page-section page-section--light">
-      <PriceFactors
-        title="Что <span>влияет на итоговую цену</span>"
-        :factors="priceFactors"
-        footer-note="Точную смету инженер составит после бесплатного выезда на объект. Это ни к чему не обязывает."
-      />
-    </section>
-
-    <!-- ==================== 8. СРАВНЕНИЕ МЕТОДОВ (Образовательный блок для сомневающихся) ==================== -->
-    <section id="methods" class="page-section">
+    <!-- ==================== 8. СРАВНЕНИЕ МЕТОДОВ ==================== -->
+    <section id="methods" class="page-section page-section--light">
       <MethodComparison
         title="Что укладываем: <span>пол, стены или крупноформат?</span>"
         subtitle="У каждого типа плитки свои задачи, основание и клей. Разберёмся, чтобы вы не переплачивали."
@@ -97,7 +97,22 @@
       />
     </section>
 
-    <!-- ==================== 9. ТИПЫ МАТЕРИАЛОВ ==================== -->
+    <!-- ==================== 9. INLINE CTA (Быстрый захват лида) ==================== -->
+    <section id="quick-cta" class="page-section">
+      <InlineCta
+        title="Не знаете, какая плитка и основание <span>подойдут вашему помещению?</span>"
+        subtitle="Оставьте номер — инженер перезвонит за 15 минут, обсудит задачу и поможет выбрать оптимальный вариант."
+        submit-text="Получить консультацию"
+        :message-config="{
+          emoji: '📞',
+          title: 'Быстрая заявка на консультацию',
+          sourceLabel: 'Inline CTA — укладка плитки',
+        }"
+        id-prefix="quick-cta-plitka"
+      />
+    </section>
+
+    <!-- ==================== 10. ТИПЫ МАТЕРИАЛОВ ==================== -->
     <section id="materials" class="page-section page-section--light">
       <MaterialsGuide
         title="Какую <span>плитку</span> выбрать: керамика, керамогранит, мозаика или клинкер?"
@@ -108,7 +123,7 @@
       />
     </section>
 
-    <!-- ==================== 10. ТЕХНИЧЕСКИЕ НЮАНСЫ ==================== -->
+    <!-- ==================== 11. ТЕХНИЧЕСКИЕ НЮАНСЫ (Без дублирующей таблицы) ==================== -->
     <section id="insights" class="page-section">
       <TechnicalInsights
         title="Что важно знать <span>до укладки</span> плитки"
@@ -127,58 +142,16 @@
           },
         ]"
         :summary="insightsSummary"
-      >
-        <template #content>
-          <h3>Сравнение направлений работ</h3>
-          <div class="comparison-table">
-            <div class="comparison-row comparison-row--header">
-              <span>Параметр</span>
-              <span>Пол</span>
-              <span>Стены</span>
-              <span>Крупноформат</span>
-            </div>
-            <div class="comparison-row">
-              <span>Основание</span>
-              <span data-label="Пол">Стяжка по маякам</span>
-              <span data-label="Стены">Штукатурка + грунт</span>
-              <span data-label="Крупноформат" class="comparison-better">Перепад до 2 мм</span>
-            </div>
-            <div class="comparison-row">
-              <span>Класс клея</span>
-              <span data-label="Пол">C2</span>
-              <span data-label="Стены">C2</span>
-              <span data-label="Крупноформат">C2TE S1</span>
-            </div>
-            <div class="comparison-row">
-              <span>Ширина шва</span>
-              <span data-label="Пол">2–3 мм</span>
-              <span data-label="Стены">1,5–2 мм</span>
-              <span data-label="Крупноформат" class="comparison-better">1–1,5 мм</span>
-            </div>
-            <div class="comparison-row">
-              <span>Можно ходить</span>
-              <span data-label="Пол">Через 24 часа</span>
-              <span data-label="Стены">—</span>
-              <span data-label="Крупноформат">Через 48 часов</span>
-            </div>
-            <div class="comparison-row">
-              <span>Цена работы</span>
-              <span data-label="Пол">{{ formatPrice(polPrice) }}</span>
-              <span data-label="Стены">{{ formatPrice(stenaPrice) }}</span>
-              <span data-label="Крупноформат">{{ formatPrice(krupnoPrice) }}</span>
-            </div>
-          </div>
-        </template>
-      </TechnicalInsights>
+      />
     </section>
 
-    <!-- ==================== 11. ГАРАНТИИ ==================== -->
-    <section id="guarantees" class="page-section">
+    <!-- ==================== 12. ГАРАНТИИ ==================== -->
+    <section id="guarantees" class="page-section page-section--light">
       <GuaranteesGrid title="Наши <span>гарантии</span>" :items="guarantees" />
     </section>
 
-    <!-- ==================== 12. ЭТАПЫ РАБОТ ==================== -->
-    <section id="stages" class="page-section page-section--light">
+    <!-- ==================== 13. ЭТАПЫ РАБОТ ==================== -->
+    <section id="stages" class="page-section">
       <WorkStagesTimeline
         title="Как <span>мы работаем</span>: 6 этапов"
         subtitle="От демонтажа старой плитки до ровных швов и гарантийного талона"
@@ -186,7 +159,7 @@
       />
     </section>
 
-    <!-- ==================== 13. FAQ ==================== -->
+    <!-- ==================== 14. FAQ ==================== -->
     <section id="faq" class="page-section page-section--light">
       <FAQBlock
         title="Ответы на <span>частые вопросы</span>"
@@ -195,21 +168,11 @@
       />
     </section>
 
-    <!-- ==================== 14. ПОРТФОЛИО ==================== -->
+    <!-- ==================== 15. ПОРТФОЛИО ==================== -->
     <section id="portfolio" class="page-section">
       <BeforeAfterGallery
         title="Наши работы: <span>укладка плитки</span>"
         :slugs="projectSlugs"
-      />
-    </section>
-
-    <!-- ==================== 15. ДРУГИЕ РАБОТЫ ГРУППЫ ==================== -->
-    <section id="related" class="page-section">
-      <RelatedWorkTypes
-        title="Другие работы <span>по плитке</span>"
-        subtitle="Каждый вид — на отдельной странице с ценами и калькулятором."
-        :items="relatedPlitkaWorkTypes"
-        :price-data="sections"
       />
     </section>
 
@@ -222,7 +185,7 @@
     </section>
 
     <!-- ==================== 17. CTA ==================== -->
-    <section id="cta" class="page-section page-section--light">
+    <section id="cta" class="page-section">
       <ApplicationCTA
         title="Рассчитайте <span>точную стоимость</span> плиточных работ"
         subtitle="Оставьте заявку — инженер бесплатно приедет на замер, проверит основание и посчитает плитку с запасом."
@@ -231,6 +194,16 @@
         id-prefix="ukladka-plitki-cta"
         :custom-fields="customFields"
         :message-config="messageConfig"
+      />
+    </section>
+
+    <!-- ==================== 18. ДРУГИЕ РАБОТЫ ГРУППЫ ==================== -->
+    <section id="related" class="page-section page-section--light">
+      <RelatedWorkTypes
+        title="Другие работы <span>по плитке</span>"
+        subtitle="Каждый вид — на отдельной странице с ценами и калькулятором."
+        :items="relatedPlitkaWorkTypes"
+        :price-data="sections"
       />
     </section>
   </div>
@@ -272,6 +245,7 @@ import RelatedWorkTypes from '../ui/RelatedWorkTypes.vue'
 import BeforeAfterShowcase from '../ui/BeforeAfterShowcase.vue'
 import MethodComparison from '../ui/MethodComparison.vue'
 import MaterialsGuide from '../ui/MaterialsGuide.vue'
+import InlineCta from '../ui/InlineCta.vue'
 // === UI: общие ===
 import StickyNav from '../../ui/StickyNav.vue'
 import Breadcrumbs from '../../ui/Breadcrumbs.vue'
@@ -315,20 +289,6 @@ const beforeAfterItems = [
   { beforeImage: '/main/vidy-rabot/plitka/1-1.webp', afterImage: '/main/vidy-rabot/plitka/1.webp' },
   { beforeImage: '/main/vidy-rabot/plitka/2-1.webp', afterImage: '/main/vidy-rabot/plitka/2.webp' },
   { beforeImage: '/main/5.jpg', afterImage: '/main/6.jpg' },
-  { src: '/main/vidy-rabot/plitka/3.jpg', alt: 'Разметка пола под укладку плитки: красные маркеры обозначают границы и уровни' },
-  { src: '/main/vidy-rabot/plitka/4.jpg', alt: 'Подготовка основания пола: нанесение разметки для точной укладки керамогранита' },
-  { src: '/main/vidy-rabot/plitka/5.jpg', alt: 'Общий вид помещения с разметкой: подготовка к укладке напольной плитки' },
-  { src: '/main/vidy-rabot/plitka/6.jpg', alt: 'Детальная разметка пола для укладки плитки с соблюдением геометрии' },
-  { src: '/main/vidy-rabot/plitka/7.jpg', alt: 'Укладка черной плитки на стену: процесс облицовки вертикальной поверхности' },
-  { src: '/main/vidy-rabot/plitka/8.jpg', alt: 'Монтаж черной настенной плитки в коммерческом помещении' },
-  { src: '/main/vidy-rabot/plitka/9.jpg', alt: 'Крупный план укладки черной плитки: система выравнивания и крепеж' },
-  { src: '/main/vidy-rabot/plitka/10.jpg', alt: 'Коридор на этапе ремонта: подготовка стен и пола к облицовке плиткой' },
-  { src: '/main/vidy-rabot/plitka/11.jpg', alt: 'Готовый коридор в стиле лофт: плитка под бетон и современное освещение' },
-  { src: '/main/vidy-rabot/plitka/12.jpg', alt: 'Зона хаммама: отделка мраморной плиткой с LED-подсветкой' },
-  { src: '/main/vidy-rabot/plitka/13.jpg', alt: 'Коридор с эффектной подсветкой: плитка и неоновое освещение' },
-  { src: '/main/vidy-rabot/plitka/14.jpg', alt: 'Сауна с деревянной отделкой: сочетание плитки и натурального дерева' },
-  { src: '/main/vidy-rabot/plitka/15.jpg', alt: 'Санузел премиум-класса: керамогранит и подвесная сантехника' },
-  { src: '/main/vidy-rabot/plitka/16.jpg', alt: 'Зона отдыха с естественным освещением: плитка под камень и настенные бра' },
 ]
 
 // ============================================================
@@ -426,80 +386,6 @@ useWorkTypeSeo({
   &--light {
     background: $background-light;
     color: $text-dark;
-  }
-}
-
-// === Таблица сравнения (для блока TechnicalInsights) ===
-.comparison-table {
-  margin-top: 1rem;
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.comparison-row {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr 1fr;
-  gap: 0.8rem;
-  padding: 0.9rem 1.2rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  font-size: 0.88rem;
-
-  &:last-child {
-    border-bottom: none;
-  }
-
-  &--header {
-    background: rgba(0, 195, 245, 0.08);
-    font-weight: 600;
-    color: $text-light;
-    font-family: 'Rubik', sans-serif;
-
-    span:first-child {
-      color: rgba($text-light, 0.7);
-      font-weight: 500;
-    }
-  }
-
-  > span:first-child {
-    color: rgba($text-light, 0.9);
-    font-weight: 500;
-  }
-
-  > span:not(:first-child) {
-    color: rgba($text-light, 0.7);
-    text-align: center;
-  }
-
-  .comparison-better {
-    color: $green !important;
-    font-weight: 600;
-  }
-}
-
-@media (max-width: 768px) {
-  .comparison-row {
-    grid-template-columns: 1fr;
-    gap: 0.3rem;
-    padding: 0.8rem 1rem;
-
-    &--header {
-      display: none;
-    }
-
-    > span[data-label]::before {
-      content: attr(data-label) ': ';
-      font-weight: 600;
-      color: $blue;
-    }
-
-    > span:first-child {
-      margin-top: 0.4rem;
-    }
-
-    > span:not(:first-child) {
-      text-align: left;
-    }
   }
 }
 </style>

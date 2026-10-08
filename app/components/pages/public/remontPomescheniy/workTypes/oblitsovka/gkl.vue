@@ -37,9 +37,27 @@
       />
     </section>
 
-    
+    <!-- ==================== 5. ПРЕДПРОСМОТР ЦЕН ==================== -->
+    <section id="price-list" class="page-section">
+      <PriceListTable
+        title="Полный прайс: <span>обшивка стен ГКЛ</span>"
+        subtitle="Все работы по монтажу гипсокартона на стены. Точная смета — после бесплатного замера."
+        :sub-category-ids="[279, 370]"
+        footer-note="* Цены указаны за работу без учёта стоимости материалов. Доплаты отмечены знаком «+ к цене». Короба считаются в погонных метрах."
+      />
+    </section>
+
+    <!-- ==================== 6. ФАКТОРЫ ЦЕНЫ ==================== -->
+    <section id="price-factors" class="page-section page-section--light">
+      <PriceFactors
+        title="Что <span>влияет на итоговую цену</span>"
+        :factors="priceFactors"
+        footer-note="Точную смету инженер составит после бесплатного выезда на объект. Это ни к чему не обязывает."
+      />
+    </section>
+
     <!-- ==================== 7. ОПИСАНИЕ КАТЕГОРИИ ==================== -->
-    <section id="overview" class="page-section page-section--light">
+    <section id="overview" class="page-section">
       <WorkTypeOverview
         title="Почему это <span>лучшее решение</span> для ваших стен"
         description="Гипсокартон (ГКЛ) — это готовые листы из гипса в картонной оболочке, которые крепятся на металлический каркас или специальный клей. За 1–3 дня получаем идеально ровную поверхность без штукатурки и длительных сроков высыхания."
@@ -66,27 +84,8 @@
       </WorkTypeOverview>
     </section>
 
-    <!-- ==================== 5. ПРЕДПРОСМОТР ЦЕН ==================== -->
-    <section id="price-list" class="page-section">
-      <PriceListTable
-        title="Полный прайс: <span>обшивка стен ГКЛ</span>"
-        subtitle="Все работы по монтажу гипсокартона на стены. Точная смета — после бесплатного замера."
-        :sub-category-ids="[279, 370]"
-        footer-note="* Цены указаны за работу без учёта стоимости материалов. Доплаты отмечены знаком «+ к цене». Короба считаются в погонных метрах."
-      />
-    </section>
-
-    <!-- ==================== 6. ФАКТОРЫ ЦЕНЫ (Сразу после прайса, чтобы объяснить цифры) ==================== -->
-    <section id="price-factors" class="page-section page-section--light">
-      <PriceFactors
-        title="Что <span>влияет на итоговую цену</span>"
-        :factors="priceFactors"
-        footer-note="Точную смету инженер составит после бесплатного выезда на объект. Это ни к чему не обязывает."
-      />
-    </section>
-
-    <!-- ==================== 8. СРАВНЕНИЕ МЕТОДОВ (Образовательный блок для сомневающихся) ==================== -->
-    <section id="methods" class="page-section">
+    <!-- ==================== 8. СРАВНЕНИЕ МЕТОДОВ ==================== -->
+    <section id="methods" class="page-section page-section--light">
       <MethodComparison
         title="Что <span>выбрать</span>: клей, каркас или штукатурку?"
         subtitle="Каждый способ подходит для разных задач. Разберём плюсы, минусы и сценарии применения."
@@ -96,7 +95,22 @@
       />
     </section>
 
-    <!-- ==================== 9. ТИПЫ МАТЕРИАЛОВ ==================== -->
+    <!-- ==================== 9. INLINE CTA (Быстрый захват лида) ==================== -->
+    <section id="quick-cta" class="page-section">
+      <InlineCta
+        title="Не знаете, какой способ монтажа <span>подойдёт вашим стенам?</span>"
+        subtitle="Оставьте номер — инженер перезвонит за 15 минут, обсудит кривизну стен и поможет выбрать оптимальный вариант."
+        submit-text="Получить консультацию"
+        :message-config="{
+          emoji: '📞',
+          title: 'Быстрая заявка на консультацию',
+          sourceLabel: 'Inline CTA — обшивка стен ГКЛ',
+        }"
+        id-prefix="quick-cta-oblitsovka"
+      />
+    </section>
+
+    <!-- ==================== 10. ТИПЫ МАТЕРИАЛОВ ==================== -->
     <section id="materials" class="page-section page-section--light">
       <MaterialsGuide
         title="Какой <span>гипсокартон</span> выбрать: типы и различия"
@@ -107,7 +121,7 @@
       />
     </section>
 
-    <!-- ==================== 10. ВТОРОЙ СЛОЙ ГКЛ ==================== -->
+    <!-- ==================== 11. ВТОРОЙ СЛОЙ ГКЛ (Без дублирующей таблицы) ==================== -->
     <section id="insights" class="page-section">
       <TechnicalInsights
         title="Зачем нужен <span>второй слой</span> гипсокартона"
@@ -126,52 +140,16 @@
           },
         ]"
         :summary="insightsSummary"
-      >
-        <template #content>
-          <h3>Один слой vs два слоя</h3>
-          <div class="comparison-table">
-            <div class="comparison-row comparison-row--header">
-              <span>Параметр</span>
-              <span>1 слой</span>
-              <span>2 слоя</span>
-            </div>
-            <div class="comparison-row">
-              <span>Трещины по швам</span>
-              <span data-label="1 слой">Возможны при усадке</span>
-              <span data-label="2 слоя" class="comparison-better">Исключены</span>
-            </div>
-            <div class="comparison-row">
-              <span>Прочность на удар</span>
-              <span data-label="1 слой">Базовая</span>
-              <span data-label="2 слоя" class="comparison-better">В 2-3 раза выше</span>
-            </div>
-            <div class="comparison-row">
-              <span>Звукоизоляция</span>
-              <span data-label="1 слой">~40 дБ</span>
-              <span data-label="2 слоя" class="comparison-better">~52 дБ</span>
-            </div>
-            <div class="comparison-row">
-              <span>Для покраски</span>
-              <span data-label="1 слой">Не рекомендуется</span>
-              <span data-label="2 слоя" class="comparison-better">Подходит</span>
-            </div>
-            <div class="comparison-row">
-              <span>Цена работы</span>
-              <span data-label="1 слой">{{ formatPrice(gkl1Price) }}</span>
-              <span data-label="2 слоя" class="comparison-better">{{ formatPrice(gkl2Price) }}</span>
-            </div>
-          </div>
-        </template>
-      </TechnicalInsights>
+      />
     </section>
 
     <!-- ==================== 12. ГАРАНТИИ ==================== -->
-    <section id="guarantees" class="page-section">
+    <section id="guarantees" class="page-section page-section--light">
       <GuaranteesGrid title="Наши <span>гарантии</span>" :items="guarantees" />
     </section>
 
-    <!-- ==================== 11. ЭТАПЫ РАБОТ ==================== -->
-    <section id="stages" class="page-section page-section--light">
+    <!-- ==================== 13. ЭТАПЫ РАБОТ ==================== -->
+    <section id="stages" class="page-section">
       <WorkStagesTimeline
         title="Как <span>мы работаем</span>: 6 этапов"
         subtitle="От звонка до сдачи готовых стен под отделку"
@@ -179,7 +157,7 @@
       />
     </section>
 
-    <!-- ==================== 13. FAQ ==================== -->
+    <!-- ==================== 14. FAQ ==================== -->
     <section id="faq" class="page-section page-section--light">
       <FAQBlock
         title="Ответы на <span>частые вопросы</span>"
@@ -188,21 +166,11 @@
       />
     </section>
 
-    <!-- ==================== 14. ПОРТФОЛИО ==================== -->
+    <!-- ==================== 15. ПОРТФОЛИО ==================== -->
     <section id="portfolio" class="page-section">
       <BeforeAfterGallery
         title="Наши работы: <span>стены из ГКЛ</span>"
         :slugs="projectSlugs"
-      />
-    </section>
-    
-    <!-- ==================== 15. ДРУГИЕ ГКЛ РАБОТЫ ==================== -->
-    <section id="related" class="page-section">
-      <RelatedWorkTypes
-        title="Другие <span>гипсокартонные работы</span>"
-        subtitle="Каждый вид работ — на отдельной странице с подробным описанием, ценами и калькулятором."
-        :items="relatedGklWorkTypes"
-        :price-data="sections"
       />
     </section>
 
@@ -215,7 +183,7 @@
     </section>
 
     <!-- ==================== 17. CTA ==================== -->
-    <section id="cta" class="page-section page-section--light">
+    <section id="cta" class="page-section">
       <ApplicationCTA
         title="Рассчитайте <span>точную стоимость</span> вашего объекта"
         subtitle="Оставьте заявку — инженер бесплатно приедет на замер, оценит кривизну стен и подготовит детальную смету."
@@ -224,6 +192,16 @@
         id-prefix="oblitsovka-gkl-cta"
         :custom-fields="customFields"
         :message-config="messageConfig"
+      />
+    </section>
+
+    <!-- ==================== 18. ДРУГИЕ ГКЛ РАБОТЫ ==================== -->
+    <section id="related" class="page-section page-section--light">
+      <RelatedWorkTypes
+        title="Другие <span>гипсокартонные работы</span>"
+        subtitle="Каждый вид работ — на отдельной странице с подробным описанием, ценами и калькулятором."
+        :items="relatedGklWorkTypes"
+        :price-data="sections"
       />
     </section>
   </div>
@@ -266,6 +244,7 @@ import RelatedWorkTypes from '../ui/RelatedWorkTypes.vue'
 import BeforeAfterShowcase from '../ui/BeforeAfterShowcase.vue'
 import MethodComparison from '../ui/MethodComparison.vue'
 import MaterialsGuide from '../ui/MaterialsGuide.vue'
+import InlineCta from '../ui/InlineCta.vue'
 
 // === UI: общие ===
 import StickyNav from '../../ui/StickyNav.vue'
@@ -411,75 +390,6 @@ useWorkTypeSeo({
   &--light {
     background: $background-light;
     color: $text-dark;
-  }
-}
-
-// === Таблица сравнения (для блока TechnicalInsights) ===
-.comparison-table {
-  margin-top: 1rem;
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.comparison-row {
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr;
-  gap: 1rem;
-  padding: 0.9rem 1.2rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  font-size: 0.92rem;
-
-  &:last-child {
-    border-bottom: none;
-  }
-
-  &--header {
-    background: rgba(0, 195, 245, 0.08);
-    font-weight: 600;
-    color: $text-light;
-    font-family: 'Rubik', sans-serif;
-
-    span:first-child {
-      color: rgba($text-light, 0.7);
-      font-weight: 500;
-    }
-  }
-
-  > span:first-child {
-    color: rgba($text-light, 0.9);
-    font-weight: 500;
-  }
-
-  > span:not(:first-child) {
-    color: rgba($text-light, 0.7);
-  }
-
-  .comparison-better {
-    color: $green !important;
-    font-weight: 600;
-  }
-}
-
-@media (max-width: 640px) {
-  .comparison-row {
-    grid-template-columns: 1fr;
-    gap: 0.3rem;
-    padding: 0.8rem 1rem;
-
-    &--header {
-      display: none;
-    }
-
-    > span[data-label]::before {
-      content: attr(data-label) ': ';
-      font-weight: 600;
-      color: $blue;
-    }
-
-    > span:first-child {
-      margin-top: 0.4rem;
-    }
   }
 }
 </style>

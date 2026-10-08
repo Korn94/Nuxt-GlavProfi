@@ -37,8 +37,27 @@
       />
     </section>
 
-    <!-- ==================== 5. ОПИСАНИЕ КАТЕГОРИИ ==================== -->
-    <section id="overview" class="page-section page-section--light">
+    <!-- ==================== 5. ПРЕДПРОСМОТР ЦЕН ==================== -->
+    <section id="price-list" class="page-section">
+      <PriceListTable
+        title="Полный прайс: <span>шпаклёвка стен</span>"
+        subtitle="Все работы по подготовке стен: грунтовка, шпаклёвка, армирование, шлифовка."
+        :sub-category-ids="[250, 251, 252, 254, 255]"
+        footer-note="* Цены указаны за работу без учёта стоимости материалов. Доплаты отмечены знаком «+ к цене»."
+      />
+    </section>
+
+    <!-- ==================== 6. ФАКТОРЫ ЦЕНЫ ==================== -->
+    <section id="price-factors" class="page-section page-section--light">
+      <PriceFactors
+        title="Что <span>влияет на итоговую цену</span>"
+        :factors="priceFactors"
+        footer-note="Точную смету инженер составит после бесплатного выезда на объект. Это ни к чему не обязывает."
+      />
+    </section>
+
+    <!-- ==================== 7. ОПИСАНИЕ КАТЕГОРИИ ==================== -->
+    <section id="overview" class="page-section">
       <WorkTypeOverview
         title="Зачем стенам <span>шпаклёвка</span>"
         description="Шпаклёвка — это финишное выравнивание стен тонким слоем пасты (0,5–3 мм). Она превращает шероховатую поверхность после штукатурки или гипсокартона в идеально гладкую, готовую под покраску, обои или декоративную отделку."
@@ -68,27 +87,8 @@
       </WorkTypeOverview>
     </section>
 
-    <!-- ==================== 6. ПРЕДПРОСМОТР ЦЕН ==================== -->
-    <section id="price-list" class="page-section">
-      <PriceListTable
-        title="Полный прайс: <span>шпаклёвка стен</span>"
-        subtitle="Все работы по подготовке стен: грунтовка, шпаклёвка, армирование, шлифовка."
-        :sub-category-ids="[250, 251, 252, 254, 255]"
-        footer-note="* Цены указаны за работу без учёта стоимости материалов. Доплаты отмечены знаком «+ к цене»."
-      />
-    </section>
-
-    <!-- ==================== 7. ФАКТОРЫ ЦЕНЫ (Сразу после прайса, чтобы объяснить цифры) ==================== -->
-    <section id="price-factors" class="page-section page-section--light">
-      <PriceFactors
-        title="Что <span>влияет на итоговую цену</span>"
-        :factors="priceFactors"
-        footer-note="Точную смету инженер составит после бесплатного выезда на объект. Это ни к чему не обязывает."
-      />
-    </section>
-
-    <!-- ==================== 8. СРАВНЕНИЕ ПОДХОДОВ (Образовательный блок для сомневающихся) ==================== -->
-    <section id="methods" class="page-section">
+    <!-- ==================== 8. СРАВНЕНИЕ ПОДХОДОВ ==================== -->
+    <section id="methods" class="page-section page-section--light">
       <MethodComparison
         title="Какой уровень <span>шпаклёвки</span> вам нужен?"
         subtitle="Зависит от финишной отделки и требований к качеству поверхности."
@@ -98,7 +98,22 @@
       />
     </section>
 
-    <!-- ==================== 9. ТИПЫ МАТЕРИАЛОВ ==================== -->
+    <!-- ==================== 9. INLINE CTA (Быстрый захват лида) ==================== -->
+    <section id="quick-cta" class="page-section">
+      <InlineCta
+        title="Не знаете, какой уровень подготовки <span>нужен вашим стенам?</span>"
+        subtitle="Оставьте номер — инженер перезвонит за 15 минут, обсудит вашу отделку и поможет выбрать оптимальный вариант."
+        submit-text="Получить консультацию"
+        :message-config="{
+          emoji: '📞',
+          title: 'Быстрая заявка на консультацию',
+          sourceLabel: 'Inline CTA — шпаклёвка стен',
+        }"
+        id-prefix="quick-cta-shpaklevka"
+      />
+    </section>
+
+    <!-- ==================== 10. ТИПЫ МАТЕРИАЛОВ ==================== -->
     <section id="materials" class="page-section page-section--light">
       <MaterialsGuide
         title="Какую <span>шпаклёвку</span> выбрать: гипс, цемент или полимер?"
@@ -109,7 +124,7 @@
       />
     </section>
 
-    <!-- ==================== 10. ТЕХНИЧЕСКИЕ НЮАНСЫ ==================== -->
+    <!-- ==================== 11. ТЕХНИЧЕСКИЕ НЮАНСЫ (Без дублирующей таблицы) ==================== -->
     <section id="insights" class="page-section">
       <TechnicalInsights
         title="Что важно знать <span>о шпаклёвке</span> стен"
@@ -128,58 +143,16 @@
           },
         ]"
         :summary="insightsSummary"
-      >
-        <template #content>
-          <h3>Сравнение уровней подготовки</h3>
-          <div class="comparison-table">
-            <div class="comparison-row comparison-row--header">
-              <span>Параметр</span>
-              <span>Стартовая</span>
-              <span>Стартовая + Финишная</span>
-              <span>Под «лампочку»</span>
-            </div>
-            <div class="comparison-row">
-              <span>Слоёв</span>
-              <span data-label="Стартовая">1</span>
-              <span data-label="Стартовая + Финишная">2</span>
-              <span data-label="Под «лампочку»" class="comparison-better">2 + контроль светом</span>
-            </div>
-            <div class="comparison-row">
-              <span>Под обои</span>
-              <span data-label="Стартовая" class="comparison-better">Подходит</span>
-              <span data-label="Стартовая + Финишная">Избыточно</span>
-              <span data-label="Под «лампочку»">Избыточно</span>
-            </div>
-            <div class="comparison-row">
-              <span>Под покраску</span>
-              <span data-label="Стартовая">Не подходит</span>
-              <span data-label="Стартовая + Финишная" class="comparison-better">Подходит</span>
-              <span data-label="Под «лампочку»" class="comparison-better">Идеально</span>
-            </div>
-            <div class="comparison-row">
-              <span>Шлифовка</span>
-              <span data-label="Стартовая">Грубая</span>
-              <span data-label="Стартовая + Финишная">Р150</span>
-              <span data-label="Под «лампочку»" class="comparison-better">Р180–Р240</span>
-            </div>
-            <div class="comparison-row">
-              <span>Цена работы</span>
-              <span data-label="Стартовая">{{ formatPrice(startPrice) }}</span>
-              <span data-label="Стартовая + Финишная">{{ formatPrice(finishPrice) }}</span>
-              <span data-label="Под «лампочку»">{{ formatPrice(premiumPrice) }}</span>
-            </div>
-          </div>
-        </template>
-      </TechnicalInsights>
+      />
     </section>
 
-    <!-- ==================== 11. ГАРАНТИИ ==================== -->
-    <section id="guarantees" class="page-section">
+    <!-- ==================== 12. ГАРАНТИИ ==================== -->
+    <section id="guarantees" class="page-section page-section--light">
       <GuaranteesGrid title="Наши <span>гарантии</span>" :items="guarantees" />
     </section>
 
-    <!-- ==================== 12. ЭТАПЫ РАБОТ ==================== -->
-    <section id="stages" class="page-section page-section--light">
+    <!-- ==================== 13. ЭТАПЫ РАБОТ ==================== -->
+    <section id="stages" class="page-section">
       <WorkStagesTimeline
         title="Как <span>мы работаем</span>: 6 этапов"
         subtitle="От заявки до идеально гладких стен, готовых под отделку"
@@ -187,7 +160,7 @@
       />
     </section>
 
-    <!-- ==================== 13. FAQ ==================== -->
+    <!-- ==================== 14. FAQ ==================== -->
     <section id="faq" class="page-section page-section--light">
       <FAQBlock
         title="Ответы на <span>частые вопросы</span>"
@@ -196,21 +169,11 @@
       />
     </section>
 
-    <!-- ==================== 14. ПОРТФОЛИО ==================== -->
+    <!-- ==================== 15. ПОРТФОЛИО ==================== -->
     <section id="portfolio" class="page-section">
       <BeforeAfterGallery
         title="Наши работы: <span>шпаклёвка стен</span>"
         :slugs="projectSlugs"
-      />
-    </section>
-
-    <!-- ==================== 15. ДРУГИЕ РАБОТЫ ГРУППЫ ==================== -->
-    <section id="related" class="page-section">
-      <RelatedWorkTypes
-        title="Другие работы <span>по шпаклёвке</span>"
-        subtitle="Каждый вид — на отдельной странице с ценами и калькулятором."
-        :items="relatedShpaklevkaWorkTypes"
-        :price-data="sections"
       />
     </section>
 
@@ -223,7 +186,7 @@
     </section>
 
     <!-- ==================== 17. CTA ==================== -->
-    <section id="cta" class="page-section page-section--light">
+    <section id="cta" class="page-section">
       <ApplicationCTA
         title="Рассчитайте <span>точную стоимость</span> шпаклёвки"
         subtitle="Оставьте заявку — инженер бесплатно приедет на осмотр, оценит состояние стен и подготовит детальную смету."
@@ -232,6 +195,16 @@
         id-prefix="shpaklevka-sten-cta"
         :custom-fields="customFields"
         :message-config="messageConfig"
+      />
+    </section>
+
+    <!-- ==================== 18. ДРУГИЕ РАБОТЫ ГРУППЫ ==================== -->
+    <section id="related" class="page-section page-section--light">
+      <RelatedWorkTypes
+        title="Другие работы <span>по шпаклёвке</span>"
+        subtitle="Каждый вид — на отдельной странице с ценами и калькулятором."
+        :items="relatedShpaklevkaWorkTypes"
+        :price-data="sections"
       />
     </section>
   </div>
@@ -274,6 +247,7 @@ import RelatedWorkTypes from '../ui/RelatedWorkTypes.vue'
 import BeforeAfterShowcase from '../ui/BeforeAfterShowcase.vue'
 import MethodComparison from '../ui/MethodComparison.vue'
 import MaterialsGuide from '../ui/MaterialsGuide.vue'
+import InlineCta from '../ui/InlineCta.vue'
 
 // === UI: общие ===
 import StickyNav from '../../ui/StickyNav.vue'
@@ -323,8 +297,6 @@ const beforeAfterItems = [
   { beforeImage: '/main/vidy-rabot/shpaklevka/9.jpg', afterImage: '/main/vidy-rabot/shpaklevka/10.jpg' },
   { beforeImage: '/main/vidy-rabot/shpaklevka/11.jpg', afterImage: '/main/vidy-rabot/shpaklevka/12.jpg' },
   { beforeImage: '/main/vidy-rabot/shpaklevka/1.jpg', afterImage: '/main/vidy-rabot/shpaklevka/2.jpg' },
-  { src: '/main/vidy-rabot/shpaklevka/13.jpg', alt: 'Готовая шпаклевка стен в офисе' },
-  { src: '/main/vidy-rabot/shpaklevka/14.jpg', alt: 'Готовая шпаклевка стен в коридоре' },
 ]
 
 // ============================================================
@@ -436,80 +408,6 @@ useWorkTypeSeo({
   &--light {
     background: $background-light;
     color: $text-dark;
-  }
-}
-
-// === Таблица сравнения (для блока TechnicalInsights) ===
-.comparison-table {
-  margin-top: 1rem;
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.comparison-row {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr 1fr;
-  gap: 0.8rem;
-  padding: 0.9rem 1.2rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  font-size: 0.88rem;
-
-  &:last-child {
-    border-bottom: none;
-  }
-
-  &--header {
-    background: rgba(0, 195, 245, 0.08);
-    font-weight: 600;
-    color: $text-light;
-    font-family: 'Rubik', sans-serif;
-
-    span:first-child {
-      color: rgba($text-light, 0.7);
-      font-weight: 500;
-    }
-  }
-
-  > span:first-child {
-    color: rgba($text-light, 0.9);
-    font-weight: 500;
-  }
-
-  > span:not(:first-child) {
-    color: rgba($text-light, 0.7);
-    text-align: center;
-  }
-
-  .comparison-better {
-    color: $green !important;
-    font-weight: 600;
-  }
-}
-
-@media (max-width: 768px) {
-  .comparison-row {
-    grid-template-columns: 1fr;
-    gap: 0.3rem;
-    padding: 0.8rem 1rem;
-
-    &--header {
-      display: none;
-    }
-
-    > span[data-label]::before {
-      content: attr(data-label) ': ';
-      font-weight: 600;
-      color: $blue;
-    }
-
-    > span:first-child {
-      margin-top: 0.4rem;
-    }
-
-    > span:not(:first-child) {
-      text-align: left;
-    }
   }
 }
 </style>

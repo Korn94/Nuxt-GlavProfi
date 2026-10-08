@@ -38,8 +38,27 @@
       />
     </section>
 
-    <!-- ==================== 5. ОПИСАНИЕ КАТЕГОРИИ ==================== -->
-    <section id="overview" class="page-section page-section--light">
+    <!-- ==================== 5. ПРЕДПРОСМОТР ЦЕН ==================== -->
+    <section id="price-list" class="page-section">
+      <PriceListTable
+        title="Полный прайс: <span>штукатурка стен</span>"
+        subtitle="Все работы: подготовка, грунтовка, маяки, армирование, нанесение."
+        :sub-category-ids="[241, 242, 323, 324, 325, 327]"
+        footer-note="* Цены указаны за работу без учёта стоимости материалов. Доплаты отмечены знаком «+ к цене»."
+      />
+    </section>
+
+    <!-- ==================== 6. ФАКТОРЫ ЦЕНЫ ==================== -->
+    <section id="price-factors" class="page-section page-section--light">
+      <PriceFactors
+        title="Что <span>влияет на итоговую цену</span>"
+        :factors="priceFactors"
+        footer-note="Точную смету инженер составит после бесплатного выезда на объект. Это ни к чему не обязывает."
+      />
+    </section>
+
+    <!-- ==================== 7. ОПИСАНИЕ КАТЕГОРИИ ==================== -->
+    <section id="overview" class="page-section">
       <WorkTypeOverview
         title="Зачем стенам <span>штукатурка</span>"
         description="Штукатурка — это черновое выравнивание стен толстым слоем (10–50 мм) цементно-песчаным или гипсовым составом. Она превращает кривую поверхность в ровную плоскость, готовую под дальнейшую отделку."
@@ -69,27 +88,8 @@
       </WorkTypeOverview>
     </section>
 
-    <!-- ==================== 6. ПРЕДПРОСМОТР ЦЕН ==================== -->
-    <section id="price-list" class="page-section">
-      <PriceListTable
-        title="Полный прайс: <span>штукатурка стен</span>"
-        subtitle="Все работы: подготовка, грунтовка, маяки, армирование, нанесение."
-        :sub-category-ids="[241, 242, 323, 324, 325, 327]"
-        footer-note="* Цены указаны за работу без учёта стоимости материалов. Доплаты отмечены знаком «+ к цене»."
-      />
-    </section>
-
-    <!-- ==================== 7. ФАКТОРЫ ЦЕНЫ (Сразу после прайса, чтобы объяснить цифры) ==================== -->
-    <section id="price-factors" class="page-section page-section--light">
-      <PriceFactors
-        title="Что <span>влияет на итоговую цену</span>"
-        :factors="priceFactors"
-        footer-note="Точную смету инженер составит после бесплатного выезда на объект. Это ни к чему не обязывает."
-      />
-    </section>
-
-    <!-- ==================== 8. СРАВНЕНИЕ ПОДХОДОВ (Образовательный блок для сомневающихся) ==================== -->
-    <section id="methods" class="page-section">
+    <!-- ==================== 8. СРАВНЕНИЕ ПОДХОДОВ ==================== -->
+    <section id="methods" class="page-section page-section--light">
       <MethodComparison
         title="Какой тип <span>штукатурки</span> выбрать?"
         subtitle="Зависит от влажности помещения, перепадов стен и типа основания."
@@ -99,7 +99,22 @@
       />
     </section>
 
-    <!-- ==================== 9. ТИПЫ МАТЕРИАЛОВ ==================== -->
+    <!-- ==================== 9. INLINE CTA (Быстрый захват лида) ==================== -->
+    <section id="quick-cta" class="page-section">
+      <InlineCta
+        title="Не знаете, какая штукатурка <span>подойдёт вашим стенам?</span>"
+        subtitle="Оставьте номер — инженер перезвонит за 15 минут, обсудит перепады стен и поможет выбрать оптимальный вариант."
+        submit-text="Получить консультацию"
+        :message-config="{
+          emoji: '📞',
+          title: 'Быстрая заявка на консультацию',
+          sourceLabel: 'Inline CTA — штукатурка стен',
+        }"
+        id-prefix="quick-cta-shtukaturka"
+      />
+    </section>
+
+    <!-- ==================== 10. ТИПЫ МАТЕРИАЛОВ ==================== -->
     <section id="materials" class="page-section page-section--light">
       <MaterialsGuide
         title="Какой <span>состав</span> выбрать: гипс, цемент или известь?"
@@ -110,7 +125,7 @@
       />
     </section>
 
-    <!-- ==================== 10. ТЕХНИЧЕСКИЕ НЮАНСЫ ==================== -->
+    <!-- ==================== 11. ТЕХНИЧЕСКИЕ НЮАНСЫ (Без дублирующей таблицы) ==================== -->
     <section id="insights" class="page-section">
       <TechnicalInsights
         title="Что важно знать <span>о штукатурке</span> стен"
@@ -129,58 +144,16 @@
           },
         ]"
         :summary="insightsSummary"
-      >
-        <template #content>
-          <h3>Сравнение подходов</h3>
-          <div class="comparison-table">
-            <div class="comparison-row comparison-row--header">
-              <span>Параметр</span>
-              <span>Гипсовая</span>
-              <span>С армированием</span>
-              <span>Цементная</span>
-            </div>
-            <div class="comparison-row">
-              <span>Слой</span>
-              <span data-label="Гипсовая">10–30 мм</span>
-              <span data-label="С армированием" class="comparison-better">30–50 мм</span>
-              <span data-label="Цементная">10–50 мм</span>
-            </div>
-            <div class="comparison-row">
-              <span>Сохнет</span>
-              <span data-label="Гипсовая" class="comparison-better">5–7 дней</span>
-              <span data-label="С армированием">5–7 дней</span>
-              <span data-label="Цементная">14–21 день</span>
-            </div>
-            <div class="comparison-row">
-              <span>Влагостойкость</span>
-              <span data-label="Гипсовая">Нет</span>
-              <span data-label="С армированием">Нет</span>
-              <span data-label="Цементная" class="comparison-better">Да</span>
-            </div>
-            <div class="comparison-row">
-              <span>Для новостроек</span>
-              <span data-label="Гипсовая">Не рекомендуется</span>
-              <span data-label="С армированием" class="comparison-better">Идеально</span>
-              <span data-label="Цементная">Подходит</span>
-            </div>
-            <div class="comparison-row">
-              <span>Цена работы</span>
-              <span data-label="Гипсовая">{{ formatPrice(gipsPrice) }}</span>
-              <span data-label="С армированием">{{ formatPrice(armPrice) }}</span>
-              <span data-label="Цементная">{{ formatPrice(cementPrice) }}</span>
-            </div>
-          </div>
-        </template>
-      </TechnicalInsights>
+      />
     </section>
 
-    <!-- ==================== 11. ГАРАНТИИ ==================== -->
-    <section id="guarantees" class="page-section">
+    <!-- ==================== 12. ГАРАНТИИ ==================== -->
+    <section id="guarantees" class="page-section page-section--light">
       <GuaranteesGrid title="Наши <span>гарантии</span>" :items="guarantees" />
     </section>
 
-    <!-- ==================== 12. ЭТАПЫ РАБОТ ==================== -->
-    <section id="stages" class="page-section page-section--light">
+    <!-- ==================== 13. ЭТАПЫ РАБОТ ==================== -->
+    <section id="stages" class="page-section">
       <WorkStagesTimeline
         title="Как <span>мы работаем</span>: 6 этапов"
         subtitle="От заявки до ровных стен, готовых под финишную отделку"
@@ -188,7 +161,7 @@
       />
     </section>
 
-    <!-- ==================== 13. FAQ ==================== -->
+    <!-- ==================== 14. FAQ ==================== -->
     <section id="faq" class="page-section page-section--light">
       <FAQBlock
         title="Ответы на <span>частые вопросы</span>"
@@ -197,21 +170,11 @@
       />
     </section>
 
-    <!-- ==================== 14. ПОРТФОЛИО ==================== -->
+    <!-- ==================== 15. ПОРТФОЛИО ==================== -->
     <section id="portfolio" class="page-section">
       <BeforeAfterGallery
         title="Наши работы: <span>штукатурка стен</span>"
         :slugs="projectSlugs"
-      />
-    </section>
-
-    <!-- ==================== 15. ДРУГИЕ РАБОТЫ ГРУППЫ ==================== -->
-    <section id="related" class="page-section">
-      <RelatedWorkTypes
-        title="Другие работы <span>по штукатурке</span>"
-        subtitle="Каждый вид — на отдельной странице с ценами и калькулятором."
-        :items="relatedShtukaturkaWorkTypes"
-        :price-data="sections"
       />
     </section>
 
@@ -224,7 +187,7 @@
     </section>
 
     <!-- ==================== 17. CTA ==================== -->
-    <section id="cta" class="page-section page-section--light">
+    <section id="cta" class="page-section">
       <ApplicationCTA
         title="Рассчитайте <span>точную стоимость</span> штукатурки"
         subtitle="Оставьте заявку — инженер бесплатно приедет на осмотр, замерит перепады лазерным нивелиром и подготовит детальную смету."
@@ -233,6 +196,16 @@
         id-prefix="shtukaturka-sten-cta"
         :custom-fields="customFields"
         :message-config="messageConfig"
+      />
+    </section>
+
+    <!-- ==================== 18. ДРУГИЕ РАБОТЫ ГРУППЫ ==================== -->
+    <section id="related" class="page-section page-section--light">
+      <RelatedWorkTypes
+        title="Другие работы <span>по штукатурке</span>"
+        subtitle="Каждый вид — на отдельной странице с ценами и калькулятором."
+        :items="relatedShtukaturkaWorkTypes"
+        :price-data="sections"
       />
     </section>
   </div>
@@ -279,6 +252,7 @@ import RelatedWorkTypes from '../ui/RelatedWorkTypes.vue'
 import BeforeAfterShowcase from '../ui/BeforeAfterShowcase.vue'
 import MethodComparison from '../ui/MethodComparison.vue'
 import MaterialsGuide from '../ui/MaterialsGuide.vue'
+import InlineCta from '../ui/InlineCta.vue'
 
 // === UI: общие ===
 import StickyNav from '../../ui/StickyNav.vue'
@@ -328,10 +302,6 @@ const beforeAfterItems = [
   { beforeImage: '/main/vidy-rabot/shtukaturka/11.jpg', afterImage: '/main/vidy-rabot/shtukaturka/12.jpg' },
   { beforeImage: '/main/vidy-rabot/shtukaturka/6.jpg', afterImage: '/main/vidy-rabot/shtukaturka/4.jpg' },
   { beforeImage: '/main/vidy-rabot/shtukaturka/5.jpg', afterImage: '/main/vidy-rabot/shtukaturka/3.jpg' },
-  { src: '/main/vidy-rabot/shtukaturka/15.jpg', alt: 'Готовая штукатурка стен в офисе' },
-  { src: '/main/vidy-rabot/shtukaturka/16.jpg', alt: 'Готовая штукатурка стен в офисе' },
-  { src: '/main/vidy-rabot/shtukaturka/1.jpg', alt: 'Готовая штукатурка стен в офисе' },
-  { src: '/main/vidy-rabot/shtukaturka/2.jpg', alt: 'Процесс выравнивания стен по маякам' },
 ]
 
 // ============================================================
@@ -422,80 +392,6 @@ useWorkTypeSeo({
   &--light {
     background: $background-light;
     color: $text-dark;
-  }
-}
-
-// === Таблица сравнения (для блока TechnicalInsights) ===
-.comparison-table {
-  margin-top: 1rem;
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.comparison-row {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr 1fr;
-  gap: 0.8rem;
-  padding: 0.9rem 1.2rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  font-size: 0.88rem;
-
-  &:last-child {
-    border-bottom: none;
-  }
-
-  &--header {
-    background: rgba(0, 195, 245, 0.08);
-    font-weight: 600;
-    color: $text-light;
-    font-family: 'Rubik', sans-serif;
-
-    span:first-child {
-      color: rgba($text-light, 0.7);
-      font-weight: 500;
-    }
-  }
-
-  > span:first-child {
-    color: rgba($text-light, 0.9);
-    font-weight: 500;
-  }
-
-  > span:not(:first-child) {
-    color: rgba($text-light, 0.7);
-    text-align: center;
-  }
-
-  .comparison-better {
-    color: $green !important;
-    font-weight: 600;
-  }
-}
-
-@media (max-width: 768px) {
-  .comparison-row {
-    grid-template-columns: 1fr;
-    gap: 0.3rem;
-    padding: 0.8rem 1rem;
-
-    &--header {
-      display: none;
-    }
-
-    > span[data-label]::before {
-      content: attr(data-label) ': ';
-      font-weight: 600;
-      color: $blue;
-    }
-
-    > span:first-child {
-      margin-top: 0.4rem;
-    }
-
-    > span:not(:first-child) {
-      text-align: left;
-    }
   }
 }
 </style>
