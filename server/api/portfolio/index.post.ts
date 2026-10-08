@@ -92,7 +92,7 @@ export default eventHandler(async (event) => {
     await new Promise<void>((resolve, reject) => {
       const bb = busboy({
         headers: { 'content-type': contentType },
-        limits: { fileSize: IMAGE_CONFIG.maxFileSize, files: 0 }
+        limits: { fileSize: IMAGE_CONFIG.maxFileSize }
       })
 
       let fileIndex = 0

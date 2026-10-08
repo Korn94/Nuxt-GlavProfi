@@ -1,5 +1,7 @@
 
 User-agent: *
+Clean-param: etext
+
 Disallow: /cabinet
 Disallow: /login
 Disallow: /api
@@ -13,7 +15,6 @@ Disallow: /_nuxt/
 Disallow: /*?utm_
 Disallow: /*?yabizcmpgn
 Disallow: /*?erid
-Disallow: /*?etext
 Disallow: /*?_ym_debug
 Disallow: /*?_ym_status-check
 Disallow: /*?_ytm_preview
