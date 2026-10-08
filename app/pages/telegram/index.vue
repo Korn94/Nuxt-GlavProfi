@@ -127,7 +127,7 @@ function goToCabinet() {
 useHead({
   title: 'Авторизация телеграма | ГлавПрофи',
   meta: [
-    meta: [{ name: 'robots', content: 'noindex, nofollow' }],
+    { name: 'robots', content: 'noindex, nofollow' },
     // { name: 'description', content: 'Вход через приложение телеграма' },
     // { property: 'og:title', content: 'Вход через приложение телеграма' },
     // { property: 'og:description', content: 'Вход через приложение телеграма' },

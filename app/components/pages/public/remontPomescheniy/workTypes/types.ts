@@ -8,16 +8,38 @@ export interface OverviewAdvantage {
 }
 
 // === MethodComparison ===
+export interface MethodSpecs {
+  /** Звукоизоляция, напр. «~48 дБ» */
+  soundproof?: string
+  /** Толщина, напр. «100 мм» */
+  thickness?: string
+  /** Прочность — «Базовый» / «Высокий» / «Очень высокий» */
+  strength?: string
+  /** Вес, напр. «~40 кг/м²» */
+  weight?: string
+  /** Огнестойкость — «Есть» / «REI 30» */
+  fireRating?: string
+}
+
 export interface MethodOption {
+  /** Название метода */
   title: string
-  icon: string
+  /** Иконка */
+  icon?: string
+  /** Короткая характеристика (одна строка) — показывается под названием */
+  tagline?: string
   priceWorkId?: number
   priceWorkIds?: number[]
   priceFrom?: number
+  /** Технические характеристики для таблицы сравнения */
+  specs?: MethodSpecs
   recommended?: boolean
+  /** Когда применять */
   whenToUse: string[]
-  pros: string[]
-  cons: string[]
+  /** Плюсы (обратная совместимость с другими страницами) */
+  pros?: string[]
+  /** Минусы / ограничения */
+  cons?: string[]
 }
 
 // === TechnicalInsights ===

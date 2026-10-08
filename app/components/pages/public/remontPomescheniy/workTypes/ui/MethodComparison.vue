@@ -1,102 +1,99 @@
 <!-- app/components/pages/public/remontPomescheniy/workTypes/ui/MethodComparison.vue -->
 <template>
-  <section class="method-comparison">
+  <section class="method-compare">
     <div class="container">
-      <!-- Заголовок -->
-      <header class="method-comparison__header">
-        <h2 class="method-comparison__title" v-html="title" />
-        <p v-if="subtitle" class="method-comparison__subtitle">{{ subtitle }}</p>
+      <header class="method-compare__header">
+        <h2 class="method-compare__title" v-html="title" />
+        <p v-if="subtitle" class="method-compare__subtitle">{{ subtitle }}</p>
       </header>
 
-      <!-- Карточки методов -->
-      <div class="method-comparison__grid">
-        <article
-          v-for="(method, index) in resolvedMethods"
-          :key="index"
-          class="method-card"
-          :class="{
-            'method-card--recommended': method.recommended,
-          }"
+      <!-- 1. Чипы методов -->
+      <div
+        class="method-compare__chips"
+        :style="{ '--cols': resolvedMethods.length }"
+      >
+        <div
+          v-for="(method, i) in resolvedMethods"
+          :key="i"
+          class="method-chip"
+          :class="{ 'method-chip--recommended': method.recommended }"
         >
-          <!-- Бейдж "Рекомендуем" -->
-          <span v-if="method.recommended" class="method-card__badge">
-            <Icon name="mdi:star" size="14" />
-            Рекомендуем
+          <span class="method-chip__icon">
+            <Icon :name="method.icon || 'mdi:help-circle'" size="22" />
           </span>
-
-          <!-- Шапка карточки -->
-          <div class="method-card__header">
-            <div class="method-card__icon">
-              <Icon :name="method.icon || 'mdi:help-circle'" size="26" />
-            </div>
-            <div class="method-card__header-text">
-              <h3 class="method-card__title">{{ method.title }}</h3>
-              <span v-if="method.priceFrom" class="method-card__price">
-                {{ method.priceFrom }} ₽/м²
+          <div class="method-chip__text">
+            <div class="method-chip__name-row">
+              <span class="method-chip__name">{{ method.title }}</span>
+              <span v-if="method.recommended" class="method-chip__badge">
+                рекомендуем
               </span>
             </div>
+            <span v-if="method.tagline" class="method-chip__tagline">
+              {{ method.tagline }}
+            </span>
           </div>
-
-          <!-- Когда применять -->
-          <div class="method-card__section method-card__section--when">
-            <h4 class="method-card__section-title">
-              <Icon name="mdi:target" size="16" />
-              Когда выбирать
-            </h4>
-            <ul class="method-card__list">
-              <li
-                v-for="(item, i) in method.whenToUse"
-                :key="i"
-                class="method-card__list-item"
-              >
-                <Icon name="mdi:arrow-right" size="14" class="list-icon" />
-                {{ item }}
-              </li>
-            </ul>
-          </div>
-
-          <!-- Плюсы -->
-          <div class="method-card__section method-card__section--pros">
-            <h4 class="method-card__section-title">
-              <Icon name="mdi:thumb-up" size="16" />
-              Плюсы
-            </h4>
-            <ul class="method-card__list">
-              <li
-                v-for="(item, i) in method.pros"
-                :key="i"
-                class="method-card__list-item method-card__list-item--pro"
-              >
-                <Icon name="mdi:check-circle" size="14" class="list-icon" />
-                {{ item }}
-              </li>
-            </ul>
-          </div>
-
-          <!-- Минусы -->
-          <div v-if="method.cons?.length" class="method-card__section method-card__section--cons">
-            <h4 class="method-card__section-title">
-              <Icon name="mdi:thumb-down" size="16" />
-              Минусы
-            </h4>
-            <ul class="method-card__list">
-              <li
-                v-for="(item, i) in method.cons"
-                :key="i"
-                class="method-card__list-item method-card__list-item--con"
-              >
-                <Icon name="mdi:close-circle" size="14" class="list-icon" />
-                {{ item }}
-              </li>
-            </ul>
-          </div>
-        </article>
+        </div>
       </div>
 
-      <!-- Итоговая рекомендация -->
-      <div v-if="summary || $slots.summary" class="method-comparison__summary">
+      <!-- 2. Таблица характеристик -->
+      <div v-if="specRows.length" class="method-compare__table-wrap">
+        <table class="method-table">
+          <tbody>
+            <tr v-for="row in specRows" :key="row.key">
+              <th scope="row" class="method-table__label">
+                <Icon :name="row.icon" size="16" class="method-table__icon" />
+                <span>{{ row.label }}</span>
+              </th>
+              <td
+                v-for="(method, i) in resolvedMethods"
+                :key="i"
+                class="method-table__value"
+                :class="{ 'is-recommended': method.recommended }"
+                :data-label="method.title"
+              >
+                {{ row.get(method) }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 3. Когда выбирать + ограничения -->
+      <div
+        class="method-compare__when"
+        :style="{ '--cols': resolvedMethods.length }"
+      >
+        <div
+          v-for="(method, i) in resolvedMethods"
+          :key="i"
+          class="when-card"
+          :class="{ 'when-card--recommended': method.recommended }"
+        >
+          <h4 class="when-card__title">
+            <Icon :name="method.icon || 'mdi:help-circle'" size="16" />
+            {{ method.title }}
+          </h4>
+
+          <ul class="when-card__list">
+            <li v-for="(item, j) in method.whenToUse" :key="j">
+              <Icon name="mdi:check" size="14" class="when-card__check" />
+              <span>{{ item }}</span>
+            </li>
+          </ul>
+
+          <ul v-if="method.cons?.length" class="when-card__cons">
+            <li v-for="(item, j) in method.cons" :key="j">
+              <Icon name="mdi:minus" size="14" class="when-card__minus" />
+              <span>{{ item }}</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 4. Итоговая рекомендация -->
+      <div v-if="summary || $slots.summary" class="method-compare__summary">
         <slot name="summary">
-          <Icon name="mdi:lightbulb-outline" size="24" class="summary-icon" />
+          <Icon name="mdi:lightbulb-outline" size="22" class="summary-icon" />
           <p v-html="summary" />
         </slot>
       </div>
@@ -107,25 +104,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { NormalizedWorkItem } from '~/types/calculator'
-
-export interface MethodOption {
-  /** Название метода (маркетинговое, не зависит от прайса) */
-  title: string
-  /** Иконка */
-  icon?: string
-  /** Цена "от" (фоллбэк, если работа не найдена в БД) */
-  priceFrom?: number | string
-  /** 🆕 ID работы в таблице price_items. Если указан, цена подтянется из прайс-листа */
-  priceWorkId?: number
-  /** Когда применять */
-  whenToUse: string[]
-  /** Плюсы */
-  pros: string[]
-  /** Минусы */
-  cons?: string[]
-  /** Рекомендуемый вариант */
-  recommended?: boolean
-}
+import type { MethodOption } from '../../types'
 
 export interface PriceData {
   standard: NormalizedWorkItem[]
@@ -133,56 +112,91 @@ export interface PriceData {
 }
 
 const props = defineProps<{
-  /** Заголовок секции */
   title: string
-  /** Подзаголовок */
   subtitle?: string
-  /** Массив методов для сравнения */
   methods: MethodOption[]
-  /** Итоговая рекомендация (HTML поддерживается) */
   summary?: string
-  /** 🆕 Данные прайс-листа от родителя (чтобы избежать гидратации) */
   priceData?: Record<string, PriceData>
 }>()
 
-/**
- * Ищет работу в переданных данных по ID из БД.
- */
+/** Поиск работы в переданных данных по ID */
 const findWorkById = (id: number): NormalizedWorkItem | undefined => {
   if (!props.priceData) return undefined
-  
-  const allWorks = Object.values(props.priceData).flatMap(section => [
+  const allWorks = Object.values(props.priceData).flatMap((section) => [
     ...section.standard,
-    ...section.piece
+    ...section.piece,
   ])
-  return allWorks.find(w => w.id === id)
+  return allWorks.find((w) => w.id === id)
 }
 
-/**
- * Вычисляемый массив методов с актуальными ценами из прайс-листа.
- * 🔄 Поддерживает одиночный priceWorkId и массив priceWorkIds (сумма).
- */
-const resolvedMethods = computed(() => {
-  return props.methods.map(method => {
-    // 🆕 Приоритет: массив работ (сумма цен)
+/** Методы с актуальными ценами */
+const resolvedMethods = computed(() =>
+  props.methods.map((method) => {
     if (method.priceWorkIds?.length) {
       const total = method.priceWorkIds.reduce((sum, id) => {
         const work = findWorkById(id)
         return sum + (work ? work.pricePerUnit : 0)
       }, 0)
-      if (total > 0) {
-        return { ...method, priceFrom: Math.round(total) }
-      }
+      if (total > 0) return { ...method, priceFrom: Math.round(total) }
     }
-    // Одиночная работа
     if (method.priceWorkId) {
       const work = findWorkById(method.priceWorkId)
-      if (work) {
-        return { ...method, priceFrom: Math.round(work.pricePerUnit) }
-      }
+      if (work) return { ...method, priceFrom: Math.round(work.pricePerUnit) }
     }
     return method
   })
+)
+
+interface SpecRow {
+  key: string
+  label: string
+  icon: string
+  get: (m: MethodOption) => string
+}
+
+/** Строки таблицы — только те, у которых есть данные хотя бы у одного метода */
+const specRows = computed<SpecRow[]>(() => {
+  const rows: SpecRow[] = [
+    {
+      key: 'price',
+      label: 'Цена от',
+      icon: 'mdi:currency-usd',
+      get: (m) => (m.priceFrom ? `${m.priceFrom} ₽/м²` : '—'),
+    },
+    {
+      key: 'soundproof',
+      label: 'Звукоизоляция',
+      icon: 'mdi:volume-off',
+      get: (m) => m.specs?.soundproof || '—',
+    },
+    {
+      key: 'thickness',
+      label: 'Толщина',
+      icon: 'mdi:arrow-expand-horizontal',
+      get: (m) => m.specs?.thickness || '—',
+    },
+    {
+      key: 'strength',
+      label: 'Прочность',
+      icon: 'mdi:shield-outline',
+      get: (m) => m.specs?.strength || '—',
+    },
+    {
+      key: 'weight',
+      label: 'Вес',
+      icon: 'mdi:weight',
+      get: (m) => m.specs?.weight || '—',
+    },
+    {
+      key: 'fire',
+      label: 'Огнестойкость',
+      icon: 'mdi:fire',
+      get: (m) => m.specs?.fireRating || '—',
+    },
+  ]
+  return rows.filter((row) =>
+    resolvedMethods.value.some((m) => row.get(m) !== '—')
+  )
 })
 </script>
 
@@ -190,98 +204,64 @@ const resolvedMethods = computed(() => {
 @use '@/assets/styles/variables' as *;
 @use '@/assets/styles/mixins' as *;
 
-// УБРАЛИ костыль: span { color: unset; }
-// Теперь спаны наследуют цвет правильно
-
-.method-comparison {
+.method-compare {
   @include section-padding;
   background: $background-light;
   color: $text-dark;
-  position: relative;
 
   .container {
     @include section-container;
   }
 
-  // === Заголовок ===
   &__header {
-    margin-bottom: 2.5rem;
+    margin-bottom: 2rem;
     max-width: 720px;
   }
 
   &__title {
-    @include section-title; // БЫЛО: дублирование, СТАЛО: миксин
+    @include section-title;
   }
 
   &__subtitle {
     @include section-subtitle;
     color: $text-gray;
+    margin-bottom: 0;
   }
 
-  // === Сетка карточек ===
-  &__grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 1.5rem;
-
-    @media (max-width: 768px) {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  // === Итоговая рекомендация ===
   &__summary {
-    @include summary-block(light); // Используем миксин для светлой темы
+    @include summary-block(light);
   }
 }
 
-// === Карточка метода ===
-.method-card {
-  @include light-card;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  padding: 1.8rem;
+/* ========================================
+   1. ЧИПЫ МЕТОДОВ
+   ======================================== */
 
-  // === Рекомендуемая карточка ===
+.method-compare__chips {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0 1.5rem;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.method-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.9rem 1.1rem;
+  background: #fff;
+  border: 1px solid $border-color;
+  border-radius: 12px;
+  transition: var(--transition);
+
   &--recommended {
     border-color: $blue;
-    box-shadow: 0 0 0 1px $blue, 0 8px 24px rgba(0, 195, 245, 0.12);
-
-    .method-card__icon {
-      background: $blue-gradient;
-      color: $background-dark;
-    }
-  }
-
-  // === Бейдж ===
-  &__badge {
-    position: absolute;
-    top: -12px;
-    right: 1rem;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    padding: 0.3rem 0.8rem;
-    background: $blue-gradient;
-    color: $background-dark;
-    font-family: 'Rubik', sans-serif;
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    border-radius: 50px;
-    box-shadow: 0 4px 12px rgba(0, 195, 245, 0.3);
-  }
-
-  // === Шапка ===
-  &__header {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-    padding-bottom: 1.2rem;
-    border-bottom: 1px solid $border-color;
+    background: rgba(0, 195, 245, 0.05);
+    box-shadow: 0 0 0 1px rgba(0, 195, 245, 0.25);
   }
 
   &__icon {
@@ -289,98 +269,277 @@ const resolvedMethods = computed(() => {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 52px;
-    height: 52px;
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
     background: rgba(0, 195, 245, 0.1);
-    border-radius: 12px;
-    transition: all 0.3s ease;
-  }
-
-  &__header-text {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-  }
-
-  &__title {
-    font-family: 'Rubik', sans-serif;
-    font-size: 1.2rem;
-    font-weight: 700;
-    color: $text-dark;
-    margin: 0;
-    line-height: 1.3;
-  }
-
-  &__price {
-    font-size: 0.9rem;
-    font-weight: 600;
     color: $blue;
   }
 
-  // === Секции (Когда / Плюсы / Минусы) ===
-  &__section {
-    margin-bottom: 1.2rem;
+  &--recommended &__icon {
+    background: $blue-gradient;
+    color: #fff;
+  }
 
-    &:last-child {
-      margin-bottom: 0;
+  &__text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  &__name-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  &__name {
+    font-family: 'Rubik', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    color: $text-dark;
+    line-height: 1.2;
+  }
+
+  &__badge {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 700;
+    padding: 0.15rem 0.5rem;
+    border-radius: 50px;
+    background: $blue-gradient;
+    color: #fff;
+  }
+
+  &__tagline {
+    font-size: 0.82rem;
+    color: $text-gray;
+    margin-top: 2px;
+    line-height: 1.4;
+  }
+}
+
+/* ========================================
+   2. ТАБЛИЦА ХАРАКТЕРИСТИК
+   ======================================== */
+
+.method-compare__table-wrap {
+  margin: 0 0 2rem;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid $border-color;
+  background: #fff;
+}
+
+.method-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  &__label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.9rem 1.1rem;
+    font-family: 'Rubik', sans-serif;
+    font-weight: 600;
+    font-size: 0.88rem;
+    color: $text-gray;
+    background: #fafafa;
+    border-bottom: 1px solid $border-color;
+    text-align: left;
+    width: 200px;
+    white-space: nowrap;
+  }
+
+  &__icon {
+    color: $blue;
+    flex-shrink: 0;
+  }
+
+  &__value {
+    padding: 0.9rem 1.1rem;
+    font-size: 0.94rem;
+    font-weight: 500;
+    color: $text-dark;
+    border-left: 1px solid $border-color;
+    border-bottom: 1px solid $border-color;
+
+    &.is-recommended {
+      background: rgba(0, 195, 245, 0.045);
+      font-weight: 600;
     }
   }
 
-  &__section-title {
+  tr:last-child &__label,
+  tr:last-child &__value {
+    border-bottom: none;
+  }
+}
+
+/* ========================================
+   3. КОГДА ВЫБИРАТЬ
+   ======================================== */
+
+.method-compare__when {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.when-card {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid $border-color;
+  border-radius: 14px;
+  padding: 1.2rem 1.3rem;
+
+  &--recommended {
+    border-color: $blue;
+    box-shadow: 0 0 0 1px rgba(0, 195, 245, 0.3);
+  }
+
+  &__title {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     font-family: 'Rubik', sans-serif;
-    font-size: 0.85rem;
+    font-size: 0.95rem;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: $text-gray;
-    margin: 0 0 0.6rem;
-
-    .method-card__section--when & {
-      color: $blue;
-    }
-
-    .method-card__section--pros & {
-      color: $green;
-    }
-
-    .method-card__section--cons & {
-      color: $red;
-    }
+    color: $text-dark;
+    margin: 0 0 0.85rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid $border-color;
   }
 
-  // === Списки ===
-  &__list {
+  &__list,
+  &__cons {
+    list-style: none;
     margin: 0;
     padding: 0;
-    list-style: none;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.45rem;
+    font-size: 0.9rem;
+    line-height: 1.5;
+
+    li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
   }
 
-  &__list-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.5rem;
-    font-size: 0.92rem;
-    line-height: 1.5;
+  &__check {
+    color: $green;
+    flex-shrink: 0;
+    margin-top: 3px;
+  }
+
+  &__minus {
+    color: $red;
+    flex-shrink: 0;
+    margin-top: 3px;
+  }
+
+  &__cons {
+    margin-top: 0.7rem;
+    padding-top: 0.7rem;
+    border-top: 1px dashed $border-color;
+    color: $text-gray;
+    font-size: 0.86rem;
+  }
+}
+
+/* ========================================
+   АДАПТИВ: ТАБЛИЦА → СТЕК НА МОБИЛЬНЫХ
+   ======================================== */
+
+@media (max-width: 640px) {
+  .method-compare__table-wrap {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+  }
+
+  .method-table,
+  .method-table tbody,
+  .method-table tr,
+  .method-table th,
+  .method-table td {
+    display: block;
+    width: auto;
+    border: none;
+  }
+
+  .method-table tr {
+    background: #fff;
+    border: 1px solid $border-color;
+    border-radius: 12px;
+    padding: 0.9rem 1rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .method-table tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .method-table__label {
+    background: transparent;
+    padding: 0 0 0.5rem;
+    font-size: 0.85rem;
     color: $text-dark;
+    border-bottom: 1px dashed $border-color;
+    width: auto;
+    white-space: normal;
+  }
 
-    .list-icon {
-      flex-shrink: 0;
-      margin-top: 3px;
-      color: $text-gray;
+  .method-table__value {
+    padding: 0.4rem 0 0.4rem 1.5rem;
+    position: relative;
+    border-left: none;
+    font-size: 0.9rem;
+
+    &.is-recommended {
+      background: transparent;
     }
 
-    &--pro .list-icon {
-      color: $green;
+    &::before {
+      content: attr(data-label);
+      position: absolute;
+      left: 0;
+      top: 0.55rem;
+      width: 1.2rem;
+      height: 1.2rem;
+      border-radius: 50%;
+      background: rgba(0, 195, 245, 0.1);
+      color: $blue;
+      font-size: 0.7rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      text-indent: -9999px;
     }
 
-    &--con .list-icon {
-      color: $red;
+    &::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0.55rem;
+      width: 1.2rem;
+      height: 1.2rem;
+      border-radius: 50%;
+      border: 1.5px solid $blue;
+      opacity: 0.4;
     }
   }
 }
