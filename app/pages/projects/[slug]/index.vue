@@ -47,13 +47,20 @@ const works = computed(() => data.value?.works || [])
 watchEffect(() => {
   if (!caseData.value) return
 
-  const cleanDesc = (caseData.value.fullDescription || '')
+  // Для description отдаём приоритет metaDescription из БД (он короче и под SEO)
+  const descSource = caseData.value.metaDescription || caseData.value.fullDescription || ''
+  const cleanDesc = descSource
     .replace(/<[^>]*>/g, '')
     .trim()
 
   const seoDescription = cleanDesc.length > 155
     ? cleanDesc.substring(0, 155) + '...'
     : cleanDesc || 'Ремонт коммерческих помещений под ключ в Рязани'
+
+  // SEO-заголовок: кастомный metaTitle из БД или «Название — ремонт коммерческих помещений»
+  // (глобальный titleTemplate '%s | ГлавПрофи' из app.vue добавит суффикс сам)
+  const caseTitle = caseData.value.metaTitle || `${caseData.value.title} — ремонт коммерческих помещений`
+  const ogTitle = caseData.value.metaTitle || caseData.value.title || 'Кейс ГлавПрофи'
 
   const mainImage = images.value.find(img => img.type === 'main')
   
@@ -68,12 +75,19 @@ watchEffect(() => {
     : `${useRuntimeConfig().public.siteUrl}${mainImageUrl}`
 
   useHead({
-    title: `${caseData.value.title} | ГлавПрофи — ремонт коммерческих помещений`,
+    title: caseTitle,
     meta: [
       { name: 'description', content: seoDescription },
+      { property: 'og:title', content: ogTitle },
       { property: 'og:description', content: seoDescription },
       { property: 'og:image', content: ogImageUrl }, // ← Исправлено
-      { property: 'og:url', content: `${useRuntimeConfig().public.siteUrl}/projects/${slug}` }
+      { property: 'og:image:alt', content: caseData.value.title || 'Ремонт коммерческих помещений' },
+      { property: 'og:url', content: `${useRuntimeConfig().public.siteUrl}/projects/${slug}` },
+      // Twitter/X и ряд мессенджеров используют twitter-теги — перекрываем глобальные из app.vue
+      { name: 'twitter:card', content: 'summary_large_image' },
+      { name: 'twitter:title', content: ogTitle },
+      { name: 'twitter:description', content: seoDescription },
+      { name: 'twitter:image', content: ogImageUrl },
     ]
   })
 })

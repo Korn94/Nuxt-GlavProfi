@@ -99,7 +99,12 @@ export default eventHandler(async (event) => {
       bb.on('field', (name: string, val: string) => { fields[name] = val })
 
       bb.on('file', (name: string, stream: NodeJS.ReadableStream, info: any) => {
-        const safe = `f${fileIndex++}_` + (name.replace(/[^a-zA-Z0-9_\-\[\]]/g, '_') || 'file')
+        // ⚠️ НЕ сохраняем квадратные скобки в имени файла: libvips/sharp трактует
+        // `[N]` в пути как опцию последовательности/номера страницы, обрезает его
+        // и падает с «Input file is missing» (поле `beforeImage[0]`, `gallery[2]`, …).
+        // Уникальность даёт префикс f{fileIndex}_, а связь «имя поля → путь»
+        // хранится в словаре `files`, поэтому читаемое имя в пути не обязательно.
+        const safe = `f${fileIndex++}_` + (name.replace(/[^a-zA-Z0-9_.-]/g, '_') || 'file')
         const p = join(jobDir, safe)
         files[name] = p
         originalFilenames[name] = info.filename || name
