@@ -58,6 +58,13 @@
       </div>
     </section>
 
+    <!-- === НОВАЯ СЕКЦИЯ: Карта объектов === -->
+    <section class="portfolio-map">
+      <div class="container">
+        <UiMapYandexMap :projects="mapProjects" :zoom="13" />
+      </div>
+    </section>
+
     <!-- P.S. блок -->
     <section class="ps">
       <div class="container">
@@ -82,7 +89,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 
 const heroSection = ref(null)
 const telegramLink = 'https://t.me/glavprofii'
@@ -95,20 +102,45 @@ const handleFormSubmitted = (formData) => {
   closeModal()
 }
 
-// Категории для табов (синхронизируем с cards.vue)
+// Категории для табов
 const tabs = [
-  'Все',
-  'Кафе',
-  'Магазины',
-  'Клиники',
-  'Банки',
-  'Фитнес',
-  'Салоны',
-  'Офисы',
-  'Производственные',
-  'Фасады и Кровля',
-  'Прочее'
+  'Все', 'Кафе', 'Магазины', 'Клиники', 'Банки',
+  'Фитнес', 'Салоны', 'Офисы', 'Производственные', 'Фасады и Кровля', 'Прочее'
 ]
+
+// Координаты объектов для отображения на карте
+const coordinatesMap = {
+  'ddx': { latitude: 54.6094, longitude: 39.8039 },      // ТЦ «Шоколад», ул. Новосёлов, 26Г
+  'zerno': { latitude: 54.6506, longitude: 39.6361 },    // Московское ш., 65А, М5 Молл
+  'klinika-alma': { latitude: 54.6107, longitude: 39.7167 }, // ул. Гагарина, 160/2
+  'fora-bank': { latitude: 54.6289, longitude: 39.7197 }, // Первомайский проспект, 33
+  'cast': { latitude: 54.6304, longitude: 39.7071 }      // Первомайский проспект, 76
+}
+
+// Загрузка проектов для карты
+const { data: allProjects } = await useAsyncData(
+  'all-projects-for-map',
+  async () => {
+    try {
+      const data = await $fetch('/api/portfolio')
+      return data?.data || []
+    } catch (err) {
+      console.error('Ошибка при загрузке проектов для карты:', err)
+      return []
+    }
+  }
+)
+
+// Проекты с координатами для отображения на карте
+const mapProjects = computed(() => {
+  return (allProjects.value || [])
+    .filter(project => project?.slug)
+    .map(project => ({
+      ...project,
+      coordinates: coordinatesMap[project.slug] || null
+    }))
+    .filter(project => project.coordinates)
+})
 
 // Преимущества
 const benefits = [
@@ -188,7 +220,7 @@ onMounted(() => {
 
   &__title {
     @include section-title;
-    font-size: 2.3rem; // Чуть больше для hero
+    font-size: 2.3rem;
   }
 
   &__badge {
@@ -314,6 +346,31 @@ onMounted(() => {
 
   .container {
     @include section-container;
+  }
+}
+
+// === СЕКЦИЯ С КАРТОЙ ===
+.portfolio-map {
+  @include section-padding;
+  background: $background-dark;
+  color: $text-light;
+  position: relative;
+
+  .container {
+    @include section-container;
+    max-width: 1200px;
+  }
+
+  // Декоративный фон
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at 95% 100%, $blue 0%, transparent 15%);
+    pointer-events: none;
   }
 }
 

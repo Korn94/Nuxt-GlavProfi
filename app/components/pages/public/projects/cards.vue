@@ -83,17 +83,25 @@
         <!-- Overlay с информацией -->
         <div class="case-card__overlay">
           <h3 class="case-card__title">{{ card.title }}</h3>
-          <div class="case-card__flex">
-            <div class="case-card__category" v-if="card.category">
-              {{ card.category }}
+          <p v-if="card.subtitle" class="case-card__subtitle">
+            {{ card.subtitle }}
+          </p>
+          
+          <!-- Нижний ряд: категория+кнопка слева, адрес справа -->
+          <div class="case-card__bottom-row">
+            <div class="case-card__bottom-left">
+              <div class="case-card__category" v-if="card.category">
+                {{ card.category }}
+              </div>
+              <span class="case-card__link">
+                Подробнее
+                <Icon name="weui:arrow-filled" size="16" />
+              </span>
             </div>
-            <p v-if="card.subtitle" class="case-card__subtitle">
-              {{ card.subtitle }}
-            </p>
-            <span class="case-card__link">
-              Подробнее
-              <Icon name="weui:arrow-filled" size="16" />
-            </span>
+            <div v-if="card.address" class="case-card__address">
+              <Icon name="mdi:map-marker-outline" size="14" class="case-card__address-icon" />
+              <span class="case-card__address-text">{{ card.address }}</span>
+            </div>
           </div>
         </div>
       </NuxtLink>
@@ -476,6 +484,15 @@ onMounted(() => {
       .case-card__space {
         background: rgba(0, 195, 245, 0.85);
       }
+
+      .case-card__address {
+        background: rgba(0, 195, 245, 0.85);
+        border-color: rgba(255, 255, 255, 0.25);
+
+        .case-card__address-icon {
+          color: #fff;
+        }
+      }
     }
 
     // Изображение
@@ -492,7 +509,7 @@ onMounted(() => {
       }
     }
 
-    // Badge с площадью (glassmorphism)
+    // Badge с площадью (верхний правый угол)
     &__space {
       position: absolute;
       top: 1rem;
@@ -518,7 +535,6 @@ onMounted(() => {
       padding: 1.5rem;
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
       background: linear-gradient(
         to top,
         rgba(24, 25, 27, 0.95) 0%,
@@ -527,26 +543,6 @@ onMounted(() => {
       );
       color: #fff;
       z-index: 2;
-    }
-
-    &__flex {
-      display: flex;
-      flex-direction: column;
-    }
-
-    &__category {
-      align-self: flex-start;
-      // display: inline;
-      font-size: 0.75rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: $blue-light;
-      margin-bottom: 0.5rem;
-      padding: 0.2rem 0.6rem;
-      background: rgba(0, 195, 245, 0.15);
-      border: 1px solid rgba(0, 195, 245, 0.3);
-      border-radius: 4px;
     }
 
     &__title {
@@ -566,8 +562,37 @@ onMounted(() => {
     &__subtitle {
       font-size: 0.9rem;
       color: rgba(255, 255, 255, 0.85);
-      margin: 0 0 0.8rem;
+      margin: 0 0 1.2rem;
       line-height: 1.4;
+    }
+
+    // Нижний ряд
+    &__bottom-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 1rem;
+      margin-top: auto;
+    }
+
+    // Левая колонка (категория + кнопка)
+    &__bottom-left {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    &__category {
+      align-self: flex-start;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: $blue-light;
+      padding: 0.2rem 0.6rem;
+      background: rgba(0, 195, 245, 0.15);
+      border: 1px solid rgba(0, 195, 245, 0.3);
+      border-radius: 4px;
     }
 
     &__link {
@@ -578,9 +603,37 @@ onMounted(() => {
       font-size: 0.92rem;
       font-weight: 600;
       transition: all 0.3s ease;
+      white-space: nowrap;
 
       :deep(.icon) {
         transition: transform 0.3s ease;
+      }
+    }
+
+    // Адрес (правый нижний угол с переносом текста)
+    &__address {
+      display: inline-flex;
+      align-items: flex-start;
+      gap: 0.35rem;
+      background: rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      color: #fff;
+      padding: 0.4rem 0.8rem;
+      border-radius: 12px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      line-height: 1.35;
+      text-align: right;
+      max-width: 65%;
+      word-break: break-word;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      transition: all 0.3s ease;
+
+      &-icon {
+        flex-shrink: 0;
+        color: $blue-light;
+        margin-top: 0.1rem;
       }
     }
   }
@@ -687,6 +740,19 @@ onMounted(() => {
 
       &__category {
         font-size: 0.7rem;
+      }
+
+      // &__bottom-row {
+        // flex-direction: column;
+        // align-items: flex-start;
+        // gap: 0.6rem;
+        // width: 100%;
+      // }
+
+      &__address {
+        max-width: 100%;
+        text-align: left;
+        font-size: 0.78rem;
       }
     }
 

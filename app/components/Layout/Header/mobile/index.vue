@@ -7,24 +7,24 @@
       <ul>
         <li :class="{ active: !isMenuActive && currentRoute === 'index' }">
           <nuxt-link to="/" @click.native="closeMenus">
-            <Icon name="solar:home-angle-broken" size="22px" />
+            <Icon name="mdi:home" size="22px" />
             <span class="label">Главная</span>
           </nuxt-link>
         </li>
         <li :class="{ active: !isMenuActive && isPriceRoute }">
           <nuxt-link to="/prices/otdelochnye-raboty" @click.native="closeMenus">
-            <Icon name="solar:tag-price-broken" size="22px" />
+            <Icon name="mdi:tag" size="22px" />
             <span class="label">Прайс-лист</span>
           </nuxt-link>
         </li>
         <li :class="{ active: !isMenuActive && currentRoute === 'contacts' }">
           <a href="tel:+79109096947" @click="closeMenus">
-            <Icon name="solar:phone-line-duotone" size="22px" />
+            <Icon name="mdi:phone" size="22px" />
             <span class="label">Заказать</span>
           </a>
         </li>
         <li :class="{ active: isMenuActive }" @click="toggleMenu">
-          <Icon name="stash:burger-classic" size="22px" />
+          <Icon name="mdi:hamburger-menu" size="22px" />
           <span class="label">Меню</span>
         </li>
       </ul>

@@ -99,6 +99,7 @@ export default eventHandler(async (event) => {
       id: portfolioCases.id,
       title: portfolioCases.title,
       space: portfolioCases.space,
+      address: portfolioCases.address,
       category: portfolioCases.category,
       order: portfolioCases.order,
       slug: portfolioCases.slug,
