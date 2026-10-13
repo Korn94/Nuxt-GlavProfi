@@ -760,6 +760,7 @@ const structureOption = computed<EChartsOption>(() => ({
   grid-template-columns: 1fr;
   gap: 1.25rem;
   margin-bottom: 1.25rem;
+  width: 100%;
 }
 
 .kp-chart-card {
@@ -767,6 +768,12 @@ const structureOption = computed<EChartsOption>(() => ({
   background: #fff;
   border: 1px solid #e8ecf0;
   border-radius: 18px;
+  
+  // КРИТИЧНО: ограничиваем ширину и разрешаем сжатие внутри grid/flex
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden; // Обрезаем canvas графика, если он пытается вылезти
 
   &__head {
     display: flex;
@@ -774,6 +781,7 @@ const structureOption = computed<EChartsOption>(() => ({
     justify-content: space-between;
     gap: 1rem;
     margin-bottom: 1rem;
+    flex-wrap: wrap; // Позволяет заголовку и подписи переноситься на узких экранах
 
     h3 {
       font-size: 1.05rem;
@@ -790,6 +798,17 @@ const structureOption = computed<EChartsOption>(() => ({
 
   &--wide {
     margin-top: .25rem;
+  }
+
+  // Адаптив для очень узких экранов (смартфоны в портретной ориентации)
+  @media (max-width: 480px) {
+    padding: 1.25rem 1rem 1rem;
+    
+    &__head {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.25rem;
+    }
   }
 }
 
