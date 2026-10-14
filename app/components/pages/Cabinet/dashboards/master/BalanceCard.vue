@@ -96,8 +96,9 @@ function formatCurrency(amount: number): string {
 }
 
 function getBalanceClass(balance: number): string {
-  if (balance > 0) return 'balance-value--positive'
-  if (balance < 0) return 'balance-value--negative'
+  // Инвертируем логику, так как в БД знак хранится наоборот
+  if (balance > 0) return 'balance-value--negative'  // положительный в БД = отрицательный для мастера
+  if (balance < 0) return 'balance-value--positive'  // отрицательный в БД = положительный для мастера
   return 'balance-value--neutral'
 }
 
