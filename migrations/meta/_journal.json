@@ -239,6 +239,13 @@
       "when": 1789741149246,
       "tag": "0033_silly_swarm",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "5",
+      "when": 1792139211236,
+      "tag": "0034_redundant_mesmero",
+      "breakpoints": true
     }
   ]
 }

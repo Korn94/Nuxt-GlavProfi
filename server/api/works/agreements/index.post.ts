@@ -58,7 +58,7 @@ const createWorkAgreementSchema = z
 
     workType: z.enum(workTypeEnum).optional().default('Прочее'),
 
-    volume: z.number().positive(),
+    volume: z.number().positive().optional(),
 
     unit: z.enum(unitEnum).default('m2'),
 
@@ -69,6 +69,9 @@ const createWorkAgreementSchema = z
       .nullable(),
 
     priceMode: z.enum(priceModeEnum).default('unit'),
+
+    // Галочка «просто цена за 1 ед.» (прайс): объём укажет исполнитель
+    unitPriceOnly: z.boolean().default(false),
 
     unitPrice: z
       .number()
@@ -119,6 +122,35 @@ const createWorkAgreementSchema = z
         code: 'custom',
         path: ['unitCustom'],
         message: 'Укажите единицу измерения'
+      })
+    }
+
+    // Прайс-карточка (unitPriceOnly): без объёма, только цена за единицу
+    if (data.unitPriceOnly) {
+      if (data.priceMode !== 'unit') {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['priceMode'],
+          message: 'Для цены без объёма выберите тип «Цена за единицу»'
+        })
+      }
+
+      if (data.unitPrice == null) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['unitPrice'],
+          message: 'Укажите цену за единицу'
+        })
+      }
+
+      return
+    }
+
+    if (data.volume == null || data.volume <= 0) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['volume'],
+        message: 'Укажите объём'
       })
     }
 
@@ -178,12 +210,15 @@ export default defineEventHandler(async (event) => {
 
   const user = event.context.user as any
 
-  const agreedAmount = calcAgreementAmount({
-    priceMode: data.priceMode,
-    volume: data.volume,
-    unitPrice: data.unitPrice,
-    fixedTotal: data.fixedTotal
-  })
+  // Для прайс-карточки объём неизвестен → сумма договорённости 0 (наберётся подтверждёнными заявками)
+  const agreedAmount = data.unitPriceOnly
+    ? 0
+    : calcAgreementAmount({
+        priceMode: data.priceMode,
+        volume: data.volume ?? 0,
+        unitPrice: data.unitPrice,
+        fixedTotal: data.fixedTotal
+      })
 
   const now = new Date()
 
@@ -193,12 +228,13 @@ export default defineEventHandler(async (event) => {
       objectId: data.objectId,
       title: data.title,
       workType: data.workType,
-      volume: String(data.volume),
+      volume: data.unitPriceOnly ? null : String(data.volume ?? 0),
       unit: data.unit,
       unitCustom: data.unit === 'custom' ? data.unitCustom : null,
-      priceMode: data.priceMode,
-      unitPrice: data.priceMode === 'unit' ? String(data.unitPrice ?? '0') : null,
-      fixedTotal: data.priceMode === 'fixed' ? String(data.fixedTotal ?? '0') : null,
+      priceMode: data.unitPriceOnly ? 'unit' : data.priceMode,
+      unitPrice: (data.unitPriceOnly || data.priceMode === 'unit') ? String(data.unitPrice ?? '0') : null,
+      fixedTotal: !data.unitPriceOnly && data.priceMode === 'fixed' ? String(data.fixedTotal ?? '0') : null,
+      unitPriceOnly: data.unitPriceOnly,
       agreedAmount: String(agreedAmount),
       acceptedVolume: '0.000',
       acceptedAmount: '0.00',

@@ -1,6 +1,7 @@
 // server/api/works/agreements/index.get.ts
 import { defineEventHandler, getQuery, createError } from 'h3'
 import { eq, inArray } from 'drizzle-orm'
+import { alias } from 'drizzle-orm/mysql-core'
 import { db } from '../../../db'
 import { workAgreements, masters, workers } from '../../../db/schema'
 import {
@@ -11,6 +12,9 @@ import {
   round2,
   round3
 } from '../../../utils/workAgreements'
+
+// Алиас для self-join: родительская прайс-карточка дубля-заявки
+const parentAgreements = alias(workAgreements, 'parent_agreements')
 
 export default defineEventHandler(async (event) => {
   if (!await canViewWorkAgreements(event)) {
@@ -31,21 +35,25 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const agreements = await db
-    .select()
+  const rows = await db
+    .select({
+      agreement: workAgreements,
+      parentTitle: parentAgreements.title
+    })
     .from(workAgreements)
+    .leftJoin(parentAgreements, eq(workAgreements.parentAgreementId, parentAgreements.id))
     .where(eq(workAgreements.objectId, objectId))
 
   const canSeeAdmin = await canSeeAdminComment(event)
 
   // Собираем ID контрагентов для подгрузки имён
-  const masterIds = agreements
-    .filter(a => a.contractorType === 'master' && a.contractorId)
-    .map(a => a.contractorId as number)
+  const masterIds = rows
+    .filter(r => r.agreement.contractorType === 'master' && r.agreement.contractorId)
+    .map(r => r.agreement.contractorId as number)
 
-  const workerIds = agreements
-    .filter(a => a.contractorType === 'worker' && a.contractorId)
-    .map(a => a.contractorId as number)
+  const workerIds = rows
+    .filter(r => r.agreement.contractorType === 'worker' && r.agreement.contractorId)
+    .map(r => r.agreement.contractorId as number)
 
   // Подгружаем имена контрагентов
   const [mastersList, workersList] = await Promise.all([
@@ -67,8 +75,8 @@ export default defineEventHandler(async (event) => {
   const masterMap = new Map(mastersList.map(m => [m.id, m.name]))
   const workerMap = new Map(workersList.map(w => [w.id, w.name]))
 
-  return agreements.map((agreement) => {
-    const volume = Number(agreement.volume || 0)
+  return rows.map(({ agreement, parentTitle }) => {
+    const volume = agreement.unitPriceOnly ? null : Number(agreement.volume || 0)
     const acceptedVolume = Number(agreement.acceptedVolume || 0)
     const agreedAmount = Number(agreement.agreedAmount || 0)
     const acceptedAmount = Number(agreement.acceptedAmount || 0)
@@ -90,7 +98,7 @@ export default defineEventHandler(async (event) => {
       agreedAmount,
       acceptedAmount,
 
-      remainingVolume: round3(volume - acceptedVolume),
+      remainingVolume: volume == null ? null : round3(volume - acceptedVolume),
       remainingAmount: round2(agreedAmount - acceptedAmount),
 
       percent: getAgreementPercent({
@@ -104,6 +112,9 @@ export default defineEventHandler(async (event) => {
       }),
 
       contractorName,
+
+      // Название прайс-карточки, из которой пришла заявка (дубль)
+      parentTitle: parentTitle || null,
 
       adminComment: canSeeAdmin ? agreement.adminComment : null
     }

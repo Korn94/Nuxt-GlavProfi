@@ -58,6 +58,15 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  // Прайс-карточка (unitPriceOnly): приёмка идёт только через подтверждение
+  // заявки исполнителя (confirm-proposal), здесь объёма нет
+  if (agreement.unitPriceOnly) {
+    throw createError({
+      statusCode: 400,
+      message: 'По этой договорённости объём утверждается через подтверждение заявки исполнителя'
+    })
+  }
+
   const body = await readBody(event)
 
   const parsed = acceptWorkAgreementSchema.safeParse(body)

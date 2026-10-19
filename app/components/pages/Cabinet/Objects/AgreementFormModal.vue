@@ -51,7 +51,8 @@
               type="number"
               min="0"
               step="1"
-              :disabled="isLocked"
+              :disabled="isLocked || form.unitPriceOnly"
+              :placeholder="form.unitPriceOnly ? 'Укажет исполнитель' : ''"
             />
           </label>
 
@@ -88,7 +89,7 @@
             <span>Тип цены</span>
             <select
               v-model="form.priceMode"
-              :disabled="isLocked"
+              :disabled="isLocked || form.unitPriceOnly"
             >
               <option value="unit">
                 Цена за единицу
@@ -98,6 +99,25 @@
               </option>
             </select>
           </label>
+
+          <label class="form-field form-field--wide checkbox-field">
+            <input
+              v-model="form.unitPriceOnly"
+              type="checkbox"
+              :disabled="isLocked"
+            />
+            <span>
+              Цена за 1 ед. без объёма — объём укажет исполнитель
+            </span>
+          </label>
+
+          <div
+            v-if="form.unitPriceOnly"
+            class="form-hint form-field--wide"
+          >
+            Объём не задаётся: исполнитель пришлёт свой расчёт на проверку,
+            а вы подтвердите или отклоните его в списке договорённостей.
+          </div>
 
           <label
             v-if="form.priceMode === 'unit'"
@@ -303,6 +323,7 @@ const form = reactive({
   unit: 'm2',
   unitCustom: '',
   priceMode: 'unit' as 'unit' | 'fixed',
+  unitPriceOnly: false,
   unitPrice: null as number | null,
   fixedTotal: null as number | null,
   contractorType: null as 'master' | 'worker' | null,
@@ -319,6 +340,10 @@ const isLocked = computed(() => {
 })
 
 const totalAmount = computed(() => {
+  if (form.unitPriceOnly) {
+    return 0
+  }
+
   if (form.priceMode === 'fixed') {
     return Number(form.fixedTotal || 0)
   }
@@ -336,10 +361,13 @@ function resetForm() {
   if (props.agreement) {
     form.title = props.agreement.title || ''
     form.workType = props.agreement.workType || 'Прочее'
-    form.volume = Number(props.agreement.volume || 0)
+    form.volume = props.agreement.unitPriceOnly
+      ? null
+      : Number(props.agreement.volume || 0) || null
     form.unit = props.agreement.unit || 'm2'
     form.unitCustom = props.agreement.unitCustom || ''
-    form.priceMode = props.agreement.priceMode || 'unit'
+    form.unitPriceOnly = Boolean(props.agreement.unitPriceOnly)
+    form.priceMode = form.unitPriceOnly ? 'unit' : (props.agreement.priceMode || 'unit')
     form.unitPrice = props.agreement.unitPrice != null
       ? Number(props.agreement.unitPrice)
       : null
@@ -357,6 +385,7 @@ function resetForm() {
     form.unit = 'm2'
     form.unitCustom = ''
     form.priceMode = 'unit'
+    form.unitPriceOnly = false
     form.unitPrice = null
     form.fixedTotal = null
     form.contractorType = null
@@ -390,7 +419,7 @@ function validate() {
     return false
   }
 
-  if (!form.volume || form.volume <= 0) {
+  if (!form.unitPriceOnly && (!form.volume || form.volume <= 0)) {
     errorMessage.value = 'Укажите объём'
     return false
   }
@@ -400,12 +429,12 @@ function validate() {
     return false
   }
 
-  if (form.priceMode === 'unit' && form.unitPrice == null) {
+  if ((form.priceMode === 'unit' || form.unitPriceOnly) && form.unitPrice == null) {
     errorMessage.value = 'Укажите цену за единицу'
     return false
   }
 
-  if (form.priceMode === 'fixed' && form.fixedTotal == null) {
+  if (!form.unitPriceOnly && form.priceMode === 'fixed' && form.fixedTotal == null) {
     errorMessage.value = 'Укажите итоговую сумму'
     return false
   }
@@ -431,15 +460,19 @@ async function submit() {
       objectId: props.objectId,
       title: form.title.trim(),
       workType: form.workType,
-      volume: Number(form.volume || 0),
       unit: form.unit,
       unitCustom: form.unit === 'custom' ? form.unitCustom.trim() : null,
-      priceMode: form.priceMode,
-      unitPrice: form.priceMode === 'unit' ? Number(form.unitPrice || 0) : null,
-      fixedTotal: form.priceMode === 'fixed' ? Number(form.fixedTotal || 0) : null,
+      unitPriceOnly: form.unitPriceOnly,
+      priceMode: form.unitPriceOnly ? 'unit' : form.priceMode,
+      unitPrice: form.unitPriceOnly || form.priceMode === 'unit' ? Number(form.unitPrice || 0) : null,
+      fixedTotal: !form.unitPriceOnly && form.priceMode === 'fixed' ? Number(form.fixedTotal || 0) : null,
       contractorType: form.contractorType || null,
       contractorId: form.contractorId || null,
       publicComment: form.publicComment.trim() || null
+    }
+
+    if (!form.unitPriceOnly) {
+      payload.volume = Number(form.volume || 0)
     }
 
     if (isAdmin.value) {
@@ -609,6 +642,29 @@ onMounted(() => {
       cursor: not-allowed;
     }
   }
+}
+
+.checkbox-field {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+
+  input {
+    width: auto;
+    cursor: pointer;
+  }
+
+  span {
+    font-size: var(--crm-text-sm);
+    color: var(--crm-text-primary);
+  }
+}
+
+.form-hint {
+  font-size: var(--crm-text-xs);
+  color: var(--crm-text-muted);
+  line-height: 1.45;
 }
 
 .form-error {

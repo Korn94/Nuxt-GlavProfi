@@ -74,6 +74,15 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  // Прайс-карточка (unitPriceOnly): объём не согласован — исполнитель предлагает его
+  // отдельным действием «Предложить объём» (propose-volume), а не «Сдать»
+  if (agreement.unitPriceOnly) {
+    throw createError({
+      statusCode: 400,
+      message: 'По этой договорённости объём предлагает исполнитель — используйте «Предложить объём»'
+    })
+  }
+
   const body = await readBody(event)
 
   const parsed = submitWorkAgreementSchema.safeParse(body)

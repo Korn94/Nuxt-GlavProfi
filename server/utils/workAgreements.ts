@@ -66,7 +66,7 @@ export function calcAcceptAmount(input: {
 }
 
 export function getAgreementPercent(input: {
-  volume: number | string
+  volume: number | string | null
   acceptedVolume: number | string
 }): number {
   const volume = Number(input.volume || 0)
@@ -80,11 +80,16 @@ export function getAgreementPercent(input: {
 }
 
 export function isAgreementFullyAccepted(input: {
-  volume: number | string
+  volume: number | string | null
   acceptedVolume: number | string
 }): boolean {
   const volume = Number(input.volume || 0)
   const acceptedVolume = Number(input.acceptedVolume || 0)
+
+  // Прайс-карточки (unitPriceOnly): объём не задан (NULL) — «полностью принято» не применимо
+  if (volume <= 0) {
+    return false
+  }
 
   return acceptedVolume >= volume - 0.0001
 }
@@ -178,6 +183,11 @@ export async function createWorkAgreementAcceptance(input: {
   comment?: string
   accepted: boolean
   user?: any
+  /**
+   * Дополнительно выставить статус договорённости в ТОЙ ЖЕ транзакции
+   * (например, 'active' при подтверждении заявки на объём — confirm-proposal).
+   */
+  newStatus?: 'active' | 'cancelled' | 'rejected' | 'pending_review'
 }): Promise<void> {
   const {
     agreement,
@@ -187,7 +197,8 @@ export async function createWorkAgreementAcceptance(input: {
     contractorId,
     comment,
     accepted,
-    user
+    user,
+    newStatus
   } = input
 
   const now = new Date()
@@ -282,6 +293,7 @@ export async function createWorkAgreementAcceptance(input: {
       .set({
         acceptedVolume: sql`${workAgreements.acceptedVolume} + ${acceptedVolume}`,
         acceptedAmount: sql`${workAgreements.acceptedAmount} + ${acceptedAmount}`,
+        ...(newStatus ? { status: newStatus } : {}),
         updatedAt: now,
         updatedBy: user?.id || null
       })

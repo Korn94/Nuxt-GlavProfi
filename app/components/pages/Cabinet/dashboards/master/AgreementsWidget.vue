@@ -37,6 +37,10 @@
         <span class="summary-item__label">Ожидает приёмки</span>
         <strong class="summary-item__value summary-item__value--pending">{{ formatCurrency(totalPending) }}</strong>
       </div>
+      <div v-if="pendingProposals.length > 0" class="summary-item">
+        <span class="summary-item__label">Заявки на проверке</span>
+        <strong class="summary-item__value summary-item__value--pending">{{ pendingProposals.length }}</strong>
+      </div>
     </div>
 
     <!-- Загрузка -->
@@ -69,7 +73,14 @@
             v-for="agreement in group.items"
             :key="agreement.id"
             class="agreement-card"
-            :class="{ 'agreement-card--done': agreement.isFullyAccepted || agreement.status === 'cancelled' }"
+            :class="{
+              'agreement-card--done':
+                agreement.isFullyAccepted ||
+                agreement.status === 'cancelled' ||
+                agreement.status === 'rejected',
+              'agreement-card--pending': agreement.status === 'pending_review',
+              'agreement-card--price': agreement.unitPriceOnly
+            }"
           >
             <div class="agreement-card__header">
               <div class="agreement-card__title-block">
@@ -77,28 +88,81 @@
                 <div class="agreement-card__meta">
                   {{ agreement.workType }}
                   <span v-if="agreement.status === 'cancelled'">· отменена</span>
+                  <span v-else-if="agreement.status === 'rejected'">· отклонена</span>
+                  <span v-else-if="agreement.status === 'pending_review'">· на проверке</span>
                 </div>
               </div>
               <div class="agreement-card__amount">
-                {{ formatCurrency(agreement.agreedAmount) }}
+                <template v-if="agreement.unitPriceOnly">
+                  {{ unitPrice(agreement) }}/{{ unitLabel(agreement) }}
+                </template>
+                <template v-else>
+                  {{ formatCurrency(agreement.agreedAmount) }}
+                </template>
               </div>
             </div>
 
-            <div class="agreement-card__volume">
+            <!-- Бейджи -->
+            <div
+              v-if="
+                agreement.unitPriceOnly ||
+                agreement.status === 'pending_review' ||
+                agreement.status === 'rejected'
+              "
+              class="agreement-card__badges"
+            >
+              <span v-if="agreement.unitPriceOnly" class="wbadge wbadge--price">
+                Цена за 1 ед. · объём укажу я
+              </span>
+
+              <span v-if="agreement.status === 'pending_review'" class="wbadge wbadge--pending">
+                Ожидает решения руководителя
+              </span>
+
+              <span
+                v-if="agreement.status === 'pending_review' && agreement.parentTitle"
+                class="wbadge wbadge--parent"
+              >
+                по «{{ agreement.parentTitle }}»
+              </span>
+            </div>
+
+            <!-- Объём и цена (для прайса объём не показываем) -->
+            <div v-if="!agreement.unitPriceOnly" class="agreement-card__volume">
               Объём: {{ agreement.volume }} {{ unitLabel(agreement) }}
-              <template v-if="unitPrice(agreement) !== null">
+              <template v-if="unitPrice(agreement) !== null && !agreement.unitPriceOnly">
                 · Цена: {{ unitPrice(agreement) }}/{{ unitLabel(agreement) }}
               </template>
-              <span v-if="agreement.remainingVolume > 0" class="agreement-card__remaining">
+              <span
+                v-if="Number(agreement.remainingVolume || 0) > 0"
+                class="agreement-card__remaining"
+              >
                 · осталось {{ agreement.remainingVolume }} {{ unitLabel(agreement) }}
               </span>
+            </div>
+
+            <div v-else class="agreement-card__volume">
+              Цена: {{ unitPrice(agreement) }}/{{ unitLabel(agreement) }}
+              · объём укажу после работ
+            </div>
+
+            <!-- Комментарий заявки / причина отклонения -->
+            <div
+              v-if="agreement.status === 'rejected' && agreement.rejectionReason"
+              class="agreement-card__comment agreement-card__comment--reject"
+            >
+              Причина отклонения: {{ agreement.rejectionReason }}
             </div>
 
             <div v-if="agreement.publicComment" class="agreement-card__comment">
               {{ agreement.publicComment }}
             </div>
 
-            <div class="agreement-card__progress">
+            <!-- Прогресс только для карточек с согласованным объёмом -->
+            <div
+              v-if="!agreement.unitPriceOnly && agreement.status !== 'pending_review'"
+              class="agreement-card__progress"
+            >
               <div class="progress">
                 <div
                   class="progress__fill"
@@ -134,17 +198,26 @@
               >
                 Сдать
               </button>
+
+              <button
+                v-if="canPropose(agreement)"
+                :disabled="loading"
+                class="crm-btn crm-btn--primary crm-btn--sm"
+                @click="openProposeModal(agreement)"
+              >
+                Предложить объём
+              </button>
             </div>
           </article>
         </div>
       </section>
     </div>
 
-    <!-- Модалка сдачи объёма -->
+    <!-- Модалка сдачи/предложения объёма -->
     <PagesCabinetObjectsAgreementAcceptModal
       v-model="submitModalOpen"
       :agreement="selectedAgreement"
-      mode="submit"
+      :mode="modalMode"
       :fixed-contractor="{ contractorType, contractorId }"
       @saved="handleSaved"
     />
@@ -162,18 +235,24 @@ interface WorkAgreement {
   objectName: string
   title: string
   workType: string
-  volume: number
+  volume: number | null
   unit: string
   unitCustom?: string | null
+  priceMode?: 'unit' | 'fixed'
+  unitPriceOnly: boolean
+  unitPrice?: string | number | null
   agreedAmount: number
   acceptedVolume: number
   acceptedAmount: number
-  remainingVolume: number
+  remainingVolume: number | null
   remainingAmount: number
   percent: number
   isFullyAccepted: boolean
   publicComment?: string | null
-  status: 'active' | 'cancelled'
+  status: 'active' | 'pending_review' | 'rejected' | 'cancelled'
+  rejectionReason?: string | null
+  parentAgreementId?: number | null
+  parentTitle?: string | null
   pendingVolume: number
   pendingAmount: number
   pendingCount: number
@@ -196,6 +275,8 @@ const agreements = ref<WorkAgreement[]>([])
 const loading = ref(false)
 
 const submitModalOpen = ref(false)
+// Режим модалки: 'submit' — сдача согласованного объёма, 'propose' — предложение объёма по прайсу
+const modalMode = ref<'submit' | 'propose'>('submit')
 const selectedAgreement = ref<WorkAgreement | null>(null)
 
 // ── Группировка по объектам ───────────────────────────────────────
@@ -217,18 +298,29 @@ const groupedByObject = computed<ObjectGroup[]>(() => {
 })
 
 // ── Сводка ─────────────────────────────────────────────────────────
+// Учитываются только активные карточки: прайсы (сумма 0) и подтверждённые заявки.
+// pending_review / rejected / cancelled в «Договоровано» не входят.
+const activeAgreements = computed(() =>
+  agreements.value.filter(a => a.status === 'active')
+)
+
 const totalAgreed = computed(() =>
-  agreements.value.reduce((sum, a) => sum + Number(a.agreedAmount || 0), 0)
+  activeAgreements.value.reduce((sum, a) => sum + Number(a.agreedAmount || 0), 0)
 )
 
 const totalAccepted = computed(() =>
-  agreements.value.reduce((sum, a) => sum + Number(a.acceptedAmount || 0), 0)
+  activeAgreements.value.reduce((sum, a) => sum + Number(a.acceptedAmount || 0), 0)
 )
 
 const totalRemaining = computed(() => totalAgreed.value - totalAccepted.value)
 
 const totalPending = computed(() =>
   agreements.value.reduce((sum, a) => sum + Number(a.pendingAmount || 0), 0)
+)
+
+// Заявки, ожидающие решения руководителя
+const pendingProposals = computed(() =>
+  agreements.value.filter(a => a.status === 'pending_review')
 )
 
 // ── API ────────────────────────────────────────────────────────────
@@ -271,6 +363,11 @@ function unitLabel(agreement: WorkAgreement) {
 }
 
 function unitPrice(agreement: WorkAgreement) {
+  // Цену берём из согласованной цены за единицу (работает и для прайс-карточек)
+  if (agreement.unitPrice != null && Number(agreement.unitPrice) > 0) {
+    return formatCurrency(Number(agreement.unitPrice))
+  }
+
   const volume = Number(agreement.volume || 0)
   if (volume <= 0) return null
   return formatCurrency(Number(agreement.agreedAmount || 0) / volume)
@@ -279,13 +376,35 @@ function unitPrice(agreement: WorkAgreement) {
 function canSubmit(agreement: WorkAgreement) {
   return (
     agreement.status === 'active' &&
+    !agreement.unitPriceOnly &&
     !agreement.isFullyAccepted &&
-    agreement.remainingVolume > 0
+    Number(agreement.remainingVolume || 0) > 0
+  )
+}
+
+/** Прайс-карточка без нерешённой заявки — можно предложить объём */
+function canPropose(agreement: WorkAgreement) {
+  if (!agreement.unitPriceOnly || agreement.status !== 'active') {
+    return false
+  }
+
+  // Пока есть заявка по этому прайсу на проверке — новую не предлагаем
+  return !agreements.value.some(
+    a =>
+      a.parentAgreementId === agreement.id &&
+      a.status === 'pending_review'
   )
 }
 
 function openSubmitModal(agreement: WorkAgreement) {
   selectedAgreement.value = agreement
+  modalMode.value = 'submit'
+  submitModalOpen.value = true
+}
+
+function openProposeModal(agreement: WorkAgreement) {
+  selectedAgreement.value = agreement
+  modalMode.value = 'propose'
   submitModalOpen.value = true
 }
 
@@ -444,11 +563,26 @@ onMounted(() => {
     }
   }
 
+  &--pending {
+    border-color: rgba(240, 173, 78, 0.55);
+    box-shadow: 0 0 0 1px rgba(240, 173, 78, 0.15);
+  }
+
+  &--price {
+    border-style: dashed;
+  }
+
   &__header {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
     gap: 12px;
+  }
+
+  &__badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
   }
 
   &__title-block {
@@ -491,6 +625,10 @@ onMounted(() => {
     color: var(--crm-text-secondary);
     white-space: pre-wrap;
     word-break: break-word;
+
+    &--reject {
+      color: var(--crm-danger);
+    }
   }
 
   &__progress {
@@ -525,6 +663,35 @@ onMounted(() => {
     padding-top: 4px;
     border-top: 1px solid var(--crm-border);
     margin-top: 4px;
+  }
+}
+
+// ── Бейджи карточек ───────────────────────────────────────────────
+.wbadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: var(--crm-text-xs);
+  font-weight: 500;
+  line-height: 1.3;
+
+  &--price {
+    color: var(--crm-accent);
+    background: var(--crm-accent-dim);
+    border: 1px solid var(--crm-accent-border);
+  }
+
+  &--pending {
+    color: var(--crm-warning);
+    background: var(--crm-bg-elevated);
+    border: 1px solid rgba(240, 173, 78, 0.35);
+  }
+
+  &--parent {
+    color: var(--crm-text-muted);
+    background: var(--crm-bg-overlay);
+    border: 1px solid var(--crm-border);
   }
 }
 

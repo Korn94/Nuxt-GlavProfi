@@ -11,6 +11,7 @@
  */
 import { defineEventHandler, createError } from 'h3'
 import { eq, and, inArray, isNull } from 'drizzle-orm'
+import { alias } from 'drizzle-orm/mysql-core'
 import { db } from '../../../db'
 import { workAgreements, workAgreementAcceptances, works, objects, masters, workers } from '../../../db/schema'
 import {
@@ -19,6 +20,9 @@ import {
   round2,
   round3
 } from '../../../utils/workAgreements'
+
+// Алиас для self-join: родительская прайс-карточка дубля-заявки
+const parentAgreements = alias(workAgreements, 'parent_agreements')
 
 export default defineEventHandler(async (event) => {
   const user = event.context.user as any
@@ -38,10 +42,12 @@ export default defineEventHandler(async (event) => {
   const rows = await db
     .select({
       agreement: workAgreements,
-      objectName: objects.name
+      objectName: objects.name,
+      parentTitle: parentAgreements.title
     })
     .from(workAgreements)
     .leftJoin(objects, eq(workAgreements.objectId, objects.id))
+    .leftJoin(parentAgreements, eq(workAgreements.parentAgreementId, parentAgreements.id))
     .where(
       and(
         eq(workAgreements.contractorType, contractorType),
@@ -114,8 +120,8 @@ export default defineEventHandler(async (event) => {
     pendingMap.set(id, entry)
   }
 
-  const agreements = rows.map(({ agreement, objectName }) => {
-    const volume = Number(agreement.volume || 0)
+  const agreements = rows.map(({ agreement, objectName, parentTitle }) => {
+    const volume = agreement.unitPriceOnly ? null : Number(agreement.volume || 0)
     const acceptedVolume = Number(agreement.acceptedVolume || 0)
     const agreedAmount = Number(agreement.agreedAmount || 0)
     const acceptedAmount = Number(agreement.acceptedAmount || 0)
@@ -136,7 +142,7 @@ export default defineEventHandler(async (event) => {
       agreedAmount,
       acceptedAmount,
 
-      remainingVolume: round3(volume - acceptedVolume),
+      remainingVolume: volume == null ? null : round3(volume - acceptedVolume),
       remainingAmount: round2(agreedAmount - acceptedAmount),
 
       percent: getAgreementPercent({ volume, acceptedVolume }),
@@ -149,6 +155,9 @@ export default defineEventHandler(async (event) => {
       pendingCount: pendingMap.get(Number(agreement.id))?.count || 0,
 
       contractorName,
+
+      // Название прайс-карточки, из которой пришла заявка (дубль)
+      parentTitle: parentTitle || null,
 
       // Добавляем имя объекта для группировки карточек по объектам
       objectId: Number(agreement.objectId),

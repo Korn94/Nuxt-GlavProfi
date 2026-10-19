@@ -8,7 +8,7 @@
     <div class="modal">
       <div class="modal__header">
         <h3 class="modal__title">
-          {{ isSubmitMode ? 'Сдача объёма' : 'Приёмка объёма' }}
+          {{ modalTitle }}
         </h3>
 
         <button class="modal__close" @click="close">
@@ -27,22 +27,65 @@
             <strong>{{ agreement.title }}</strong>
           </div>
 
-          <div class="accept-info__row">
-            <span>Осталось объём</span>
-            <strong>
-              {{ agreement.remainingVolume }} {{ unitLabel }}
-            </strong>
-          </div>
+          <!-- Прайс-карточка: показываем цену вместо остатка -->
+          <template v-if="mode === 'propose'">
+            <div class="accept-info__row">
+              <span>Цена за единицу</span>
+              <strong>
+                {{ formatCurrency(Number(agreement.unitPrice || 0)) }}/{{ unitLabel }}
+              </strong>
+            </div>
+            <div class="accept-info__row">
+              <span>Объём</span>
+              <strong>указываете вы (после работ)</strong>
+            </div>
+          </template>
 
-          <div class="accept-info__row">
-            <span>Осталось сумма</span>
-            <strong>{{ formatCurrency(agreement.remainingAmount) }}</strong>
-          </div>
+          <!-- Заявка на объём: показываем предложенные исполнителем цифры -->
+          <template v-else-if="isProposalMode">
+            <div class="accept-info__row">
+              <span>Предложено исполнителем</span>
+              <strong>
+                {{ agreement.volume }} {{ unitLabel }}
+                · {{ formatCurrency(agreement.agreedAmount) }}
+              </strong>
+            </div>
+            <div v-if="agreement.publicComment" class="accept-info__row">
+              <span>Комментарий исполнителя</span>
+              <strong>{{ agreement.publicComment }}</strong>
+            </div>
+          </template>
+
+          <template v-else>
+            <div class="accept-info__row">
+              <span>Осталось объём</span>
+              <strong>
+                {{ agreement.remainingVolume }} {{ unitLabel }}
+              </strong>
+            </div>
+
+            <div class="accept-info__row">
+              <span>Осталось сумма</span>
+              <strong>{{ formatCurrency(agreement.remainingAmount) }}</strong>
+            </div>
+          </template>
         </div>
 
-        <div class="form-grid">
+        <!-- Отклонение: только причина -->
+        <div v-if="mode === 'reject-proposal'" class="form-grid">
+          <label class="form-field form-field--wide">
+            <span>Причина отклонения *</span>
+            <textarea
+              v-model="form.reason"
+              rows="3"
+              placeholder="Например: замерено 52 м² вместо 57 м²"
+            />
+          </label>
+        </div>
+
+        <div v-else class="form-grid">
           <label class="form-field">
-            <span>Объём к приёмке</span>
+            <span>{{ volumeLabel }}</span>
             <input
               v-model.number="form.volume"
               type="number"
@@ -51,7 +94,10 @@
             />
           </label>
 
-          <label class="form-field form-field--wide checkbox-field">
+          <label
+            v-if="mode === 'accept' || mode === 'submit' || mode === 'confirm-proposal'"
+            class="form-field form-field--wide checkbox-field"
+          >
             <input
               v-model="form.manualAmount"
               type="checkbox"
@@ -60,7 +106,7 @@
           </label>
 
           <label
-            v-if="form.manualAmount"
+            v-if="form.manualAmount && (mode === 'accept' || mode === 'submit' || mode === 'confirm-proposal')"
             class="form-field"
           >
             <span>Сумма приёмки, ₽</span>
@@ -76,11 +122,11 @@
             v-else
             class="form-field"
           >
-            <span>Сумма приёмки</span>
+            <span>{{ mode === 'propose' ? 'Расчётная сумма' : 'Сумма приёмки' }}</span>
             <strong>{{ formatCurrency(previewAmount) }}</strong>
           </div>
 
-          <template v-if="!isSubmitMode && (!agreement.contractorType || !agreement.contractorId)">
+          <template v-if="mode === 'accept' && (!agreement.contractorType || !agreement.contractorId)">
             <label class="form-field">
               <span>Тип исполнителя</span>
               <select
@@ -139,7 +185,7 @@
           </template>
 
           <label class="form-field form-field--wide">
-            <span>Комментарий к приёмке</span>
+            <span>{{ commentLabel }}</span>
             <textarea
               v-model="form.comment"
               rows="3"
@@ -157,15 +203,15 @@
         </button>
 
         <button
-          class="crm-btn crm-btn--primary crm-btn--sm"
+          :class="[
+            'crm-btn',
+            'crm-btn--sm',
+            mode === 'reject-proposal' ? 'crm-btn--danger' : 'crm-btn--primary'
+          ]"
           :disabled="saving"
           @click="submit"
         >
-          {{
-            saving
-              ? (isSubmitMode ? 'Сдача...' : 'Принятие...')
-              : (isSubmitMode ? 'Сдать' : 'Принять')
-          }}
+          {{ submitButtonLabel }}
         </button>
       </div>
     </div>
@@ -179,7 +225,7 @@ import { useApi } from '~/composables/useApi'
 const props = defineProps<{
   modelValue: boolean
   agreement?: any
-  mode?: 'accept' | 'submit'
+  mode?: 'accept' | 'submit' | 'propose' | 'confirm-proposal' | 'reject-proposal'
   fixedContractor?: { contractorType: 'master' | 'worker', contractorId: number }
 }>()
 
@@ -199,8 +245,82 @@ const show = computed({
   }
 })
 
-// Режим «сдача» (для мастера/рабочего): исполнитель фиксируется самим пользователем
-const isSubmitMode = computed(() => props.mode === 'submit')
+// Режимы работы с заявкой на объём (дубль прайс-карточки)
+const isProposalMode = computed(
+  () => props.mode === 'confirm-proposal' || props.mode === 'reject-proposal'
+)
+
+// Режим предложения объёма исполнителем (по прайс-карточке) — см. modalTitle
+const modalTitle = computed(() => {
+  switch (props.mode) {
+    case 'submit':
+      return 'Сдача объёма'
+    case 'propose':
+      return 'Предложить объём'
+    case 'confirm-proposal':
+      return 'Подтвердить объём'
+    case 'reject-proposal':
+      return 'Отклонить заявку'
+    default:
+      return 'Приёмка объёма'
+  }
+})
+
+const volumeLabel = computed(() => {
+  switch (props.mode) {
+    case 'propose':
+      return `Объём (ваш расчёт), ${unitLabel.value}`
+    case 'confirm-proposal':
+      return `Объём к подтверждению, ${unitLabel.value}`
+    default:
+      return 'Объём к приёмке'
+  }
+})
+
+const commentLabel = computed(() => {
+  switch (props.mode) {
+    case 'propose':
+      return 'Комментарий к заявке'
+    case 'confirm-proposal':
+      return 'Комментарий к подтверждению'
+    case 'reject-proposal':
+      return ''
+    case 'submit':
+      return 'Комментарий к сдаче'
+    default:
+      return 'Комментарий к приёмке'
+  }
+})
+
+const submitButtonLabel = computed(() => {
+  if (saving.value) {
+    switch (props.mode) {
+      case 'submit':
+        return 'Сдача...'
+      case 'propose':
+        return 'Отправка...'
+      case 'confirm-proposal':
+        return 'Подтверждение...'
+      case 'reject-proposal':
+        return 'Отклонение...'
+      default:
+        return 'Принятие...'
+    }
+  }
+
+  switch (props.mode) {
+    case 'submit':
+      return 'Сдать'
+    case 'propose':
+      return 'Отправить на проверку'
+    case 'confirm-proposal':
+      return 'Подтвердить'
+    case 'reject-proposal':
+      return 'Отклонить'
+    default:
+      return 'Принять'
+  }
+})
 
 const masters = ref<any[]>([])
 const workers = ref<any[]>([])
@@ -214,7 +334,9 @@ const form = reactive({
   amount: null as number | null,
   contractorType: null as 'master' | 'worker' | null,
   contractorId: null as number | null,
-  comment: ''
+  comment: '',
+  // Причина отклонения заявки (режим reject-proposal)
+  reason: ''
 })
 
 const unitLabel = computed(() => {
@@ -275,10 +397,22 @@ function resetForm() {
     return
   }
 
-  form.volume = Number(props.agreement.remainingVolume || 0)
   form.manualAmount = false
   form.amount = null
   form.comment = ''
+  form.reason = ''
+
+  // Объём по умолчанию зависит от режима:
+  //  - сдача/приёмка — весь остаток;
+  //  - предложение — пусто (рабочий вводит свой расчёт);
+  //  - подтверждение — предложенный исполнителем (можно скорректировать).
+  if (props.mode === 'propose') {
+    form.volume = 0
+  } else if (props.mode === 'confirm-proposal') {
+    form.volume = Number(props.agreement.volume || 0)
+  } else {
+    form.volume = Number(props.agreement.remainingVolume || 0)
+  }
 
   if (props.mode === 'submit' && props.fixedContractor) {
     form.contractorType = props.fixedContractor.contractorType
@@ -316,12 +450,32 @@ function validate() {
     return false
   }
 
+  // Отклонение заявки: обязательна только причина
+  if (props.mode === 'reject-proposal') {
+    if (!form.reason.trim()) {
+      errorMessage.value = 'Укажите причину отклонения'
+      return false
+    }
+
+    errorMessage.value = ''
+    return true
+  }
+
   if (!form.volume || form.volume <= 0) {
-    errorMessage.value = 'Укажите объём приёмки'
+    errorMessage.value =
+      props.mode === 'propose'
+        ? 'Укажите насчитанный объём'
+        : 'Укажите объём приёмки'
     return false
   }
 
-  if (form.volume > Number(props.agreement.remainingVolume || 0)) {
+  // Ограничение остатком — только для обычной сдачи/приёмки
+  // (в подтверждении заявки объём можно скорректировать в обе стороны,
+  //  сумма пересчитается на сервере)
+  if (
+    (props.mode === 'accept' || props.mode === 'submit') &&
+    form.volume > Number(props.agreement.remainingVolume || 0)
+  ) {
     errorMessage.value = 'Нельзя принять больше оставшегося объёма'
     return false
   }
@@ -331,7 +485,7 @@ function validate() {
     return false
   }
 
-  if (props.mode !== 'submit' && (!form.contractorType || !form.contractorId)) {
+  if (props.mode === 'accept' && (!form.contractorType || !form.contractorId)) {
     errorMessage.value = 'Выберите исполнителя'
     return false
   }
@@ -352,28 +506,81 @@ async function submit() {
   saving.value = true
 
   try {
-    const payload: any = {
-      volume: Number(form.volume || 0),
-      contractorType: form.contractorType,
-      contractorId: form.contractorId,
-      comment: form.comment.trim() || undefined
-    }
+    const comment = form.comment.trim() || undefined
 
-    if (form.manualAmount && form.amount != null) {
-      payload.amount = Number(form.amount || 0)
-    }
+    let url = `/api/works/agreements/${props.agreement.id}/accept`
+    let payload: any = {}
 
-    const url = isSubmitMode.value
-      ? `/api/contractors/me/agreements/${props.agreement.id}/submit`
-      : `/api/works/agreements/${props.agreement.id}/accept`
+    switch (props.mode) {
+      case 'propose':
+        // Исполнитель предлагает объём по прайс-карточке
+        url = `/api/contractors/me/agreements/${props.agreement.id}/propose-volume`
+        payload = {
+          volume: Number(form.volume || 0),
+          comment
+        }
+        break
+
+      case 'reject-proposal':
+        url = `/api/works/agreements/${props.agreement.id}/reject-proposal`
+        payload = {
+          reason: form.reason.trim()
+        }
+        break
+
+      case 'confirm-proposal':
+        // Подтверждение заявки: объём можно скорректировать, сумма — по желанию
+        url = `/api/works/agreements/${props.agreement.id}/confirm-proposal`
+        payload = {
+          volume: Number(form.volume || 0),
+          comment
+        }
+
+        if (form.manualAmount && form.amount != null) {
+          payload.amount = Number(form.amount || 0)
+        }
+        break
+
+      case 'submit':
+        url = `/api/contractors/me/agreements/${props.agreement.id}/submit`
+        payload = {
+          volume: Number(form.volume || 0),
+          comment
+        }
+
+        if (form.manualAmount && form.amount != null) {
+          payload.amount = Number(form.amount || 0)
+        }
+        break
+
+      default:
+        // Обычная приёмка админом
+        payload = {
+          volume: Number(form.volume || 0),
+          contractorType: form.contractorType,
+          contractorId: form.contractorId,
+          comment
+        }
+
+        if (form.manualAmount && form.amount != null) {
+          payload.amount = Number(form.amount || 0)
+        }
+    }
 
     await api.post(url, payload)
 
     emit('saved')
     close()
-  } catch (error) {
-    console.error('[Договорённости] Ошибка приёмки:', error)
-    errorMessage.value = 'Не удалось принять объём'
+  } catch (error: any) {
+    console.error('[Договорённости] Ошибка отправки:', error)
+
+    // Показываем сообщение сервера, если есть
+    const serverMessage =
+      error?.data?.data?.message ||
+      error?.data?.message ||
+      error?.statusMessage
+
+    errorMessage.value = serverMessage || 'Не удалось сохранить данные'
   } finally {
     saving.value = false
   }
@@ -387,8 +594,8 @@ watch(() => props.modelValue, (value) => {
   if (value) {
     resetForm()
 
-    // В режиме «сдача» исполнитель фиксирован — списки не загружаем
-    if (props.mode !== 'submit') {
+    // Списки исполнителей нужны только для приёмки без назначенного исполнителя
+    if (props.mode === 'accept') {
       loadContractors()
     }
   }
@@ -398,7 +605,7 @@ onMounted(() => {
   if (show.value) {
     resetForm()
 
-    if (props.mode !== 'submit') {
+    if (props.mode === 'accept') {
       loadContractors()
     }
   }
@@ -599,6 +806,17 @@ onMounted(() => {
     &:hover:not(:disabled) {
       background: var(--crm-bg-elevated);
       color: var(--crm-text-primary);
+    }
+  }
+
+  &--danger {
+    background: var(--crm-danger-dim);
+    border: 1px solid rgba(242, 95, 92, 0.4);
+    color: var(--crm-danger);
+
+    &:hover:not(:disabled) {
+      background: rgba(242, 95, 92, 0.25);
+      color: var(--crm-danger);
     }
   }
 }

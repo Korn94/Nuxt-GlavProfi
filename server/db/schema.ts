@@ -1,5 +1,5 @@
 // server/db/schema.ts
-import { mysqlTable, serial, varchar, text, decimal, datetime, int, boolean, bigint, index } from 'drizzle-orm/mysql-core'
+import { mysqlTable, serial, varchar, text, decimal, datetime, int, boolean, bigint, index, type AnyMySqlColumn } from 'drizzle-orm/mysql-core'
 import { sql } from 'drizzle-orm'
 
 // Таблица пользователей
@@ -418,7 +418,7 @@ export const workAgreements = mysqlTable('work_agreements', {
     ]
   }).default('Прочее').notNull(),
 
-  volume: decimal('volume', { precision: 12, scale: 3 }).notNull(),
+  volume: decimal('volume', { precision: 12, scale: 3 }), // NULL — для прайс-карточек (unitPriceOnly) объём не задан
 
   unit: varchar('unit', {
     length: 20,
@@ -440,6 +440,19 @@ export const workAgreements = mysqlTable('work_agreements', {
     length: 10,
     enum: ['unit', 'fixed']
   }).default('unit').notNull(),
+
+  // Галочка типа карточки: «просто цена за 1 ед.» (прайс) — объём укажет исполнитель.
+  // true → volume = NULL, agreedAmount = 0; исполнитель предлагает объём (создаётся дубль
+  // со статусом 'pending_review'), админ подтверждает/отклоняет.
+  unitPriceOnly: boolean('unit_price_only').default(false).notNull(),
+
+  // Связь дубля-заявки с оригинальной прайс-карточкой (при удалении прайса — ссылка гаснет).
+  // Явный тип AnyMySqlColumn разрывает цикл вывода типов (self-reference в инициализаторе).
+  parentAgreementId: bigint('parent_agreement_id', { mode: 'number', unsigned: true })
+    .references((): AnyMySqlColumn => workAgreements.id, { onDelete: 'set null' }),
+
+  // Причина отклонения заявки (статус 'rejected'), видна исполнителю
+  rejectionReason: text('rejection_reason'),
 
   unitPrice: decimal('unit_price', { precision: 12, scale: 2 }),
 
@@ -470,7 +483,7 @@ export const workAgreements = mysqlTable('work_agreements', {
 
   status: varchar('status', {
     length: 20,
-    enum: ['active', 'cancelled']
+    enum: ['active', 'pending_review', 'rejected', 'cancelled']
   }).default('active').notNull(),
 
   createdBy: bigint('created_by', { mode: 'number', unsigned: true })

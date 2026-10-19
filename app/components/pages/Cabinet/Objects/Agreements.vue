@@ -31,6 +31,15 @@
           <span>
             Осталось: <strong class="text-neg">{{ formatCurrency(totalRemainingAmount) }}</strong>
           </span>
+          <template v-if="pendingAgreements.length > 0">
+            <span class="summary-card__divider">·</span>
+            <span>
+              Ожидает решения:
+              <strong class="text-warn">
+                {{ pendingAgreements.length }} ({{ formatCurrency(pendingTotalAmount) }})
+              </strong>
+            </span>
+          </template>
         </div>
       </div>
 
@@ -78,7 +87,12 @@
         :key="agreement.id"
         class="agreement-card"
         :class="{
-          'agreement-card--done': agreement.isFullyAccepted || agreement.status === 'cancelled'
+          'agreement-card--done':
+            agreement.status === 'cancelled' ||
+            agreement.status === 'rejected' ||
+            (agreement.status === 'active' && agreement.isFullyAccepted),
+          'agreement-card--pending': agreement.status === 'pending_review',
+          'agreement-card--price': agreement.unitPriceOnly
         }"
       >
         <div class="agreement-card__header">
@@ -96,13 +110,58 @@
           </div>
 
           <div class="agreement-card__amount">
-            {{ formatCurrency(agreement.agreedAmount) }}
+            <template v-if="agreement.unitPriceOnly">
+              {{ formatUnitPrice(agreement) }}
+            </template>
+            <template v-else>
+              {{ formatCurrency(agreement.agreedAmount) }}
+            </template>
           </div>
         </div>
 
-        <div class="agreement-card__volume">
+        <!-- Бейджи типа карточки и статуса заявки -->
+        <div
+          v-if="
+            agreement.unitPriceOnly ||
+            agreement.status === 'pending_review' ||
+            agreement.status === 'rejected' ||
+            agreement.parentTitle
+          "
+          class="agreement-card__badges"
+        >
+          <span v-if="agreement.unitPriceOnly" class="badge badge--price">
+            Прайс · цена за 1 ед. · объём укажет исполнитель
+          </span>
+
+          <span v-if="agreement.status === 'pending_review'" class="badge badge--pending">
+            Ожидает решения объёма
+          </span>
+
+          <span
+            v-if="agreement.parentTitle && agreement.status !== 'active'"
+            class="badge badge--parent"
+          >
+            Заявка по «{{ agreement.parentTitle }}»
+          </span>
+
+          <span v-if="agreement.status === 'rejected'" class="badge badge--rejected">
+            Отклонено
+          </span>
+        </div>
+
+        <div v-if="!agreement.unitPriceOnly" class="agreement-card__volume">
           Объём:
           {{ agreement.volume }} {{ unitLabel(agreement) }}
+          <span v-if="agreement.parentTitle">
+            · цена {{ formatUnitPrice(agreement) }}
+          </span>
+        </div>
+
+        <div
+          v-if="agreement.status === 'rejected' && agreement.rejectionReason"
+          class="agreement-card__comment agreement-card__comment--admin"
+        >
+          Причина отклонения: {{ agreement.rejectionReason }}
         </div>
 
         <div v-if="agreement.publicComment" class="agreement-card__comment">
@@ -116,7 +175,10 @@
           {{ agreement.adminComment }}
         </div>
 
-        <div class="agreement-card__progress">
+        <div
+          v-if="!agreement.unitPriceOnly && agreement.status !== 'pending_review'"
+          class="agreement-card__progress"
+        >
           <div class="progress">
             <div
               class="progress__fill"
@@ -132,32 +194,54 @@
         </div>
 
         <div class="agreement-card__actions">
-          <button
-            v-if="canEdit"
-            :disabled="!isReady"
-            class="crm-btn crm-btn--ghost crm-btn--sm"
-            @click="openEditModal(agreement)"
-          >
-            Редактировать
-          </button>
+          <template v-if="agreement.status === 'pending_review'">
+            <button
+              v-if="canAccept"
+              :disabled="!isReady"
+              class="crm-btn crm-btn--primary crm-btn--sm"
+              @click="openConfirmModal(agreement)"
+            >
+              Подтвердить объём
+            </button>
 
-          <button
-            v-if="canAccept && agreement.status === 'active' && !agreement.isFullyAccepted"
-            :disabled="!isReady"
-            class="crm-btn crm-btn--primary crm-btn--sm"
-            @click="openAcceptModal(agreement)"
-          >
-            Принять
-          </button>
+            <button
+              v-if="canAccept"
+              :disabled="!isReady"
+              class="crm-btn crm-btn--danger crm-btn--sm"
+              @click="openRejectModal(agreement)"
+            >
+              Отклонить
+            </button>
+          </template>
 
-          <button
-            v-if="canDelete && agreement.acceptedVolume === 0"
-            :disabled="!isReady"
-            class="crm-btn crm-btn--danger crm-btn--sm"
-            @click="removeAgreement(agreement)"
-          >
-            Удалить
-          </button>
+          <template v-else>
+            <button
+              v-if="canEdit"
+              :disabled="!isReady"
+              class="crm-btn crm-btn--ghost crm-btn--sm"
+              @click="openEditModal(agreement)"
+            >
+              Редактировать
+            </button>
+
+            <button
+              v-if="canAccept && agreement.status === 'active' && !agreement.unitPriceOnly && !agreement.isFullyAccepted"
+              :disabled="!isReady"
+              class="crm-btn crm-btn--primary crm-btn--sm"
+              @click="openAcceptModal(agreement)"
+            >
+              Принять
+            </button>
+
+            <button
+              v-if="canDelete && agreement.acceptedVolume === 0"
+              :disabled="!isReady"
+              class="crm-btn crm-btn--danger crm-btn--sm"
+              @click="removeAgreement(agreement)"
+            >
+              Удалить
+            </button>
+          </template>
         </div>
       </article>
     </div>
@@ -172,6 +256,7 @@
     <PagesCabinetObjectsAgreementAcceptModal
       v-model="acceptModalOpen"
       :agreement="selectedAgreement"
+      :mode="acceptModalMode"
       @saved="handleSaved"
     />
   </div>
@@ -188,16 +273,17 @@ interface WorkAgreement {
   objectId: number
   title: string
   workType: string
-  volume: number
+  volume: number | null
   unit: string
   unitCustom?: string | null
   priceMode: 'unit' | 'fixed'
+  unitPriceOnly: boolean
   unitPrice?: string | number | null
   fixedTotal?: string | number | null
   agreedAmount: number
   acceptedVolume: number
   acceptedAmount: number
-  remainingVolume: number
+  remainingVolume: number | null
   remainingAmount: number
   percent: number
   isFullyAccepted: boolean
@@ -206,7 +292,10 @@ interface WorkAgreement {
   contractorName?: string | null
   publicComment?: string | null
   adminComment?: string | null
-  status: 'active' | 'cancelled'
+  status: 'active' | 'pending_review' | 'rejected' | 'cancelled'
+  rejectionReason?: string | null
+  parentAgreementId?: number | null
+  parentTitle?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -241,6 +330,9 @@ const formModalOpen = ref(false)
 const acceptModalOpen = ref(false)
 const selectedAgreement = ref<WorkAgreement | null>(null)
 
+// Режим модалки приёмки: обычная приёмка / подтверждение заявки / отклонение заявки
+const acceptModalMode = ref<'accept' | 'confirm-proposal' | 'reject-proposal'>('accept')
+
 const canCreate = computed(() => can(PERMISSION_PAGE, 'create'))
 const canEdit = computed(() => can(PERMISSION_PAGE, 'edit'))
 const canDelete = computed(() => can(PERMISSION_PAGE, 'delete'))
@@ -249,22 +341,36 @@ const canAccept = computed(() => can(PERMISSION_PAGE, 'special'))
 const isAdmin = computed(() => hasRole('admin'))
 
 // ── Сводка ────────────────────────────────────────────────────────
+// Учитываются только «решённые» карточки: активные прайсы и подтверждённые заявки.
+// pending_review / rejected / cancelled в итог не входят.
+const countedAgreements = computed(() =>
+  agreements.value.filter(a => a.status === 'active')
+)
+
+const pendingAgreements = computed(() =>
+  agreements.value.filter(a => a.status === 'pending_review')
+)
+
 const totalAgreedAmount = computed(() =>
-  agreements.value.reduce((sum, a) => sum + Number(a.agreedAmount || 0), 0)
+  countedAgreements.value.reduce((sum, a) => sum + Number(a.agreedAmount || 0), 0)
 )
 
 const totalAcceptedAmount = computed(() =>
-  agreements.value.reduce((sum, a) => sum + Number(a.acceptedAmount || 0), 0)
+  countedAgreements.value.reduce((sum, a) => sum + Number(a.acceptedAmount || 0), 0)
 )
 
 const totalRemainingAmount = computed(() =>
   totalAgreedAmount.value - totalAcceptedAmount.value
 )
 
+const pendingTotalAmount = computed(() =>
+  pendingAgreements.value.reduce((sum, a) => sum + Number(a.agreedAmount || 0), 0)
+)
+
 const contractorBreakdown = computed<ContractorBreakdownItem[]>(() => {
   const map = new Map<string, ContractorBreakdownItem>()
 
-  for (const a of agreements.value) {
+  for (const a of countedAgreements.value) {
     const contractorType = a.contractorType
     const contractorId = a.contractorId
     const contractorName = a.contractorName
@@ -330,6 +436,12 @@ function formatCurrency(value: number | string) {
   return new Intl.NumberFormat('ru-RU').format(Number(value || 0)) + ' ₽'
 }
 
+/** Цена за единицу для карточки (прайс и заявки с parentTitle) */
+function formatUnitPrice(agreement: WorkAgreement) {
+  const price = Number(agreement.unitPrice || 0)
+  return `${new Intl.NumberFormat('ru-RU').format(price)} ₽/${unitLabel(agreement)}`
+}
+
 function unitLabel(agreement: WorkAgreement) {
   if (agreement.unit === 'custom') {
     return agreement.unitCustom || 'ед.'
@@ -376,6 +488,19 @@ function openEditModal(agreement: WorkAgreement) {
 
 function openAcceptModal(agreement: WorkAgreement) {
   selectedAgreement.value = agreement
+  acceptModalMode.value = 'accept'
+  acceptModalOpen.value = true
+}
+
+function openConfirmModal(agreement: WorkAgreement) {
+  selectedAgreement.value = agreement
+  acceptModalMode.value = 'confirm-proposal'
+  acceptModalOpen.value = true
+}
+
+function openRejectModal(agreement: WorkAgreement) {
+  selectedAgreement.value = agreement
+  acceptModalMode.value = 'reject-proposal'
   acceptModalOpen.value = true
 }
 
@@ -605,6 +730,21 @@ onMounted(() => {
     opacity: 0.65;
   }
 
+  &--pending {
+    border-color: rgba(240, 173, 78, 0.55);
+    box-shadow: 0 0 0 1px rgba(240, 173, 78, 0.15);
+  }
+
+  &--price {
+    border-style: dashed;
+  }
+
+  &__badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
   &__header {
     display: flex;
     align-items: flex-start;
@@ -707,6 +847,45 @@ onMounted(() => {
 
 .text-neg {
   color: var(--crm-danger) !important;
+}
+
+.text-warn {
+  color: var(--crm-warning) !important;
+}
+
+// ── Бейджи карточек ────────────────────────────────────────────
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: var(--crm-text-xs);
+  font-weight: 500;
+  line-height: 1.3;
+
+  &--price {
+    color: var(--crm-accent);
+    background: var(--crm-accent-dim);
+    border: 1px solid var(--crm-accent-border);
+  }
+
+  &--pending {
+    color: var(--crm-warning);
+    background: var(--crm-warning-dim);
+    border: 1px solid rgba(240, 173, 78, 0.35);
+  }
+
+  &--parent {
+    color: var(--crm-text-muted);
+    background: var(--crm-bg-elevated);
+    border: 1px solid var(--crm-border);
+  }
+
+  &--rejected {
+    color: var(--crm-danger);
+    background: var(--crm-danger-dim);
+    border: 1px solid rgba(242, 95, 92, 0.3);
+  }
 }
 
 // ── Кнопки ────────────────────────────────────────────────────

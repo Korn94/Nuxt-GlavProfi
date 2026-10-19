@@ -171,6 +171,22 @@ const PROTECTED_PATHS: Record<string, PathRequirement | PathRequirement[]> = {
   //    (иначе `/api/works/agreements/mine` попадёт под требование `works.view`).
   '/api/works/agreements/mine': { type: 'custom', value: hasMineAgreementsAccess, methods: ['GET'] },
 
+  // Заявки на объём по прайс-карточкам (подтверждение/отклонение) — право objects.special,
+  // как у приёмки договорённостей. ВАЖНО: до `/api/works` — иначе матчится startsWith'ом
+  // и требование превратится в works.view (см. комментарий выше про mine).
+  '/api/works/agreements/[id]/confirm-proposal': {
+    type: 'page',
+    value: 'objects',
+    action: 'special',
+    methods: ['POST']
+  },
+  '/api/works/agreements/[id]/reject-proposal': {
+    type: 'page',
+    value: 'objects',
+    action: 'special',
+    methods: ['POST']
+  },
+
   '/api/works': { type: 'page', value: 'works', action: 'view' },
   '/api/works/[id]': { type: 'page', value: 'works', action: 'view' },
   '/api/works/daily-work/active-objects': { type: 'page', value: 'works', action: 'view' },
