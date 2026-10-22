@@ -55,160 +55,206 @@
       <span>Договорённостей пока нет</span>
     </div>
 
-    <!-- Группировка по объектам -->
+    <!-- Группировка по объектам (с внутренним аккордеоном по статусам) -->
     <div v-else class="agreements-widget__objects">
       <section
         v-for="group in groupedByObject"
         :key="group.objectId"
         class="object-group"
       >
-        <div class="object-group__header">
-          <Icon name="mdi:map-marker-outline" size="16" />
-          <span>{{ group.objectName }}</span>
-          <span class="object-group__count">{{ group.items.length }}</span>
+        <div
+          class="object-group__header"
+          @click="toggleObject(group.objectId)"
+        >
+          <div class="object-group__title-row">
+            <Icon name="mdi:map-marker-outline" size="16" />
+            <span>{{ group.objectName }}</span>
+            <span class="object-group__count">{{ group.items.length }}</span>
+          </div>
+          <Icon
+            name="mdi:chevron-down"
+            size="20"
+            :class="['object-group__chevron', { 'rotated': !isObjectOpen(group.objectId) }]"
+          />
         </div>
 
-        <div class="object-group__list">
-          <article
-            v-for="agreement in group.items"
-            :key="agreement.id"
-            class="agreement-card"
-            :class="{
-              'agreement-card--done':
-                agreement.isFullyAccepted ||
-                agreement.status === 'cancelled' ||
-                agreement.status === 'rejected',
-              'agreement-card--pending': agreement.status === 'pending_review',
-              'agreement-card--price': agreement.unitPriceOnly
-            }"
+        <div v-show="isObjectOpen(group.objectId)" class="object-group__body">
+          <div
+            v-for="section in group.sections"
+            :key="section.key"
+            class="agreement-section"
           >
-            <div class="agreement-card__header">
-              <div class="agreement-card__title-block">
-                <h4 class="agreement-card__title">{{ agreement.title }}</h4>
-                <div class="agreement-card__meta">
-                  {{ agreement.workType }}
-                  <span v-if="agreement.status === 'cancelled'">· отменена</span>
-                  <span v-else-if="agreement.status === 'rejected'">· отклонена</span>
-                  <span v-else-if="agreement.status === 'pending_review'">· на проверке</span>
-                </div>
-              </div>
-              <div class="agreement-card__amount">
-                <template v-if="agreement.unitPriceOnly">
-                  {{ unitPrice(agreement) }}/{{ unitLabel(agreement) }}
-                </template>
-                <template v-else>
-                  {{ formatCurrency(agreement.agreedAmount) }}
-                </template>
-              </div>
-            </div>
-
-            <!-- Бейджи -->
             <div
-              v-if="
-                agreement.unitPriceOnly ||
-                agreement.status === 'pending_review' ||
-                agreement.status === 'rejected'
-              "
-              class="agreement-card__badges"
+              class="agreement-section__header"
+              @click="toggleSection(group.objectId, section.key)"
             >
-              <span v-if="agreement.unitPriceOnly" class="wbadge wbadge--price">
-                Цена за 1 ед. · объём укажу я
-              </span>
-
-              <span v-if="agreement.status === 'pending_review'" class="wbadge wbadge--pending">
-                Ожидает решения руководителя
-              </span>
-
-              <span
-                v-if="agreement.status === 'pending_review' && agreement.parentTitle"
-                class="wbadge wbadge--parent"
-              >
-                по «{{ agreement.parentTitle }}»
-              </span>
-            </div>
-
-            <!-- Объём и цена (для прайса объём не показываем) -->
-            <div v-if="!agreement.unitPriceOnly" class="agreement-card__volume">
-              Объём: {{ agreement.volume }} {{ unitLabel(agreement) }}
-              <template v-if="unitPrice(agreement) !== null && !agreement.unitPriceOnly">
-                · Цена: {{ unitPrice(agreement) }}/{{ unitLabel(agreement) }}
-              </template>
-              <span
-                v-if="Number(agreement.remainingVolume || 0) > 0"
-                class="agreement-card__remaining"
-              >
-                · осталось {{ agreement.remainingVolume }} {{ unitLabel(agreement) }}
-              </span>
-            </div>
-
-            <div v-else class="agreement-card__volume">
-              Цена: {{ unitPrice(agreement) }}/{{ unitLabel(agreement) }}
-              · объём укажу после работ
-            </div>
-
-            <!-- Комментарий заявки / причина отклонения -->
-            <div
-              v-if="agreement.status === 'rejected' && agreement.rejectionReason"
-              class="agreement-card__comment agreement-card__comment--reject"
-            >
-              Причина отклонения: {{ agreement.rejectionReason }}
-            </div>
-
-            <div v-if="agreement.publicComment" class="agreement-card__comment">
-              {{ agreement.publicComment }}
-            </div>
-
-            <!-- Прогресс только для карточек с согласованным объёмом -->
-            <div
-              v-if="!agreement.unitPriceOnly && agreement.status !== 'pending_review'"
-              class="agreement-card__progress"
-            >
-              <div class="progress">
-                <div
-                  class="progress__fill"
-                  :style="{ width: agreement.percent + '%' }"
-                />
+              <div class="agreement-section__title">
+                <span
+                  class="agreement-section__dot"
+                  :style="{ background: section.color }"
+                ></span>
+                <span class="agreement-section__name">{{ section.title }}</span>
+                <span class="agreement-section__count">{{ section.items.length }}</span>
               </div>
-              <div class="agreement-card__progress-text">
-                Сдано {{ agreement.acceptedVolume }} / {{ agreement.volume }}
-                {{ unitLabel(agreement) }} · {{ agreement.percent }}%
-              </div>
+              <Icon
+                name="mdi:chevron-down"
+                size="18"
+                :class="[
+                  'agreement-section__chevron',
+                  { 'rotated': !isSectionOpen(group.objectId, section.key) }
+                ]"
+              />
             </div>
 
             <div
-              v-if="agreement.pendingCount > 0"
-              class="agreement-card__pending"
+              v-show="isSectionOpen(group.objectId, section.key)"
+              class="agreement-section__body"
             >
-              <Icon name="mdi:clock-outline" size="15" />
-              <span>
-                Ожидает приёмки:
-                {{ agreement.pendingVolume }} {{ unitLabel(agreement) }}
-                <template v-if="agreement.pendingAmount > 0">
-                  · {{ formatCurrency(agreement.pendingAmount) }}
-                </template>
-              </span>
-            </div>
+              <div class="agreements-widget__list">
+                <article
+                  v-for="agreement in section.items"
+                  :key="agreement.id"
+                  :class="[
+                    'agreement-card',
+                    `agreement-card--${section.key}`,
+                    {
+                      'agreement-card--muted':
+                        agreement.status === 'cancelled' ||
+                        agreement.status === 'rejected' ||
+                        (agreement.status === 'active' && agreement.isFullyAccepted)
+                    }
+                  ]"
+                >
+                  <div class="agreement-card__header">
+                    <div class="agreement-card__title-block">
+                      <h4 class="agreement-card__title">{{ agreement.title }}</h4>
+                      <div class="agreement-card__meta">
+                        {{ agreement.workType }}
+                        <span v-if="agreement.status === 'cancelled'">· отменена</span>
+                        <span v-else-if="agreement.status === 'rejected'">· отклонена</span>
+                        <span v-else-if="agreement.status === 'pending_review'">· на проверке</span>
+                      </div>
+                    </div>
+                    <div class="agreement-card__amount">
+                      <template v-if="agreement.unitPriceOnly">
+                        {{ unitPrice(agreement) }}/{{ unitLabel(agreement) }}
+                      </template>
+                      <template v-else>
+                        {{ formatCurrency(agreement.agreedAmount) }}
+                      </template>
+                    </div>
+                  </div>
 
-            <div class="agreement-card__actions">
-              <button
-                v-if="canSubmit(agreement)"
-                :disabled="loading"
-                class="crm-btn crm-btn--primary crm-btn--sm"
-                @click="openSubmitModal(agreement)"
-              >
-                Сдать
-              </button>
+                  <!-- Бейджи -->
+                  <div
+                    v-if="
+                      agreement.unitPriceOnly ||
+                      agreement.status === 'pending_review' ||
+                      agreement.status === 'rejected'
+                    "
+                    class="agreement-card__badges"
+                  >
+                    <span v-if="agreement.unitPriceOnly" class="wbadge wbadge--price">
+                      Цена за 1 ед.
+                    </span>
 
-              <button
-                v-if="canPropose(agreement)"
-                :disabled="loading"
-                class="crm-btn crm-btn--primary crm-btn--sm"
-                @click="openProposeModal(agreement)"
-              >
-                Предложить объём
-              </button>
+                    <span v-if="agreement.status === 'pending_review'" class="wbadge wbadge--pending">
+                      Ожидает решения руководителя
+                    </span>
+
+                    <span
+                      v-if="agreement.status === 'pending_review' && agreement.parentTitle"
+                      class="wbadge wbadge--parent"
+                    >
+                      по «{{ agreement.parentTitle }}»
+                    </span>
+                  </div>
+
+                  <!-- Объём и цена (для прайса объём не показываем) -->
+                  <div v-if="!agreement.unitPriceOnly" class="agreement-card__volume">
+                    Объём: {{ agreement.volume }} {{ unitLabel(agreement) }}
+                    <template v-if="unitPrice(agreement) !== null && !agreement.unitPriceOnly">
+                      · Цена: {{ unitPrice(agreement) }}/{{ unitLabel(agreement) }}
+                    </template>
+                    <span
+                      v-if="Number(agreement.remainingVolume || 0) > 0"
+                      class="agreement-card__remaining"
+                    >
+                      · осталось {{ agreement.remainingVolume }} {{ unitLabel(agreement) }}
+                    </span>
+                  </div>
+
+                  <div v-else class="agreement-card__volume">
+                    Цена: {{ unitPrice(agreement) }}/{{ unitLabel(agreement) }}
+                    · можно подать объем
+                  </div>
+
+                  <!-- Комментарий заявки / причина отклонения -->
+                  <div
+                    v-if="agreement.status === 'rejected' && agreement.rejectionReason"
+                    class="agreement-card__comment agreement-card__comment--reject"
+                  >
+                    Причина отклонения: {{ agreement.rejectionReason }}
+                  </div>
+
+                  <div v-if="agreement.publicComment" class="agreement-card__comment">
+                    {{ agreement.publicComment }}
+                  </div>
+
+                  <!-- Прогресс только для карточек с согласованным объёмом -->
+                  <div
+                    v-if="!agreement.unitPriceOnly && agreement.status !== 'pending_review'"
+                    class="agreement-card__progress"
+                  >
+                    <div class="progress">
+                      <div
+                        class="progress__fill"
+                        :style="{ width: agreement.percent + '%' }"
+                      />
+                    </div>
+                    <div class="agreement-card__progress-text">
+                      Сдано {{ agreement.acceptedVolume }} / {{ agreement.volume }}
+                      {{ unitLabel(agreement) }} · {{ agreement.percent }}%
+                    </div>
+                  </div>
+
+                  <div
+                    v-if="agreement.pendingCount > 0"
+                    class="agreement-card__pending"
+                  >
+                    <Icon name="mdi:clock-outline" size="15" />
+                    <span>
+                      Ожидает приёмки:
+                      {{ agreement.pendingVolume }} {{ unitLabel(agreement) }}
+                      <template v-if="agreement.pendingAmount > 0">
+                        · {{ formatCurrency(agreement.pendingAmount) }}
+                      </template>
+                    </span>
+                  </div>
+
+                  <div class="agreement-card__actions">
+                    <button
+                      v-if="canSubmit(agreement)"
+                      :disabled="loading"
+                      class="crm-btn crm-btn--primary crm-btn--sm"
+                      @click="openSubmitModal(agreement)"
+                    >
+                      Сдать
+                    </button>
+
+                    <button
+                      v-if="canPropose(agreement)"
+                      :disabled="loading"
+                      class="crm-btn crm-btn--primary crm-btn--sm"
+                      @click="openProposeModal(agreement)"
+                    >
+                      Предложить объём
+                    </button>
+                  </div>
+                </article>
+              </div>
             </div>
-          </article>
+          </div>
         </div>
       </section>
     </div>
@@ -226,7 +272,7 @@
 
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useApi } from '~/composables/useApi'
 
 interface WorkAgreement {
@@ -258,10 +304,19 @@ interface WorkAgreement {
   pendingCount: number
 }
 
+interface AgreementSection {
+  key: string
+  title: string
+  items: WorkAgreement[]
+  color: string
+  defaultOpen: boolean
+}
+
 interface ObjectGroup {
   objectId: number
   objectName: string
   items: WorkAgreement[]
+  sections: AgreementSection[]
 }
 
 const props = defineProps<{
@@ -275,31 +330,127 @@ const agreements = ref<WorkAgreement[]>([])
 const loading = ref(false)
 
 const submitModalOpen = ref(false)
-// Режим модалки: 'submit' — сдача согласованного объёма, 'propose' — предложение объёма по прайсу
 const modalMode = ref<'submit' | 'propose'>('submit')
 const selectedAgreement = ref<WorkAgreement | null>(null)
 
-// ── Группировка по объектам ───────────────────────────────────────
+// ── Состояние аккордеонов ─────────────────────────────────────
+const openObjects = ref<Record<number, boolean>>({})
+const openSections = ref<Record<string, boolean>>({})
+
+function makeSectionKey(objectId: number, sectionKey: string): string {
+  return `${objectId}:${sectionKey}`
+}
+
+function toggleObject(objectId: number) {
+  openObjects.value[objectId] = !(openObjects.value[objectId] ?? true)
+}
+
+function isObjectOpen(objectId: number): boolean {
+  return openObjects.value[objectId] ?? true
+}
+
+function toggleSection(objectId: number, sectionKey: string) {
+  const key = makeSectionKey(objectId, sectionKey)
+  openSections.value[key] = !(openSections.value[key] ?? getDefaultOpen(sectionKey))
+}
+
+function isSectionOpen(objectId: number, sectionKey: string): boolean {
+  const key = makeSectionKey(objectId, sectionKey)
+  return openSections.value[key] ?? getDefaultOpen(sectionKey)
+}
+
+function getDefaultOpen(sectionKey: string): boolean {
+  return ['prices', 'in-work', 'pending'].includes(sectionKey)
+}
+
+// ── Построение секций по статусам ─────────────────────────────
+function buildSections(items: WorkAgreement[]): AgreementSection[] {
+  const prices = items.filter(a => a.unitPriceOnly && a.status === 'active')
+  const inWork = items.filter(a =>
+    a.status === 'active' &&
+    !a.unitPriceOnly &&
+    !a.isFullyAccepted
+  )
+  const pending = items.filter(a => a.status === 'pending_review')
+  const accepted = items.filter(a =>
+    a.status === 'active' &&
+    !a.unitPriceOnly &&
+    a.isFullyAccepted
+  )
+  const rejected = items.filter(a =>
+    a.status === 'rejected' || a.status === 'cancelled'
+  )
+
+  return [
+    {
+      key: 'prices',
+      title: 'Расценки',
+      items: prices,
+      color: 'var(--color-primary)',
+      defaultOpen: true
+    },
+    {
+      key: 'in-work',
+      title: 'В работе',
+      items: inWork,
+      color: 'var(--color-accent)',
+      defaultOpen: true
+    },
+    {
+      key: 'pending',
+      title: 'Ожидают решения',
+      items: pending,
+      color: 'var(--color-warning)',
+      defaultOpen: true
+    },
+    {
+      key: 'accepted',
+      title: 'Принятые',
+      items: accepted,
+      color: 'var(--color-success)',
+      defaultOpen: false
+    },
+    {
+      key: 'rejected',
+      title: 'Отклонённые',
+      items: rejected,
+      color: 'var(--color-danger)',
+      defaultOpen: false
+    }
+  ].filter(s => s.items.length > 0)
+}
+
+// ── Группировка по объектам + секции внутри ───────────────────
 const groupedByObject = computed<ObjectGroup[]>(() => {
-  const map = new Map<number, ObjectGroup>()
+  const map = new Map<number, WorkAgreement[]>()
 
   for (const a of agreements.value) {
-    let group = map.get(a.objectId)
-
-    if (!group) {
-      group = { objectId: a.objectId, objectName: a.objectName || 'Объект', items: [] }
-      map.set(a.objectId, group)
-    }
-
-    group.items.push(a)
+    const list = map.get(a.objectId) || []
+    list.push(a)
+    map.set(a.objectId, list)
   }
 
-  return Array.from(map.values())
+  return Array.from(map.entries()).map(([objectId, items]) => ({
+    objectId,
+    objectName: items[0]?.objectName || 'Объект',
+    items,
+    sections: buildSections(items)
+  }))
 })
 
-// ── Сводка ─────────────────────────────────────────────────────────
-// Учитываются только активные карточки: прайсы (сумма 0) и подтверждённые заявки.
-// pending_review / rejected / cancelled в «Договоровано» не входят.
+// Автоматически инициализируем состояние секций при появлении данных
+watch(groupedByObject, (groups) => {
+  for (const group of groups) {
+    for (const section of group.sections) {
+      const key = makeSectionKey(group.objectId, section.key)
+      if (openSections.value[key] === undefined) {
+        openSections.value[key] = section.defaultOpen
+      }
+    }
+  }
+}, { immediate: true })
+
+// ── Сводка ─────────────────────────────────────────────────────
 const activeAgreements = computed(() =>
   agreements.value.filter(a => a.status === 'active')
 )
@@ -318,12 +469,11 @@ const totalPending = computed(() =>
   agreements.value.reduce((sum, a) => sum + Number(a.pendingAmount || 0), 0)
 )
 
-// Заявки, ожидающие решения руководителя
 const pendingProposals = computed(() =>
   agreements.value.filter(a => a.status === 'pending_review')
 )
 
-// ── API ────────────────────────────────────────────────────────────
+// ── API ────────────────────────────────────────────────────────
 async function loadAgreements() {
   loading.value = true
 
@@ -339,7 +489,7 @@ async function loadAgreements() {
   }
 }
 
-// ── Хелперы ────────────────────────────────────────────────────────
+// ── Хелперы ────────────────────────────────────────────────────
 function formatCurrency(value: number | string) {
   return new Intl.NumberFormat('ru-RU').format(Number(value || 0)) + ' ₽'
 }
@@ -363,7 +513,6 @@ function unitLabel(agreement: WorkAgreement) {
 }
 
 function unitPrice(agreement: WorkAgreement) {
-  // Цену берём из согласованной цены за единицу (работает и для прайс-карточек)
   if (agreement.unitPrice != null && Number(agreement.unitPrice) > 0) {
     return formatCurrency(Number(agreement.unitPrice))
   }
@@ -382,13 +531,11 @@ function canSubmit(agreement: WorkAgreement) {
   )
 }
 
-/** Прайс-карточка без нерешённой заявки — можно предложить объём */
 function canPropose(agreement: WorkAgreement) {
   if (!agreement.unitPriceOnly || agreement.status !== 'active') {
     return false
   }
 
-  // Пока есть заявка по этому прайсу на проверке — новую не предлагаем
   return !agreements.value.some(
     a =>
       a.parentAgreementId === agreement.id &&
@@ -474,11 +621,17 @@ onMounted(() => {
   &__objects {
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 14px;
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
   }
 }
 
-// ── Сводка ─────────────────────────────────────────────────────────
+// ── Сводка ─────────────────────────────────────────────────────
 .summary-item {
   display: flex;
   flex-direction: column;
@@ -509,67 +662,200 @@ onMounted(() => {
   }
 }
 
-// ── Группа объекта ─────────────────────────────────────────────────
+// ── Группа объекта (верхний уровень аккордеона) ───────────────
 .object-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  background: var(--crm-bg-elevated);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-lg);
+  overflow: hidden;
 
   &__header {
     display: flex;
     align-items: center;
-    gap: 6px;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 16px;
+    cursor: pointer;
+    user-select: none;
+    background: var(--crm-bg-elevated);
+    transition: background 0.15s ease;
+
+    &:hover {
+      background: var(--crm-bg-overlay);
+    }
+  }
+
+  &__title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-size: var(--crm-text-md);
     font-weight: 600;
     color: var(--crm-warning);
-    padding-bottom: 6px;
-    border-bottom: 1px solid var(--crm-border);
+    min-width: 0;
+    flex: 1;
+
+    span:nth-child(2) {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
   }
 
   &__count {
-    margin-left: auto;
     font-size: var(--crm-text-xs);
-    font-weight: 500;
+    font-weight: 700;
     color: var(--crm-text-muted);
-    background: var(--crm-bg-elevated);
+    background: var(--crm-bg-overlay);
     border: 1px solid var(--crm-border);
     border-radius: 999px;
     padding: 1px 8px;
+    flex-shrink: 0;
   }
 
-  &__list {
+  &__chevron {
+    color: var(--crm-text-muted);
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+
+    &.rotated {
+      transform: rotate(-90deg);
+    }
+  }
+
+  &__body {
     display: flex;
     flex-direction: column;
     gap: 10px;
+    padding: 12px;
+    border-top: 1px solid var(--crm-border);
+    background: var(--crm-bg-surface);
   }
 }
 
-// ── Карточка договорённости ───────────────────────────────────────
+// ── Секции статусов (вложенный аккордеон) ─────────────────────
+.agreement-section {
+  background: var(--crm-bg-surface);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-md);
+  overflow: hidden;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: var(--crm-bg-elevated);
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s ease;
+
+    &:hover {
+      background: var(--crm-bg-overlay);
+    }
+  }
+
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.05);
+  }
+
+  &__name {
+    font-size: var(--crm-text-sm);
+    font-weight: 600;
+    color: var(--crm-text-primary);
+  }
+
+  &__count {
+    font-size: var(--crm-text-xs);
+    font-weight: 700;
+    color: var(--crm-text-muted);
+    background: var(--crm-bg-overlay);
+    border: 1px solid var(--crm-border);
+    padding: 1px 7px;
+    border-radius: 10px;
+    line-height: 1.4;
+  }
+
+  &__chevron {
+    color: var(--crm-text-muted);
+    transition: transform 0.2s ease;
+
+    &.rotated {
+      transform: rotate(-90deg);
+    }
+  }
+
+  &__body {
+    padding: 10px;
+    border-top: 1px solid var(--crm-border);
+    background: var(--crm-bg-surface);
+  }
+}
+
+// ── Карточка договорённости ────────────────────────────────────
 .agreement-card {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 14px;
+  padding: 12px 14px;
   border: 1px solid var(--crm-border);
+  border-left: 4px solid var(--crm-border);
   border-radius: var(--crm-radius-md);
   background: var(--crm-bg-elevated);
   transition: var(--crm-transition);
 
-  &--done {
+  // ── Цветовые модификаторы по категориям ──
+  &--prices {
+    border-left: 4px solid var(--color-primary);
+    background: linear-gradient(
+      to right,
+      rgba(0, 195, 245, 0.04),
+      var(--crm-bg-elevated) 60%
+    );
+  }
+
+  &--in-work {
+    border-left-color: var(--color-accent);
+    box-shadow: inset 1px 0 0 -1px var(--color-accent);
+  }
+
+  &--pending {
+    border: 1px dashed var(--color-warning);
+    border-left: 4px solid var(--color-warning);
+    background: linear-gradient(
+      to right,
+      rgba(255, 193, 7, 0.05),
+      var(--crm-bg-elevated) 60%
+    );
+  }
+
+  &--accepted {
+    border-left-color: var(--color-success);
+  }
+
+  &--rejected {
+    border-left-color: var(--color-danger);
+  }
+
+  // ── Модификатор приглушения ──
+  &--muted {
     opacity: 0.65;
 
     .agreement-card__title {
       text-decoration: line-through;
     }
-  }
-
-  &--pending {
-    border-color: rgba(240, 173, 78, 0.55);
-    box-shadow: 0 0 0 1px rgba(240, 173, 78, 0.15);
-  }
-
-  &--price {
-    border-style: dashed;
   }
 
   &__header {
@@ -666,7 +952,7 @@ onMounted(() => {
   }
 }
 
-// ── Бейджи карточек ───────────────────────────────────────────────
+// ── Бейджи карточек ───────────────────────────────────────────
 .wbadge {
   display: inline-flex;
   align-items: center;
@@ -695,7 +981,7 @@ onMounted(() => {
   }
 }
 
-// ── Прогресс ───────────────────────────────────────────────────────
+// ── Прогресс ──────────────────────────────────────────────────
 .progress {
   height: 8px;
   border-radius: 99px;
@@ -710,7 +996,7 @@ onMounted(() => {
   }
 }
 
-// ── Кнопки ─────────────────────────────────────────────────────────
+// ── Кнопки ────────────────────────────────────────────────────
 .crm-btn {
   display: inline-flex;
   align-items: center;
