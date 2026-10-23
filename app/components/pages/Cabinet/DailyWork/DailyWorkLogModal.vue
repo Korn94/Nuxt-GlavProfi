@@ -186,6 +186,7 @@ function parsedChanges(entry: LogEntry): Record<string, LogChange> {
 }
 
 const FIELD_LABELS: Record<string, string> = {
+  workId: 'ID записи',
   workerAmount: 'Сумма',
   comment: 'Комментарий',
   contractorId: 'Контрагент',

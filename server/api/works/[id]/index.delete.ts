@@ -1,4 +1,4 @@
-// server/api/works/[id].delete.ts
+// server/api/works/[id]/index.delete.ts
 /**
  * Назначение: Удаление работы + восстановление балансов контрагента и объекта
  * ⚠️ Требует право `canDeleteRecords` (проверяется в мидлваре)
@@ -7,6 +7,10 @@
  * - Баланс контрагента возвращается ТОЛЬКО если работа была принята (paid = true)
  * - Агрегаты объекта корректируются ТОЛЬКО при paid = true
  * - Всё в одной транзакции с атомарными SQL-обновлениями
+ * - Журнал подневки пишется ВНУТРИ транзакции и ДО удаления записи `works`:
+ *   у work_daily_log.work_id есть FK на works.id, вставка после COMMIT упала бы
+ *   с ER_NO_REFERENCED_ROW_2. После tx.delete срабатывает ON DELETE SET NULL —
+ *   журнал переживает удаление подневки (остаются снапшот-поля + changes).
  * 
  * @param {string} id — ID работы (из пути)
  * @returns { message: string, deletedWork: Work }
@@ -16,7 +20,7 @@ import { defineEventHandler, getRouterParam, createError } from 'h3'
 import { db } from '../../../db'
 import { works, masters, workers, objects } from '../../../db/schema'
 import { eq, sql } from 'drizzle-orm'
-import { logDailyWork } from '../../../utils/workDailyLog'
+import { logDailyWork, buildDeletionSnapshot } from '../../../utils/workDailyLog'
 
 export default defineEventHandler(async (event) => {
   // ✅ Авторизация и права уже проверены мидлваром
@@ -30,7 +34,7 @@ export default defineEventHandler(async (event) => {
   if (!deletedWork) throw createError({ statusCode: 404, message: 'Работа не найдена' })
 
   // ✅ Все изменения в одной транзакции
-  return await db.transaction(async (tx) => {
+  await db.transaction(async (tx) => {
     // 🔄 1. Восстанавливаем баланс контрагента — ТОЛЬКО если работа была принята (paid = true)
     if (
       deletedWork.paid &&
@@ -61,14 +65,21 @@ export default defineEventHandler(async (event) => {
         .where(eq(objects.id, deletedWork.objectId))
     }
 
-    // 🗑️ 3. Удаляем запись работы
+    // 📝 3. Журнал изменений подневки: фиксируем удаление ДО tx.delete
+    //    (только для подневки — фильтр внутри logDailyWork).
+    await logDailyWork(
+      event,
+      'deleted',
+      deletedWork,
+      buildDeletionSnapshot(deletedWork),
+      tx
+    )
+
+    // 🗑️ 4. Удаляем запись работы
+    //    ON DELETE SET NULL по FK обнулит work_id у строки журнала —
+    //    журнал переживает удаление подневки (остаются снапшот-поля + changes)
     await tx.delete(works).where(eq(works.id, workId))
-
-    return deletedWork
   })
-
-  // 📝 Журнал изменений подневки: фиксируем удаление (только для подневки)
-  await logDailyWork(event, 'deleted', deletedWork)
 
   return {
     message: 'Работа успешно удалена',
