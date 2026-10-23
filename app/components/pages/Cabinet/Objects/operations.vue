@@ -182,7 +182,7 @@
               <td class="td--name">{{foremans.find(f => f.id === w.supervisorId)?.name || '—'}}</td>
               <td class="td--center">
                 <Icon :name="w.acceptedByClient ? 'mdi:check-circle' : 'mdi:close-circle'" size="16"
-                  :class="w.acceptedByClient ? 'pos' : 'neg'" />
+                  :class="w.acceptedByClient ? 'pos' : 'neg'" :title="w.rejectionComment || ''" />
               </td>
               <td class="td--actions">
                 <template v-if="!w.paid && !w.acceptedByClient">
@@ -437,6 +437,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useApi } from '~/composables/useApi'
+import { useNotifications } from '~/composables/useNotifications'
 
 const props = defineProps < {
   objectId: number
@@ -454,6 +455,7 @@ const emit = defineEmits < {
 
 const route = useRoute()
 const api = useApi()
+const notifications = useNotifications()
 
 // ── Данные ───────────────────────────────────────────────────────────
 const comings = ref < any[] > ([])
@@ -909,7 +911,11 @@ async function payWork(id: number) {
     const result = await api.post<any>(`/api/works/pay-work/${id}`)
     const w = works.value.find(x => x.id === id)
     if (w) { w.paid = true; w.paymentDate = result.paymentDate }
-  } catch (e) { console.error('[Операции] Ошибка оплаты:', e) }
+    notifications.success('Работа оплачена')
+  } catch (e: any) {
+    console.error('[Операции] Ошибка оплаты:', e)
+    notifications.error(e?.data?.message || 'Не удалось оплатить работу')
+  }
 }
 
 async function acceptWork(id: number) {
@@ -917,17 +923,25 @@ async function acceptWork(id: number) {
     await api.post(`/api/works/accept/${id}`)
     const w = works.value.find(x => x.id === id)
     if (w) { w.acceptedByClient = true; w.rejectionComment = null }
-  } catch (e) { console.error('[Операции] Ошибка принятия:', e) }
+    notifications.success('Работа принята')
+  } catch (e: any) {
+    console.error('[Операции] Ошибка принятия:', e)
+    notifications.error(e?.data?.message || 'Не удалось принять работу')
+  }
 }
 
 async function rejectWork(id: number) {
-  const comment = prompt('Введите причину отклонения:')
-  if (!comment) return
+  const reason = prompt('Введите причину отклонения:')?.trim()
+  if (!reason) return
   try {
-await api.post(`/api/works/reject/${id}`, { comment })
+    const res = await api.post<{ rejectedReason: string }>(`/api/works/reject/${id}`, { reason })
     const w = works.value.find(x => x.id === id)
-    if (w) { w.rejectionComment = comment; w.acceptedByClient = false }
-  } catch (e) { console.error('[Операции] Ошибка отклонения:', e) }
+    if (w) { w.rejectionComment = res?.rejectedReason ?? reason; w.acceptedByClient = false }
+    notifications.success('Работа отклонена')
+  } catch (e: any) {
+    console.error('[Операции] Ошибка отклонения:', e)
+    notifications.error(e?.data?.message || 'Не удалось отклонить работу')
+  }
 }
 
 async function deleteWork(id: number, isPaid: boolean) {
@@ -939,7 +953,11 @@ async function deleteWork(id: number, isPaid: boolean) {
     await api.delete(`/api/works/${id}`)
     works.value = works.value.filter(w => w.id !== id)
     emit('delete-work', id)
-  } catch (e) { console.error('[Операции] Ошибка удаления:', e) }
+    notifications.success('Работа удалена')
+  } catch (e: any) {
+    console.error('[Операции] Ошибка удаления:', e)
+    notifications.error(e?.data?.message || 'Не удалось удалить работу')
+  }
 }
 
 // ── Lifecycle ─────────────────────────────────────────────────────────

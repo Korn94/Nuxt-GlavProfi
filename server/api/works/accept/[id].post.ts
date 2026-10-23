@@ -21,9 +21,13 @@ export default defineEventHandler(async (event) => {
   if (!work) throw createError({ statusCode: 404, message: 'Работа не найдена' })
   if (work.accepted) throw createError({ statusCode: 400, message: 'Работа уже принята' })
 
+  // rejectedReason сбрасываем: иначе после «отклонить → принять» работа
+  // останется помеченной отклонённой (см. mine.get: pending = accepted=false
+  // AND rejectedReason IS NULL), а UI покажет устаревшую причину.
   await db.update(works).set({
     accepted: true,
-    acceptedDate: new Date()
+    acceptedDate: new Date(),
+    rejectedReason: null
   }).where(eq(works.id, parseInt(id)))
 
   return { success: true }
