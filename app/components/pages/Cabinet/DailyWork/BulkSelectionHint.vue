@@ -1,4 +1,4 @@
-<!-- app\components\pages\cabinet\DailyWork\BulkSelectionHint.vue -->
+<!-- app/components/pages/Cabinet/DailyWork/BulkSelectionHint.vue -->
  <template>
   <Transition name="hint-fade">
     <div v-if="visible" class="bulk-hint">

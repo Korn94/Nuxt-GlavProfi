@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Boards/index.vue -->
+<!-- app/components/pages/Cabinet/Boards/index.vue -->
 <template>
 <div class="boards-page">
   <!-- Список папок -->

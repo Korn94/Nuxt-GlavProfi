@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/settings/permissions/shared/AuditInfo.vue -->
+<!-- app/components/pages/Cabinet/settings/permissions/shared/AuditInfo.vue -->
 <template>
   <div :class="['audit-info', `audit-info--${variant}`]">
     <!-- Иконка слева -->

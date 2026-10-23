@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Boards/Kanban/TaskDetails/MainContent.vue -->
+<!-- app/components/pages/Cabinet/Boards/Kanban/TaskDetails/MainContent.vue -->
 <template>
   <div class="task-main-content">
     <!-- Секция описания -->

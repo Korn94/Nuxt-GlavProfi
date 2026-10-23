@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/settings/permissions/Roles/RoleCard.vue -->
+<!-- app/components/pages/Cabinet/settings/permissions/Roles/RoleCard.vue -->
 <template>
   <div :class="['role-card', `role-${role.role}`]">
     <!-- Шапка: бейдж + название + счётчик пользователей -->

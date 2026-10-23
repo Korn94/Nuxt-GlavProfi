@@ -1,4 +1,4 @@
-<!-- app/components/Cabinet/WidgetWrapper.vue -->
+<!-- app/components/pages/Cabinet/ui/cards/WidgetWrapper.vue -->
 <template>
   <div
     class="widget-wrapper"

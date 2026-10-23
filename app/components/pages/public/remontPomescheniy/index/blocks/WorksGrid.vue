@@ -1,4 +1,4 @@
-<!-- app/components/pages/public/remontPomescheniy/blocks/WorksGrid.vue -->
+<!-- app/components/pages/public/remontPomescheniy/index/blocks/WorksGrid.vue -->
 <template>
   <section class="works-grid">
     <!-- Декоративная сетка на фоне -->

@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Contractor/AddForm.vue -->
+<!-- app/components/pages/Cabinet/Admin/contractors/AddForm.vue -->
 <template>
   <div class="add-contractor-form">
     <!-- Имя -->

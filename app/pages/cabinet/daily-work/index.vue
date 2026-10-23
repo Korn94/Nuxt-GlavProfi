@@ -12,7 +12,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useHead } from 'nuxt/app'
-import DailyWork from '~/components/pages/cabinet/DailyWork/index.vue'
+import DailyWork from '~/components/pages/Cabinet/DailyWork/index.vue'
 import { usePermissions } from '~/composables/usePermissions'
 
 definePageMeta({

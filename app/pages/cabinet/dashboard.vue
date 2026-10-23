@@ -21,19 +21,19 @@ const isLoading = ref(true)
 // Ленивая загрузка — грузится только нужный дашборд
 const dashboards: Record<string, any> = {
   admin: defineAsyncComponent(() =>
-    import('~/components/pages/cabinet/dashboards/admin/index.vue')
+    import('~/components/pages/Cabinet/dashboards/admin/index.vue')
   ),
   manager: defineAsyncComponent(() =>
-    import('~/components/pages/cabinet/dashboards/manager/index.vue')
+    import('~/components/pages/Cabinet/dashboards/manager/index.vue')
   ),
   foreman: defineAsyncComponent(() =>
-    import('~/components/pages/cabinet/dashboards/foreman/index.vue')
+    import('~/components/pages/Cabinet/dashboards/foreman/index.vue')
   ),
   master: defineAsyncComponent(() =>
-    import('~/components/pages/cabinet/dashboards/master/index.vue')
+    import('~/components/pages/Cabinet/dashboards/master/index.vue')
   ),
   worker: defineAsyncComponent(() =>
-    import('~/components/pages/cabinet/dashboards/worker/index.vue')
+    import('~/components/pages/Cabinet/dashboards/worker/index.vue')
   ),
 }
 

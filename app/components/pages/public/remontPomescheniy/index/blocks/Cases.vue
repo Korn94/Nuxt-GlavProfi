@@ -1,4 +1,4 @@
-<!-- app/components/public/remont-pomescheniy/index/blocks/CasesBlock.vue -->
+<!-- app/components/pages/public/remontPomescheniy/index/blocks/Cases.vue -->
 <template>
   <section class="testimonials">
     <div class="container">

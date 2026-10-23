@@ -6,7 +6,7 @@
 </template>
 
 <script setup lang="ts">
-import BoardsIndex from '~/components/pages/cabinet/Boards/index.vue'
+import BoardsIndex from '~/components/pages/Cabinet/Boards/index.vue'
 
 // Мета-данные страницы
 definePageMeta({

@@ -1,4 +1,4 @@
-<!-- app/components/Pages/Cabinet/Objects/Agreements.vue -->
+<!-- app/components/pages/Cabinet/Objects/Agreements.vue -->
 <template>
   <div class="agreements">
     <div class="agreements__toolbar">

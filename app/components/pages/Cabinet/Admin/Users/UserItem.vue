@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Admin/Users/UserItem.vue -->
+<!-- app/components/pages/Cabinet/Admin/Users/UserItem.vue -->
 <template>
   <div class="user-item" @mouseenter="isHovered = true" @mouseleave="isHovered = false">
     <!-- Левая часть: Аватар + Имя/Логин -->

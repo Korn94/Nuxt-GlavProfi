@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/settings/permissions/shared/PermCheckboxes.vue -->
+<!-- app/components/pages/Cabinet/settings/permissions/shared/PermCheckboxes.vue -->
 <template>
   <div :class="['perm-checkboxes', { 'perm-checkboxes--compact': compact }]">
     <!-- 👁 Просмотр (Read-Only Access) — всегда доступен -->

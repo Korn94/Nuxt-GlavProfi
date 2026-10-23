@@ -1,4 +1,4 @@
-<!-- app\components\pages\cabinet\dashboards\worker\index.vue -->
+<!-- app/components/pages/Cabinet/dashboards/worker/index.vue -->
  <template>
   <div class="worker-dashboard">
     <PagesCabinetUiLayoutPageTitle 

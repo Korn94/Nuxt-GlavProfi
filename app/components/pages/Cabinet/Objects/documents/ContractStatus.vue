@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/objects/documents/ContractStatus.vue -->
+<!-- app/components/pages/Cabinet/Objects/documents/ContractStatus.vue -->
 <template>
   <div class="contract">
 

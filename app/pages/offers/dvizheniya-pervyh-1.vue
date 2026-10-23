@@ -1,4 +1,4 @@
-<!-- app/pages/offers/dvizheniya-pervyh.vue -->
+<!-- app/pages/offers/dvizheniya-pervyh-1.vue -->
 <template>
   <OffersIndex />
 </template>

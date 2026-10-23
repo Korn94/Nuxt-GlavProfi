@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Boards/Kanban/Column/AddColumnPlaceholder.vue -->
+<!-- app/components/pages/Cabinet/Boards/Kanban/Column/AddColumnPlaceholder.vue -->
 <template>
   <div
     class="add-column-placeholder"

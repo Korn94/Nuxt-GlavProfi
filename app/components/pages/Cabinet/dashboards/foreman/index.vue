@@ -1,4 +1,4 @@
-<!-- app\components\pages\cabinet\dashboards\foreman\index.vue -->
+<!-- app/components/pages/Cabinet/dashboards/foreman/index.vue -->
  <template>
   <div class="foreman-dashboard">
     <!-- <PagesCabinetUiLayoutPageTitle 
@@ -17,7 +17,7 @@
 
 <script setup lang="ts">
 import { useHead } from 'nuxt/app'
-import DailyWork from '~/components/pages/cabinet/DailyWork/index.vue'
+import DailyWork from '~/components/pages/Cabinet/DailyWork/index.vue'
 
 const onSave = (data: any) => {
   console.log('[ForemanDashboard] Сохранено:', data)

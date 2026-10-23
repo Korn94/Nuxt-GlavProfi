@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/settings/permissions/shared/PermCapabilities.vue -->
+<!-- app/components/pages/Cabinet/settings/permissions/shared/PermCapabilities.vue -->
  <template>
   <div :class="['perm-capabilities', { 'perm-capabilities--compact': compact }]">
     <!-- Создание -->

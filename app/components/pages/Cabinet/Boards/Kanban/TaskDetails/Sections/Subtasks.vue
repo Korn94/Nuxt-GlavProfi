@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Boards/Kanban/TaskDetails/Sections/Subtasks.vue -->
+<!-- app/components/pages/Cabinet/Boards/Kanban/TaskDetails/Sections/Subtasks.vue -->
 <template>
   <div class="task-section subtasks-section">
     <!-- Заголовок секции -->

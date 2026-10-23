@@ -1,4 +1,4 @@
-<!-- app\components\pages\cabinet\dashboards\master\ComingSoonWidget.vue -->
+<!-- app/components/pages/Cabinet/dashboards/master/ComingSoonWidget.vue -->
  <template>
   <div class="coming-soon-widget">
     <div class="coming-soon-widget__icon">

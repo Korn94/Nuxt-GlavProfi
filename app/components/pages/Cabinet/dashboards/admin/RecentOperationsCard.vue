@@ -1,4 +1,4 @@
-<!-- app\components\pages\cabinet\dashboards\admin\RecentOperationsCard.vue -->
+<!-- app/components/pages/Cabinet/dashboards/admin/RecentOperationsCard.vue -->
  <template>
   <PagesCabinetUiCardsCard :loading="isLoading" title="Последние операции" flush>
     <template #icon>

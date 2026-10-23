@@ -1,4 +1,4 @@
-<!-- app\components\pages\cabinet\dashboards\master\BalanceCard.vue -->
+<!-- app/components/pages/Cabinet/dashboards/master/BalanceCard.vue -->
  <template>
   <div class="balance-card">
     <!-- Заголовок -->

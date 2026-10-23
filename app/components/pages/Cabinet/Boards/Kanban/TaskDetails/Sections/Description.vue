@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Boards/Kanban/TaskDetails/Sections/Description.vue -->
+<!-- app/components/pages/Cabinet/Boards/Kanban/TaskDetails/Sections/Description.vue -->
 <template>
   <div class="task-section description-section">
     <div class="section-header">

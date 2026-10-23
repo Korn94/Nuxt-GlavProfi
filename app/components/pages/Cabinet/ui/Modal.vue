@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/ui/Modal.vue -->
+<!-- app/components/pages/Cabinet/ui/Modal.vue -->
 <template>
   <Teleport to="body">
     <Transition v-if="visible" name="modal">

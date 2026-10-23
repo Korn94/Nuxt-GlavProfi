@@ -1,4 +1,4 @@
-// server/api/materials/toggle-check/[id].ts
+// server/api/materials/[id]/toggle-check.ts
 /**
  * Назначение: Переключение флага наличия чека у материала
  * ⚠️ Требует право `canEditObjects` (проверяется в мидлваре)

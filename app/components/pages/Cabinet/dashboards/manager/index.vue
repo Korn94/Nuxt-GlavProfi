@@ -1,4 +1,4 @@
-<!-- app\components\pages\cabinet\dashboards\manager\index.vue -->
+<!-- app/components/pages/Cabinet/dashboards/manager/index.vue -->
  <template>
   <div class="manager-dashboard">
     <PagesCabinetUiLayoutPageTitle 

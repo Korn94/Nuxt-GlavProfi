@@ -1,4 +1,4 @@
-<!-- app/components/Pages/Cabinet/Objects/AgreementFormModal.vue -->
+<!-- app/components/pages/Cabinet/Objects/AgreementFormModal.vue -->
 <template>
   <div
     v-if="show"

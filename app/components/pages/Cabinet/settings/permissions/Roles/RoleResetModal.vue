@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/settings/permissions/Roles/RoleResetModal.vue -->
+<!-- app/components/pages/Cabinet/settings/permissions/Roles/RoleResetModal.vue -->
 <template>
   <Teleport to="body">
     <Transition name="modal">

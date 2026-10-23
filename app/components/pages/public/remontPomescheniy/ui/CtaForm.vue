@@ -1,4 +1,4 @@
-<!-- app/components/pages/public/remontPomescheniy/pageTypes/ui/CtaForm.vue -->
+<!-- app/components/pages/public/remontPomescheniy/ui/CtaForm.vue -->
 <template>
   <form class="cta-form" novalidate @submit.prevent="handleSubmit">
     <!-- ==================== ИМЯ ==================== -->

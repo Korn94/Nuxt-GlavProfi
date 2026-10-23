@@ -1,4 +1,4 @@
-<!-- app\components\pages\cabinet\dashboards\admin\FinanceSummaryCard.vue -->
+<!-- app/components/pages/Cabinet/dashboards/admin/FinanceSummaryCard.vue -->
  <template>
   <PagesCabinetUiCardsCard :loading="isLoading" title="Финансовая сводка" flush>
     <template #icon>

@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/DailyWork/ui/CalendarCell.vue -->
+<!-- app/components/pages/Cabinet/DailyWork/ui/CalendarCell.vue -->
 <template>
   <div :class="cellClasses" :data-date="date" v-on="cellEvents">
     <!-- Tooltip с деталями объектов -->

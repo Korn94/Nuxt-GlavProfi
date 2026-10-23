@@ -1,4 +1,4 @@
-<!-- app/components/pages/public/remontPomescheniy/pageTypes/ui/MiniEstimateForm.vue -->
+<!-- app/components/pages/public/remontPomescheniy/ui/MiniEstimateForm.vue -->
 <template>
   <form class="mini-form" novalidate @submit.prevent="submitForm">
     <h3 class="mini-form__title">Быстрый расчёт стоимости</h3>

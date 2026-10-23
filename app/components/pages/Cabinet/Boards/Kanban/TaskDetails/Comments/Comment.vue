@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Boards/Kanban/TaskDetails/Comments/Comment.vue -->
+<!-- app/components/pages/Cabinet/Boards/Kanban/TaskDetails/Comments/Comment.vue -->
 <template>
   <div class="comment" :class="{ 'comment-with-replies': hasReplies }">
     <!-- Шапка комментария -->

@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Boards/Kanban/TaskDetails/Sidebar/Actions.vue -->
+<!-- app/components/pages/Cabinet/Boards/Kanban/TaskDetails/Sidebar/Actions.vue -->
 <template>
   <div class="task-sidebar-section task-actions-section">
     <h4 class="task-sidebar-title">

@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/settings/permissions/Users/ClearOverridesModal.vue -->
+<!-- app/components/pages/Cabinet/settings/permissions/Users/ClearOverridesModal.vue -->
 <template>
   <Teleport to="body">
     <Transition name="modal">

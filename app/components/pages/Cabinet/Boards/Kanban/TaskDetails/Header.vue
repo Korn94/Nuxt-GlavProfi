@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Boards/Kanban/TaskDetails/Header.vue -->
+<!-- app/components/pages/Cabinet/Boards/Kanban/TaskDetails/Header.vue -->
 <template>
   <div class="task-details-header">
     <div class="header-top-row">

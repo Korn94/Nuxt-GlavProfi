@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Contractors/ContractorForm.vue -->
+<!-- app/components/pages/Cabinet/Contractors/ContractorForm.vue -->
 <template>
   <div class="contractor-form">
 

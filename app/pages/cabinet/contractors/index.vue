@@ -159,8 +159,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import PageTitle from '~/components/pages/cabinet/ui/layout/PageTitle.vue'
-import Modal from '~/components/pages/cabinet/ui/Modal.vue'
+import PageTitle from '~/components/pages/Cabinet/ui/layout/PageTitle.vue'
+import Modal from '~/components/pages/Cabinet/ui/Modal.vue'
 import { useContractors } from '~/composables/useContractors'
 import type { ContractorType, ContractorDTO } from '~/types/contractors'
 import { CONTRACTOR_TYPES } from '~/types/contractors'

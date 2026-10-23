@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/objects/documents/Budget.vue -->
+<!-- app/components/pages/Cabinet/Objects/documents/Budget.vue -->
 <template>
   <div class="budget">
 

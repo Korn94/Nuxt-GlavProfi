@@ -1,4 +1,4 @@
-<!-- app/pages/cabinet/materials.vue -->
+<!-- app/pages/cabinet/materials/index.vue -->
 <template>
   <div class="materials-page">
 

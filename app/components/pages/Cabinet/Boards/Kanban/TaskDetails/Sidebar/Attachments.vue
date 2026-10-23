@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Boards/Kanban/TaskDetails/Sidebar/Attachments.vue -->
+<!-- app/components/pages/Cabinet/Boards/Kanban/TaskDetails/Sidebar/Attachments.vue -->
 <template>
   <div class="task-sidebar-section task-attachments-section">
     <div class="task-sidebar-header">

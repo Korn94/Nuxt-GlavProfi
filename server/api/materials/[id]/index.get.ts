@@ -1,4 +1,4 @@
-// server/api/materials/[id].get.ts
+// server/api/materials/[id]/index.get.ts
 /**
  * Назначение: Получение данных конкретного материала по ID
  * ⚠️ Требует право `canViewObjects` (проверяется в мидлваре)

@@ -1,4 +1,4 @@
-<!-- app\components\pages\cabinet\Contractors\ContractorList.vue -->
+<!-- app/components/pages/Cabinet/Contractors/ContractorList.vue -->
 <!-- Список контрагентов -->
 <template>
   <div class="contractor-list">

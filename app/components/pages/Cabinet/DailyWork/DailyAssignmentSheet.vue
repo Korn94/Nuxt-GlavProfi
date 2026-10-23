@@ -1,4 +1,4 @@
-<!-- app\components\pages\cabinet\DailyWork\DailyAssignmentSheet.vue -->
+<!-- app/components/pages/Cabinet/DailyWork/DailyAssignmentSheet.vue -->
 <template>
   <Transition name="sheet">
     <div v-if="modelValue" class="sheet-backdrop" @click.self="$emit('update:modelValue', false)">

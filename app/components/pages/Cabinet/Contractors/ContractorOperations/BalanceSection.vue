@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Contractors/ContractorOperations/BalanceSection.vue -->
+<!-- app/components/pages/Cabinet/Contractors/ContractorOperations/BalanceSection.vue -->
 <template>
   <div class="operations-section">
 

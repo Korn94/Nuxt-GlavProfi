@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/objects/Operations.vue -->
+<!-- app/components/pages/Cabinet/Objects/operations.vue -->
 <template>
   <div class="ops">
 

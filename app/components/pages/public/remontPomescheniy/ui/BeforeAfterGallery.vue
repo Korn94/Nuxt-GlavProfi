@@ -1,4 +1,4 @@
-<!-- app/components/pages/public/remontPomescheniy/pageTypes/ui/BeforeAfterGallery.vue -->
+<!-- app/components/pages/public/remontPomescheniy/ui/BeforeAfterGallery.vue -->
 <template>
   <section class="before-after-gallery" :class="`before-after-gallery--${theme}`">
     <div class="container">

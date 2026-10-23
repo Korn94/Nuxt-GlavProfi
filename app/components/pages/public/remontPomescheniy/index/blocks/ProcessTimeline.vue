@@ -1,4 +1,4 @@
-<!-- app/components/public/remont-pomescheniy/index/blocks/ProcessTimeline.vue -->
+<!-- app/components/pages/public/remontPomescheniy/index/blocks/ProcessTimeline.vue -->
 <template>
   <section class="process-timeline">
     <!-- Декоративная сетка на фоне -->

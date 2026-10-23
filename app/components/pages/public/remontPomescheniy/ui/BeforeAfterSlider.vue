@@ -1,4 +1,4 @@
-<!-- app/components/pages/public/remontPomescheniy/pageTypes/ui/BeforeAfterSlider.vue -->
+<!-- app/components/pages/public/remontPomescheniy/ui/BeforeAfterSlider.vue -->
 <template>
   <div
     ref="containerRef"

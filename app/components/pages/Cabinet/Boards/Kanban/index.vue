@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Boards/Kanban/index.vue -->
+<!-- app/components/pages/Cabinet/Boards/Kanban/index.vue -->
 <template>
   <div class="kanban-board">
     <!-- Шапка через отдельный компонент -->

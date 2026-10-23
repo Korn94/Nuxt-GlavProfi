@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/dashboards/master/StatsCard.vue -->
+<!-- app/components/pages/Cabinet/dashboards/master/StatsCard.vue -->
 <template>
   <div class="stats-card">
     <!-- Заголовок -->

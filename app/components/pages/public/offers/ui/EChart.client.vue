@@ -1,4 +1,4 @@
-<!-- app\pages\offers\ui\EChart.client.vue -->
+<!-- app/components/pages/public/offers/ui/EChart.client.vue -->
  <template>
   <div ref="el" class="echart" :style="{ height }" />
 </template>

@@ -1,4 +1,4 @@
-// server/api/materials/[id].put.ts
+// server/api/materials/[id]/index.put.ts
 /**
  * Назначение: Обновление данных материала/расхода
  * ⚠️ Требует право `canEditObjects` (проверяется в мидлваре)

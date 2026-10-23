@@ -1,4 +1,4 @@
-// server/api/balance.get.ts
+// server/api/balance/index.get.ts
 /**
  * Назначение: Получение сводного финансового баланса по всем таблицам
  * ⚠️ Требует право `canViewFinance` (проверяется в мидлваре)

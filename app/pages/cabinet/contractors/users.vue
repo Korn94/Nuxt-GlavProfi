@@ -1,4 +1,4 @@
-<!-- app/pages/cabinet/admin/users.vue -->
+<!-- app/pages/cabinet/contractors/users.vue -->
 <template>
   <div class="users-page">
     <!-- ═══════════════════════════ HEADER ═══════════════════════════ -->
@@ -86,11 +86,11 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import PageTitle from '~/components/pages/cabinet/ui/layout/PageTitle.vue'
-import Modal from '~/components/pages/cabinet/ui/Modal.vue'
-import UserItem from '~/components/pages/cabinet/Admin/Users/UserItem.vue'
-import UserFormModal from '~/components/pages/cabinet/Admin/Users/Modals/UserFormModal.vue'
-import UserPasswordModal from '~/components/pages/cabinet/Admin/Users/Modals/UserPasswordModal.vue'
+import PageTitle from '~/components/pages/Cabinet/ui/layout/PageTitle.vue'
+import Modal from '~/components/pages/Cabinet/ui/Modal.vue'
+import UserItem from '~/components/pages/Cabinet/Admin/Users/UserItem.vue'
+import UserFormModal from '~/components/pages/Cabinet/Admin/Users/Modals/UserFormModal.vue'
+import UserPasswordModal from '~/components/pages/Cabinet/Admin/Users/Modals/UserPasswordModal.vue'
 
 import { useUsersStore } from 'stores/users'
 import { useUserActions } from '~/composables/useUserActions'

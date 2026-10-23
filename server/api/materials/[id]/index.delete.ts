@@ -1,4 +1,4 @@
-// server/api/materials/[id].delete.ts
+// server/api/materials/[id]/index.delete.ts
 /**
  * Назначение: Удаление записи материала/расхода
  * ⚠️ Требует право `canDeleteRecords` (проверяется в мидлваре)

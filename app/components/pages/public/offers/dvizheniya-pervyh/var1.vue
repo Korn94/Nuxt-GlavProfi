@@ -1,4 +1,4 @@
-<!-- app/components/pages/public/offers/index.vue -->
+<!-- app/components/pages/public/offers/dvizheniya-pervyh/var1.vue -->
 <template>
   <div class="kp">
     <!-- ================= HERO ================= -->

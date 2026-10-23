@@ -1,4 +1,4 @@
-<!-- app/components/pages/public/remontPomescheniy/pageTypes/ui/NavBreadcrumbsRow.vue -->
+<!-- app/components/pages/public/remontPomescheniy/ui/NavBreadcrumbsRow.vue -->
 <template>
   <div class="nav-breadcrumbs-row">
     <slot name="breadcrumbs" />

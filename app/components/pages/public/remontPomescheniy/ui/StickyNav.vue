@@ -1,4 +1,4 @@
-<!-- app/components/pages/public/remontPomescheniy/pageTypes/ui/StickyNav.vue -->
+<!-- app/components/pages/public/remontPomescheniy/ui/StickyNav.vue -->
 <template>
   <div
     ref="wrapperRef"

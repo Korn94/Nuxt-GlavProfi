@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/settings/permissions/Pages/PageCard.vue -->
+<!-- app/components/pages/Cabinet/settings/permissions/Pages/PageCard.vue -->
 <template>
   <div
     :class="['page-card', { inactive: !page.isActive }]"

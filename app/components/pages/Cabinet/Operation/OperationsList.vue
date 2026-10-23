@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Operation/OperationsList.vue -->
+<!-- app/components/pages/Cabinet/Operation/OperationsList.vue -->
 <template>
   <div class="ops-list">
 

@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Contractors/ContractorOperations/EditModal.vue -->
+<!-- app/components/pages/Cabinet/Contractors/ContractorOperations/EditModal.vue -->
 <template>
   <PagesCabinetUiModal
     :visible="modelValue"

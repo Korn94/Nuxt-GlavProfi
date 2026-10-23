@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Boards/Kanban/TaskDetails/Sections/Comments.vue -->
+<!-- app/components/pages/Cabinet/Boards/Kanban/TaskDetails/Sections/Comments.vue -->
 <template>
   <div class="task-section comments-section">
     <div class="section-header">

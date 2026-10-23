@@ -1,4 +1,4 @@
-<!-- app\components\pages\cabinet\DailyWork\ui\ObjectSelect.vue -->
+<!-- app/components/pages/Cabinet/DailyWork/ui/ObjectSelect.vue -->
  <template>
   <div class="object-select">
     <!-- Пустое состояние -->

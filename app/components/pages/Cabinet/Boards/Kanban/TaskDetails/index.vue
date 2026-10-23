@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Boards/Kanban/TaskDetails/index.vue -->
+<!-- app/components/pages/Cabinet/Boards/Kanban/TaskDetails/index.vue -->
 <template>
   <Teleport to="body">
     <Transition name="modal-fade">

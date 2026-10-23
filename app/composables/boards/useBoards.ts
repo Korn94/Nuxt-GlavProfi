@@ -1,4 +1,4 @@
-// app/composables/boards/useSubtasks.ts
+// app/composables/boards/useBoards.ts
 
 import { useSubtasksStore } from '../../../stores/boards/subtasks'
 import { useSocketStore } from '../../../stores/socket'

@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Boards/Kanban/Column/index.vue -->
+<!-- app/components/pages/Cabinet/Boards/Kanban/Column/index.vue -->
 <template>
   <div
     class="column"

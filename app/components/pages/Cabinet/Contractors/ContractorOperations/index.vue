@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Contractors/ContractorOperations/index.vue -->
+<!-- app/components/pages/Cabinet/Contractors/ContractorOperations/index.vue -->
 <template>
   <div class="contractor-operations">
 

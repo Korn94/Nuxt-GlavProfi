@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Operation/AddIncome.vue -->
+<!-- app/components/pages/Cabinet/Operation/AddIncome.vue -->
 <template>
   <PagesCabinetUiModal :visible="isOpen" title="Добавить приход" size="md" closable @close="close">
     <div class="op-form">

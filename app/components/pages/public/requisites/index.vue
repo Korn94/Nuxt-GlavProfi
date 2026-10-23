@@ -1,4 +1,4 @@
-<!-- app/components/pages/public/Requisites.vue -->
+<!-- app/components/pages/public/requisites/index.vue -->
 <template>
   <div class="requisites-page">
     <!-- Верхняя панель -->

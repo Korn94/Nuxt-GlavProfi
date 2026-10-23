@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Boards/Kanban/Header/index.vue -->
+<!-- app/components/pages/Cabinet/Boards/Kanban/Header/index.vue -->
 <template>
   <div class="kanban">
     <!-- Шапка с названием доски -->

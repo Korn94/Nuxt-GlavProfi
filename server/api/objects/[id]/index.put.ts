@@ -1,4 +1,4 @@
-// server/api/objects/[id].put.ts
+// server/api/objects/[id]/index.put.ts
 /**
  * Назначение: Обновление данных объекта строительства
  * ⚠️ Требует право `canEditObjects` (проверяется в мидлваре)

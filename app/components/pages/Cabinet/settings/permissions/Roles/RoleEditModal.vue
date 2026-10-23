@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/settings/permissions/Roles/RoleEditModal.vue -->
+<!-- app/components/pages/Cabinet/settings/permissions/Roles/RoleEditModal.vue -->
 <template>
   <Teleport to="body">
     <Transition name="modal">

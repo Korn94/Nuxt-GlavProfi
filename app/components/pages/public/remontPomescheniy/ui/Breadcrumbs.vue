@@ -1,4 +1,4 @@
-<!-- app/components/pages/public/remontPomescheniy/pageTypes/ui/Breadcrumbs.vue -->
+<!-- app/components/pages/public/remontPomescheniy/ui/Breadcrumbs.vue -->
  <template>
   <nav class="breadcrumbs" aria-label="Хлебные крошки">
     <div class="breadcrumbs__container">

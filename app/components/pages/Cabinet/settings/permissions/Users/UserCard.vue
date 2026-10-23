@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/settings/permissions/Users/UserCard.vue -->
+<!-- app/components/pages/Cabinet/settings/permissions/Users/UserCard.vue -->
 <template>
   <div :class="['user-card', { selected: selected, 'has-overrides': user.overrides.length > 0 }]">
     <!-- ───────── BULK CHECKBOX (только для админа) ───────── -->

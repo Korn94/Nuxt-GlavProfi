@@ -1,4 +1,4 @@
-<!-- app/components/public/remont-pomescheniy/index/blocks/FAQSection.vue -->
+<!-- app/components/pages/public/remontPomescheniy/index/blocks/FaqAccordion.vue -->
 <template>
   <section class="faq-section">
     <!-- Декоративная сетка на фоне -->

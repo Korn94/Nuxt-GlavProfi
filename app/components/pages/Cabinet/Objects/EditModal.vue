@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/objects/EditModal.vue -->
+<!-- app/components/pages/Cabinet/Objects/EditModal.vue -->
 <template>
   <PagesCabinetUiModal :visible="modelValue" title="Редактирование объекта" size="lg" closable
     @update:visible="$emit('update:modelValue', false)">

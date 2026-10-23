@@ -1,4 +1,4 @@
-// app/components/pages/cabinet/settings/permissions/composables/usePermissionsSocket.ts
+// app/components/pages/Cabinet/settings/permissions/composables/usePermissionsSocket.ts
 /**
  * 🔌 Composable для подписки на real-time события системы прав
  *
@@ -8,10 +8,10 @@
  * - Обработка событий: изменение прав, создание/обновление/удаление страниц
  *
  * Используется в:
- * - app/components/pages/cabinet/settings/permissions/index.vue (глобальные события)
- * - app/components/pages/cabinet/settings/permissions/Roles/index.vue
- * - app/components/pages/cabinet/settings/permissions/Users/index.vue
- * - app/components/pages/cabinet/settings/permissions/Pages/index.vue
+ * - app/components/pages/Cabinet/settings/permissions/index.vue (глобальные события)
+ * - app/components/pages/Cabinet/settings/permissions/Roles/index.vue
+ * - app/components/pages/Cabinet/settings/permissions/Users/index.vue
+ * - app/components/pages/Cabinet/settings/permissions/Pages/index.vue
  *
  * Архитектура:
  * - Работает ТОЛЬКО на клиенте (процесс.client)

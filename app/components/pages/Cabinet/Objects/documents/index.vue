@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/objects/documents/index.vue -->
+<!-- app/components/pages/Cabinet/Objects/documents/index.vue -->
 <template>
   <div class="documents-tab">
     <!-- Договор -->

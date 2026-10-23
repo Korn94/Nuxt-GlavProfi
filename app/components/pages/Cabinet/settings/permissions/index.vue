@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/settings/permissions/index.vue -->
+<!-- app/components/pages/Cabinet/settings/permissions/index.vue -->
 <template>
   <div class="permissions-page">
     <!-- ============================================

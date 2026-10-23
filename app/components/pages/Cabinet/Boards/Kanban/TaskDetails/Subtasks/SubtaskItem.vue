@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Boards/Kanban/TaskDetails/Subtasks/SubtaskItem.vue -->
+<!-- app/components/pages/Cabinet/Boards/Kanban/TaskDetails/Subtasks/SubtaskItem.vue -->
 <template>
   <div
     class="subtask-item"

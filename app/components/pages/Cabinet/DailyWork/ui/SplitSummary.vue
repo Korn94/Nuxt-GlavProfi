@@ -1,4 +1,4 @@
-<!-- app\components\pages\cabinet\DailyWork\ui\SplitSummary.vue -->
+<!-- app/components/pages/Cabinet/DailyWork/ui/SplitSummary.vue -->
 <template>
   <div :class="['split-summary', finalStatusClass]">
     <div class="split-summary__row">

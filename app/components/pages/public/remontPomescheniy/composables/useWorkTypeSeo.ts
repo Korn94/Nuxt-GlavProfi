@@ -1,4 +1,4 @@
-// app/components/pages/public/remontPomescheniy/workTypes/composables/useWorkTypeSeo.ts
+// app/components/pages/public/remontPomescheniy/composables/useWorkTypeSeo.ts
 import { useHead, useSeoMeta, useRoute } from 'nuxt/app'
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 

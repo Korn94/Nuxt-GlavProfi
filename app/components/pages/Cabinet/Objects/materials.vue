@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/objects/Materials.vue -->
+<!-- app/components/pages/Cabinet/Objects/materials.vue -->
 <template>
   <div class="mat">
 

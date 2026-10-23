@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/objects/documents/Invoices.vue -->
+<!-- app/components/pages/Cabinet/Objects/documents/Invoices.vue -->
 <template>
   <div class="docs-card">
 

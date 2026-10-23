@@ -1,4 +1,4 @@
-<!-- app\components\pages\cabinet\DailyWork\ui\PercentInput.vue -->
+<!-- app/components/pages/Cabinet/DailyWork/ui/PercentInput.vue -->
 <template>
   <div
     class="percent-input"

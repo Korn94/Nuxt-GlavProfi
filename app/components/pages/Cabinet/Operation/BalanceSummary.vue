@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Operation/BalanceSummary.vue -->
+<!-- app/components/pages/Cabinet/Operation/BalanceSummary.vue -->
 <template>
   <div class="balance">
 

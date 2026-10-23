@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Boards/Kanban/TaskDetails/Comments/index.vue -->
+<!-- app/components/pages/Cabinet/Boards/Kanban/TaskDetails/Comments/index.vue -->
 <template>
   <div class="task-comments">
     <!-- Заголовок секции -->

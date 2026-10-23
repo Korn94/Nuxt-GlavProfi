@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Contractors/ContractorOperations/AdditionalSection.vue -->
+<!-- app/components/pages/Cabinet/Contractors/ContractorOperations/AdditionalSection.vue -->
 <template>
   <div class="operations-section operations-section--additional">
 

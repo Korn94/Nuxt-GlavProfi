@@ -1,4 +1,4 @@
-<!-- app\components\pages\cabinet\Contractors\ContractorModal.vue -->
+<!-- app/components/pages/Cabinet/Contractors/ContractorModal.vue -->
  <!-- Модальное окно контрагента -->
 <template>
   <PagesCabinetUiModal 

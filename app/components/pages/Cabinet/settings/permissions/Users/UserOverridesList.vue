@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/settings/permissions/Users/UserOverridesList.vue -->
+<!-- app/components/pages/Cabinet/settings/permissions/Users/UserOverridesList.vue -->
 <template>
   <div class="user-overrides">
     <div class="overrides-title">

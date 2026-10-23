@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/ui/cards/index.vue -->
+<!-- app/components/pages/Cabinet/ui/cards/index.vue -->
 <template>
   <div class="card" :class="[`card--${variant}`, { 'card--loading': loading }]">
 

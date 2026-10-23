@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Boards/Kanban/TaskDetails/Sidebar/index.vue -->
+<!-- app/components/pages/Cabinet/Boards/Kanban/TaskDetails/Sidebar/index.vue -->
 <template>
   <aside class="task-sidebar">
     <!-- Информация о задаче -->

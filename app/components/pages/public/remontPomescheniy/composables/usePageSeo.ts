@@ -1,4 +1,4 @@
-// app/components/pages/public/remontPomescheniy/pageTypes/composables/usePageSeo.ts
+// app/components/pages/public/remontPomescheniy/composables/usePageSeo.ts
 
 import { useHead, useSeoMeta } from "nuxt/app"
 

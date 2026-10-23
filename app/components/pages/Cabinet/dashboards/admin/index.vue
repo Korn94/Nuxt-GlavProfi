@@ -1,4 +1,4 @@
-<!-- app\components\pages\cabinet\dashboards\admin\index.vue -->
+<!-- app/components/pages/Cabinet/dashboards/admin/index.vue -->
  <template>
   <div class="admin-dashboard">
     <!-- Заголовок страницы -->

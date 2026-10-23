@@ -1,4 +1,4 @@
-<!-- app\pages\cabinet\admin\contractors\[type]\index.vue -->
+<!-- app/pages/cabinet/contractors/[type]/index.vue -->
  <!-- Страница контрагентов по типу -->
 <template>
   <div class="contractors-page">

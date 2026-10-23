@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/settings/permissions/Users/index.vue -->
+<!-- app/components/pages/Cabinet/settings/permissions/Users/index.vue -->
 <template>
   <div class="users-view">
     <!-- ============================================

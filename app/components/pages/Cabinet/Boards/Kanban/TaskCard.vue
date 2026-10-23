@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Boards/Kanban/TaskCard.vue -->
+<!-- app/components/pages/Cabinet/Boards/Kanban/TaskCard.vue -->
 <template>
   <div
     ref="taskCardRef"

@@ -1,4 +1,4 @@
-// app/components/pages/public/remontPomescheniy/pageTypes/composables/useStickyNav.ts
+// app/components/pages/public/remontPomescheniy/composables/useStickyNav.ts
 import { ref, onMounted, onBeforeUnmount, type Ref } from 'vue'
 
 interface UseStickyNavOptions {

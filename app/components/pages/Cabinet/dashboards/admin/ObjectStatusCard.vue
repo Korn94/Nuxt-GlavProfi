@@ -1,4 +1,4 @@
-<!-- app\components\pages\cabinet\dashboards\admin\ObjectStatusCard.vue -->
+<!-- app/components/pages/Cabinet/dashboards/admin/ObjectStatusCard.vue -->
  <template>
   <PagesCabinetUiCardsCard :loading="isLoading" title="Статусы объектов" flush>
     <template #icon>

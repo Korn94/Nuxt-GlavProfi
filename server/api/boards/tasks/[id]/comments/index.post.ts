@@ -1,4 +1,4 @@
-// server/api/tasks/boards/[id]/comments/index.post.ts
+// server/api/boards/tasks/[id]/comments/index.post.ts
 import { eventHandler, createError, readBody } from 'h3'
 import { db, boardsTasks, boardsComments } from '../../../../../db'
 import { eq, desc } from 'drizzle-orm'

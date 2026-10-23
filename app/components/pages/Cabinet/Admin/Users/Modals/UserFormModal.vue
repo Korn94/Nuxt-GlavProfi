@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Admin/Users/Modals/UserFormModal.vue -->
+<!-- app/components/pages/Cabinet/Admin/Users/Modals/UserFormModal.vue -->
 <template>
   <form @submit.prevent="handleSubmit" class="user-form">
     <div class="form-group">

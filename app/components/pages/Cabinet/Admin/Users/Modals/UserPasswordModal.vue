@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Admin/Users/Modals/UserPasswordModal.vue -->
+<!-- app/components/pages/Cabinet/Admin/Users/Modals/UserPasswordModal.vue -->
 <template>
   <form @submit.prevent="handleSubmit" class="password-form">
     <div class="form-group">

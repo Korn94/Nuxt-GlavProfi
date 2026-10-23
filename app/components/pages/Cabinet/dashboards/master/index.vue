@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/dashboards/master/index.vue -->
+<!-- app/components/pages/Cabinet/dashboards/master/index.vue -->
 <template>
   <div class="master-dashboard">
     <!-- Персонализированный заголовок -->

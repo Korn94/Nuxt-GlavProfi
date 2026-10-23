@@ -1,4 +1,4 @@
-<!-- app/components/pages/public/remontPomescheniy/pageTypes/ui/FAQBlock.vue -->
+<!-- app/components/pages/public/remontPomescheniy/ui/FAQBlock.vue -->
 <template>
   <section class="faq-block" :class="`faq-block--${theme}`">
     <div class="container">

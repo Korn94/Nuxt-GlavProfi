@@ -1,4 +1,4 @@
-<!-- app/components/pages/public/remontPomescheniy/pageTypes/ui/PageHero.vue -->
+<!-- app/components/pages/public/remontPomescheniy/ui/PageHero.vue -->
  <template>
   <section class="page-hero">
     <!-- Фоновый слой (картинка/слайдер) -->

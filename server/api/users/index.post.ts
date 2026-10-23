@@ -1,4 +1,4 @@
-// server/api/users/post.ts
+// server/api/users/index.post.ts
 /**
  * Назначение: Создание нового пользователя
  * ⚠️ Требует роль `manager` (проверяется в мидлваре)

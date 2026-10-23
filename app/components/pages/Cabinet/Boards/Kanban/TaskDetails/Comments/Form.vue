@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Boards/Kanban/TaskDetails/Comments/Form.vue -->
+<!-- app/components/pages/Cabinet/Boards/Kanban/TaskDetails/Comments/Form.vue -->
 <template>
   <div class="comment-form">
     <div class="comment-form-header">

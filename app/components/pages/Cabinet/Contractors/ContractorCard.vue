@@ -1,4 +1,4 @@
-<!-- app\components\pages\cabinet\Contractors\ContractorCard.vue -->
+<!-- app/components/pages/Cabinet/Contractors/ContractorCard.vue -->
 <!-- Карточка контрагента -->
 <template>
   <div :class="['contractor-card', `contractor-card--${type}`]">

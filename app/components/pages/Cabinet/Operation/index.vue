@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Operation/index.vue -->
+<!-- app/components/pages/Cabinet/Operation/index.vue -->
 <template>
   <div class="operation-page">
 

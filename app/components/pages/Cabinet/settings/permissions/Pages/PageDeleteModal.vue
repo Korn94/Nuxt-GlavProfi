@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/settings/permissions/Pages/PageDeleteModal.vue -->
+<!-- app/components/pages/Cabinet/settings/permissions/Pages/PageDeleteModal.vue -->
 <template>
   <Teleport to="body">
     <Transition name="modal">

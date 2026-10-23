@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Operation/DateFilter.vue -->
+<!-- app/components/pages/Cabinet/Operation/DateFilter.vue -->
 <template>
   <div class="date-filter">
 

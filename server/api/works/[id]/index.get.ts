@@ -1,4 +1,4 @@
-// server/api/works/[id].get.ts
+// server/api/works/[id]/index.get.ts
 /**
  * Назначение: Получение данных конкретной работы по ID
  * ⚠️ Требует право `canViewObjects` (проверяется в мидлваре)

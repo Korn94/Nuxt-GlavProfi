@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/DailyWork/index.vue -->
+<!-- app/components/pages/Cabinet/DailyWork/index.vue -->
 <template>
   <div class="daily-work-page">
     
@@ -695,7 +695,7 @@ defineExpose({
 <style lang="scss" scoped>
 /* ═══════════════════════════════════════════════════════════════
    КОМПОНЕНТ: DailyWork
-   Файл: app/components/pages/cabinet/DailyWork/index.vue
+   Файл: app/components/pages/Cabinet/DailyWork/index.vue
    ═══════════════════════════════════════════════════════════════ */
 
 .daily-work-page {

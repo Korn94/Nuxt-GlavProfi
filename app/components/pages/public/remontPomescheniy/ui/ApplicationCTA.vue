@@ -1,4 +1,4 @@
-<!-- app/components/pages/public/remontPomescheniy/pageTypes/ui/ApplicationCTA.vue -->
+<!-- app/components/pages/public/remontPomescheniy/ui/ApplicationCTA.vue -->
 <template>
   <section class="application-cta">
     <div class="container">

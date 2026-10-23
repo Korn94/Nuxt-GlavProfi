@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/objects/documents/Acts.vue -->
+<!-- app/components/pages/Cabinet/Objects/documents/Acts.vue -->
 <template>
   <div class="docs-card">
 

@@ -1,4 +1,4 @@
-<!-- app/components/pages/public/remontPomescheniy/pageTypes/workTypes/ui/GuaranteesGrid.vue -->
+<!-- app/components/pages/public/remontPomescheniy/workTypes/ui/GuaranteesGrid.vue -->
 <template>
   <section class="guarantees" :class="`guarantees--${theme}`">
     <div class="container">

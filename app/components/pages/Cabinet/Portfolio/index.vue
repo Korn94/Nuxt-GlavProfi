@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Portfolio/index.vue -->
+<!-- app/components/pages/Cabinet/Portfolio/index.vue -->
 <template>
   <div class="portfolio-page">
 

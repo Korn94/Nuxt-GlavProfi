@@ -1,4 +1,4 @@
-<!-- app/components/pages/public/remontPomescheniy/pageTypes/workTypes/ui/WorkStagesTimeline.vue -->
+<!-- app/components/pages/public/remontPomescheniy/workTypes/ui/WorkStagesTimeline.vue -->
 <template>
   <section class="work-stages">
     <div class="container">

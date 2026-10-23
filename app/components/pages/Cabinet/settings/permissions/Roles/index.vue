@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/settings/permissions/Roles/index.vue -->
+<!-- app/components/pages/Cabinet/settings/permissions/Roles/index.vue -->
 <template>
   <div class="roles-view">
     <!-- ============================================

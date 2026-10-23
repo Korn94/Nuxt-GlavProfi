@@ -1,4 +1,4 @@
-<!-- app\components\pages\cabinet\DailyWork\ObjectSplitRow.vue -->
+<!-- app/components/pages/Cabinet/DailyWork/ObjectSplitRow.vue -->
 <template>
   <div class="split-row">
     <div class="split-row__info">

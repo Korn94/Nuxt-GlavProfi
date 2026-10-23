@@ -1,4 +1,4 @@
-<!-- app/components/pages/public/remontPomescheniy/pageTypes/ui/PriceFactors.vue -->
+<!-- app/components/pages/public/remontPomescheniy/ui/PriceFactors.vue -->
 <template>
   <section class="price-factors" :class="`price-factors--${theme}`">
     <div class="container">

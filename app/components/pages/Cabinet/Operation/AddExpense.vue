@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Operation/AddExpense.vue -->
+<!-- app/components/pages/Cabinet/Operation/AddExpense.vue -->
 <template>
   <PagesCabinetUiModal :visible="isOpen" title="Добавить расход" size="md" closable @close="close">
     <div class="op-form">

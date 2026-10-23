@@ -1,4 +1,4 @@
-<!-- app/components/Pages/Cabinet/dashboards/master/AgreementsWidget.vue -->
+<!-- app/components/pages/Cabinet/dashboards/master/AgreementsWidget.vue -->
 <template>
   <div class="agreements-widget">
     <!-- Заголовок -->

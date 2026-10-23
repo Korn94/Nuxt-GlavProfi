@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/settings/permissions/Pages/PageEditModal.vue -->
+<!-- app/components/pages/Cabinet/settings/permissions/Pages/PageEditModal.vue -->
 <template>
   <Teleport to="body">
     <Transition name="modal">

@@ -1,4 +1,4 @@
-<!-- app/components/public/remont-pomescheniy/index/blocks/PremisesGrid.vue -->
+<!-- app/components/pages/public/remontPomescheniy/index/blocks/PremisesGrid.vue -->
 <template>
   <section class="premises-grid">
     <!-- Декоративная сетка на фоне -->

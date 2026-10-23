@@ -1,4 +1,4 @@
-<!-- app/components/pages/cabinet/Boards/Kanban/TaskDetails/Sidebar/Tags.vue -->
+<!-- app/components/pages/Cabinet/Boards/Kanban/TaskDetails/Sidebar/Tags.vue -->
 <template>
   <div class="task-sidebar-section task-tags-section">
     <div class="task-sidebar-header">
