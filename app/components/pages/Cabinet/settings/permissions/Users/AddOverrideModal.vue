@@ -219,55 +219,17 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import type {
+  UserWithPermissions,
+  UserOverride,
+  SystemPage,
+} from '~/composables/usePermissionsApi'
+import type { PagePermissions } from 'shared/types/permissions'
 
 // ============================================
-// ТИПЫ
+// ТИПЫ: UserOverride / SystemPage / PagePermissions —
+// единый источник: usePermissionsApi + shared/types/permissions
 // ============================================
-
-interface UserOverride {
-  id: number
-  pageSlug: string
-  canView: boolean | null
-  canCreate: boolean | null
-  canEdit: boolean | null
-  canDelete: boolean | null
-  canSpecial: boolean | null
-  reason: string | null
-  expiresAt: string | null
-  createdAt: string
-  createdBy: number | null
-}
-
-interface UserWithPermissions {
-  id: number
-  name: string
-  login: string
-  role: string
-  contractorType: string | null
-  contractorId: number | null
-  createdAt: string
-  basePermissions: Record<string, PagePermissions>
-  overrides: UserOverride[]
-  effectivePermissions: Record<string, PagePermissions>
-}
-
-interface SystemPage {
-  slug: string
-  name: string
-  icon: string | null
-  hasCreate: boolean
-  hasEdit: boolean
-  hasDelete: boolean
-  hasSpecial: boolean
-}
-
-interface PagePermissions {
-  canView: boolean
-  canCreate: boolean
-  canEdit: boolean
-  canDelete: boolean
-  canSpecial: boolean
-}
 
 interface OverrideFormData {
   pageSlug: string

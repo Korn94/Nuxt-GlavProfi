@@ -84,12 +84,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useStickyNav } from '../composables/useStickyNav'
-
-export interface StickyNavItem {
-  id: string
-  label: string
-  icon?: string
-}
+import type { StickyNavItem } from './types'
 
 const props = withDefaults(
   defineProps<{

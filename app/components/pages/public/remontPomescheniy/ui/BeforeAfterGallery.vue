@@ -114,20 +114,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useImageUrl } from '~/composables/useImageUrl'
-
-interface ProjectImage {
-  url: string
-  type?: string
-  alt?: string
-}
-
-interface Project {
-  id?: number | string
-  slug?: string
-  title?: string
-  images?: ProjectImage[]
-  [key: string]: unknown
-}
+import type { Project, ProjectImage } from './types'
 
 const props = withDefaults(
   defineProps<{

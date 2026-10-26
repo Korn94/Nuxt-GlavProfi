@@ -140,14 +140,13 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import type { RoleWithPermissions } from '~/composables/usePermissionsApi'
 
 // ============================================
 // ТИПЫ
 // ============================================
-interface RoleInfo {
-  role: string
-  userCount: number
-}
+/** Нужны только эти два поля — остальное в модалке не используется */
+type RoleInfo = Pick<RoleWithPermissions, 'role' | 'userCount'>
 
 // ============================================
 // ПРОПСЫ

@@ -107,35 +107,11 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-
+import type { UserOverride, SystemPage } from '~/composables/usePermissionsApi'
+import type { ExpirationStatus } from '../shared/types'
+// ТИПЫ: UserOverride / SystemPage — единый источник: usePermissionsApi;
+// ExpirationStatus — из ../shared/types
 // ============================================
-// ТИПЫ
-// ============================================
-interface UserOverride {
-  id: number
-  pageSlug: string
-  canView: boolean | null
-  canCreate: boolean | null
-  canEdit: boolean | null
-  canDelete: boolean | null
-  canSpecial: boolean | null
-  reason: string | null
-  expiresAt: string | null
-  createdAt: string
-  createdBy: number | null
-}
-
-interface SystemPage {
-  slug: string
-  name: string
-  icon: string | null
-  hasCreate: boolean
-  hasEdit: boolean
-  hasDelete: boolean
-  hasSpecial: boolean
-}
-
-type ExpirationStatus = 'active' | 'expiring' | 'expired' | 'permanent'
 
 // ============================================
 // ПРОПСЫ

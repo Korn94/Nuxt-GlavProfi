@@ -104,12 +104,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { NormalizedWorkItem } from '~/types/calculator'
-import type { MethodOption } from '../../types'
-
-export interface PriceData {
-  standard: NormalizedWorkItem[]
-  piece: NormalizedWorkItem[]
-}
+import type { MethodOption, PriceData } from '../types'
 
 const props = defineProps<{
   title: string

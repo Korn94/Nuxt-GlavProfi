@@ -81,23 +81,7 @@
 </template>
 
 <script setup lang="ts">
-export interface InsightItem {
-  title: string
-  description: string
-  icon?: string
-  highlight?: boolean
-  fact?: string
-}
-
-/** 🆕 Фото для блока сравнения */
-export interface ComparisonImage {
-  /** URL изображения */
-  src: string
-  /** Подпись под фото (например, "1 слой ГКЛ") */
-  label: string
-  /** alt-атрибут для SEO (если не указан — берётся label) */
-  alt?: string
-}
+import type { InsightItem, ComparisonImage } from '../types'
 
 defineProps<{
   title: string

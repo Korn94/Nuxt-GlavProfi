@@ -36,10 +36,7 @@
 </template>
 
 <script setup lang="ts">
-export interface BreadcrumbItem {
-  label: string
-  to?: string
-}
+import type { BreadcrumbItem } from './types'
 
 defineProps<{
   items: BreadcrumbItem[]

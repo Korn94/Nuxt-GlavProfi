@@ -94,46 +94,15 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import type {
+  UserWithPermissions,
+  UserOverride,
+  SystemPage,
+} from '~/composables/usePermissionsApi'
 
 // ============================================
-// ТИПЫ
+// ТИПЫ: UserOverride / SystemPage — единый источник: usePermissionsApi
 // ============================================
-interface UserOverride {
-  id: number
-  pageSlug: string
-  canView: boolean | null
-  canCreate: boolean | null
-  canEdit: boolean | null
-  canDelete: boolean | null
-  canSpecial: boolean | null
-  reason: string | null
-  expiresAt: string | null
-  createdAt: string
-  createdBy: number | null
-}
-
-interface UserWithPermissions {
-  id: number
-  name: string
-  login: string
-  role: string
-  contractorType: string | null
-  contractorId: number | null
-  createdAt: string
-  basePermissions: Record<string, any>
-  overrides: UserOverride[]
-  effectivePermissions: Record<string, any>
-}
-
-interface SystemPage {
-  slug: string
-  name: string
-  icon: string | null
-  hasCreate: boolean
-  hasEdit: boolean
-  hasDelete: boolean
-  hasSpecial: boolean
-}
 
 // ============================================
 // ПРОПСЫ

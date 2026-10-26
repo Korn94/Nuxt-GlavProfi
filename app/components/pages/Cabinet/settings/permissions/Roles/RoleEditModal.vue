@@ -320,35 +320,16 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import type {
+  RoleWithPermissions,
+  SystemPage,
+} from '~/composables/usePermissionsApi'
+import type { PagePermissions } from 'shared/types/permissions'
 
 // ============================================
-// ТИПЫ
+// ТИПЫ: RoleWithPermissions / SystemPage / PagePermissions —
+// единый источник: usePermissionsApi + shared/types/permissions
 // ============================================
-
-interface PagePermissions {
-  canView: boolean
-  canCreate: boolean
-  canEdit: boolean
-  canDelete: boolean
-  canSpecial: boolean
-}
-
-interface SystemPage {
-  slug: string
-  name: string
-  description: string | null
-  icon: string | null
-  hasCreate: boolean
-  hasEdit: boolean
-  hasDelete: boolean
-  hasSpecial: boolean
-}
-
-interface RoleWithPermissions {
-  role: string
-  userCount: number
-  permissions: Record<string, PagePermissions>
-}
 
 // ============================================
 // ПРОПСЫ

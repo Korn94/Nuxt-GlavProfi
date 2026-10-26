@@ -37,14 +37,7 @@
 </template>
 
 <script setup lang="ts">
-export interface WorkStage {
-  title: string
-  description: string
-  icon?: string
-  duration?: string
-  result?: string
-  highlighted?: boolean
-}
+import type { WorkStage } from '../types'
 
 defineProps<{
   title: string

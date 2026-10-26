@@ -88,21 +88,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-
-export interface ProjectImage {
-  url: string
-  type?: string
-}
-
-export interface Project {
-  id?: number | string
-  slug?: string
-  title: string
-  subtitle?: string
-  space?: number | string
-  images?: ProjectImage[]
-  [key: string]: unknown
-}
+import type { Project, ProjectImage } from '../../ui/types'
 
 const props = withDefaults(
   defineProps<{

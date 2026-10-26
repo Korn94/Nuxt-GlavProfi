@@ -180,10 +180,8 @@ import BeforeAfterShowcase from '../../workTypes/ui/BeforeAfterShowcase.vue'
 
 // === Типы данных ===
 import type { RepairVariant } from '../ui/RepairTypes.vue'
-import type { PriceFactor } from '../../ui/PriceFactors.vue'
 import type { RiskGroup } from '../ui/RisksSection.vue'
-import type { FAQItem } from '../../ui/FAQBlock.vue'
-import type { StickyNavItem } from '../../ui/StickyNav.vue'
+import type { PriceFactor, FAQItem, StickyNavItem } from '../../ui/types'
 
 // === Навигация ===
 const navItems: StickyNavItem[] = [
@@ -331,7 +329,7 @@ const riskGroups: RiskGroup[] = [
 ]
 
 // === Проекты ===
-const projectSlugs = ['fora-bank']
+const projectSlugs: string[] = ['fora-bank']
 
 // === FAQ ===
 const faqItems: FAQItem[] = [

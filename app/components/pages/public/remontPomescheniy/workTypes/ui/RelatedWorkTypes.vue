@@ -84,13 +84,8 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { RelatedWorkTypeItem } from '../types'
+import type { RelatedWorkTypeItem, PriceData } from '../types'
 import type { NormalizedWorkItem } from '~/types/calculator'
-
-export interface PriceData {
-  standard: NormalizedWorkItem[]
-  piece: NormalizedWorkItem[]
-}
 
 const props = withDefaults(
   defineProps<{

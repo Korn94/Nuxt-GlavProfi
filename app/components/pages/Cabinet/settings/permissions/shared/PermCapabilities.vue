@@ -35,18 +35,14 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import type { PageCapabilities } from './types'
 
 // ============================================
 // ПРОПСЫ
 // ============================================
 const props = withDefaults(defineProps<{
   /** Объект страницы с флагами поддерживаемых действий */
-  page: {
-    hasCreate: boolean
-    hasEdit: boolean
-    hasDelete: boolean
-    hasSpecial: boolean
-  }
+  page: PageCapabilities
   /** Компактный режим: без иконок и короткими подписями */
   compact?: boolean
 }>(), {

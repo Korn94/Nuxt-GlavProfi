@@ -33,11 +33,7 @@
 </template>
 
 <script setup lang="ts">
-export interface OverviewAdvantage {
-  title: string
-  description: string
-  icon?: string
-}
+import type { OverviewAdvantage } from '../types'
 
 defineProps<{
   title: string

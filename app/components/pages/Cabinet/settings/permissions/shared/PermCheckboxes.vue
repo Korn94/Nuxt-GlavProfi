@@ -79,27 +79,8 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-
-// ============================================
-// ТИПЫ
-// ============================================
-
-interface PagePermissions {
-  canView: boolean
-  canCreate: boolean
-  canEdit: boolean
-  canDelete: boolean
-  canSpecial: boolean
-}
-
-interface PageCapabilities {
-  hasCreate: boolean
-  hasEdit: boolean
-  hasDelete: boolean
-  hasSpecial: boolean
-}
-
-type PermissionAction = 'canView' | 'canCreate' | 'canEdit' | 'canDelete' | 'canSpecial'
+import type { PagePermissions } from 'shared/types/permissions'
+import type { PageCapabilities, PermissionAction } from './types'
 
 // ============================================
 // ПРОПСЫ

@@ -103,18 +103,11 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import BeforeAfterSlider from '../../ui/BeforeAfterSlider.vue'
 
 /**
- * Универсальный ShowcaseItem:
+ * Универсальный ShowcaseItem живёт в `workTypes/types.ts`:
  * - Пара (до/после): нужны beforeImage + afterImage
  * - Одиночное фото: нужен src
  */
-export interface ShowcaseItem {
-  beforeImage?: string
-  afterImage?: string
-  beforeAlt?: string
-  afterAlt?: string
-  src?: string
-  alt?: string
-}
+import type { ShowcaseItem } from '../types'
 
 const props = withDefaults(
   defineProps<{
@@ -144,7 +137,16 @@ const passesCount = ref(0) // Счётчик завершённых проход
 
 let observer: IntersectionObserver | null = null
 
-const activeItem = computed(() => props.items[activeIndex.value] || props.items[0])
+/**
+ * Активный элемент. Фолбэк на пустой объект `{}` нужен, чтобы тип
+ * гарантированно был `ShowcaseItem`: в проекте включён
+ * `noUncheckedIndexedAccess`, поэтому `items[i]` и `items[0]` имеют тип
+ * `ShowcaseItem | undefined`. `{}` корректно присваивается `ShowcaseItem`,
+ * так как все поля интерфейса опциональны.
+ */
+const activeItem = computed<ShowcaseItem>(
+  () => props.items[activeIndex.value] ?? props.items[0] ?? {}
+)
 
 // === Проверка типа элемента ===
 const isPair = (item: ShowcaseItem): boolean => {

@@ -52,12 +52,7 @@
 </template>
 
 <script setup lang="ts">
-export interface PriceFactor {
-  title: string
-  description: string
-  icon?: string
-  [key: string]: unknown
-}
+import type { PriceFactor } from './types'
 
 withDefaults(
   defineProps<{

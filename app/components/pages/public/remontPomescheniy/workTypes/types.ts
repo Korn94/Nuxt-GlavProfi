@@ -1,10 +1,24 @@
 // app/components/pages/public/remontPomescheniy/workTypes/types.ts
+import type { NormalizedWorkItem } from '~/types/calculator'
+
+/**
+ * Типы переиспользуемых UI-блоков живут в единственном месте —
+ * `../ui/types.ts` (см. комментарий там). Отсюда они ре-экспортируются,
+ * чтобы все `data/pages/*.ts` продолжали импортировать их из `../../types`.
+ */
+export type {
+  PriceFactor,
+  FAQItem,
+  StickyNavItem,
+  BreadcrumbItem,
+} from '../ui/types'
 
 // === WorkTypeOverview ===
 export interface OverviewAdvantage {
   title: string
   description: string
-  icon: string
+  /** Блок рисует fallback `mdi:check-circle` */
+  icon?: string
 }
 
 // === MethodComparison ===
@@ -101,13 +115,6 @@ export interface InsightItem {
   fact?: string
 }
 
-// === PriceFactors ===
-export interface PriceFactor {
-  title: string
-  description: string
-  icon: string
-}
-
 // === PriceCalculatorTabs ===
 export interface CalculatorWorkItem {
   name: string
@@ -174,8 +181,10 @@ export interface CalculatorTab {
 export interface WorkStage {
   title: string
   description: string
-  icon: string
-  duration: string
+  /** Блок рендерит иконку под `v-if` */
+  icon?: string
+  /** Мета-строка «Длительность» — рендерится под `v-if` */
+  duration?: string
   result?: string
   highlighted?: boolean
 }
@@ -184,20 +193,8 @@ export interface WorkStage {
 export interface GuaranteeItem {
   title: string
   description: string
-  icon: string
-}
-
-// === FAQBlock ===
-export interface FAQItem {
-  question: string
-  answer: string
-}
-
-// === StickyNav ===
-export interface StickyNavItem {
-  id: string
-  label: string
-  icon: string
+  /** Блок рисует fallback `mdi:shield-check` */
+  icon?: string
 }
 
 // === RelatedWorkTypes ===
@@ -215,18 +212,30 @@ export interface RelatedWorkTypeItem {
 // === MaterialsGuide ===
 export interface MaterialProperty {
   label: string
-  icon: string
+  /** Пилюля рендерит иконку под `v-if` */
+  icon?: string
 }
 
 export interface MaterialCardData {
+  /** Аббревиатура: ГКЛ, ГКЛВ, ГВЛ... */
   name: string
+  /** Полное название */
   fullName: string
+  /** Цвет листа (для полосы и акцентов) */
   color: string
-  image: string
-  colorLabel: string
+  /** Фото материала (блок рендерит под `v-if`) */
+  image?: string
+  /** Alt для фото */
+  imageAlt?: string
+  /** Подпись про цвет/маркировку */
+  colorLabel?: string
+  /** Бейдж: "Базовый", "Для влажных"... */
   badge?: string
-  properties: MaterialProperty[]
+  /** Свойства (пилюли) */
+  properties?: MaterialProperty[]
+  /** Где применяется */
   useFor: string[]
+  /** Где не применяется */
   avoidFor?: string[]
 }
 
@@ -235,14 +244,35 @@ export interface ThicknessOption {
   purpose: string
 }
 
-// === Breadcrumbs ===
-export interface BreadcrumbItem {
-  label: string
-  to?: string
+// === BeforeAfterShowcase ===
+/**
+ * Универсальный ShowcaseItem:
+ * - Пара (до/после): нужны beforeImage + afterImage
+ * - Одиночное фото: нужен src
+ */
+export interface ShowcaseItem {
+  beforeImage?: string
+  afterImage?: string
+  beforeAlt?: string
+  afterAlt?: string
+  src?: string
+  alt?: string
 }
 
-// === BeforeAfterShowcase ===
-export interface BeforeAfterItem {
-  beforeImage: string
-  afterImage: string
+// === TechnicalInsights (сравнение) ===
+/** Фото для блока сравнения */
+export interface ComparisonImage {
+  /** URL изображения */
+  src: string
+  /** Подпись под фото (например, "1 слой ГКЛ") */
+  label: string
+  /** alt-атрибут для SEO (если не указан — берётся label) */
+  alt?: string
+}
+
+// === PriceListTable / MethodComparison / RelatedWorkTypes ===
+/** Срез прайса, передаваемый из страницы в блоки, чтобы избежать ре-фетча и рассинхрона SSR/CSR */
+export interface PriceData {
+  standard: NormalizedWorkItem[]
+  piece: NormalizedWorkItem[]
 }

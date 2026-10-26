@@ -93,12 +93,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-
-export interface FAQItem {
-  question: string
-  answer: string
-  [key: string]: unknown
-}
+import type { FAQItem } from './types'
 
 const props = withDefaults(
   defineProps<{

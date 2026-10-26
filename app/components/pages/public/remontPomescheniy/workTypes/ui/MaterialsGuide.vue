@@ -115,38 +115,11 @@
 </template>
 
 <script setup lang="ts">
-export interface MaterialProperty {
-  label: string
-  icon?: string
-}
-
-export interface MaterialCardData {
-  /** Аббревиатура: ГКЛ, ГКЛВ, ГВЛ... */
-  name: string
-  /** Полное название */
-  fullName: string
-  /** Цвет листа (для полосы и акцентов) */
-  color: string
-  /** Фото материала (опционально) */
-  image?: string
-  /** Alt для фото */
-  imageAlt?: string
-  /** Подпись про цвет/маркировку */
-  colorLabel?: string
-  /** Бейдж: "Базовый", "Для влажных"... */
-  badge?: string
-  /** Свойства (пилюли) */
-  properties?: MaterialProperty[]
-  /** Где применяется */
-  useFor: string[]
-  /** Где не применяется */
-  avoidFor?: string[]
-}
-
-export interface ThicknessOption {
-  value: string
-  purpose: string
-}
+import type {
+  MaterialProperty,
+  MaterialCardData,
+  ThicknessOption,
+} from '../types'
 
 withDefaults(
   defineProps<{

@@ -54,6 +54,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import type { ExpirationStatus } from './types'
 
 // ============================================
 // ПРОПСЫ
@@ -93,10 +94,10 @@ const iconName = computed(() => {
 
 // ============================================
 // COMPUTED: СРОК ДЕЙСТВИЯ
+// (ExpirationStatus — единый источник: ./types)
 // ============================================
-type ExpiresStatus = 'expired' | 'expiring' | 'active' | 'permanent'
 
-const expiresStatus = computed<ExpiresStatus>(() => {
+const expiresStatus = computed<ExpirationStatus>(() => {
   if (!props.expiresAt) return 'permanent'
   const now = Date.now()
   const expires = new Date(props.expiresAt).getTime()

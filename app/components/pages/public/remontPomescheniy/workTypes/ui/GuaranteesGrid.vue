@@ -23,11 +23,7 @@
 </template>
 
 <script setup lang="ts">
-export interface GuaranteeItem {
-  title: string
-  description: string
-  icon?: string
-}
+import type { GuaranteeItem } from '../types'
 
 withDefaults(
   defineProps<{
