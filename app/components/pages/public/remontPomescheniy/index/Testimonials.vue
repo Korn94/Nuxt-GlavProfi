@@ -51,7 +51,9 @@ const featuredCards = computed(() => {
 const getMainImage = (images) => {
   if (!images?.length) return '/images/placeholder.jpg'
   const mainImage = images.find(img => img.type === 'main')
-  return mainImage?.url || images[0]?.url || '/images/placeholder.jpg'
+  const url = mainImage?.url || images[0]?.url || '/images/placeholder.jpg'
+  // 🔥 Путь из БД (/uploads/...) в dev требует подстановки origin (см. useImageUrl)
+  return url.startsWith('/uploads/') ? useImageUrl(url) : url
 }
 
 onMounted(() => {

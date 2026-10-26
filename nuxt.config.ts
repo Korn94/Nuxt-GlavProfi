@@ -243,6 +243,18 @@ export default defineNuxtConfig({
       },
     }
   },
+  // 🔧 DEV-ONLY: физические /uploads/** отдаёт nginx прод-сервера
+  // (alias /var/www/glavprofi_ru_usr40/data/www/uploads/), а Nitro этот путь не обслуживает
+  // и отвечает 404 "Page not found". В dev проксируем /uploads/** туда же, чтобы URL картинок
+  // оставались относительными — идентично продакшену. В прод-сборку правило не попадает
+  // (Nuxt мержит $development только при NODE_ENV=development). См. .env → NUXT_DEV_UPLOADS_ORIGIN.
+  $development: {
+    routeRules: {
+      '/uploads/**': {
+        proxy: `${(process.env.NUXT_DEV_UPLOADS_ORIGIN || 'https://glavprofi.ru').replace(/\/+$/, '')}/uploads/**`,
+      },
+    },
+  },
 
   plugins: [
     '~/plugins/yandexMetrica.js',

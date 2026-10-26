@@ -132,7 +132,9 @@ const displayedProjects = computed<Project[]>(() => {
 const getMainImage = (images?: ProjectImage[]): string => {
   if (!images || images.length === 0) return '/images/placeholder.jpg'
   const main = images.find((img) => img.type === 'main')
-  return main?.url || images[0]?.url || '/images/placeholder.jpg'
+  const url = main?.url || images[0]?.url || '/images/placeholder.jpg'
+  // 🔥 Путь из БД (/uploads/...) в dev требует подстановки origin (см. useImageUrl)
+  return url.startsWith('/uploads/') ? useImageUrl(url) : url
 }
 
 // Загрузка проектов из API
