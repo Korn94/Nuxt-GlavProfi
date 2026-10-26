@@ -109,6 +109,7 @@ $dark: #171a1c;
 
 .partner__nav-wrap {
   position: sticky;
+  margin-top: 4em;
   top: 0;
   z-index: 20;
   background: rgba(244, 245, 243, 0.88);

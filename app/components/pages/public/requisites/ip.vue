@@ -1,3 +1,4 @@
+<!-- app\components\pages\public\requisites\ip.vue -->
 <template>
   <div class="requisites-page">
     <!-- Верхняя панель -->
@@ -65,7 +66,21 @@
               <Icon name="mdi:map-marker-outline" size="18" />
               <span>Рязанская обл., Путятинский р-н</span>
             </div>
-            <div class="company-updated">Данные обновлены {{ lastUpdated }}</div>
+            <div class="hero-footer__right">
+              <a
+                :href="egrulUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="egrul-link"
+              >
+                <Icon name="mdi:shield-check-outline" size="16" />
+                <span>Проверить в ФНС</span>
+              </a>
+              <div class="freshness-indicator" :class="`freshness-indicator--${freshness.status}`">
+                <Icon :name="freshness.icon" size="15" />
+                <span>{{ freshness.label }}</span>
+              </div>
+            </div>
           </div>
         </header>
 
@@ -84,6 +99,11 @@
                 Используйте эти данные для оформления платежей и переводов
               </p>
             </div>
+
+            <button class="copy-section-button copy-section-button--1c" type="button" @click="copyFor1C">
+              <Icon name="mdi:content-copy" size="17" />
+              <span>Для 1С</span>
+            </button>
 
             <button class="copy-section-button" type="button" @click="copyBankDetails">
               <Icon name="mdi:content-copy" size="17" />
@@ -112,8 +132,8 @@
 
             <div class="bank-field">
               <span class="bank-field__label">БИК</span>
-              <button class="bank-field__copy" type="button" @click="copyText('046126614')">
-                <span class="bank-field__value bank-field__value--mono">046126614</span>
+              <button class="bank-field__copy" type="button" @click="copyText('045402601')">
+                <span class="bank-field__value bank-field__value--mono">045402601</span>
                 <span class="bank-field__copy-icon">
                   <Icon name="mdi:content-copy" size="17" />
                 </span>
@@ -122,8 +142,8 @@
 
             <div class="bank-field">
               <span class="bank-field__label">Корреспондентский счёт</span>
-              <button class="bank-field__copy" type="button" @click="copyText('30101810500000000614')">
-                <span class="bank-field__value bank-field__value--mono">30101 810 5 0000 0000614</span>
+              <button class="bank-field__copy" type="button" @click="copyText('30101810300000000601')">
+                <span class="bank-field__value bank-field__value--mono">30101 810 3 0000 0000601</span>
                 <span class="bank-field__copy-icon">
                   <Icon name="mdi:content-copy" size="17" />
                 </span>
@@ -132,8 +152,8 @@
 
             <div class="bank-field bank-field--wide">
               <span class="bank-field__label">Банк</span>
-              <button class="bank-field__copy" type="button" @click="copyText('Рязанское отделение №8606 ПАО СБЕРБАНК')">
-                <span class="bank-field__value">Рязанское отделение №8606 ПАО Сбербанк</span>
+              <button class="bank-field__copy" type="button" @click="copyText('Орловское отделение №8595 ПАО СБЕРБАНК')">
+                <span class="bank-field__value">Орловское отделение №8595 ПАО Сбербанк</span>
                 <span class="bank-field__copy-icon">
                   <Icon name="mdi:content-copy" size="17" />
                 </span>
@@ -174,6 +194,35 @@
                 value="321623400019751"
                 mono
               />
+              <PagesPublicRequisitesCopyRow
+                label="КПП"
+                value="—"
+                display-value="Не присваивается (ИП)"
+              />
+              <PagesPublicRequisitesCopyRow
+                label="Основной ОКВЭД"
+                :value="okvedMain.code"
+                :display-value="`${okvedMain.code} — ${okvedMain.name}`"
+              />
+              <PagesPublicRequisitesCopyRow
+                label="Система налогообложения"
+                value="УСН (доходы)"
+                display-value="Упрощённая (доходы), без НДС"
+              />
+              <PagesPublicRequisitesCopyRow
+                label="Налоговый орган"
+                value="УФНС по Рязанской области"
+              />
+              <PagesPublicRequisitesCopyRow
+                label="Рег. номер в СФР"
+                value="1220536468"
+                display-value="1220536468 (пенсионное страхование)"
+                mono
+              />
+              <PagesPublicRequisitesCopyRow
+                label="Дата регистрации"
+                value="26.04.2021"
+              />
             </div>
           </section>
 
@@ -209,11 +258,34 @@
               />
               <PagesPublicRequisitesCopyRow
                 label="Электронная почта"
-                value="glavlider@yandex.ru"
+                value="glavprofi@yandex.ru"
                 icon="mdi:email-outline"
                 link
-                href="mailto:glavlider@yandex.ru"
+                href="mailto:glavprofi@yandex.ru"
               />
+              
+              <div class="messenger-links">
+                <a
+                  href="https://max.ru/u/f9LHodD0cOLfbBSpAeCwHBcJ83SJtKVj9mVKY7K8OLd6OwYB0gH6g3XE_Cs"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="messenger-link"
+                  aria-label="MAX"
+                >
+                  <img src="https://maxicons.ru/icons/Max_logo_black.svg" alt="MAX" class="messenger-link__icon" />
+                  <span>MAX</span>
+                </a>
+                <a
+                  href="tg://resolve?domain=glavprofii"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="messenger-link"
+                  aria-label="Telegram"
+                >
+                  <Icon name="mdi:telegram" class="messenger-link__icon" size="24" />
+                  <span>Telegram</span>
+                </a>
+              </div>
             </div>
           </section>
 
@@ -242,6 +314,56 @@
             </div>
           </section>
         </div>
+
+        <!-- ВИДЫ ДЕЯТЕЛЬНОСТИ (ОКВЭД) -->
+        <section class="info-card info-card--green info-card--full okved-card">
+          <div class="info-card__header">
+            <div class="info-card__icon">
+              <Icon name="mdi:briefcase-outline" size="21" />
+            </div>
+            <div class="okved-card__header-content">
+              <div>
+                <h2 class="info-card__title">Виды деятельности</h2>
+                <p class="info-card__description">
+                  Основной и {{ okvedAdditional.length }} дополнительных кода ОКВЭД
+                </p>
+              </div>
+              <div class="okved-card__main-tag">
+                <span class="okved-card__main-label">Основной</span>
+                <span class="okved-card__main-code">{{ okvedMain.code }}</span>
+                <span class="okved-card__main-name">{{ okvedMain.name }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="okved-card__grid">
+            <div
+              v-for="(item, index) in visibleOkved"
+              :key="item.code"
+              class="okved-item"
+              :class="{ 'okved-item--hidden': !showAllOkved && index >= okvedPreviewCount }"
+            >
+              <button type="button" class="okved-item__inner" @click="copyText(`${item.code} — ${item.name}`)">
+                <span class="okved-item__code">{{ item.code }}</span>
+                <span class="okved-item__name">{{ item.name }}</span>
+                <Icon name="mdi:content-copy" size="14" class="okved-item__copy" />
+              </button>
+            </div>
+          </div>
+
+          <button
+            v-if="okvedAdditional.length > okvedPreviewCount"
+            type="button"
+            class="okved-card__toggle no-print"
+            @click="showAllOkved = !showAllOkved"
+          >
+            <Icon :name="showAllOkved ? 'mdi:chevron-up' : 'mdi:chevron-down'" size="18" />
+            <span v-if="!showAllOkved">
+              Показать все {{ okvedAdditional.length }} кодов
+            </span>
+            <span v-else>Скрыть дополнительные коды</span>
+          </button>
+        </section>
 
         <!-- QR + ПОДСКАЗКА -->
         <section class="bottom-grid no-print">
@@ -272,6 +394,8 @@
                 Нажмите на любой реквизит, чтобы скопировать его.
                 Для платежа удобнее всего использовать кнопку
                 <strong>«Скопировать»</strong> в блоке банковских реквизитов.
+                Для импорта в 1С используйте кнопку
+                <strong>«Для 1С»</strong>.
               </p>
             </div>
           </div>
@@ -302,20 +426,110 @@ const notifications = useNotifications()
 const isScrolled = ref(false)
 
 const currentYear = new Date().getFullYear()
-const lastUpdated = '13.10.2026'
+
+const requestURL = useRequestURL()
+
+// Дата последнего обновления вычисляется динамически
+const lastUpdated = computed(() => {
+  const now = new Date()
+  const day = String(now.getDate()).padStart(2, '0')
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const year = now.getFullYear()
+  return `${day}.${month}.${year}`
+})
 
 const address = '391480, Рязанская обл., Путятинский р-н, п. Агрокультура, ул. Сасыкинская, д. 8'
 
-const qrData = `ИП Главацкий П.Е.
-ИНН: 622907683792
-ОГРНИП: 321623400019751
-Р/с: 40802810653000018724
-БИК: 046126614
-Банк: Рязанское отделение №8606 ПАО СБЕРБАНК
-К/с: 30101810500000000614`
+// Основной ОКВЭД
+const okvedMain = {
+  code: '43.34',
+  name: 'Производство малярных и стекольных работ'
+}
+
+// Дополнительные ОКВЭД (по выписке ЕГРИП)
+const okvedAdditional = [
+  { code: '41.10', name: 'Разработка строительных проектов' },
+  { code: '41.20', name: 'Строительство жилых и нежилых зданий' },
+  { code: '43.11', name: 'Разборка и снос зданий' },
+  { code: '43.12', name: 'Подготовка строительной площадки' },
+  { code: '43.13', name: 'Разведочное бурение' },
+  { code: '43.21', name: 'Производство электромонтажных работ' },
+  { code: '43.22', name: 'Производство санитарно-технических работ, монтаж отопительных систем и систем кондиционирования воздуха' },
+  { code: '43.29', name: 'Производство прочих строительно-монтажных работ' },
+  { code: '43.31', name: 'Производство штукатурных работ' },
+  { code: '43.32', name: 'Работы столярные и плотничные' },
+  { code: '43.33', name: 'Работы по устройству покрытий полов и облицовке стен' },
+  { code: '43.39', name: 'Производство прочих отделочных и завершающих работ' },
+  { code: '43.91', name: 'Производство кровельных работ' },
+  { code: '43.99', name: 'Работы строительные специализированные прочие, не включенные в другие группировки' },
+  { code: '47.19', name: 'Торговля розничная прочая в неспециализированных магазинах' },
+  { code: '62.01', name: 'Разработка компьютерного программного обеспечения' },
+  { code: '62.02', name: 'Деятельность консультативная и работы в области компьютерных технологий' },
+  { code: '62.03', name: 'Деятельность по управлению компьютерным оборудованием' },
+  { code: '63.11', name: 'Деятельность по обработке данных, предоставление услуг по размещению информации и связанная с этим деятельность' },
+  { code: '63.12', name: 'Деятельность web-порталов' },
+  { code: '63.99', name: 'Деятельность информационных служб прочая, не включенная в другие группировки' },
+  { code: '70.21', name: 'Деятельность в сфере связей с общественностью' },
+  { code: '73.11', name: 'Деятельность рекламных агентств' },
+  { code: '74.10', name: 'Деятельность специализированная в области дизайна' }
+]
+
+const okvedPreviewCount = 6
+const showAllOkved = ref(false)
+
+// ИСПРАВЛЕНО: корректная логика показа/скрытия ОКВЭДов
+const visibleOkved = computed(() => {
+  return showAllOkved.value 
+    ? okvedAdditional 
+    : okvedAdditional.slice(0, okvedPreviewCount)
+})
+
+// Ссылка на выписку из ЕГРИП (регион 62 — Рязанская обл.)
+const egrulUrl = computed(() =>
+  'https://egrul.nalog.ru/index.html?w=1&query=622907683792&region=62'
+)
+
+// Индикатор свежести реквизитов
+const freshness = computed(() => {
+  const [day, month, year] = lastUpdated.value.split('.').map(Number)
+  const updated = new Date(year, month - 1, day)
+  const now = new Date()
+  now.setHours(0, 0, 0, 0)
+  updated.setHours(0, 0, 0, 0)
+
+  const diffMs = now.getTime() - updated.getTime()
+  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+  if (days <= 30) {
+    return {
+      days,
+      status: 'fresh',
+      label: days === 0 ? 'Актуально' : `Обновлено ${days} дн. назад`,
+      icon: 'mdi:check-circle-outline'
+    }
+  }
+
+  if (days <= 90) {
+    return {
+      days,
+      status: 'warn',
+      label: `Обновлено ${days} дн. назад`,
+      icon: 'mdi:clock-alert-outline'
+    }
+  }
+
+  return {
+    days,
+    status: 'stale',
+    label: 'Проверьте актуальность',
+    icon: 'mdi:alert-circle-outline'
+  }
+})
+
+const qrData = computed(() => requestURL.href)
 
 const qrCodeUrl = computed(() => {
-  return `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&data=${encodeURIComponent(qrData)}`
+  return `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&data=${encodeURIComponent(qrData.value)}`
 })
 
 const handleScroll = () => {
@@ -364,10 +578,10 @@ const copyText = async (text) => {
 const copyBankDetails = async () => {
   const data = `Получатель: ИП Главацкий П.Е.
 ИНН: 622907683792
-Банк: Рязанское отделение №8606 ПАО СБЕРБАНК
-БИК: 046126614
+Банк: Орловское отделение №8595 ПАО СБЕРБАНК
+БИК: 045402601
 Р/с: 40802810653000018724
-К/с: 30101810500000000614`
+К/с: 30101810300000000601`
 
   const ok = await copyToClipboard(data)
 
@@ -384,7 +598,32 @@ const copyBankDetails = async () => {
   }
 }
 
+// Форматирование под 1С:Предприятие (строго по требованиям импорта)
+const copyFor1C = async () => {
+  const data = `Получатель: ИНДИВИДУАЛЬНЫЙ ПРЕДПРИНИМАТЕЛЬ ГЛАВАЦКИЙ ПАВЕЛ ЕВГЕНЬЕВИЧ
+ИНН: 622907683792
+Счёт: 40802810653000018724
+Банк: ОРЛОВСКОЕ ОТДЕЛЕНИЕ N8595 ПАО СБЕРБАНК г. ОРЁЛ
+БИК: 045402601
+Кор.счёт: 30101810300000000601`
+
+  const ok = await copyToClipboard(data)
+
+  if (ok) {
+    notifications.success(
+      'Реквизиты для 1С скопированы',
+      'Формат для импорта в 1С:Предприятие'
+    )
+  } else {
+    notifications.error(
+      'Не удалось скопировать',
+      'Проверьте разрешения браузера'
+    )
+  }
+}
+
 const copyAll = async () => {
+  const okvedList = okvedAdditional.map(o => `  • ${o.code} — ${o.name}`).join('\n')
   const allData = `ИП Главацкий П.Е.
 
 Полное наименование:
@@ -395,19 +634,30 @@ const copyAll = async () => {
 
 ИНН: 622907683792
 ОГРНИП: 321623400019751
+КПП: не присваивается
+
+Основной ОКВЭД: ${okvedMain.code} — ${okvedMain.name}
+
+Дополнительные ОКВЭД (${okvedAdditional.length}):
+${okvedList}
+
+Система налогообложения: УСН (доходы), без НДС
+Налоговый орган: Управление ФНС по Рязанской области
+Рег. номер в СФР: 1220536468
+Дата регистрации: 26.04.2021
 
 Юридический адрес:
 391480, Рязанская обл., Путятинский р-н, п. Агрокультура, ул. Сасыкинская, д. 8
 
 Банк:
-Рязанское отделение №8606 ПАО СБЕРБАНК
+Орловское отделение №8595 ПАО СБЕРБАНК
 
-БИК: 046126614
+БИК: 045402601
 Р/с: 40802810653000018724
-К/с: 30101810500000000614
+К/с: 30101810300000000601
 
 Телефон: +7 (965) 714-08-01
-Email: glavlider@yandex.ru
+Email: glavprofi@yandex.ru
 
 Индивидуальный предприниматель:
 Главацкий Павел Евгеньевич`
@@ -461,6 +711,9 @@ Email: glavlider@yandex.ru
 
   --teal: #0ea5a5;
   --teal-soft: rgba(14, 165, 165, 0.10);
+
+  --red: #dc2626;
+  --red-soft: rgba(220, 38, 38, 0.10);
 
   min-height: 100vh;
   color: var(--text-main);
@@ -649,6 +902,74 @@ Email: glavlider@yandex.ru
   }
 }
 
+.hero-footer__right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.egrul-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.85rem;
+  color: rgba(255, 255, 255, 0.88);
+  background: rgba(0, 195, 245, 0.14);
+  border: 1px solid rgba(0, 195, 245, 0.35);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-decoration: none;
+  backdrop-filter: blur(4px);
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+
+  svg { color: #7cf0ff; }
+
+  &:hover {
+    color: #fff;
+    background: rgba(0, 195, 245, 0.25);
+    border-color: rgba(0, 195, 245, 0.6);
+    transform: translateY(-1px);
+  }
+}
+
+.freshness-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  backdrop-filter: blur(4px);
+
+  &--fresh {
+    color: #a7f3b6;
+    background: rgba(0, 161, 42, 0.18);
+    border: 1px solid rgba(34, 224, 90, 0.45);
+
+    svg { color: #22e05a; }
+  }
+
+  &--warn {
+    color: #fde68a;
+    background: rgba(247, 181, 0, 0.2);
+    border: 1px solid rgba(247, 181, 0, 0.45);
+
+    svg { color: #fbbf24; }
+  }
+
+  &--stale {
+    color: #fecaca;
+    background: rgba(220, 38, 38, 0.18);
+    border: 1px solid rgba(239, 68, 68, 0.45);
+
+    svg { color: #ef4444; }
+  }
+}
+
 .company-logo {
   width: 100px; height: 100px;
   display: flex; align-items: center; justify-content: center;
@@ -735,11 +1056,6 @@ Email: glavlider@yandex.ru
   svg { color: #7cf0ff; }
 }
 
-.company-updated {
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 0.78rem;
-}
-
 /* ==========================================
    BANK CARD
 ========================================== */
@@ -764,8 +1080,9 @@ Email: glavlider@yandex.ru
 .section-heading {
   display: flex;
   align-items: center;
-  gap: 0.9rem;
+  gap: 0.7rem;
   margin-bottom: 1.4rem;
+  flex-wrap: wrap;
 
   &__icon {
     width: 48px; height: 48px;
@@ -815,6 +1132,16 @@ Email: glavlider@yandex.ru
   &:hover {
     transform: translateY(-1px);
     box-shadow: 0 14px 26px -10px rgba(0, 161, 42, 0.7);
+  }
+
+  &--1c {
+    background: linear-gradient(135deg, #f7b500, #ff8a00);
+    box-shadow: 0 10px 22px -10px rgba(247, 181, 0, 0.6);
+    color: #3d2800;
+
+    &:hover {
+      box-shadow: 0 14px 26px -10px rgba(247, 181, 0, 0.7);
+    }
   }
 }
 
@@ -1007,6 +1334,15 @@ Email: glavlider@yandex.ru
     --icon-shadow: rgba(124, 58, 237, 0.5);
   }
 
+  &--green {
+    --accent-line: linear-gradient(90deg, #00a12a, #0ea5a5);
+    --accent-border: rgba(0, 161, 42, 0.45);
+    --accent-shadow: rgba(0, 161, 42, 0.5);
+    --icon-color: #fff;
+    --icon-bg: linear-gradient(135deg, #00a12a, #0ea5a5);
+    --icon-shadow: rgba(0, 161, 42, 0.5);
+  }
+
   &--full {
     grid-column: 1 / -1;
   }
@@ -1050,6 +1386,144 @@ Email: glavlider@yandex.ru
 }
 
 /* ==========================================
+   OKVED CARD
+========================================== */
+.okved-card {
+  &__header-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  &__main-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.55rem 0.9rem;
+    color: #078633;
+    background: linear-gradient(135deg, #ecfdf3, #e6fbf0);
+    border: 1px solid rgba(0, 161, 42, 0.3);
+    border-radius: 10px;
+    flex-shrink: 0;
+  }
+
+  &__main-label {
+    font-size: 0.64rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(7, 134, 51, 0.7);
+  }
+
+  &__main-code {
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #078633;
+  }
+
+  &__main-name {
+    font-size: 0.78rem;
+    color: #078633;
+    font-weight: 500;
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 0.6rem;
+    margin-top: 0.6rem;
+  }
+
+  &__toggle {
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.85rem 1rem;
+    margin-top: 1rem;
+    color: #078633;
+    background: linear-gradient(135deg, #ecfdf3, #e6fbf0);
+    border: 1px solid rgba(0, 161, 42, 0.3);
+    border-radius: 10px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+
+    &:hover {
+      background: linear-gradient(135deg, #d4f8e0, #d1f5df);
+      border-color: rgba(0, 161, 42, 0.5);
+      transform: translateY(-1px);
+    }
+
+    svg {
+      color: #00a12a;
+    }
+  }
+}
+
+.okved-item {
+  &__inner {
+    width: 100%;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    padding: 0.7rem 0.85rem;
+    background: #f8fbf9;
+    border: 1px solid rgba(0, 161, 42, 0.15);
+    border-radius: 9px;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+
+    &:hover {
+      background: #edf7f0;
+      border-color: rgba(0, 161, 42, 0.4);
+      transform: translateY(-1px);
+
+      .okved-item__copy {
+        color: #078633;
+        opacity: 1;
+      }
+    }
+  }
+
+  &__code {
+    flex-shrink: 0;
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #078633;
+    background: rgba(0, 161, 42, 0.1);
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    margin-top: 1px;
+  }
+
+  &__name {
+    flex: 1;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    color: var(--text-main);
+    font-weight: 500;
+  }
+
+  &__copy {
+    flex-shrink: 0;
+    color: var(--text-muted);
+    opacity: 0.5;
+    transition: opacity 0.2s ease, color 0.2s ease;
+    margin-top: 2px;
+  }
+}
+
+/* ==========================================
    CONTACT
 ========================================== */
 .contact-person {
@@ -1083,6 +1557,46 @@ Email: glavlider@yandex.ru
     color: #b27900;
     font-size: 0.72rem;
     font-weight: 600;
+  }
+}
+
+.messenger-links {
+  display: flex;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.messenger-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.85rem;
+  color: var(--text-main);
+  background: linear-gradient(135deg, #fff8e6, #fff3d1);
+  border: 1px solid rgba(247, 181, 0, 0.25);
+  border-radius: 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px -4px rgba(247, 181, 0, 0.4);
+  }
+
+  &__icon {
+    width: 20px;
+    height: 20px;
+    color: $blue;
+  }
+
+  img.messenger-link__icon {
+    width: 20px;
+    height: 20px;
   }
 }
 
@@ -1306,6 +1820,27 @@ Email: glavlider@yandex.ru
     &__main { flex-direction: column; }
     &__identifiers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     &__identifiers--two { max-width: 100%; }
+    &__footer { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
+  }
+
+  .hero-footer__right {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .okved-card {
+    &__header-content {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    &__main-tag {
+      flex-wrap: wrap;
+    }
+
+    &__grid {
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    }
   }
 }
 
@@ -1337,6 +1872,7 @@ Email: glavlider@yandex.ru
 
   .section-heading {
     align-items: flex-start;
+    gap: 0.6rem;
 
     &__icon { width: 42px; height: 42px; }
     &__title { font-size: 1.05rem; }
@@ -1344,14 +1880,15 @@ Email: glavlider@yandex.ru
   }
 
   .copy-section-button {
-    width: 42px; height: 42px;
-    padding: 0;
-    span { display: none; }
+    padding: 0.55rem 0.8rem;
+    font-size: 0.75rem;
   }
 
   .bank-details-grid { grid-template-columns: 1fr; }
   .bank-field--wide { grid-column: auto; }
   .bank-recipient { grid-template-columns: 1fr; gap: 0.25rem; }
+
+  .okved-card__grid { grid-template-columns: 1fr; }
 
   .qr-card {
     align-items: flex-start;
@@ -1380,122 +1917,410 @@ Email: glavlider@yandex.ru
     flex-direction: column;
     &__code { align-self: center; }
   }
+
+  .hero-footer__right {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .copy-section-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .okved-card__main-tag {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2rem;
+  }
 }
 
 /* ==========================================
-   PRINT
+   PRINT / PDF — A4 (одна страница)
 ========================================== */
 @media print {
+  // === СКРЫВАЕМ ГЛОБАЛЬНЫЕ ЭЛЕМЕНТЫ САЙТА ===
+  :global(header),
+  :global(nav),
+  :global([data-header]),
+  :global([data-nav]),
+  :global(footer:not(.page-footer)),
+  :global(.site-header),
+  :global(.site-nav),
+  :global(.site-footer),
+  :global(.layout-header),
+  :global(.layout-footer),
+  :global([class*="Header"]),
+  :global([class*="Nav"]),
+  :global([class*="Menu"]),
+  :global([class*="menu"]) {
+    display: none !important;
+  }
+
+  // === НАСТРОЙКИ СТРАНИЦЫ ===
+  @page {
+    size: A4 portrait;
+    margin: 1cm 1.2cm;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
   .requisites-page {
-    min-height: auto;
-    padding: 0;
+    min-height: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
     background: #fff !important;
+    font-size: 10px !important;
   }
 
-  .requisites-content { padding-top: 0; }
-
-  .company-hero,
-  .bank-card,
-  .info-card,
-  .qr-card,
-  .help-card {
-    box-shadow: none !important;
-    transform: none !important;
+  .container {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
   }
 
+  // === СКРЫВАЕМ НЕВАЖНОЕ ДЛЯ ПЕЧАТИ ===
+  .actions-bar,
+  .bottom-grid,
+  .no-print,
+  .egrul-link,
+  .freshness-indicator,
+  .identifier svg,
+  .company-hero__glow,
+  .okved-card,  // СКРЫВАЕМ ОКВЭДЫ ПОЛНОСТЬЮ
+  .okved-card__toggle,
+  .copy-section-button,
+  .bank-field__copy-icon,
+  .address-block__value svg,
+  .okved-item__copy,
+  .bank-field__badge,
+  .company-hero__footer .hero-footer__right {
+    display: none !important;
+  }
+
+  .requisites-content {
+    padding-top: 0 !important;
+  }
+
+  // === HERO — компактный заголовок ===
   .company-hero {
+    padding: 0.8rem 1rem !important;
+    margin-bottom: 0.6rem !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: #f5f8fb !important;
     color: #111 !important;
-    background: #fff !important;
     border: 1px solid #d8d8d8 !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
 
-    &__glow { display: none !important; }
-    &__title { color: #111 !important; }
-    &__subtitle,
-    &__eyebrow,
-    .company-updated { color: #555 !important; }
-    &__footer { border-top-color: #ddd !important; }
+  .company-hero__main {
+    gap: 0.8rem !important;
+  }
+
+  .company-hero__identity {
+    gap: 0.6rem !important;
   }
 
   .company-logo {
-    background: #f0f0f0 !important;
-    box-shadow: none !important;
-    border: none !important;
+    width: 44px !important;
+    height: 44px !important;
+    background: #e8e8e8 !important;
     color: #333 !important;
+    box-shadow: none !important;
+    border-radius: 8px !important;
+
+    svg { width: 26px !important; height: 26px !important; }
+  }
+
+  .company-hero__eyebrow {
+    color: #666 !important;
+    font-size: 0.65rem !important;
+    margin-bottom: 0.15rem !important;
+  }
+
+  .company-hero__title {
+    color: #111 !important;
+    font-size: 1.4rem !important;
+    line-height: 1.1 !important;
+    margin: 0 !important;
+  }
+
+  .company-hero__subtitle {
+    color: #555 !important;
+    font-size: 0.72rem !important;
+    margin: 0.15rem 0 0 !important;
   }
 
   .company-status {
-    color: #333 !important;
-    background: #f5f5f5 !important;
-    border-color: #ccc !important;
+    padding: 0.25rem 0.6rem !important;
+    background: #fff !important;
+    color: #0a7a25 !important;
+    border: 1px solid #0a7a25 !important;
+    font-size: 0.65rem !important;
+
+    &__dot {
+      background: #0a7a25 !important;
+      box-shadow: none !important;
+      width: 6px !important; height: 6px !important;
+    }
   }
 
-  .company-status__dot {
-    background: #333 !important;
-    box-shadow: none !important;
+  .company-hero__identifiers {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.4rem !important;
+    margin-top: 0.5rem !important;
+    max-width: 100% !important;
   }
 
   .identifier {
+    padding: 0.4rem 0.6rem !important;
+    background: #fff !important;
     color: #111 !important;
-    background: #f7f7f7 !important;
-    border-color: #ccc !important;
+    border: 1px solid #ccc !important;
+    border-radius: 6px !important;
+    gap: 0.4rem !important;
 
-    &__label,
-    &__value { color: #111 !important; }
-    svg { display: none; }
+    &__label {
+      color: #666 !important;
+      font-size: 0.58rem !important;
+    }
+
+    &__value {
+      color: #111 !important;
+      font-size: 0.75rem !important;
+    }
+  }
+
+  .company-hero__footer {
+    margin-top: 0.4rem !important;
+    padding-top: 0.4rem !important;
+    border-top: 1px solid #ddd !important;
   }
 
   .company-location {
     color: #333 !important;
-    svg { color: #333 !important; }
+    font-size: 0.72rem !important;
+
+    svg {
+      color: #333 !important;
+      width: 14px !important; height: 14px !important;
+    }
   }
 
+  // === БАНКОВСКИЕ РЕКВИЗИТЫ ===
   .bank-card {
-    border-color: #ccc !important;
+    padding: 0.7rem 0.8rem !important;
+    margin-bottom: 0.5rem !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
     background: #fff !important;
-
-    &__stripe { background: #333 !important; }
-  }
-
-  .bank-field--primary {
-    background: #f7f7f7 !important;
-    border-color: #bbb !important;
-  }
-
-  .bank-field__copy-icon,
-  .copy-section-button,
-  .bank-field__badge { display: none !important; }
-
-  .info-card {
+    border: 1px solid #ccc !important;
     break-inside: avoid;
     page-break-inside: avoid;
 
-    &::before { background: #333 !important; }
+    &__stripe { background: #333 !important; height: 3px !important; }
   }
 
-  .info-card__icon {
-    background: #333 !important;
-    color: #fff !important;
+  .section-heading {
+    margin-bottom: 0.5rem !important;
+    gap: 0.5rem !important;
+
+    &__icon {
+      width: 28px !important; height: 28px !important;
+      background: #333 !important;
+      border-radius: 6px !important;
+
+      svg { width: 16px !important; height: 16px !important; }
+    }
+
+    &__title {
+      font-size: 0.95rem !important;
+      margin: 0 !important;
+    }
+
+    &__description {
+      font-size: 0.65rem !important;
+      margin: 0 !important;
+    }
+
+    &__content { flex: 1; }
+  }
+
+  .bank-recipient {
+    padding: 0.5rem 0.7rem !important;
+    margin-bottom: 0.4rem !important;
+    background: #f5f5f5 !important;
+    border: 1px solid #ddd !important;
+    border-radius: 4px !important;
+    grid-template-columns: 110px 1fr !important;
+    gap: 0.5rem !important;
+
+    &__label {
+      font-size: 0.65rem !important;
+      color: #333 !important;
+    }
+
+    &__value {
+      font-size: 0.82rem !important;
+    }
+  }
+
+  .bank-details-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.35rem !important;
+  }
+
+  .bank-field {
+    padding: 0.4rem 0.6rem !important;
+    background: #fff !important;
+    border: 1px solid #ddd !important;
+    border-radius: 4px !important;
+
+    &--primary {
+      background: #f5f9fc !important;
+      grid-column: 1 / -1 !important;
+    }
+
+    &--wide { grid-column: 1 / -1 !important; }
+
+    &__label {
+      margin-bottom: 0.15rem !important;
+      font-size: 0.62rem !important;
+      color: #666 !important;
+    }
+
+    &__value {
+      font-size: 0.78rem !important;
+      color: #111 !important;
+
+      &--mono {
+        font-size: 0.78rem !important;
+        font-weight: 700 !important;
+      }
+    }
+  }
+
+  // === ИНФО-КАРТОЧКИ ===
+  .content-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.5rem !important;
+    margin-bottom: 0 !important;
+  }
+
+  .info-card {
+    padding: 0.5rem 0.6rem !important;
+    border-radius: 4px !important;
     box-shadow: none !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    border: 1px solid #ddd !important;
+
+    &::before {
+      background: #333 !important;
+      height: 3px !important;
+    }
+
+    &--full {
+      grid-column: 1 / -1 !important;
+    }
+
+    &__header {
+      padding-bottom: 0.35rem !important;
+      margin-bottom: 0.35rem !important;
+      gap: 0.4rem !important;
+      border-bottom: 1px solid #eee !important;
+    }
+
+    &__icon {
+      width: 24px !important; height: 24px !important;
+      border-radius: 5px !important;
+      background: #333 !important;
+      box-shadow: none !important;
+
+      svg { width: 14px !important; height: 14px !important; }
+    }
+
+    &__title {
+      font-size: 0.8rem !important;
+      margin: 0 !important;
+    }
+
+    &__description {
+      font-size: 0.58rem !important;
+      margin: 0 !important;
+    }
   }
 
-  .contact-person,
-  .address-block,
-  .help-card,
-  .qr-card {
-    background: #f7f7f7 !important;
-    border-color: #ddd !important;
+  // === КОНТАКТЫ ===
+  .contact-person {
+    padding: 0.4rem !important;
+    margin-bottom: 0.3rem !important;
+    background: #fff8e6 !important;
+    border: 1px solid #f0d98a !important;
+    border-radius: 4px !important;
+    gap: 0.5rem !important;
+
+    &__avatar {
+      width: 28px !important; height: 28px !important;
+      background: #f7b500 !important;
+
+      svg { width: 16px !important; height: 16px !important; }
+    }
+
+    &__name { font-size: 0.75rem !important; }
+    &__role { font-size: 0.62rem !important; }
   }
 
-  .bottom-grid { display: none !important; }
+  // === АДРЕС ===
+  .address-block {
+    padding: 0.5rem !important;
+    background: #f5f0ff !important;
+    border: 1px solid #d4c3f5 !important;
+    border-radius: 4px !important;
+    gap: 0.5rem !important;
 
+    &__icon {
+      width: 24px !important; height: 24px !important;
+      background: #7c3aed !important;
+      border-radius: 5px !important;
+
+      svg { width: 14px !important; height: 14px !important; }
+    }
+
+    &__label {
+      font-size: 0.6rem !important;
+      margin-bottom: 0.1rem !important;
+      color: #6d28d9 !important;
+    }
+
+    &__value {
+      font-size: 0.72rem !important;
+      line-height: 1.3 !important;
+    }
+  }
+
+  // === FOOTER ===
   .page-footer {
-    border-top: 1px solid #ddd;
-    margin-top: 1rem;
-  }
+    padding: 0.4rem 0 0 !important;
+    margin-top: 0.4rem !important;
+    border-top: 1px solid #ddd !important;
+    font-size: 0.65rem !important;
 
-  @page {
-    size: A4;
-    margin: 1.2cm;
+    &__meta { gap: 0.8rem !important; }
+    svg { width: 11px !important; height: 11px !important; }
   }
 }
 </style>
