@@ -201,6 +201,9 @@ export class SocketService {
       this.isInitialized = true
 
       for (const [event, handlers] of this.eventHandlers.entries()) {
+        // ✅ P2: manager-события доставляются через dispatch() — на socket их вешать не нужно
+        if (SocketService.MANAGER_EVENTS.has(event)) continue
+
         if (handlers.size > 0) {
           this.socket!.on(event, (data: any) => {
             for (const h of handlers) h(data)
@@ -272,11 +275,14 @@ export class SocketService {
     handlers.add(handler as SocketEventHandler)
 
     if (handlers.size === 1 && this.socket) {
-      this.socket.on(event, (data: T) => {
-        for (const h of handlers) {
-          h(data)
-        }
-      })
+      // ✅ P2: manager-события на socket не вешаем — доставка идёт через dispatch()
+      if (!SocketService.MANAGER_EVENTS.has(event)) {
+        this.socket.on(event, (data: T) => {
+          for (const h of handlers) {
+            h(data)
+          }
+        })
+      }
     }
   }
 
@@ -292,6 +298,26 @@ export class SocketService {
       this.socket.off(event)
       this.eventHandlers.delete(event)
     }
+  }
+
+  /**
+   * ✅ P2: список имён событий, которые эмитит Manager (socket.io), а не Socket.
+   * Их нельзя подписывать на socket в init() — иначе останутся мёртвые листенеры.
+   */
+  private static readonly MANAGER_EVENTS = new Set([
+    'reconnect_attempt',
+    'reconnect',
+    'reconnect_error',
+    'reconnect_failed'
+  ])
+
+  /**
+   * ✅ P2: ручная доставка события в обработчики, зарегистрированные через on()/useSocket().on().
+   */
+  private dispatch(event: string, payload?: any): void {
+    const handlers = this.eventHandlers.get(event)
+    if (!handlers || handlers.size === 0) return
+    for (const handler of handlers) handler(payload)
   }
 
   /**
@@ -488,20 +514,28 @@ export class SocketService {
       this.handleColumnsReordered(data)
     })
 
-    this.socket.on('reconnect', (attemptNumber: number) => {
-      console.log('[SocketService] 🔄 Переподключено после', attemptNumber, 'попыток')
-    })
+    // ✅ P2: события реконнекта эмитит Manager (socket.io), а не Socket.
+    // Пробрасываем их в зарегистрированные обработчики, чтобы стор видел reconnect_attempt/reconnect.
+    const manager = this.socket.io
 
-    this.socket.on('reconnect_error', (error: any) => {
-      console.error('[SocketService] ⚠️ Ошибка переподключения:', error.message)
-    })
-
-    this.socket.on('reconnect_failed', () => {
-      console.error('[SocketService] ❌ Не удалось переподключиться после всех попыток')
-    })
-
-    this.socket.io.on('reconnect_attempt', (attempt: number) => {
+    manager.on('reconnect_attempt', (attempt: number) => {
       console.log(`[SocketService] 🔄 Попытка переподключения ${attempt}`)
+      this.dispatch('reconnect_attempt', attempt)
+    })
+
+    manager.on('reconnect_error', (error: any) => {
+      console.error('[SocketService] ⚠️ Ошибка переподключения:', error?.message)
+      this.dispatch('reconnect_error', error)
+    })
+
+    manager.on('reconnect_failed', () => {
+      console.error('[SocketService] ❌ Не удалось переподключиться после всех попыток')
+      this.dispatch('reconnect_failed')
+    })
+
+    manager.on('reconnect', (attempt: number) => {
+      console.log('[SocketService] 🔄 Переподключено после', attempt, 'попыток')
+      this.dispatch('reconnect', attempt)
     })
   }
 
