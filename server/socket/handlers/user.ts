@@ -24,6 +24,7 @@ import { createSession, updateSessionStatus, getOnlineUsers, closeZombieSessions
 import { broadcastStatus } from './status'
 import { invalidatePermissionsCache } from '../../utils/permissions'
 import { invalidateOnlineCache } from '../../api/online.get'
+import { socketLog } from '../logger'
 
 // ============================================
 // 🆕 УВЕДОМЛЕНИЯ ОБ ИЗМЕНЕНИИ ПРАВ
@@ -62,7 +63,7 @@ export async function notifyUserPermissionsChanged(
   const sockets = await io.in(`user:${userId}`).fetchSockets()
 
   if (sockets.length === 0) {
-    console.log(`[UserHandler] ⚠️ User ${userId} не подключён, уведомление не отправлено`)
+    socketLog(`[UserHandler] ⚠️ User ${userId} не подключён, уведомление не отправлено`)
     return
   }
 
@@ -77,7 +78,7 @@ export async function notifyUserPermissionsChanged(
     timestamp: new Date().toISOString()
   })
 
-  console.log(`[UserHandler] 📣 Уведомление отправлено ${sockets.length} сокетам user=${userId}: ${details.reason}`)
+  socketLog(`[UserHandler] 📣 Уведомление отправлено ${sockets.length} сокетам user=${userId}: ${details.reason}`)
 }
 
 /**
@@ -101,7 +102,7 @@ export async function forceDisconnectUserWithReason(
   const sockets = await io.in(`user:${userId}`).fetchSockets()
 
   if (sockets.length === 0) {
-    console.log(`[UserHandler] ⚠️ User ${userId} не подключён, отключение не требуется`)
+    socketLog(`[UserHandler] ⚠️ User ${userId} не подключён, отключение не требуется`)
     return
   }
 
@@ -114,7 +115,7 @@ export async function forceDisconnectUserWithReason(
     socket.disconnect(true)
   }
 
-  console.log(`[UserHandler] 🔌 Принудительно отключено ${sockets.length} сокетов user=${userId}: ${reason}`)
+  socketLog(`[UserHandler] 🔌 Принудительно отключено ${sockets.length} сокетов user=${userId}: ${reason}`)
 }
 
 // ============================================
@@ -125,8 +126,8 @@ export async function forceDisconnectUserWithReason(
  * Обработчик событий, связанных с пользователем
  */
 export function setupUserHandlers(socket: Socket, user: any, io: Server) {
-  console.log(`👤 Пользователь подключился: ${user.id} (${user.name || user.email})`)
-  console.log(`   ID сокета: ${socket.id}`)
+  socketLog(`👤 Пользователь подключился: ${user.id} (${user.name || user.email})`)
+  socketLog(`   ID сокета: ${socket.id}`)
 
   const userName = user.name || user.email || 'Unknown'
 
@@ -140,7 +141,7 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
     return 'unknown'
   })()
 
-  console.log(`   IP: ${ipAddress}`)
+  socketLog(`   IP: ${ipAddress}`)
 
   // ============================================
   // ВОССТАНОВЛЕНИЕ ИЛИ СОЗДАНИЕ СЕССИИ
@@ -189,7 +190,7 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
         // ✅ ИСПРАВЛЕНО: используем GRACE_PERIOD_MS (15 минут) вместо FIVE_MINUTES
         // Сессии с lastActivity от 5 до 15 минут назад теперь корректно восстанавливаются
         if (timeDiff < GRACE_PERIOD_MS) {
-          console.log(`   ✅ Восстанавливаем сессию: ${activeSession.sessionId} (статус: ${activeSession.status})`)
+          socketLog(`   ✅ Восстанавливаем сессию: ${activeSession.sessionId} (статус: ${activeSession.status})`)
           
           session = await updateSessionStatus(activeSession.sessionId, 'online', {
             ipAddress,
@@ -199,7 +200,7 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
           
           isRestored = true
         } else {
-          console.log(`   ⏰ Сессия устарела (${Math.round(timeDiff / 1000)}с > ${GRACE_PERIOD_MS / 1000}с), создаём новую`)
+          socketLog(`   ⏰ Сессия устарела (${Math.round(timeDiff / 1000)}с > ${GRACE_PERIOD_MS / 1000}с), создаём новую`)
         }
       }
 
@@ -207,7 +208,7 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
       // ✅ СОЗДАНИЕ НОВОЙ СЕССИИ
       // ============================================
       if (!session) {
-        console.log(`   🆕 Создаём новую сессию...`)
+        socketLog(`   🆕 Создаём новую сессию...`)
         
         // ✅ КРИТИЧНО: Закрываем старые сессии перед созданием новой
         // Это предотвращает накопление «зомби»-сессий
@@ -219,7 +220,7 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
           throw new Error('Не удалось создать сессию')
         }
         
-        console.log(`   ✅ Новая сессия создана: ${session.sessionId}`)
+        socketLog(`   ✅ Новая сессия создана: ${session.sessionId}`)
       }
 
       // Сохраняем sessionId в сокете для последующих операций
@@ -247,7 +248,7 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
         restored: isRestored
       })
 
-      console.log(`   📡 Список отправлен (${usersList.length} пользователей)`)
+      socketLog(`   📡 Список отправлен (${usersList.length} пользователей)`)
 
     } catch (error) {
       console.error('❌ Ошибка инициализации сессии:', error)
@@ -267,7 +268,7 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
         return
       }
 
-      console.log(`   📌 Регистрация вкладки: ${tabId}`)
+      socketLog(`   📌 Регистрация вкладки: ${tabId}`)
 
       await db
         .update(userSessions)
@@ -307,7 +308,7 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
         return
       }
 
-      console.log(`   🧭 Навигация: ${currentPath}`)
+      socketLog(`   🧭 Навигация: ${currentPath}`)
 
       await updateSessionStatus(sessionId, 'online', {
         currentPath
@@ -328,7 +329,7 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
   // Клиент может запросить актуальные права, если подозревает что они изменились
   socket.on('permissions:check', async () => {
     try {
-      console.log(`[UserHandler] 🔍 User ${user.id} запросил проверку прав`)
+      socketLog(`[UserHandler] 🔍 User ${user.id} запросил проверку прав`)
 
       // Инвалидируем кэш и получаем свежие права
       invalidatePermissionsCache(user.id)
@@ -351,8 +352,8 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
   // ОБРАБОТКА ОТКЛЮЧЕНИЯ
   // ============================================
   socket.on('disconnect', async (reason: string) => {
-    console.log(`👋 Пользователь отключился: ${user.id} (${user.name || user.email})`)
-    console.log(`   Причина: ${reason}`)
+    socketLog(`👋 Пользователь отключился: ${user.id} (${user.name || user.email})`)
+    socketLog(`   Причина: ${reason}`)
 
     try {
       const sessionId = (socket as any).sessionId
@@ -363,13 +364,13 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
         const hasOtherConnections = userSockets.some(s => s.id !== socket.id)
 
         if (hasOtherConnections) {
-          console.log(`   👥 У пользователя ${user.id} остались активные сокеты, сессия НЕ закрывается`)
+          socketLog(`   👥 У пользователя ${user.id} остались активные сокеты, сессия НЕ закрывается`)
           // Просто обновляем lastActivity, без смены статуса
           await updateSessionStatus(sessionId, 'online', {
             isActiveTab: false
           })
         } else {
-          console.log(`   Помечаю сессию ${sessionId} как оффлайн (без endedAt)...`)
+          socketLog(`   Помечаю сессию ${sessionId} как оффлайн (без endedAt)...`)
 
           // ❌ НЕ ставим endedAt при обычном disconnect — это предотвращает спам сессий при F5
           await updateSessionStatus(sessionId, 'offline')
@@ -389,7 +390,7 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
           })
         }
 
-        console.log(`   📡 Обработка отключения завершена`)
+        socketLog(`   📡 Обработка отключения завершена`)
       } else {
         console.warn('   ID сессии не найден для отключившегося пользователя')
       }

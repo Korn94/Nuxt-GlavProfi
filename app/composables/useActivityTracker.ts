@@ -73,12 +73,11 @@ export function useActivityTracker() {
       return
     }
 
-    socketService.emit('activity', {
+    // ✅ P2: fire-and-forget — сервер не отвечает ack на событие 'activity'
+    socketService.emitNoAck('activity', {
       sessionId: sessionIdCookie.value,
       status,
       ipAddress: window.location.hostname
-    }).catch(err => {
-      console.warn('[ActivityTracker] Failed to send activity:', err)
     })
   }
 
@@ -91,11 +90,10 @@ export function useActivityTracker() {
 
     console.log('[ActivityTracker] 🧭 Навигация:', currentPath)
 
-    socketService.emit('tab:navigate', {
+    // ✅ P2: fire-and-forget — сервер не отвечает ack на событие 'tab:navigate'
+    socketService.emitNoAck('tab:navigate', {
       sessionId: sessionIdCookie.value,
       currentPath
-    }).catch(err => {
-      console.warn('[ActivityTracker] Failed to send navigation:', err)
     })
   }
 
@@ -115,11 +113,10 @@ export function useActivityTracker() {
       isAFK.value = false
       
       if (process.client && socketStore.isConnected && sessionIdCookie.value) {
-        socketService.emit('activity:resume', {
+        // ✅ P2: fire-and-forget — сервер не отвечает ack на событие 'activity:resume'
+        socketService.emitNoAck('activity:resume', {
           sessionId: sessionIdCookie.value,
           ipAddress: window.location.hostname
-        }).catch(err => {
-          console.warn('[ActivityTracker] Failed to send resume:', err)
         })
       }
     }
@@ -143,11 +140,10 @@ export function useActivityTracker() {
       isAFK.value = true
       
       if (sessionIdCookie.value) {
-        socketService.emit('activity:afk', {
+        // ✅ P2: fire-and-forget — сервер не отвечает ack на событие 'activity:afk'
+        socketService.emitNoAck('activity:afk', {
           sessionId: sessionIdCookie.value,
           ipAddress: window.location.hostname
-        }).catch(err => {
-          console.warn('[ActivityTracker] Failed to send afk:', err)
         })
       }
     }
@@ -265,12 +261,11 @@ export function useActivityTracker() {
 
     // ✅ Отправляем событие выхода
     if (socketStore.isConnected && sessionIdCookie.value) {
-      socketService.emit('activity', {
+      // ✅ P2: fire-and-forget — сервер не отвечает ack на событие 'activity'
+      socketService.emitNoAck('activity', {
         sessionId: sessionIdCookie.value,
         status: 'offline',
         ipAddress: window.location.hostname
-      }).catch(err => {
-        console.warn('[ActivityTracker] Failed to send offline:', err)
       })
     }
 

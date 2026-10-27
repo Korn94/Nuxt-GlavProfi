@@ -293,12 +293,14 @@ function measurePing() {
     onAck()
   })
 
-  socketService.emit('heartbeat').catch(() => {
+  // ✅ P2: fire-and-forget — ответ приходит отдельным событием 'heartbeat:ack'
+  if (!socketService.emitNoAck('heartbeat')) {
     clearTimeout(timeout)
     socketService.off('heartbeat:ack', onAck)
     pingMs.value = null
     pingInFlight.value = false
-  })
+    addLog('ping', 'Socket not connected', 'warn')
+  }
 }
 
 // ── Status pills ─────────────────────────────────────────────────────
@@ -462,8 +464,13 @@ const quickEvents = computed(() => [
 async function fireEvent(ev: typeof quickEvents.value[0]) {
   try {
     const data = ev.payload()
-    await socketService.emit(ev.event, data)
-    addLog('emit', `${ev.event} → ${data ? JSON.stringify(data).slice(0, 60) : 'no data'}`, 'ok')
+    // ✅ P2: события без серверного ack — fire-and-forget
+    const sent = socketService.emitNoAck(ev.event, data)
+    addLog(
+      'emit',
+      `${ev.event} → ${data ? JSON.stringify(data).slice(0, 60) : 'no data'}`,
+      sent ? 'ok' : 'err'
+    )
   } catch (e: any) {
     addLog('emit', `${ev.event} FAILED: ${e?.message}`, 'err')
   }
@@ -476,8 +483,13 @@ async function fireCustomEvent() {
   if (!customEvName.value) return
   try {
     const data = customEvData.value ? JSON.parse(customEvData.value) : undefined
-    await socketService.emit(customEvName.value, data)
-    addLog('emit', `${customEvName.value} → ${customEvData.value || 'no data'}`, 'ok')
+    // ✅ P2: произвольные события без серверного ack — fire-and-forget
+    const sent = socketService.emitNoAck(customEvName.value, data)
+    addLog(
+      'emit',
+      `${customEvName.value} → ${customEvData.value || 'no data'}`,
+      sent ? 'ok' : 'err'
+    )
   } catch (e: any) {
     addLog('emit', `Custom emit failed: ${e?.message}`, 'err')
   }

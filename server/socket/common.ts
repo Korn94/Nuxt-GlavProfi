@@ -20,11 +20,9 @@
  *     io.to('room').emit('event', data)
  *   }
  */
-import { Server, Socket } from 'socket.io'
+import { Server } from 'socket.io'
 import { db } from '../db'
 import { userSessions } from '../db/schema'
-import { verifyToken } from '../utils/jwt'
-import { eq } from 'drizzle-orm'
 
 // ============================================
 // СОСТОЯНИЕ (singleton)
@@ -72,27 +70,6 @@ export function getIO(): Server | null {
   return globalIO
 }
 
-/**
- * Проверить, инициализирован ли Socket.IO server
- *
- * Удобно для быстрого флага в условиях без получения инстанса:
- *   if (isSocketReady()) {
- *     notifyUsers()
- *   }
- */
-export function isSocketReady(): boolean {
-  return globalIO !== null
-}
-
-/**
- * Сбросить инстанс (используется в тестах)
- *
- * @internal Только для тестов
- */
-export function resetIO(): void {
-  globalIO = null
-}
-
 // ============================================
 // УПРАВЛЕНИЕ СЕССИЯМИ
 // ============================================
@@ -123,31 +100,6 @@ export async function resetAllSessions(): Promise<void> {
 // БАЗОВЫЕ ОБРАБОТЧИКИ СОКЕТОВ
 // ============================================
 
-/**
- * Базовая настройка обработчиков событий сокета
- *
- * Регистрирует стандартные обработчики:
- * - connection: логирование подключений
- * - disconnect: логирование отключений
- * - error: логирование ошибок
- *
- * Специфичные обработчики (permissions, boards и т.д.)
- * регистрируются в отдельных модулях handlers/
- */
-export function setupSocketHandlers(io: Server): void {
-  io.on('connection', (socket: Socket) => {
-    console.log(`[SocketCommon] 🔗 Подключён клиент: ${socket.id}`)
-
-    socket.on('disconnect', (reason) => {
-      console.log(`[SocketCommon] 🔌 Отключён клиент ${socket.id}: ${reason}`)
-    })
-
-    socket.on('error', (error: Error) => {
-      console.error(`[SocketCommon] ❌ Ошибка сокета ${socket.id}:`, error)
-    })
-  })
-}
-
 // ============================================
 // КОНФИГУРАЦИЯ CORS
 // ============================================
@@ -174,7 +126,6 @@ export function getCorsConfig(isDev: boolean) {
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
       const allowedOrigins = [
         process.env.NUXT_PUBLIC_SITE_URL,
-        'http://192.168.31.244:3000', // Локальный IP для тестирования в LAN
         'http://localhost:3000',
         'https://glavprofi.ru',
         'https://www.glavprofi.ru'

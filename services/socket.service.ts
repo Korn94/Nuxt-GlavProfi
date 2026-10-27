@@ -83,6 +83,11 @@ interface SocketServiceConfig {
   reconnection?: boolean
   reconnectionAttempts?: number
   reconnectionDelay?: number
+  /**
+   * ✅ P2: таймаут ожидания ack-ответа в emit() (мс).
+   * Защищает от «висящих» промисов, если сервер не вызывает ack-колбэк.
+   */
+  ackTimeout?: number
 }
 
 // ============================================
@@ -113,7 +118,8 @@ export class SocketService {
       autoConnect: config.autoConnect !== false,
       reconnection: config.reconnection !== false,
       reconnectionAttempts: config.reconnectionAttempts || 5,
-      reconnectionDelay: config.reconnectionDelay || 1000
+      reconnectionDelay: config.reconnectionDelay || 1000,
+      ackTimeout: config.ackTimeout || 10000
     }
   }
 
@@ -292,16 +298,54 @@ export class SocketService {
     }
   }
 
-  async emit<T = any, R = any>(event: string, data?: T): Promise<R> {
-    return new Promise((resolve, reject) => {
+  /**
+   * ✅ P2: Отправка события с ожиданием ack-ответа от сервера.
+   *
+   * ⚠️ Использовать ТОЛЬКО для событий, на которые сервер отвечает
+   * ack-колбэком: `socket.on('event', (data, callback) => callback(...))`.
+   * Для всех остальных событий используйте emitNoAck() — иначе промис
+   * завершится только по таймауту (config.ackTimeout, по умолчанию 10 с).
+   *
+   * @param event Название события
+   * @param data Данные события
+   * @param timeoutMs Переопределение таймаута ожидания ack (мс)
+   */
+  async emit<T = any, R = any>(event: string, data?: T, timeoutMs?: number): Promise<R> {
+    const timeout = timeoutMs ?? this.config.ackTimeout
+
+    return new Promise<R>((resolve, reject) => {
       if (!this.socket || !this.isConnected) {
         reject(new Error('Socket not connected'))
         return
       }
+
+      // ✅ P2: страховка от «висящего» промиса — сервер может не вызвать ack
+      const timer = setTimeout(() => {
+        reject(new Error(`Socket ack timeout (${timeout}ms) for "${event}"`))
+      }, timeout)
+
       this.socket.emit(event, data, (response: R) => {
+        clearTimeout(timer)
         resolve(response)
       })
     })
+  }
+
+  /**
+   * ✅ P2: Отправка события без ожидания ack (fire-and-forget).
+   *
+   * Сервер обрабатывает событие и отвечает отдельным событием
+   * (например `board:subscribed`, `heartbeat:ack`) или broadcast'ом.
+   *
+   * @returns true — событие отправлено, false — сокет недоступен/отключён
+   */
+  emitNoAck<T = any>(event: string, data?: T): boolean {
+    if (!this.socket || !this.isConnected) {
+      return false
+    }
+
+    this.socket.emit(event, data as any)
+    return true
   }
 
   // ============================================
@@ -808,7 +852,8 @@ export function useSocket() {
   const disconnect = () => socketService.disconnect()
   const on = <T = any>(event: string, handler: (data: T) => void) => socketService.on(event, handler)
   const off = <T = any>(event: string, handler?: (data: T) => void) => socketService.off(event, handler)
-  const emit = <T = any, R = any>(event: string, data?: T): Promise<R> => socketService.emit(event, data)
+  const emit = <T = any, R = any>(event: string, data?: T, timeoutMs?: number): Promise<R> => socketService.emit(event, data, timeoutMs)
+  const emitNoAck = <T = any>(event: string, data?: T): boolean => socketService.emitNoAck(event, data)
   const subscribeToBoard = (boardId: number) => socketService.subscribeToBoard(boardId)
   const unsubscribeFromBoard = (boardId: number) => socketService.unsubscribeFromBoard(boardId)
   const unsubscribeFromAll = () => socketService.unsubscribeFromAll()
@@ -818,7 +863,7 @@ export function useSocket() {
   const getSubscribedBoards = () => socketService.getSubscribedBoards()
 
   return {
-    init, connect, disconnect, on, off, emit,
+    init, connect, disconnect, on, off, emit, emitNoAck,
     subscribeToBoard, unsubscribeFromBoard, unsubscribeFromAll,
     isConnected, getSocketId, getCurrentBoardId, getSubscribedBoards
   }

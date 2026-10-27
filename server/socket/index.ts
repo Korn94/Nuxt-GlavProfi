@@ -19,11 +19,13 @@
 
 import type { Server, Socket } from 'socket.io'
 import { socketAuthMiddleware } from './middleware/auth'
-import { setupUserHandlers, setupActivityHandlers } from './handlers'
-import { setupStatusHandlers } from './handlers/status'
-import { registerTaskHandlers } from './handlers/tasks'
-import { registerSubtaskHandlers } from './handlers/subtasks'
-import { registerColumnHandlers } from './handlers/columns'
+import {
+  setupUserHandlers,
+  setupActivityHandlers,
+  setupStatusHandlers,
+  registerTaskHandlers
+} from './handlers'
+import { socketLog } from './logger'
 
 import {
   getUserFromSocket,
@@ -31,8 +33,7 @@ import {
   joinStandardRooms,
   parseBoardRoomName,
   getBoardRoomName,
-  withAcl,
-  SocketPermissionError
+  withAcl
 } from './utils'
 
 // ============================================
@@ -40,27 +41,50 @@ import {
 // ============================================
 
 /**
- * Активные сокет-подключения по ID пользователя
- * Ключ: userId, Значение: Socket
+ * Активные сокет-подключения по ID пользователя.
+ * Ключ: userId, Значение: Set<socketId>
+ *
+ * Один пользователь может держать несколько соединений одновременно
+ * (несколько вкладок / устройств), поэтому храним набор socketId,
+ * а не единственный Socket.
  *
  * Используется для:
- * - Отправки событий конкретному пользователю
  * - Проверки isUserConnected()
  * - Принудительного разрыва соединения (при смене прав)
  */
-const activeSockets = new Map<number, Socket>()
-
-/**
- * Подключения по комнатам досок
- * Ключ: boardId, Значение: Set<socketId>
- *
- * Используется для статистики и быстрой проверки подписок.
- */
-const boardRooms = new Map<number, Set<string>>()
+const activeSockets = new Map<number, Set<string>>()
 
 // ============================================
 // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 // ============================================
+
+/**
+ * Зарегистрировать сокет за пользователем.
+ * Поддерживает мультивкладочность: у одного userId может быть несколько socketId.
+ */
+function addUserSocket(userId: number, socketId: string): void {
+  let socketIds = activeSockets.get(userId)
+  if (!socketIds) {
+    socketIds = new Set<string>()
+    activeSockets.set(userId, socketIds)
+  }
+  socketIds.add(socketId)
+}
+
+/**
+ * Удалить конкретный сокет пользователя.
+ * Когда у пользователя не остаётся соединений — запись удаляется целиком,
+ * чтобы activeSockets.size отражал число онлайн-пользователей.
+ */
+function removeUserSocket(userId: number, socketId: string): void {
+  const socketIds = activeSockets.get(userId)
+  if (!socketIds) return
+
+  socketIds.delete(socketId)
+  if (socketIds.size === 0) {
+    activeSockets.delete(userId)
+  }
+}
 
 /**
  * Получить количество подключений в комнате доски
@@ -69,24 +93,6 @@ function getBoardRoomSize(io: Server, boardId: number): number {
   const roomName = getBoardRoomName(boardId)
   const room = io.sockets.adapter.rooms.get(roomName)
   return room?.size || 0
-}
-
-/**
- * Отправить событие всем в комнате доски
- */
-function emitToBoardRoom<T>(
-  io: Server,
-  boardId: number,
-  event: string,
-  data: T
-): void {
-  const roomName = getBoardRoomName(boardId)
-  io.to(roomName).emit(event, data)
-
-  console.log(
-    `[Socket] 📡 Emitted "${event}" to room "${roomName}" ` +
-    `(${getBoardRoomSize(io, boardId)} clients)`
-  )
 }
 
 // ============================================
@@ -108,12 +114,6 @@ export function setupSocketServer(io: Server): void {
 
   registerTaskHandlers(io)
   console.log('[Socket] ✅ Task handlers registered')
-
-  registerSubtaskHandlers(io)
-  console.log('[Socket] ✅ Subtask handlers registered')
-
-  registerColumnHandlers(io)
-  console.log('[Socket] ✅ Column handlers registered')
 
   // ============================================
   // MIDDLEWARE ДЛЯ АУТЕНТИФИКАЦИИ
@@ -143,12 +143,15 @@ export function setupSocketServer(io: Server): void {
     }
 
     const userId = user.id
-    console.log(`[Socket] 🔌 User ${userId} connected (socket: ${socket.id})`)
+    socketLog(`[Socket] 🔌 User ${userId} connected (socket: ${socket.id})`)
 
     try {
-      // Сохраняем сокет в глобальном хранилище
-      activeSockets.set(userId, socket)
-      console.log(`[Socket] 💾 Stored socket for user ${userId}`)
+      // Регистрируем сокет за пользователем (поддерживаем мультивкладочность)
+      addUserSocket(userId, socket.id)
+      socketLog(
+        `[Socket] 💾 Stored socket ${socket.id} for user ${userId} ` +
+        `(${activeSockets.get(userId)?.size ?? 0} active connection(s))`
+      )
 
       // ============================================
       // 🆕 ПРИСОЕДИНЕНИЕ К СТАНДАРТНЫМ КОМНАТАМ
@@ -188,19 +191,13 @@ export function setupSocketServer(io: Server): void {
         await canUserJoinBoard(socket, user, boardId)
 
         // 3. Подписываем сокет на комнату
+        // (источник правды о составе комнат — io.sockets.adapter.rooms)
         await socket.join(roomName)
 
-        // 4. Обновляем мапу комнат
-        if (!boardRooms.has(boardId)) {
-          boardRooms.set(boardId, new Set())
-        }
-        boardRooms.get(boardId)!.add(socket.id)
-
-        // 5. Отправляем подтверждение клиенту
-        const currentRooms = Array.from(socket.rooms)
-        console.log(
+        // 4. Отправляем подтверждение клиенту
+        socketLog(
           `[Socket] ✅ User ${userId} joined room: ${roomName} ` +
-          `(${currentRooms.length} total, ${getBoardRoomSize(io, boardId)} in room)`
+          `(${getBoardRoomSize(io, boardId)} in room)`
         )
 
         socket.emit('board:subscribed', {
@@ -227,14 +224,7 @@ export function setupSocketServer(io: Server): void {
 
           await socket.leave(roomName)
 
-          // Обновляем мапу комнат
-          boardRooms.get(boardId)?.delete(socket.id)
-
-          const currentRooms = Array.from(socket.rooms)
-          console.log(
-            `[Socket] 📴 User ${userId} left room: ${roomName} ` +
-            `(${currentRooms.length} remaining)`
-          )
+          socketLog(`[Socket] 📴 User ${userId} left room: ${roomName}`)
 
           socket.emit('board:unsubscribed', {
             room: roomName,
@@ -254,7 +244,7 @@ export function setupSocketServer(io: Server): void {
       // и должны обновить свои права (или переподключиться).
 
       socket.on('permissions:reload', async () => {
-        console.log(`[Socket] 🔄 User ${userId} запросил перезагрузку прав`)
+        socketLog(`[Socket] 🔄 User ${userId} запросил перезагрузку прав`)
         // Клиент сам вызовет /api/permissions и обновит authStore
         // Мы просто подтверждаем получение
         socket.emit('permissions:reload:ack', {
@@ -268,7 +258,7 @@ export function setupSocketServer(io: Server): void {
 
       socket.on('debug:rooms', () => {
         const rooms = Array.from(socket.rooms)
-        console.log(`[Socket] 🔍 Debug: User ${userId} rooms:`, rooms)
+        socketLog(`[Socket] 🔍 Debug: User ${userId} rooms:`, rooms)
         socket.emit('debug:rooms', {
           rooms,
           socketId: socket.id,
@@ -277,16 +267,21 @@ export function setupSocketServer(io: Server): void {
       })
 
       socket.on('debug:stats', () => {
+        // Источник правды — io.sockets.adapter.rooms (включает и комнаты сокетов,
+        // поэтому фильтруем только комнаты досок с префиксом board:)
+        const boardRoomNames = Array.from(io.sockets.adapter.rooms.keys())
+          .filter(roomName => roomName.startsWith('board:'))
+
         const stats = {
           totalSockets: io.sockets.sockets.size,
           activeUsers: activeSockets.size,
-          boardRooms: boardRooms.size,
-          rooms: Array.from(boardRooms.entries()).map(([boardId, sockets]) => ({
-            boardId,
-            members: sockets.size
+          boardRooms: boardRoomNames.length,
+          rooms: boardRoomNames.map(roomName => ({
+            boardId: parseBoardRoomName(roomName),
+            members: io.sockets.adapter.rooms.get(roomName)?.size ?? 0
           }))
         }
-        console.log(`[Socket] 🔍 Debug stats:`, stats)
+        socketLog(`[Socket] 🔍 Debug stats:`, stats)
         socket.emit('debug:stats', stats)
       })
 
@@ -295,22 +290,19 @@ export function setupSocketServer(io: Server): void {
       // ============================================
 
       socket.on('disconnect', async (reason: string) => {
-        console.log(`[Socket] 👋 User ${userId} disconnected (socket: ${socket.id})`)
-        console.log(`[Socket] 📋 Disconnect reason: ${reason}`)
+        socketLog(`[Socket] 👋 User ${userId} disconnected (socket: ${socket.id}, reason: ${reason})`)
 
         try {
-          // Удаляем сокет из глобального хранилища
-          activeSockets.delete(userId)
-          console.log(`[Socket] 🗑️ Removed socket for user ${userId}`)
+          // Удаляем только ЭТОТ сокет: запись пользователя сохраняется,
+          // пока у него есть другие активные соединения (вкладки/устройства)
+          removeUserSocket(userId, socket.id)
+          socketLog(
+            `[Socket] 🗑️ Removed socket ${socket.id} for user ${userId} ` +
+            `(${activeSockets.get(userId)?.size ?? 0} left)`
+          )
 
-          // Очищаем подписки на комнаты досок
-          const rooms = Array.from(socket.rooms)
-          for (const roomName of rooms) {
-            const boardId = parseBoardRoomName(roomName)
-            if (boardId !== null) {
-              boardRooms.get(boardId)?.delete(socket.id)
-            }
-          }
+          // Из комнат досок Socket.IO удаляет сокет автоматически при disconnect —
+          // отдельная очистка не требуется.
 
           // Уведомляем других пользователей об отключении
           socket.broadcast.emit('user:disconnected', {
@@ -318,8 +310,6 @@ export function setupSocketServer(io: Server): void {
             socketId: socket.id,
             timestamp: new Date().toISOString()
           })
-
-          console.log(`[Socket] ✅ Cleanup completed for user ${userId}`)
         } catch (error) {
           console.error(`[Socket] ❌ Error during disconnect cleanup:`, error)
         }
@@ -370,122 +360,11 @@ export function setupSocketServer(io: Server): void {
   })
 
   console.log('[Socket] ✅ Socket.IO server initialized successfully')
-  console.log(`[Socket] 📊 Initial stats: ${activeSockets.size} active users, ${boardRooms.size} board rooms`)
 }
 
 // ============================================
 // ЭКСПОРТЫ ДЛЯ ИСПОЛЬЗОВАНИЯ В API
 // ============================================
-
-/**
- * Получить экземпляр активного сокета пользователя
- * @param userId - ID пользователя
- */
-export function getUserSocket(userId: number): Socket | undefined {
-  return activeSockets.get(userId)
-}
-
-/**
- * Проверить, подключён ли пользователь
- */
-export function isUserConnected(userId: number): boolean {
-  return activeSockets.has(userId)
-}
-
-/**
- * Получить количество подключений в комнате доски
- */
-export function getBoardRoomMembersCount(io: Server, boardId: number): number {
-  return getBoardRoomSize(io, boardId)
-}
-
-/**
- * Отправить событие всем в комнате доски
- */
-export function broadcastToBoard<T>(
-  io: Server,
-  boardId: number,
-  event: string,
-  data: T
-): void {
-  emitToBoardRoom(io, boardId, event, data)
-}
-
-/**
- * Получить статистику сокет-сервера
- */
-export function getSocketStats(io: Server): {
-  totalSockets: number
-  activeUsers: number
-  boardRooms: number
-  rooms: Array<{ boardId: number; members: number }>
-} {
-  return {
-    totalSockets: io.sockets.sockets.size,
-    activeUsers: activeSockets.size,
-    boardRooms: boardRooms.size,
-    rooms: Array.from(boardRooms.entries()).map(([boardId, sockets]) => ({
-      boardId,
-      members: sockets.size
-    }))
-  }
-}
-
-/**
- * 🆕 Отправить событие всем пользователям с определённой ролью.
- * Используется при изменении прав роли через UI.
- *
- * @example
- * // После обновления прав роли 'manager':
- * await notifyRole(io, 'manager', 'permissions:changed', { role: 'manager' })
- */
-export function notifyRole(
-  io: Server,
-  role: string,
-  event: string,
-  data: any
-): void {
-  const roomName = `role:${role}`
-  const room = io.sockets.adapter.rooms.get(roomName)
-  const count = room?.size || 0
-
-  io.to(roomName).emit(event, data)
-
-  console.log(
-    `[Socket] 📣 Notified role "${role}" (${count} users) with event "${event}"`
-  )
-}
-
-/**
- * 🆕 Принудительно отключить сокет пользователя.
- * Используется когда права пользователя отозваны или роль понижена.
- *
- * @example
- * // После удаления override прав:
- * forceDisconnectUser(userId, 'Права отозваны администратором')
- */
-export function forceDisconnectUser(userId: number, reason: string = 'Disconnected by admin'): boolean {
-  const socket = activeSockets.get(userId)
-
-  if (!socket) {
-    console.log(`[Socket] ⚠️ User ${userId} not connected, nothing to disconnect`)
-    return false
-  }
-
-  console.log(`[Socket] 🔌 Force disconnecting user ${userId}: ${reason}`)
-
-  // Отправляем клиенту уведомление, чтобы он мог корректно обработать
-  socket.emit('force:disconnect', {
-    reason,
-    timestamp: new Date().toISOString()
-  })
-
-  // Разрываем соединение
-  socket.disconnect(true)
-  activeSockets.delete(userId)
-
-  return true
-}
 
 /**
  * 🆕 Принудительно отключить всех пользователей с определённой ролью.
@@ -500,12 +379,13 @@ export function forceDisconnectRole(io: Server, role: string, reason: string = '
   const room = io.sockets.adapter.rooms.get(roomName)
 
   if (!room) {
-    console.log(`[Socket] ⚠️ No users in role "${role}"`)
+    socketLog(`[Socket] ⚠️ No users in role "${role}"`)
     return 0
   }
 
   let count = 0
-  for (const socketId of room) {
+  // Снапшот списка сокетов: disconnect() мутирует комнату во время итерации
+  for (const socketId of Array.from(room)) {
     const socket = io.sockets.sockets.get(socketId)
     if (socket) {
       const userId = socket.data?.userId
@@ -515,22 +395,13 @@ export function forceDisconnectRole(io: Server, role: string, reason: string = '
           role,
           timestamp: new Date().toISOString()
         })
+        removeUserSocket(userId, socket.id)
         socket.disconnect(true)
-        activeSockets.delete(userId)
         count++
       }
     }
   }
 
-  console.log(`[Socket] 🔌 Force disconnected ${count} users of role "${role}"`)
+  socketLog(`[Socket] 🔌 Force disconnected ${count} users of role "${role}"`)
   return count
-}
-
-/**
- * Очистить хранилище подключений (для тестов или перезагрузки)
- */
-export function clearSocketStorage(): void {
-  activeSockets.clear()
-  boardRooms.clear()
-  console.log('[Socket] 🧹 Socket storage cleared')
 }

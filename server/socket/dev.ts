@@ -23,7 +23,7 @@ export function initSocketDev(nitroApp: NitroApp): void {
     
     io = new Server(httpServer, getSocketOptions(true))
     
-    // ✅ Только setupSocketServer — без setupSocketHandlers (дублирует connection)
+    // Инициализация сервера сокетов: middleware, обработчики, комнаты
     setupSocketServer(io)
     
     resetAllSessions().catch(console.error)

@@ -19,10 +19,11 @@
  * Примеры ACL-проверок:
  * - canUserJoinBoard() — проверка права на подписку к доске (через объект)
  * - requirePermission() — универсальная проверка page+action
- * - requireSpecial() — проверка special-права (для accept/pay/reorder)
+ * - requireView() — проверка права просмотра страницы
  *
- * ⚠️ Функции управления подключениями (forceDisconnectRole/User, notifyUserPermissionsChanged)
- * находятся в server/socket/index.ts и server/socket/handlers/user.ts — НЕ дублируем здесь.
+ * ⚠️ Функции управления подключениями (forceDisconnectRole, notifyUserPermissionsChanged,
+ * forceDisconnectUserWithReason) находятся в server/socket/index.ts и
+ * server/socket/handlers/user.ts — НЕ дублируем здесь.
  */
 
 import type { Socket } from 'socket.io'
@@ -36,6 +37,7 @@ import {
 } from '../utils/permissions'
 
 import type { PageSlug, PageAction } from 'shared/constants/permissions'
+import { socketLog } from './logger'
 
 // ============================================
 // ТИПЫ
@@ -92,15 +94,6 @@ export function getUserFromSocket(socket: Socket): SocketUser {
   return user
 }
 
-/**
- * Безопасное извлечение userId из сокета.
- * Возвращает null если user не аутентифицирован (без бросания ошибки).
- */
-export function getUserIdFromSocket(socket: Socket): number | null {
-  const userId = socket.data?.userId
-  return typeof userId === 'number' ? userId : null
-}
-
 // ============================================
 // БАЗОВЫЕ ACL-ПРОВЕРКИ
 // ============================================
@@ -138,18 +131,6 @@ export async function requirePermission(
       { page, action }
     )
   }
-}
-
-/**
- * Shortcut для проверки special-права.
- * Используется для бизнес-операций: accept, pay, reorder, recalculate.
- */
-export async function requireSpecial(
-  socket: Socket,
-  user: SocketUser,
-  page: PageSlug
-): Promise<void> {
-  await requirePermission(socket, user, page, 'special')
 }
 
 /**
@@ -287,19 +268,8 @@ export async function joinStandardRooms(
   await socket.join(getUserRoomName(user.id))
   await socket.join(getRoleRoomName(user.role))
 
-  console.log(
+  socketLog(
     `[SocketACL] 🔗 User ${user.id} присоединён к комнатам: ` +
     `${getUserRoomName(user.id)}, ${getRoleRoomName(user.role)}`
   )
-}
-
-/**
- * Покинуть стандартные комнаты при отключении.
- */
-export async function leaveStandardRooms(
-  socket: Socket,
-  user: SocketUser
-): Promise<void> {
-  await socket.leave(getUserRoomName(user.id))
-  await socket.leave(getRoleRoomName(user.role))
 }

@@ -1,8 +1,7 @@
 // server/socket/handlers/status.ts
 import type { Socket, Server } from 'socket.io'
-import { getOnlineUsers } from '../../utils/sessions'
 import type { UserStatusEvent } from '../events/status'
-import { invalidateOnlineCache } from '../../api/online.get'
+import { socketLog } from '../logger'
 
 /**
  * Отправка уведомления о статусе пользователя
@@ -24,15 +23,12 @@ function broadcastStatus(
     sessionId: options?.sessionId
   }
 
-  // ✅ ИСПРАВЛЕНО (P2.10 + bug #5): socket.to('user:{id}') исключает отправителя,
-  // поэтому событие не дублируется для инициатора
-  // Другие вкладки пользователя получат событие через комнату
-  socket.to(`user:${userId}`).emit('user:status', eventData)
-  
-  // ✅ Отправляем всем остальным (исключая пользователя)
+  // socket.broadcast.emit доставляет событие всем сокетам, КРОМЕ отправителя,
+  // включая другие вкладки того же пользователя. Отдельная отправка в комнату
+  // user:{id} не нужна — получатели те же, и событие приходило дважды.
   socket.broadcast.emit('user:status', eventData)
-  
-  console.log(`[Status] Broadcast: ${userName} is now ${status}`)
+
+  socketLog(`[Status] Broadcast: ${userName} is now ${status}`)
 }
 
 /**
@@ -49,7 +45,7 @@ export function setupStatusHandlers(socket: Socket, user: any, io: Server) {
         return
       }
 
-      console.log(`[Status] Manual status update: ${userName} -> ${data.status}`)
+      socketLog(`[Status] Manual status update: ${userName} -> ${data.status}`)
 
       broadcastStatus(io, socket, user.id, userName, data.status, {
         sessionId
@@ -68,13 +64,7 @@ export function setupStatusHandlers(socket: Socket, user: any, io: Server) {
     }
   })
 
-  // Обработчик запроса текущего статуса
-  socket.on('status:request', (targetUserId: number) => {
-    // Можно добавить логику для получения статуса конкретного пользователя
-    console.log(`[Status] Status request for user ${targetUserId}`)
-  })
-
-  console.log('[Status] Handlers registered for user:', userName)
+  socketLog('[Status] Handlers registered for user:', userName)
 }
 
 /**

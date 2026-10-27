@@ -181,9 +181,6 @@ export default defineNuxtConfig({
         'lru-cache',
       ],
     },
-    plugins: [
-      './plugins/socket.io.ts'
-    ],
     typescript: {
       strict: true,
     },

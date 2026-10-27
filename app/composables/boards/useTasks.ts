@@ -4,7 +4,8 @@
  * 
  * Архитектура:
  * - API запросы через $fetch
- * - Real-time обновления через SocketService
+ * - Real-time обновления приходят от сервера (socket broadcast из REST API)
+ *   ❌ P2: ручные socketService.emit(...) удалены — дублировали серверный broadcast
  * - Интеграция с tasksStore, subtasksStore, tagsStore
  * - Оптимистичные обновления UI
  */
@@ -13,7 +14,6 @@ import { computed } from 'vue'
 import { useTasksStore } from '../../../stores/boards/tasks'
 import { useSubtasksStore } from '../../../stores/boards/subtasks'
 import { useTagsStore } from '../../../stores/boards/tags'
-import { socketService } from 'services/socket.service' // ✅ Импортируем SocketService
 
 export function useTasks() {
   const tasksStore = useTasksStore()
@@ -57,7 +57,7 @@ export function useTasks() {
   }
 
   // ============================================
-  // CREATE TASK + SOCKET EMIT
+  // CREATE TASK
   // ============================================
   
   /**
@@ -87,18 +87,10 @@ export function useTasks() {
         await tagsStore.addTagsToTask(task.id, data.tags)
       }
       
-      // ✅ 3. ОТПРАВЛЯЕМ СОКЕТ-СОБЫТИЕ ВСЕМ ПОДКЛЮЧЁННЫМ К ДОСКЕ
-      try {
-        await socketService.emit('board:task:created', {
-          boardId,
-          task
-        })
-        console.log(`[useTasks] 📡 Broadcast task:created for board ${boardId}`)
-      } catch (socketError) {
-        console.warn('[useTasks] ⚠️ Failed to broadcast task:created:', socketError)
-        // Не блокируем основной поток если сокет не работает
-      }
-      
+      // ✅ 3. Broadcast в комнату доски выполняет сервер (REST API):
+      // server/api/boards/[id]/tasks/index.post.ts → broadcastTaskCreated()
+      // Ручной emit удалён (P2) — он дублировал серверный broadcast.
+
       return task
     } catch (error) {
       console.error('Error creating task:', error)
@@ -107,7 +99,7 @@ export function useTasks() {
   }
 
   // ============================================
-  // UPDATE TASK + SOCKET EMIT
+  // UPDATE TASK
   // ============================================
   
   /**
@@ -146,20 +138,10 @@ export function useTasks() {
         }
       }
       
-      // ✅ 3. ОТПРАВЛЯЕМ СОКЕТ-СОБЫТИЕ ВСЕМ ПОДКЛЮЧЁННЫМ К ДОСКЕ
-      try {
-        if (task?.boardId) {
-          await socketService.emit('board:task:updated', {
-            boardId: task.boardId,
-            taskId: id,
-            task
-          })
-          console.log(`[useTasks] 📡 Broadcast task:updated for task ${id}`)
-        }
-      } catch (socketError) {
-        console.warn('[useTasks] ⚠️ Failed to broadcast task:updated:', socketError)
-      }
-      
+      // ✅ 3. Broadcast в комнату доски выполняет сервер (REST API):
+      // server/api/boards/tasks/[id]/index.put.ts → broadcastTaskUpdated()
+      // Ручной emit удалён (P2) — он дублировал серверный broadcast.
+
       return task
     } catch (error) {
       console.error('Error updating task:', error)
@@ -168,7 +150,7 @@ export function useTasks() {
   }
 
   // ============================================
-  // DELETE TASK + SOCKET EMIT
+  // DELETE TASK
   // ============================================
   
   /**
@@ -177,28 +159,15 @@ export function useTasks() {
    */
   const deleteTask = async (id: number) => {
     try {
-      // ✅ 1. Получаем задачу перед удалением для socket-события
-      const task = tasksStore.tasks.find(t => t.id === id)
-      const boardId = task?.boardId
-      
-      // ✅ 2. Удаляем задачу через API
+      // ✅ 1. Удаляем задачу через API
       await tasksStore.deleteTask(id)
       
-      // ✅ 3. Очищаем подзадачи
+      // ✅ 2. Очищаем подзадачи
       subtasksStore.clearState()
       
-      // ✅ 4. ОТПРАВЛЯЕМ СОКЕТ-СОБЫТИЕ ВСЕМ ПОДКЛЮЧЁННЫМ К ДОСКЕ
-      if (boardId) {
-        try {
-          await socketService.emit('board:task:deleted', {
-            boardId,
-            taskId: id
-          })
-          console.log(`[useTasks] 📡 Broadcast task:deleted for task ${id}`)
-        } catch (socketError) {
-          console.warn('[useTasks] ⚠️ Failed to broadcast task:deleted:', socketError)
-        }
-      }
+      // ✅ 3. Broadcast в комнату доски выполняет сервер (REST API):
+      // server/api/boards/tasks/[id]/index.delete.ts → broadcastTaskDeleted()
+      // Ручной emit удалён (P2) — он дублировал серверный broadcast.
       
       return true
     } catch (error) {
@@ -208,11 +177,15 @@ export function useTasks() {
   }
 
   // ============================================
-  // REORDER TASKS + SOCKET EMIT
+  // REORDER TASKS
   // ============================================
   
   /**
    * Обновить порядок задач в колонке
+   *
+   * ⚠️ P2: персист порядка делает серверный API
+   * (PUT /api/boards/:id/tasks/order), ручной socket-emit удалён.
+   *
    * @param boardId - ID доски
    * @param status - Статус колонки
    * @param tasks - Массив задач с новыми order
@@ -230,18 +203,9 @@ export function useTasks() {
         status: status as any
       } as any)))
       
-      // ✅ 2. Проверяем подключение сокета перед отправкой
-      if (socketService.getConnected()) {
-        await socketService.emit('board:tasks:reorder', {
-          boardId,
-          status,
-          tasks
-        })
-        console.log(`[useTasks] 📡 Broadcast tasks:reorder for board ${boardId}, column ${status}`)
-      } else {
-        console.warn(`[useTasks] ⚠️ Socket not connected, skipping broadcast for board ${boardId}`)
-        // ✅ ВАЖНО: Не выбрасываем ошибку, чтобы не ломать UI
-      }
+      // ✅ 2. Broadcast выполняет сервер (REST API):
+      // PUT /api/boards/:id/tasks/order (Kanban/Column) + server-side emit
+      // Ручной emit удалён (P2) — он дублировал серверный broadcast.
       
       return true
     } catch (error) {

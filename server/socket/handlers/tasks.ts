@@ -3,8 +3,9 @@
 import { Server, Socket } from 'socket.io'
 import { eq } from 'drizzle-orm'
 import { db } from '../../db'
-import { boards, boardsTasks } from '../../db/schema'
+import { boardsTasks } from '../../db/schema'
 import type { Task } from '~/types/boards'
+import { socketLog } from '../logger'
 
 /**
  * Интерфейс для данных перестановки задач
@@ -13,47 +14,6 @@ export interface TaskReorderData {
   boardId: number
   status: string
   tasks: Array<{ id: number; order: number }>
-}
-
-// ============================================
-// ПОДПИСКА НА ДОСКУ
-// ============================================
-
-export function handleBoardSubscription(socket: Socket, io: Server) {
-  socket.on('board:subscribe', async (data: { boardId: number }) => {
-    try {
-      const { boardId } = data
-      
-      const board = await db.query.boards.findFirst({
-        where: eq(boards.id, boardId)
-      })
-      
-      if (!board) {
-        socket.emit('error', { message: 'Доска не найдена' })
-        return
-      }
-      
-      await socket.join(`board:${boardId}`)
-      
-      console.log(`[Socket] 👤 User ${socket.data?.userId || 'unknown'} subscribed to board ${boardId}`)
-      socket.emit('board:subscribed', { boardId, success: true })
-      
-    } catch (error) {
-      console.error('[Socket] ❌ Error subscribing to board:', error)
-      socket.emit('error', { message: 'Ошибка подписки на доску' })
-    }
-  })
-  
-  socket.on('board:unsubscribe', async (data: { boardId: number }) => {
-    try {
-      const { boardId } = data
-      await socket.leave(`board:${boardId}`)
-      console.log(`[Socket] 👤 User unsubscribed from board ${boardId}`)
-      socket.emit('board:unsubscribed', { boardId, success: true })
-    } catch (error) {
-      console.error('[Socket] ❌ Error unsubscribing from board:', error)
-    }
-  })
 }
 
 // ============================================
@@ -73,7 +33,7 @@ export function broadcastTaskCreated(io: Server, task: Task, boardId: number) {
   // ✅ Используем io.to() — отправляем ВСЕМ в комнате (включая отправителя API)
   io.to(roomName).emit('board:task:created', { task, boardId })
   
-  console.log(`[Socket] 🆕 Task ${task.id} created, broadcasted to room "${roomName}"`)
+  socketLog(`[Socket] 🆕 Task ${task.id} created, broadcasted to room "${roomName}"`)
 }
 
 /**
@@ -88,7 +48,7 @@ export function broadcastTaskUpdated(io: Server, task: Task, boardId: number) {
   // ✅ Используем io.to() — отправляем ВСЕМ в комнате
   io.to(roomName).emit('board:task:updated', { task, boardId })
   
-  console.log(`[Socket] 🔄 Task ${task.id} updated, broadcasted to room "${roomName}"`)
+  socketLog(`[Socket] 🔄 Task ${task.id} updated, broadcasted to room "${roomName}"`)
 }
 
 /**
@@ -103,7 +63,7 @@ export function broadcastTaskDeleted(io: Server, taskId: number, boardId: number
   // ✅ ИСПРАВЛЕНО: передаём taskId, а не task
   io.to(roomName).emit('board:task:deleted', { taskId, boardId })
   
-  console.log(`[Socket] 🗑️ Task ${taskId} deleted, broadcasted to room "${roomName}"`)
+  socketLog(`[Socket] 🗑️ Task ${taskId} deleted, broadcasted to room "${roomName}"`)
 }
 
 /**
@@ -127,12 +87,12 @@ export async function broadcastTasksReordered(
           .set({ order })
           .where(eq(boardsTasks.id, id))
       }
-      console.log(`[Socket] ✅ Saved order for ${tasks.length} tasks`)
+      socketLog(`[Socket] ✅ Saved order for ${tasks.length} tasks`)
     }
     
     // ✅ Отправляем всем в комнате
     io.to(roomName).emit('board:tasks:reordered', { status, tasks })
-    console.log(`[Socket] 📡 Broadcasted reorder to room "${roomName}"`)
+    socketLog(`[Socket] 📡 Broadcasted reorder to room "${roomName}"`)
     
   } catch (error) {
     console.error('[Socket] ❌ Failed to broadcast reorder:', error)
@@ -162,7 +122,7 @@ export function handleSocketTaskCreated(
   // ✅ Используем socket.to() — исключаем отправителя (он уже обновил UI)
   socket.to(roomName).emit('board:task:created', { task })
   
-  console.log(`[Socket] 🆕 Task ${task.id} created via socket, broadcasted excluding sender`)
+  socketLog(`[Socket] 🆕 Task ${task.id} created via socket, broadcasted excluding sender`)
 }
 
 /**
@@ -176,7 +136,7 @@ export function handleSocketTaskUpdated(
 ) {
   const roomName = `board:${boardId}`
   socket.to(roomName).emit('board:task:updated', { task })
-  console.log(`[Socket] 🔄 Task ${task.id} updated via socket`)
+  socketLog(`[Socket] 🔄 Task ${task.id} updated via socket`)
 }
 
 /**
@@ -190,7 +150,7 @@ export function handleSocketTaskDeleted(
 ) {
   const roomName = `board:${boardId}`
   socket.to(roomName).emit('board:task:deleted', { taskId })
-  console.log(`[Socket] 🗑️ Task ${taskId} deleted via socket`)
+  socketLog(`[Socket] 🗑️ Task ${taskId} deleted via socket`)
 }
 
 /**
@@ -213,7 +173,7 @@ export async function handleSocketTasksReorder(
     
     // ✅ Исключаем отправителя
     socket.to(roomName).emit('board:tasks:reordered', { status, tasks })
-    console.log(`[Socket] 📋 Reorder via socket, broadcasted excluding sender`)
+    socketLog(`[Socket] 📋 Reorder via socket, broadcasted excluding sender`)
     
   } catch (error) {
     console.error('[Socket] ❌ Failed to handle socket reorder:', error)
@@ -227,9 +187,7 @@ export async function handleSocketTasksReorder(
 export function registerTaskHandlers(io: Server) {
   io.on('connection', (socket: Socket) => {
     socket.data = socket.data || {}
-    
-    handleBoardSubscription(socket, io)
-    
+
     // ✅ Обработчики для прямых socket-событий (с исключением отправителя)
     socket.on('board:task:created', async ({ task, boardId }: { task: Task; boardId: number }) => {
       handleSocketTaskCreated(socket, io, task, boardId)
@@ -248,5 +206,5 @@ export function registerTaskHandlers(io: Server) {
     })
   })
   
-  console.log('[Socket] ✅ Task handlers registered')
+  socketLog('[Socket] ✅ Task handlers registered')
 }

@@ -156,7 +156,8 @@ export const useSocketStore = defineStore('socket', () => {
       // ✅ ТЕПЕРЬ регистрируем вкладку — sessionId уже есть в cookie!
       if (tabId.value) {
         const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/'
-        socketService.emit('tab:register', {
+        // ✅ P2: fire-and-forget — сервер не отвечает ack на 'tab:register'
+        socketService.emitNoAck('tab:register', {
           tabId: tabId.value,
           currentPath,
           sessionId: data.sessionId  // Передаём sessionId явно для надёжности
@@ -295,6 +296,11 @@ export const useSocketStore = defineStore('socket', () => {
   // ACTIONS — Очередь сообщений
   // ============================================
 
+  /**
+   * ⚠️ Legacy: очередь работает в режиме fire-and-forget (P2),
+   * поэтому промис резолвится значением true (ack от сервера не приходит).
+   * Потребителей в коде нет — кандидат на удаление (P5).
+   */
   function queueMessage<T>(event: string, data: any): Promise<T> {
     return new Promise((resolve, reject) => {
       messageQueue.value.push({
@@ -318,9 +324,14 @@ export const useSocketStore = defineStore('socket', () => {
     while (messageQueue.value.length > 0) {
       const { event, data, resolve, reject } = messageQueue.value.shift()!
 
-      socketService.emit(event, data)
-        .then((result: any) => resolve?.(result))
-        .catch((err: any) => reject?.(err))
+      // ✅ P2: события без серверного ack — отправляем fire-and-forget
+      const sent = socketService.emitNoAck(event, data)
+
+      if (sent) {
+        resolve?.(true)
+      } else {
+        reject?.(new Error(`Socket not connected, event "${event}" not sent`))
+      }
     }
   }
 

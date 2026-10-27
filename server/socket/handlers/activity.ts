@@ -3,6 +3,7 @@ import type { Socket, Server } from 'socket.io'
 import { updateSessionStatus } from '../../utils/sessions'
 import { broadcastStatus } from './status'
 import { scheduleOnlineBroadcast } from '../../utils/online-broadcast'
+import { socketLog } from '../logger'
 
 export function setupActivityHandlers(socket: Socket, user: any, io: Server) {
   const userName = user.name || user.email || 'Unknown'
@@ -36,7 +37,7 @@ export function setupActivityHandlers(socket: Socket, user: any, io: Server) {
         return
       }
       
-      console.log(`[Activity] 🟢 User ${sessionId} resumed from AFK`)
+      socketLog(`[Activity] 🟢 User ${sessionId} resumed from AFK`)
       
       await updateSessionStatus(sessionId, 'online', { ipAddress })
       
