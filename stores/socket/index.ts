@@ -67,6 +67,10 @@ export const useSocketStore = defineStore('socket', () => {
   // ОБРАБОТЧИКИ СОБЫТИЙ SOCKETSERVICE
   // ============================================
   function setupEventHandlers() {
+    // ✅ P1: на сервере (SSR) подписки не нужны. socketService — module-level синглтон,
+    // и каждый SSR-рендер добавлял в него новую пачку обработчиков без возможности удаления (утечка).
+    if (!process.client) return
+
     const notifications = useNotifications()
     const authStore = useAuthStore()
 
@@ -358,8 +362,10 @@ export const useSocketStore = defineStore('socket', () => {
   // ИНИЦИАЛИЗАЦИЯ ОБРАБОТЧИКОВ
   // ============================================
 
-  // ✅ Вызываем сразу при создании store — один раз
-  setupEventHandlers()
+  // ✅ Вызываем сразу при создании store — один раз, и только на клиенте (см. комментарий в setupEventHandlers)
+  if (process.client) {
+    setupEventHandlers()
+  }
 
   // ============================================
   // RETURN

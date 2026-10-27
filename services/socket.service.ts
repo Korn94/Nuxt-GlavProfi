@@ -262,6 +262,9 @@ export class SocketService {
   // PUBLIC METHODS - Event Handlers
   // ============================================
   on<T = any>(event: string, handler: SocketEventHandler<T>): void {
+    // ✅ P1: серверу не нужны обработчики (защита singleton от роста)
+    if (!process.client) return
+
     if (!this.eventHandlers.has(event)) {
       this.eventHandlers.set(event, new Set())
     }
