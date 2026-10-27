@@ -9,7 +9,7 @@
  * - Интеграция с Pinia stores
  * - Клиент-сайдовый только (process.client)
  * - ✅ Поддержка нового JSON-формата куки авторизации
- * - ✅ Activity Tracking вместо Heartbeat (отслеживание реальной активности)
+ * - ✅ Трекинг активности пользователя: app/composables/useActivityTracker.ts (в сервисе не дублируется)
  */
 
 import { io, type Socket } from 'socket.io-client'
@@ -101,14 +101,10 @@ export class SocketService {
   private config: Required<SocketServiceConfig>
   private isInitialized: boolean = false
   private eventHandlers = new Map<string, Set<SocketEventHandler>>()
-  
-  // ✅ Activity Tracking вместо Heartbeat
-  private activityThrottle: ReturnType<typeof setTimeout> | null = null
-  private readonly ACTIVITY_INTERVAL = 1000 * 60 * 2 // 2 минуты
-  private activityListenersAdded = false
+
+  // ✅ Идентификатор сессии из session:initialized (используется для отладки/сессии).
+  // Трекинг активности ведёт app/composables/useActivityTracker.ts — здесь он не дублируется.
   private sessionId: string | null = null
-  // ✅ Сохраняем ссылку на обработчик для корректного removeEventListener (P2.7)
-  private boundEmitActivity: (() => void) | null = null
 
   constructor(config: SocketServiceConfig = {}) {
     this.config = {
@@ -254,10 +250,7 @@ export class SocketService {
   disconnect(): void {
     if (!this.socket) return
     console.log('[SocketService] 🔌 Отключение от сервера...')
-    
-    // ✅ Останавливаем Activity Tracking
-    this.stopActivityTracking()
-    
+
     this.unsubscribeFromAll()
     this.socket.disconnect()
     this.socket = null
@@ -397,71 +390,6 @@ export class SocketService {
   }
 
   // ============================================
-  // ✅ Activity Tracking (заменяет Heartbeat)
-  // ============================================
-  /**
-   * Запуск отслеживания реальной активности пользователя
-   * Отправляет activity событие не чаще 1 раза в 2 минуты
-   */
-  private startActivityTracking(): void {
-    if (!process.client || this.activityListenersAdded) return
-    
-    // ✅ Сохраняем ссылку на функцию для корректного removeEventListener (P2.7)
-    this.boundEmitActivity = () => {
-      if (this.activityThrottle) return
-      
-      if (this.socket?.connected && this.sessionId) {
-        this.socket.emit('activity', {
-          sessionId: this.sessionId,
-          status: 'online'
-        })
-      }
-      
-      // Throttle: следующий вызов не раньше чем через ACTIVITY_INTERVAL
-      this.activityThrottle = setTimeout(() => {
-        this.activityThrottle = null
-      }, this.ACTIVITY_INTERVAL)
-    }
-    
-    // Отправляем сразу при загрузке
-    this.boundEmitActivity()
-    
-    // Слушаем реальную активность пользователя
-    window.addEventListener('mousemove', this.boundEmitActivity, { passive: true })
-    window.addEventListener('keydown', this.boundEmitActivity, { passive: true })
-    window.addEventListener('click', this.boundEmitActivity, { passive: true })
-    window.addEventListener('scroll', this.boundEmitActivity, { passive: true })
-    
-    this.activityListenersAdded = true
-    console.log('[SocketService] 🎯 Activity tracking запущен (интервал: 2мин)')
-  }
-  
-  /**
-   * Остановка отслеживания активности
-   * ✅ ИСПРАВЛЕНО (P2.7): теперь удаляет window event listeners
-   */
-  private stopActivityTracking(): void {
-    if (!process.client) return
-    
-    if (this.activityThrottle) {
-      clearTimeout(this.activityThrottle)
-      this.activityThrottle = null
-    }
-    
-    // ✅ Удаляем window listeners, чтобы избежать утечки памяти (P2.7)
-    if (this.boundEmitActivity) {
-      window.removeEventListener('mousemove', this.boundEmitActivity)
-      window.removeEventListener('keydown', this.boundEmitActivity)
-      window.removeEventListener('click', this.boundEmitActivity)
-      window.removeEventListener('scroll', this.boundEmitActivity)
-      this.boundEmitActivity = null
-    }
-    
-    this.activityListenersAdded = false
-    console.log('[SocketService] 🎯 Activity tracking остановлен')
-  }
-
-  // ============================================
   // PUBLIC METHODS - Utility
   // ============================================
   getConnected(): boolean {
@@ -504,9 +432,6 @@ export class SocketService {
         console.log('[SocketService] 🚀 Transport upgraded to:', transport.name)
       })
 
-      // ✅ Запускаем Activity Tracking (вместо Heartbeat)
-      this.startActivityTracking()
-
       // Восстанавливаем подписки на доски после переподключения
       this.subscribedBoards.forEach(boardId => {
         this.socket?.emit('join', `board:${boardId}`)
@@ -522,9 +447,6 @@ export class SocketService {
     this.socket.on('disconnect', (reason: string) => {
       this.isConnected = false
       console.log('[SocketService] ❌ Отключено:', reason)
-
-      // ✅ Останавливаем Activity Tracking (вместо Heartbeat)
-      this.stopActivityTracking()
 
       if (reason !== 'io client disconnect') {
         console.log('[SocketService] 🔄 Соединение разорвано, пытаемся переподключиться...')
@@ -823,7 +745,7 @@ export class SocketService {
   private handleSessionInitialized(data: { sessionId: string; userId: number }): void {
     if (!process.client) return
     try {
-      // ✅ Сохраняем sessionId для Activity Tracking
+      // ✅ Сохраняем sessionId из события session:initialized
       this.sessionId = data.sessionId
       setSessionId(data.sessionId)
     } catch (error) {

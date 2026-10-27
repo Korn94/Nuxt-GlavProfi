@@ -50,12 +50,18 @@ export function useActivityTracker() {
   const AFK_TIMEOUT = 5 * 60 * 1000 // 5 минут
   const HEARTBEAT_INTERVAL = 60000  // Проверка AFK каждую минуту
 
+  // ✅ P0-1: минимальный интервал между событиями 'activity' (мс).
+  // Раньше mousemove/scroll слали событие на каждое движение → флуд UPDATE в user_sessions.
+  const ACTIVITY_THROTTLE_MS = 60000 // 1 минута
+
   // ============================================
   // PRIVATE STATE
   // ============================================
   let activityTimer: NodeJS.Timeout | null = null
   let navigationWatcher: (() => void) | null = null
   let visibilityHandler: (() => void) | null = null
+  // ✅ P0-1: время последней отправки 'activity' (для троттлинга)
+  let lastActivitySentAt = 0
 
   // ============================================
   // METHODS - Отправка событий
@@ -79,6 +85,18 @@ export function useActivityTracker() {
       status,
       ipAddress: window.location.hostname
     })
+  }
+
+  /**
+   * ✅ P0-1: отправка «online»-активности с троттлингом (не чаще ACTIVITY_THROTTLE_MS).
+   * @param force — игнорировать троттлинг (используется при возврате из AFK)
+   */
+  const sendActivityThrottled = (force = false) => {
+    if (!process.client) return
+    const now = Date.now()
+    if (!force && now - lastActivitySentAt < ACTIVITY_THROTTLE_MS) return
+    lastActivitySentAt = now
+    sendActivity('online')
   }
 
   /**
@@ -108,8 +126,10 @@ export function useActivityTracker() {
   const updateActivity = () => {
     lastActivity.value = new Date()
 
+    const wasAFK = isAFK.value          // ✅ P0-1: запоминаем до сброса
+
     // Если пользователь был в AFK, отправляем событие возврата
-    if (isAFK.value) {
+    if (wasAFK) {
       isAFK.value = false
       
       if (process.client && socketStore.isConnected && sessionIdCookie.value) {
@@ -121,8 +141,9 @@ export function useActivityTracker() {
       }
     }
 
-    // Отправляем событие активности
-    sendActivity('online')
+    // ✅ P0-1: троттлинг вместо отправки на каждое событие мыши/скролла.
+    // После возврата из AFK отправляем немедленно (force).
+    sendActivityThrottled(wasAFK)
   }
 
   /**
@@ -195,8 +216,13 @@ export function useActivityTracker() {
       window.addEventListener(event, updateActivity, { passive: true })
     })
 
-    // ✅ Запускаем таймер для проверки AFK
-    activityTimer = setInterval(checkAFK, HEARTBEAT_INTERVAL)
+    // ✅ P0-1: раз в минуту — проверка AFK + подтверждение активности («сердцебиение»).
+    // Это гарантирует, что lastActivity в БД не протухает (сервер считает AFK по порогу 5 мин)
+    // и что другие клиенты получают свежий online-users:update.
+    activityTimer = setInterval(() => {
+      checkAFK()
+      if (!isAFK.value) sendActivityThrottled()
+    }, HEARTBEAT_INTERVAL)
 
     // ✅ Отслеживаем изменение маршрута
     navigationWatcher = watch(
@@ -207,13 +233,11 @@ export function useActivityTracker() {
       { immediate: true }
     )
 
-    // ✅ НОВОЕ: Слушаем visibilitychange
+    // ✅ P0-1: подписываем ИМЕННО handleVisibilityChange — иначе removeEventListener ниже не сработает
     visibilityHandler = handleVisibilityChange
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') {
-        updateActivity() // ✅ Принудительное обновление при возврате
-      }
-    })
+    document.addEventListener('visibilitychange', visibilityHandler)
+
+    lastActivitySentAt = 0   // ✅ P0-1: после рестарта трекинга первое событие уходит сразу
 
     isTracking.value = true
 
