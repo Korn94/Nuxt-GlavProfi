@@ -14,6 +14,11 @@
  *   online: number, 
  *   afk: number 
  * }
+ *
+ * Элементы `users` дополнительно содержат:
+ * - activeObjectId — ID объекта, если пользователь на карточке `/cabinet/objects/:id`
+ * - activeObjectName — НАЗВАНИЕ объекта (резолвится в getOnlineUsers), чтобы UI
+ *   показывал название, а не ID (см. app/pages/cabinet/online.vue)
  */
 
 import { eventHandler, createError } from 'h3'

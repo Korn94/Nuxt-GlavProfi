@@ -1,6 +1,6 @@
 // server/utils/sessions.ts
 import { db } from '../db'
-import { users, userSessions } from '../db/schema'
+import { users, userSessions, objects } from '../db/schema'
 import { eq, and, sql, desc, or, isNull, inArray, isNotNull } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 
@@ -24,6 +24,23 @@ function getDeviceType(userAgent?: string): 'desktop' | 'mobile' | 'unknown' {
 
   // Десктоп
   return 'desktop'
+}
+
+// ============================================
+// 🏗️ РЕЗОЛВ НАЗВАНИЙ ОБЪЕКТОВ ИЗ ПУТИ СТРАНИЦЫ
+// ============================================
+
+/** Префикс пути карточки объекта */
+const OBJECT_PATH_PREFIX = '/cabinet/objects/'
+
+/**
+ * Извлекает ID объекта из пути страницы.
+ * @returns ID объекта или null, если пользователь не на карточке объекта
+ */
+function extractObjectId(path: string | null | undefined): number | null {
+  if (!path || !path.startsWith(OBJECT_PATH_PREFIX)) return null
+  const id = Number.parseInt(path.slice(OBJECT_PATH_PREFIX.length), 10)
+  return Number.isNaN(id) ? null : id
 }
 
 /**
@@ -449,18 +466,48 @@ export async function getOnlineUsers() {
     }
   })
 
+  // ============================================
+  // 5. РАЗРЕШАЕМ НАЗВАНИЯ ОБЪЕКТОВ ПО activePath
+  // ============================================
+  // Одно обращение к БД на все объекты: в UI (app/pages/cabinet/online.vue)
+  // показываем название объекта вместо пути /cabinet/objects/30.
+  const objectIds = [...new Set(
+    result
+      .map(u => extractObjectId(u.activePath))
+      .filter((id): id is number => id !== null)
+  )]
+
+  const objectNames = new Map<number, string>()
+  if (objectIds.length > 0) {
+    const objectRows = await db
+      .select({ id: objects.id, name: objects.name })
+      .from(objects)
+      .where(inArray(objects.id, objectIds))
+
+    for (const row of objectRows) objectNames.set(row.id, row.name)
+  }
+
   // Сортировка: online → afk → offline, затем по активности, затем по userId (стабильность!)
   const order: Record<string, number> = { online: 0, afk: 1, offline: 2 }
-  return result.sort((a, b) => {
-    const statusDiff = (order[a.status] ?? 2) - (order[b.status] ?? 2)
-    if (statusDiff !== 0) return statusDiff
+  return result
+    .map(u => {
+      const objectId = extractObjectId(u.activePath)
+      return {
+        ...u,
+        activeObjectId: objectId,
+        activeObjectName: objectId !== null ? (objectNames.get(objectId) ?? null) : null
+      }
+    })
+    .sort((a, b) => {
+      const statusDiff = (order[a.status] ?? 2) - (order[b.status] ?? 2)
+      if (statusDiff !== 0) return statusDiff
 
-    const aTime = new Date(a.lastActivity || 0).getTime()
-    const bTime = new Date(b.lastActivity || 0).getTime()
-    const timeDiff = bTime - aTime
-    if (timeDiff !== 0) return timeDiff
+      const aTime = new Date(a.lastActivity || 0).getTime()
+      const bTime = new Date(b.lastActivity || 0).getTime()
+      const timeDiff = bTime - aTime
+      if (timeDiff !== 0) return timeDiff
 
-    // ✅ Tie-breaker: сортировка по userId для стабильности
-    return a.userId - b.userId
-  })
+      // ✅ Tie-breaker: сортировка по userId для стабильности
+      return a.userId - b.userId
+    })
 }

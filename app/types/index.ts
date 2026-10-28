@@ -51,7 +51,9 @@ export interface OnlineUser {
     role: string
     login: string
   }
-  activePath: string         // Путь активной/последней активной вкладки
+  activePath: string | null  // Путь активной/последней активной вкладки (может быть null)
+  activeObjectId?: number | null     // ID объекта, если открыта карточка объекта
+  activeObjectName?: string | null   // Название объекта (резолвится на сервере)
   status: 'online' | 'afk' | 'offline'   // Статус пользователя
   lastActivity: string       // Время последней активности
   endedAt: string | null

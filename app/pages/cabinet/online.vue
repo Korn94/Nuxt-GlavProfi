@@ -108,14 +108,17 @@
                     <span class="kv__v--muted">({{ formatFullDateTime(user.endedAt || user.lastActivity) }})</span>
                   </span>
                   <span class="kv__k">Был на:</span>
-                  <span class="kv__v kv__v--truncate">{{ formatPath(user.activePath) }}</span>
+                  <span class="kv__v kv__v--truncate-wide" :title="user.activePath || ''">
+                    {{ formatPath(user.activePath, user.activeObjectName) }}
+                  </span>
                 </template>
                 <span v-else class="kv__v">не заходил</span>
               </div>
 
-              <div class="online-user__path" v-if="showDetails && user.status !== 'offline'">
+              <div class="online-user__path" v-if="showDetails && user.status !== 'offline'" :title="user.activePath || ''">
+                <span class="kv__k">Сейчас:</span>
                 <Icon :name="getPageIcon(user.activePath)" size="12" />
-                <span class="kv__v kv__v--truncate">{{ formatPath(user.activePath) }}</span>
+                <span class="kv__v kv__v--truncate-wide">{{ formatPath(user.activePath, user.activeObjectName) }}</span>
               </div>
             </div>
 
@@ -234,18 +237,40 @@ function isActivityStale(lastActivity: string): boolean {
   return currentTime.value - new Date(lastActivity).getTime() > AFK_THRESHOLD
 }
 
-function formatPath(path: string | null | undefined): string {
+/**
+ * Убирает query-строку и ведущие слэши из пути страницы.
+ * Пример: '/cabinet/objects/30?tab=budget' → 'cabinet/objects/30'
+ */
+function cleanPath(path: string | null | undefined): string {
+  const base = (path || '').split('?')[0] ?? ''
+  return base.split('/').filter(Boolean).join('/')
+}
+
+function formatPath(path: string | null | undefined, objectName?: string | null): string {
   if (!path || path === 'null') return '—'
-  const clean = path.replace(/^\/+/, '')
+  const clean = cleanPath(path)
   // ✅ '/' — это главная публичного сайта: трекинг активности глобальный
   // (app/composables/useActivityTracker.ts монтируется в app/app.vue),
   // поэтому авторизованный пользователь может находиться и на публичных страницах.
   if (!clean) return 'Главная (сайт)'
+
+  // 🏗️ Карточка объекта: показываем НАЗВАНИЕ объекта, а не /cabinet/objects/30
+  if (clean.startsWith('cabinet/objects/')) {
+    const objectId = clean.slice('cabinet/objects/'.length).split('/')[0]
+    return objectName ? `Объекты → ${objectName}` : `Объект #${objectId}`
+  }
+
   const labels: Record<string, string> = {
     // Кабинет
-    'cabinet': 'Кабинет', 'cabinet/online': 'Онлайн', 'cabinet/boards': 'Доски',
+    'cabinet': 'Кабинет', 'cabinet/dashboard': 'Главная',
+    'cabinet/online': 'Онлайн', 'cabinet/boards': 'Доски',
     'cabinet/objects': 'Объекты', 'cabinet/operation': 'Операции',
-    'cabinet/materials': 'Материалы', 'login': 'Вход',
+    'cabinet/materials': 'Материалы', 'cabinet/works': 'Работы',
+    'cabinet/daily-work': 'Подневка', 'cabinet/contractors': 'Сотрудники',
+    'cabinet/contractors/users': 'Сотрудники → Пользователи',
+    'cabinet/portfolio': 'Кейсы', 'cabinet/price': 'Прайс-лист',
+    'cabinet/settings/permissions': 'Настройки → Права доступа',
+    'login': 'Вход',
     // Публичная часть сайта
     'about': 'О компании', 'contacts': 'Контакты', 'projects': 'Проекты',
     'prices': 'Цены', 'partner': 'Партнёрам', 'telegram': 'Telegram',
@@ -262,13 +287,22 @@ function formatPath(path: string | null | undefined): string {
 
 function getPageIcon(path: string | null | undefined): string {
   if (!path) return 'mdi:web'
-  const clean = path.replace(/^\/+/, '')
+  const clean = cleanPath(path)
   // ✅ '/' — главная публичного сайта (трекинг активности глобальный, app/app.vue)
   if (!clean) return 'mdi:home-city'
+
+  // 🏗️ Карточки объектов и сотрудников
+  if (clean.startsWith('cabinet/objects/')) return 'mdi:office-building-outline'
+  if (clean.startsWith('cabinet/contractors/')) return 'mdi:account-hard-hat'
+
   const icons: Record<string, string> = {
+    'cabinet/dashboard': 'mdi:view-dashboard-outline',
     'cabinet/online': 'mdi:account-group', 'cabinet/boards': 'mdi:view-dashboard',
     'cabinet/objects': 'mdi:office-building-outline', 'cabinet/operation': 'mdi:swap-horizontal',
-    'cabinet/materials': 'mdi:receipt-text-outline', 'login': 'mdi:login',
+    'cabinet/materials': 'mdi:receipt-text-outline', 'cabinet/works': 'mdi:hammer-wrench',
+    'cabinet/daily-work': 'mdi:calendar-check-outline', 'cabinet/contractors': 'mdi:account-group-outline',
+    'cabinet/portfolio': 'mdi:folder-image', 'cabinet/price': 'mdi:currency-rub',
+    'cabinet/settings/permissions': 'mdi:shield-account-outline', 'login': 'mdi:login',
     // Публичная часть сайта
     'about': 'mdi:information-outline', 'contacts': 'mdi:phone-outline',
     'projects': 'mdi:briefcase-outline', 'prices': 'mdi:currency-rub',
@@ -593,6 +627,8 @@ useHead({
     font-size: var(--crm-text-xs); font-family: var(--crm-font-mono);
     color: var(--crm-text-secondary); word-break: break-all;
     &--truncate { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    // Названия объектов длиннее обычных путей — даём строке локации больше места
+    &--truncate-wide { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     &--warn { color: var(--crm-warning); }
     &--ok   { color: var(--crm-success); }
   }
