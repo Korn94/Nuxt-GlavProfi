@@ -253,8 +253,8 @@ const currentTab = computed(() =>
   props.tabs.find((t) => t.id === activeTab.value) || props.tabs[0]
 )
 
-const currentWorks = computed(() => currentTab.value.works || [])
-const currentExtras = computed(() => currentTab.value.extras || [])
+const currentWorks = computed(() => currentTab.value?.works || [])
+const currentExtras = computed(() => currentTab.value?.extras || [])
 
 /**
  * Универсальные группы опций для отображения
@@ -271,6 +271,9 @@ const optionGroups = computed(() => {
   }> = []
 
   const tab = currentTab.value
+
+  // ✅ props.tabs может быть пустым (props.tabs[0] → undefined) — тогда групп опций нет
+  if (!tab) return groups
 
   // 1. Размер плитки (если есть)
   if (tab.tileSizeOptions?.length) {
@@ -456,12 +459,14 @@ const handleAreaInput = (event: Event) => {
   value = value.replace(/[^0-9.]/g, '')
   
   const parts = value.split('.')
+  // ✅ noUncheckedIndexedAccess: элементов может не быть — берём дефолты
+  const [intPart = '', fracPart = ''] = parts
   if (parts.length > 2) {
-    value = parts[0] + '.' + parts.slice(1).join('')
+    value = intPart + '.' + parts.slice(1).join('')
   }
   
-  if (parts.length === 2 && parts[1].length > 1) {
-    value = parts[0] + '.' + parts[1].substring(0, 1)
+  if (parts.length === 2 && fracPart.length > 1) {
+    value = intPart + '.' + fracPart.substring(0, 1)
   }
   
   areaInput.value = value
@@ -532,7 +537,7 @@ const closeModal = () => {
   showModal.value = false
 }
 
-const handleFormSubmitted = (formData: unknown) => {
+const handleFormSubmitted = (formData: Record<string, unknown> = {}) => {
   console.log('[Калькулятор] Форма заявки отправлена:', formData)
   emit('order-estimate', {
     tab: currentTab.value,

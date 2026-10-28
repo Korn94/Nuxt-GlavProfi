@@ -458,9 +458,11 @@ export function useSubtaskCompletion(
     
     // Обновляем локальные состояния
     for (const child of children) {
-      if (completionStates.value[child.id]) {
-        completionStates.value[child.id].isCompleted = isCompleted
-        completionStates.value[child.id].previousState = !isCompleted
+      // ✅ noUncheckedIndexedAccess: записи может не быть — берём её один раз в переменную
+      const state = completionStates.value[child.id]
+      if (state) {
+        state.isCompleted = isCompleted
+        state.previousState = !isCompleted
       }
     }
   }

@@ -17,7 +17,7 @@
       <li v-else class="nav-item">
         <NuxtLink :to="item.path" class="nav-link" @click="handleClick">
           <span class="nav-link__icon">
-            <Icon :name="item.icon" size="18" />
+            <Icon v-if="item.icon" :name="item.icon" size="18" />
           </span>
           <span class="nav-link__label">{{ item.title }}</span>
         </NuxtLink>

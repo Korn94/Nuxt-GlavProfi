@@ -17,8 +17,10 @@ export const useImageUrl = (path: string | null | undefined): string => {
   
   // В режиме разработки подставляем базовый адрес сервера
   if (process.dev && config.public.uploadsBaseUrl) {
-    // Убираем дублирующие слеши и склеиваем
-    const base = config.public.uploadsBaseUrl.replace(/\/+$/, '')
+    // Убираем дублирующие слеши и склеиваем.
+    // ✅ Тип public-конфига в сгенерированных типах шире строки — приводим так же,
+    // как в services/socket.service.ts (resolveSocketUrl): String(value || '')
+    const base = String(config.public.uploadsBaseUrl || '').replace(/\/+$/, '')
     const url = path.startsWith('/') ? path : `/${path}`
     return `${base}${url}`
   }

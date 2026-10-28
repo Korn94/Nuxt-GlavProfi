@@ -17,7 +17,7 @@
             <div
               class="works-preview__card"
               @click="navigate"
-              @keyup.enter="navigate"
+              @keyup.enter="navigate()"
               role="link"
               tabindex="0"
             >

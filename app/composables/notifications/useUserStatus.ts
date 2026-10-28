@@ -93,7 +93,8 @@ export function useUserStatusNotifications() {
     
     recentEvents.value.forEach(eventId => {
       const [timestamp] = eventId.split(':')
-      if (now - parseInt(timestamp, 10) > MAX_AGE) {
+      // ✅ noUncheckedIndexedAccess: при неожиданном формате id parseInt('') → NaN, событие не удаляется (поведение сохранено)
+      if (now - parseInt(timestamp ?? '', 10) > MAX_AGE) {
         eventsToDelete.push(eventId)
       }
     })

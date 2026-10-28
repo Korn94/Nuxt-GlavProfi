@@ -70,7 +70,7 @@
                 { 'item-visible': animatedSlugs.has(work.slug) },
               ]"
               @click="(e) => { navigate(e); handleCardClick(work); }"
-              @keyup.enter="(e) => { navigate(e); handleCardClick(work); }"
+              @keyup.enter="() => { navigate(); handleCardClick(work); }"
               role="link"
               tabindex="0"
             >

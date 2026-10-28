@@ -108,6 +108,31 @@ definePageMeta({
   allowedRoles: ['admin'] 
 })
 
+/**
+ * Ответ DaData «findById/party» (описаны только используемые поля).
+ * Нужен, чтобы `$fetch` не возвращал `unknown` (TS18046).
+ */
+interface DadataOkved {
+  code?: string
+  name?: string
+  main?: boolean
+}
+
+interface DadataPartyData {
+  name?: { full_with_opf?: string }
+  state?: { status?: string; registration_date?: number }
+  inn?: string
+  ogrn?: string
+  type?: string
+  okved?: string
+  okveds?: DadataOkved[]
+  address?: { unrestricted_value?: string }
+}
+
+interface DadataPartyResponse {
+  suggestions?: Array<{ data: DadataPartyData }>
+}
+
 async function checkInn() {
   loading.value = true
   error.value = ''
@@ -115,7 +140,7 @@ async function checkInn() {
   rawResponse.value = null
 
   try {
-    const response = await $fetch('https://suggestions.dadata.ru/suggestions/api/4_1/rs/findById/party', {
+    const response = await $fetch<DadataPartyResponse>('https://suggestions.dadata.ru/suggestions/api/4_1/rs/findById/party', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -127,11 +152,13 @@ async function checkInn() {
 
     rawResponse.value = response
 
-    if (!response.suggestions || response.suggestions.length === 0) {
+    // ✅ noUncheckedIndexedAccess: проверяем саму подсказку, а не только наличие массива
+    const suggestion = response.suggestions?.[0]
+    if (!suggestion) {
       throw new Error('Компания не найдена по указанному ИНН')
     }
 
-    const data = response.suggestions[0].data
+    const data = suggestion.data
 
     result.value = {
       name: data.name?.full_with_opf || '—',

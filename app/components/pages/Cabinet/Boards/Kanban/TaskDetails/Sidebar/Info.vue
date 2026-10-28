@@ -258,7 +258,7 @@ const getInitials = (name?: string) => {
     return (first + second).toUpperCase()
   }
   if (parts.length === 1) {
-    return parts[0].substring(0, 2).toUpperCase()
+    return (parts[0] ?? '').substring(0, 2).toUpperCase()
   }
   return 'U'
 }

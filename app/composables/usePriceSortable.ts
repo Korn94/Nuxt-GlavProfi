@@ -95,6 +95,8 @@ export function usePriceSortable(options: UsePriceSortableOptions) {
       // снапшот «до» и откатить порядок при ошибке сохранения.
       const reordered = [...arr]
       const [moved] = reordered.splice(oldIndex, 1)
+      // ✅ noUncheckedIndexedAccess: splice мог ничего не вернуть (oldIndex вне диапазона)
+      if (!moved) return
       reordered.splice(newIndex, 0, moved)
 
       const items: ReorderItem[] = reordered.map((item, index) => ({

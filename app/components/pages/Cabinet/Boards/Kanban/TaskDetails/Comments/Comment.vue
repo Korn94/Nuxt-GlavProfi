@@ -242,21 +242,24 @@ const getInitials = (name: string) => {
   const parts = name.trim().split(' ').filter(part => part.length > 0)
   
   if (parts.length >= 2) {
-    const first = parts[0][0] ?? ''
-    const second = parts[1][0] ?? ''
+    const first = parts[0]?.[0] ?? ''
+    const second = parts[1]?.[0] ?? ''
     return (first + second).toUpperCase()
   }
   
   if (parts.length === 1) {
-    return parts[0].substring(0, 2).toUpperCase()
+    return (parts[0] ?? '').substring(0, 2).toUpperCase()
   }
   
   return 'U'
 }
 
 const declension = (number: number, titles: string[]) => {
-  const cases = [2, 0, 1, 1, 1, 2]
-  return titles[(number % 100 > 4 && number % 100 < 20) ? 2 : cases[(number % 10 < 5) ? number % 10 : 5]]
+  // ✅ noUncheckedIndexedAccess: индексация массива даёт T | undefined — подставляем дефолты
+  const cases = [2, 0, 1, 1, 1, 2] as const
+  const caseIndex = (number % 10 < 5) ? number % 10 : 5
+  const titleIndex = (number % 100 > 4 && number % 100 < 20) ? 2 : (cases[caseIndex] ?? 2)
+  return titles[titleIndex] ?? ''
 }
 
 const startEditing = async () => {

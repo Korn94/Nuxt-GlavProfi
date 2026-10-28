@@ -166,8 +166,9 @@ function getReward(cost: number): number {
 
 const rewardAmount = computed(() => getReward(dealAmount.value))
 const currentCategoryIndex = computed(() => getCategoryIndex(dealAmount.value))
-const categoryName = computed(() => categoryInfo[currentCategoryIndex.value].name)
-const categoryRange = computed(() => categoryInfo[currentCategoryIndex.value].range)
+// ✅ noUncheckedIndexedAccess: индекс 0..4 всегда валиден (см. getCategoryIndex), но тип этого не знает
+const categoryName = computed(() => categoryInfo[currentCategoryIndex.value]?.name ?? '')
+const categoryRange = computed(() => categoryInfo[currentCategoryIndex.value]?.range ?? '')
 </script>
 
 <style lang="scss" scoped>

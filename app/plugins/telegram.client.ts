@@ -93,7 +93,9 @@ export default defineNuxtPlugin(async () => {
 
           // Создаем объект с данными - сохраняем user как строку!
           const initDataUnsafe = {
-            user: userStr,  // Важно: оставляем как строку, не парсим в JSON
+            // ✅ Тип Telegram-объекта допускает string | { id } | undefined (null нельзя),
+            // а в хеше отсутствующий user приходит как null — нормализуем в undefined
+            user: userStr ?? undefined,
             hash: hashValue,
             auth_date: authDate ? parseInt(authDate) : undefined,
             query_id: queryId,

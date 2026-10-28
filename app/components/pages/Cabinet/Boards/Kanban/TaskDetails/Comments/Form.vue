@@ -127,13 +127,13 @@ const getInitials = (name: string) => {
   const parts = name.trim().split(' ').filter(part => part.length > 0)
   
   if (parts.length >= 2) {
-    const first = parts[0][0] ?? ''
-    const second = parts[1][0] ?? ''
+    const first = parts[0]?.[0] ?? ''
+    const second = parts[1]?.[0] ?? ''
     return (first + second).toUpperCase()
   }
   
   if (parts.length === 1) {
-    return parts[0].substring(0, 2).toUpperCase()
+    return (parts[0] ?? '').substring(0, 2).toUpperCase()
   }
   
   return 'U'

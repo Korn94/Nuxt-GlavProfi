@@ -260,8 +260,10 @@ const groupedItems = computed(() => {
     other: []
   }
   visibleItems.value.forEach(item => {
-    if (groups[item.category]) {
-      groups[item.category].push(item)
+    // ✅ noUncheckedIndexedAccess: ключа категории может не быть — проверяем через переменную
+    const group = groups[item.category]
+    if (group) {
+      group.push(item)
     }
   })
   return groups
