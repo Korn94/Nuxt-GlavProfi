@@ -21,8 +21,7 @@ import type { Server, Socket } from 'socket.io'
 import { socketAuthMiddleware } from './middleware/auth'
 import {
   setupUserHandlers,
-  setupActivityHandlers,
-  registerTaskHandlers
+  setupActivityHandlers
 } from './handlers'
 import { socketLog } from './logger'
 
@@ -107,13 +106,13 @@ export function setupSocketServer(io: Server): void {
   console.log('[Socket] 🚀 Initializing Socket.IO server...')
 
   // ============================================
-  // РЕГИСТРАЦИЯ ОБРАБОТЧИКОВ ДО ПОДКЛЮЧЕНИЯ КЛИЕНТОВ
+  // ✅ P8: РЕГИСТРАЦИЯ ПРЯМЫХ SOCKET-ОБРАБОТЧИКОВ ЗАДАЧ УДАЛЕНА
   // ============================================
-  // Эти хендлеры регистрируются глобально на io (не на socket)
-  // и работают без привязки к конкретному подключению
-
-  registerTaskHandlers(io)
-  console.log('[Socket] ✅ Task handlers registered')
+  // registerTaskHandlers(io) вешал socket.on(board:task:created|updated|deleted) и
+  // socket.on(board:tasks:reorder): рассылка в любую комнату board:{id} без ACL и
+  // запись нового порядка задач прямо в БД (UPDATE boards_tasks) по клиентским id/order.
+  // Клиент эти события не отправлял (рассылка идёт из REST через broadcastTask*()),
+  // поэтому обработчики удалены — см. server/socket/handlers/tasks.ts.
 
   // ============================================
   // MIDDLEWARE ДЛЯ АУТЕНТИФИКАЦИИ

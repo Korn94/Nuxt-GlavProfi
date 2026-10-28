@@ -1,6 +1,6 @@
 // server/socket/handlers/tasks.ts
 
-import { Server, Socket } from 'socket.io'
+import { Server } from 'socket.io'
 import { eq } from 'drizzle-orm'
 import { db } from '../../db'
 import { boardsTasks } from '../../db/schema'
@@ -100,111 +100,19 @@ export async function broadcastTasksReordered(
 }
 
 // ============================================
-// ОБРАБОТЧИКИ ДЛЯ ПРЯМЫХ SOCKET-СОБЫТИЙ
-// Используют socket.to() — исключают отправителя
+// ✅ P8: ПРЯМЫЕ SOCKET-ОБРАБОТЧИКИ ЗАДАЧ УДАЛЕНЫ
 // ============================================
-
-/**
- * Обработчик создания задачи из socket-события
- * @param socket Сокет отправителя
- * @param io Экземпляр Socket.IO сервера
- * @param task Созданная задача
- * @param boardId ID доски
- */
-export function handleSocketTaskCreated(
-  socket: Socket,
-  io: Server,
-  task: Task,
-  boardId: number
-) {
-  const roomName = `board:${boardId}`
-  
-  // ✅ Используем socket.to() — исключаем отправителя (он уже обновил UI)
-  socket.to(roomName).emit('board:task:created', { task })
-  
-  socketLog(`[Socket] 🆕 Task ${task.id} created via socket, broadcasted excluding sender`)
-}
-
-/**
- * Обработчик обновления задачи из socket-события
- */
-export function handleSocketTaskUpdated(
-  socket: Socket,
-  io: Server,
-  task: Task,
-  boardId: number
-) {
-  const roomName = `board:${boardId}`
-  socket.to(roomName).emit('board:task:updated', { task })
-  socketLog(`[Socket] 🔄 Task ${task.id} updated via socket`)
-}
-
-/**
- * Обработчик удаления задачи из socket-события
- */
-export function handleSocketTaskDeleted(
-  socket: Socket,
-  io: Server,
-  taskId: number,
-  boardId: number
-) {
-  const roomName = `board:${boardId}`
-  socket.to(roomName).emit('board:task:deleted', { taskId })
-  socketLog(`[Socket] 🗑️ Task ${taskId} deleted via socket`)
-}
-
-/**
- * Обработчик изменения порядка из socket-события
- */
-export async function handleSocketTasksReorder(
-  socket: Socket,
-  io: Server,
-  data: TaskReorderData
-) {
-  const { boardId, status, tasks } = data
-  const roomName = `board:${boardId}`
-  
-  try {
-    if (tasks.length > 0) {
-      for (const { id, order } of tasks) {
-        await db.update(boardsTasks).set({ order }).where(eq(boardsTasks.id, id))
-      }
-    }
-    
-    // ✅ Исключаем отправителя
-    socket.to(roomName).emit('board:tasks:reordered', { status, tasks })
-    socketLog(`[Socket] 📋 Reorder via socket, broadcasted excluding sender`)
-    
-  } catch (error) {
-    console.error('[Socket] ❌ Failed to handle socket reorder:', error)
-  }
-}
-
+// Здесь были socket.on(board:task:created|updated|deleted) и
+// socket.on(board:tasks:reorder), которые полностью доверяли payload клиента:
+//   - рассылали события в любую комнату board:{id} без проверки членства в комнате
+//     и без ACL (socket.to(room) доставляет события членам комнаты, даже если
+//     отправитель в ней не состоит);
+//   - board:tasks:reorder писал новый порядок прямо в БД (UPDATE boards_tasks)
+//     по клиентским id/order: без прав, без проверки принадлежности задачи доске,
+//     без транзакции.
+// Ни один клиент эти события не отправлял (ручные emit клиента удалены, рассылку
+// делает REST: server/api/boards/** -> broadcastTask*() ниже), поэтому обработчики
+// были только вектором атаки и удалены.
+//
+// Остались только серверные broadcast-функции для вызова из API-эндпоинтов.
 // ============================================
-// РЕГИСТРАЦИЯ ОБРАБОТЧИКОВ
-// ============================================
-
-export function registerTaskHandlers(io: Server) {
-  io.on('connection', (socket: Socket) => {
-    socket.data = socket.data || {}
-
-    // ✅ Обработчики для прямых socket-событий (с исключением отправителя)
-    socket.on('board:task:created', async ({ task, boardId }: { task: Task; boardId: number }) => {
-      handleSocketTaskCreated(socket, io, task, boardId)
-    })
-    
-    socket.on('board:task:updated', async ({ task, boardId }: { task: Task; boardId: number }) => {
-      handleSocketTaskUpdated(socket, io, task, boardId)
-    })
-    
-    socket.on('board:task:deleted', async ({ taskId, boardId }: { taskId: number; boardId: number }) => {
-      handleSocketTaskDeleted(socket, io, taskId, boardId)
-    })
-    
-    socket.on('board:tasks:reorder', async ( data: TaskReorderData) => {
-      await handleSocketTasksReorder(socket, io, data)
-    })
-  })
-  
-  socketLog('[Socket] ✅ Task handlers registered')
-}

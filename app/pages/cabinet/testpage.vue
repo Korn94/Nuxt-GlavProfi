@@ -268,35 +268,60 @@ const pingMsClass = computed(() => {
 
 let pingTimer: ReturnType<typeof setInterval>
 
+// ✅ P8: ссылки на socket-листенеры этой страницы — снимаем их в onUnmounted.
+// Раньше обработчики вешались на module-level синглтон socketService и никогда не
+// снимались: повторный вход на /cabinet/testpage дублировал их (каждое событие
+// логировалось N раз), а замыкания держали инстанс компонента от сборщика мусора.
+const socketListenerRefs: Array<{ event: string; handler: (data: any) => void }> = []
+
+/**
+ * Регистрация socket-листенера с сохранением ссылки для отписки (P8).
+ */
+function onSocket<T = any>(event: string, handler: (data: T) => void) {
+  socketService.on(event, handler)
+  socketListenerRefs.push({ event, handler: handler as (data: any) => void })
+}
+
 function measurePing() {
   if (!isConnected.value || pingInFlight.value) return
   pingInFlight.value = true
   const t0 = Date.now()
 
-  // ✅ Слушаем событие-ответ вместо Promise
-  const onAck = () => {
-    pingMs.value = Date.now() - t0
-    pingInFlight.value = false
+  let timeout: ReturnType<typeof setTimeout> | null = null
+
+  // ✅ P8: снимаем строго свой листенер и таймаут (идемпотентно)
+  function cleanup() {
+    if (timeout) {
+      clearTimeout(timeout)
+      timeout = null
+    }
     socketService.off('heartbeat:ack', onAck)
   }
 
+  // ✅ Слушаем событие-ответ вместо Promise.
+  // P8: раньше на 'heartbeat:ack' вешалась анонимная обёртка, а снимался onAck —
+  // листенер не удалялся: каждые 5 с (интервал measurePing) в socketService
+  // появлялся новый обработчик, каждый ack вызывал их все («пинг» искажался,
+  // память росла).
+  function onAck() {
+    pingMs.value = Date.now() - t0
+    pingInFlight.value = false
+    cleanup()
+  }
+
   // Таймаут на случай если сервер не ответит
-  const timeout = setTimeout(() => {
+  timeout = setTimeout(() => {
     pingMs.value = null
     pingInFlight.value = false
-    socketService.off('heartbeat:ack', onAck)
+    cleanup()
     addLog('ping', 'Heartbeat timeout', 'warn')
   }, 3000)
 
-  socketService.on('heartbeat:ack', () => {
-    clearTimeout(timeout)
-    onAck()
-  })
+  socketService.on('heartbeat:ack', onAck)
 
   // ✅ P2: fire-and-forget — ответ приходит отдельным событием 'heartbeat:ack'
   if (!socketService.emitNoAck('heartbeat')) {
-    clearTimeout(timeout)
-    socketService.off('heartbeat:ack', onAck)
+    cleanup()
     pingMs.value = null
     pingInFlight.value = false
     addLog('ping', 'Socket not connected', 'warn')
@@ -562,7 +587,7 @@ function registerSocketListeners() {
   socketId.value = socketService.getSocketId() || null
   transport.value = socketService.getTransport()
 
-  socketService.on('connect', () => {
+  onSocket('connect', () => {
     isConnected.value = true
     isConnecting.value = false
     socketId.value = socketService.getSocketId() || null
@@ -573,7 +598,7 @@ function registerSocketListeners() {
     refreshSnapshot()
   })
 
-  socketService.on('disconnect', (reason: string) => {
+  onSocket('disconnect', (reason: string) => {
     isConnected.value = false
     isConnecting.value = false
     pingMs.value = null
@@ -581,25 +606,25 @@ function registerSocketListeners() {
     refreshSnapshot()
   })
 
-  socketService.on('connect_error', (err: any) => {
+  onSocket('connect_error', (err: any) => {
     isConnecting.value = false
     addLog('socket', `Connect error: ${err?.message}`, 'err')
   })
 
-  socketService.on('reconnect_attempt', (attempt: number) => {
+  onSocket('reconnect_attempt', (attempt: number) => {
     isConnecting.value = true
     reconnectAttempts.value = attempt
     addLog('socket', `Reconnect attempt #${attempt}`, 'warn')
   })
 
-  socketService.on('reconnect', (attempt: number) => {
+  onSocket('reconnect', (attempt: number) => {
     isConnected.value = true
     isConnecting.value = false
     reconnectAttempts.value = 0
     addLog('socket', `Reconnected after ${attempt} attempts`, 'ok')
   })
 
-  socketService.on('reconnect_failed', () => {
+  onSocket('reconnect_failed', () => {
     isConnecting.value = false
     addLog('socket', 'Reconnect failed — gave up', 'err')
   })
@@ -630,7 +655,7 @@ function registerSocketListeners() {
   ]
 
   for (const ev of businessEvents) {
-    socketService.on(ev, (data: any) => {
+    onSocket(ev, (data: any) => {
       let summary = ''
       if (ev === 'online-users:update') summary = `${Array.isArray(data) ? data.length : '?'} users`
       else if (data && typeof data === 'object') summary = JSON.stringify(data).slice(0, 80)
@@ -683,6 +708,12 @@ onMounted(() => {
 onUnmounted(() => {
   clearInterval(clockTimer)
   clearInterval(pingTimer)
+
+  // ✅ P8: снимаем socket-листенеры, зарегистрированные этой страницей через onSocket().
+  for (const { event, handler } of socketListenerRefs) {
+    socketService.off(event, handler)
+  }
+  socketListenerRefs.length = 0
 })
 
 watch(activeSnapshotTab, refreshSnapshot)

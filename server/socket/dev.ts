@@ -41,6 +41,20 @@ export function initSocketDev(nitroApp: NitroApp): void {
   
   try {
     httpServer = createServer()
+
+    // ✅ P8: обработчик ошибок HTTP-сервера сокетов.
+    // Без него EADDRINUSE (порт 3001 занят вторым dev-процессом или не завершившимся
+    // предыдущим) превращался в uncaught 'error' event и валил весь dev-сервер.
+    httpServer.on('error', (error: NodeJS.ErrnoException) => {
+      if (error.code === 'EADDRINUSE') {
+        console.error(
+          `[SocketDev] ❌ Порт ${SOCKET_PORT} уже занят — Socket.IO в этом процессе не поднят ` +
+          '(realtime недоступен). Освободите порт или задайте NUXT_PUBLIC_SOCKET_PORT.'
+        )
+      } else {
+        console.error('[SocketDev] ❌ Ошибка HTTP-сервера сокетов:', error)
+      }
+    })
     
     io = new Server(httpServer, getSocketOptions(true))
     

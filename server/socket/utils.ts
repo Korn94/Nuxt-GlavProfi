@@ -99,20 +99,69 @@ export function getUserFromSocket(socket: Socket): SocketUser {
 // ============================================
 
 /**
- * ✅ P7: IP-адрес клиента из самого сокета (единая точка для логов и user_sessions).
+ * ✅ P8: IP-адрес клиента — единая точка для логов и user_sessions.
+ * Учитывает X-Real-IP / X-Forwarded-For, когда соединение пришло от прокси
+ * (nginx прокидывает их: .devops/nginx/last nginx.txt), иначе в user_sessions.ip_address
+ * попадал адрес самого прокси (127.0.0.1), а не реальный IP клиента.
  *
  * Раньше логика была продублирована в handlers/user.ts, а обработчики активности
  * писали в БД `ipAddress` из payload — то есть значение, полностью контролируемое
  * клиентом (клиент присылал window.location.hostname, например «100.98.3.33»).
  */
+/**
+ * Похоже ли, что соединение пришло от прокси (loopback или приватная сеть).
+ * Только в этом случае заголовкам X-Real-IP / X-Forwarded-For можно доверять.
+ */
+function isProxyPeer(ip: string): boolean {
+  const addr = ip.replace(/^::ffff:/, '')
+  if (addr === '127.0.0.1' || addr === '::1' || addr === 'localhost') return true
+  if (addr.startsWith('10.')) return true
+  if (addr.startsWith('192.168.')) return true
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(addr)) return true
+  if (/^f[cd][0-9a-f]{2}:/i.test(addr)) return true
+  return false
+}
+
+/**
+ * Реальный IP клиента из заголовков прокси: X-Real-IP, затем X-Forwarded-For.
+ * Из X-Forwarded-For берём первый адрес — он ближе всего к клиенту.
+ */
+function getForwardedIp(socket: Socket): string | null {
+  const headers = socket.handshake?.headers
+  if (!headers) return null
+
+  const realIp = headers['x-real-ip']
+  if (typeof realIp === 'string' && realIp.trim().length > 0) {
+    return realIp.trim()
+  }
+
+  const forwarded = headers['x-forwarded-for']
+  const raw = Array.isArray(forwarded) ? forwarded[0] : forwarded
+  if (typeof raw === 'string' && raw.trim().length > 0) {
+    const first = raw.split(',')[0]?.trim()
+    if (first) return first
+  }
+
+  return null
+}
+
 export function getSocketIp(socket: Socket): string {
   // socket.conn.remoteAddress отсутствует в типах socket.io, но есть в runtime
   const conn = (socket as any).conn
   const remoteAddr = conn?.remoteAddress || socket.handshake?.address
-  if (typeof remoteAddr === 'string' && remoteAddr.length > 0) {
-    return remoteAddr.replace(/^::ffff:/, '')
+  const peer = typeof remoteAddr === 'string' && remoteAddr.length > 0
+    ? remoteAddr.replace(/^::ffff:/, '')
+    : ''
+
+  // ✅ P8: за прокси (nginx → X-Real-IP / X-Forwarded-For) реальный адрес клиента
+  // берём из заголовков, иначе в user_sessions.ip_address и логи попадал адрес
+  // самого прокси (127.0.0.1).
+  if (peer && isProxyPeer(peer)) {
+    const forwarded = getForwardedIp(socket)
+    if (forwarded) return forwarded.replace(/^::ffff:/, '')
   }
-  return 'unknown'
+
+  return peer || 'unknown'
 }
 
 // ============================================

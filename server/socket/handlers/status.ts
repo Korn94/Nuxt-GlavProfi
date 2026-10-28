@@ -2,6 +2,7 @@
 import type { Socket, Server } from 'socket.io'
 import type { UserStatusEvent } from '../events/status'
 import { socketLog } from '../logger'
+import { ONLINE_VIEWERS_ROOM } from '../utils'
 
 /**
  * Отправка уведомления о статусе пользователя
@@ -23,10 +24,13 @@ function broadcastStatus(
     sessionId: options?.sessionId
   }
 
-  // socket.broadcast.emit доставляет событие всем сокетам, КРОМЕ отправителя,
-  // включая другие вкладки того же пользователя. Отдельная отправка в комнату
-  // user:{id} не нужна — получатели те же, и событие приходило дважды.
-  socket.broadcast.emit('user:status', eventData)
+  // ✅ P8 (ACL): присутствие (userId/userName/status) уходит только в комнату
+  // online:viewers — та же аудитория, что у списка онлайна и GET /api/online
+  // (server/socket/utils.ts -> ONLINE_VIEWERS_ROOM, право users:view).
+  // Раньше был socket.broadcast.emit: событие получали ВСЕ авторизованные сокеты,
+  // включая роли без права users:view — это противоречило ACL списка онлайна.
+  // .except(socket.id) сохраняет прежнюю семантику «всем, кроме отправителя».
+  io.to(ONLINE_VIEWERS_ROOM).except(socket.id).emit('user:status', eventData)
 
   socketLog(`[Status] Broadcast: ${userName} is now ${status}`)
 }
