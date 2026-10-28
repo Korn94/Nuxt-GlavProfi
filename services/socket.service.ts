@@ -16,6 +16,7 @@ import { io, type Socket } from 'socket.io-client'
 import { useCookie } from '#app'
 import type { Subtask, Task, BoardColumn } from '~/types/boards'
 import { setSessionId } from 'services/helpers/sessionId'
+import { handleInvalidSocketAuth, isInvalidSocketAuthError } from 'services/helpers/socketAuthError'
 
 // ============================================
 // ТИПЫ СОБЫТИЙ
@@ -84,6 +85,21 @@ interface SocketServiceConfig {
   reconnectionAttempts?: number
   reconnectionDelay?: number
   /**
+   * ✅ P6: максимальная задержка между попытками переподключения (мс).
+   */
+  reconnectionDelayMax?: number
+  /**
+   * ✅ P6: последовательный перебор транспортов при ошибке соединения.
+   *
+   * engine.io-client использует ТОЛЬКО transports[0] и переходит к следующему
+   * транспорту только при tryAllTransports: true (_onError → transports.shift()).
+   * Без этого флага fallback на polling не работает: при блокировке WebSocket
+   * (корпоративный прокси, часть мобильных операторов) realtime не поднимется.
+   *
+   * По умолчанию включено.
+   */
+  tryAllTransports?: boolean
+  /**
    * ✅ P2: таймаут ожидания ack-ответа в emit() (мс).
    * Защищает от «висящих» промисов, если сервер не вызывает ack-колбэк.
    */
@@ -101,6 +117,17 @@ export class SocketService {
   private config: Required<SocketServiceConfig>
   private isInitialized: boolean = false
   private eventHandlers = new Map<string, Set<SocketEventHandler>>()
+  /**
+   * ✅ P6: обёртки, повешенные на socket для событий из eventHandlers.
+   *
+   * Нужны, чтобы off() снимал ТОЛЬКО свой листенер и не задевал внутренние
+   * обработчики из setupConnectionHandlers()/setupEventHandlers()
+   * (раньше socket.off(event) снимал их все — например, внутренний
+   * online-users:update, из-за чего список онлайна переставал обновляться).
+   */
+  private socketWrappers = new Map<string, SocketEventHandler>()
+  /** ✅ P6: таймер планового переподключения после reconnect_failed */
+  private fallbackReconnectTimer: ReturnType<typeof setTimeout> | null = null
 
   // ✅ Идентификатор сессии из session:initialized (используется для отладки/сессии).
   // Трекинг активности ведёт app/composables/useActivityTracker.ts — здесь он не дублируется.
@@ -115,6 +142,9 @@ export class SocketService {
       reconnection: config.reconnection !== false,
       reconnectionAttempts: config.reconnectionAttempts || 5,
       reconnectionDelay: config.reconnectionDelay || 1000,
+      reconnectionDelayMax: config.reconnectionDelayMax || 5000,
+      // ✅ P6: по умолчанию ВКЛ — иначе fallback на polling не работает вовсе
+      tryAllTransports: config.tryAllTransports !== false,
       ackTimeout: config.ackTimeout || 10000
     }
   }
@@ -193,22 +223,19 @@ export class SocketService {
         auth: authToken ? { token: authToken } : {},
         secure: window.location.protocol === 'https:',
         rejectUnauthorized: process.env.NODE_ENV === 'production',
-        timeout: 20000
+        timeout: 20000,
+        // ✅ P6: реальный fallback websocket → polling
+        // (engine.io по умолчанию использует только transports[0])
+        tryAllTransports: this.config.tryAllTransports
       })
 
       this.setupConnectionHandlers()
       this.setupEventHandlers()
       this.isInitialized = true
 
-      for (const [event, handlers] of this.eventHandlers.entries()) {
-        // ✅ P2: manager-события доставляются через dispatch() — на socket их вешать не нужно
-        if (SocketService.MANAGER_EVENTS.has(event)) continue
-
-        if (handlers.size > 0) {
-          this.socket!.on(event, (data: any) => {
-            for (const h of handlers) h(data)
-          })
-        }
+      for (const event of this.eventHandlers.keys()) {
+        // ✅ P6: регистрация через обёртку — чтобы off() мог снять только свой листенер
+        this.attachSocketListener(event)
       }
 
       console.log('[SocketService] ✅ Socket.IO инициализирован')
@@ -227,9 +254,7 @@ export class SocketService {
     if (!this.socket.connected) {
       const authToken = explicitToken || this.getJwtToken() || ''
 
-      if (this.socket.io) {
-        (this.socket.io.opts as any).auth = authToken ? { token: authToken } : {}
-      }
+      this.applyAuthToken(authToken)
 
       console.log('[SocketService] 🔑 Подключение с токеном (длина:', authToken?.length || 0, ')')
       this.socket.connect()
@@ -239,10 +264,7 @@ export class SocketService {
       console.log('[SocketService] 🔄 Токен обновлён, переподключение...')
 
       this.socket.disconnect()
-
-      if (this.socket.io) {
-        (this.socket.io.opts as any).auth = { token: authToken }
-      }
+      this.applyAuthToken(authToken)
 
       setTimeout(() => {
         this.socket?.connect()
@@ -250,13 +272,42 @@ export class SocketService {
     }
   }
 
+  /**
+   * ✅ P6: установить токен авторизации для следующих CONNECT-пакетов.
+   *
+   * ⚠️ ВАЖНО: socket.io-client копирует auth ПО ЗНАЧЕНИЮ при создании Socket
+   * (socket.auth = opts.auth) и отправляет его в onopen() через
+   * _sendConnectPacket(this.auth). Поэтому запись в io.opts.auth НЕ влияет
+   * на хендшейк — обновлять нужно именно socket.auth (opts.auth держим
+   * синхронно только для читаемости/отладки).
+   */
+  private applyAuthToken(authToken: string): void {
+    if (!this.socket) return
+
+    const auth = authToken ? { token: authToken } : {}
+
+    try {
+      this.socket.auth = auth
+    } catch (error) {
+      console.error('[SocketService] ❌ Не удалось обновить socket.auth:', error)
+    }
+
+    if (this.socket.io) {
+      (this.socket.io.opts as any).auth = auth
+    }
+  }
+
   disconnect(): void {
+    // ✅ P6: снимаем плановый реконнект до выхода
+    this.clearFallbackReconnect()
+
     if (!this.socket) return
     console.log('[SocketService] 🔌 Отключение от сервера...')
 
     this.unsubscribeFromAll()
     this.socket.disconnect()
     this.socket = null
+    this.socketWrappers.clear()
     this.isConnected = false
     this.isInitialized = false
   }
@@ -275,14 +326,7 @@ export class SocketService {
     handlers.add(handler as SocketEventHandler)
 
     if (handlers.size === 1 && this.socket) {
-      // ✅ P2: manager-события на socket не вешаем — доставка идёт через dispatch()
-      if (!SocketService.MANAGER_EVENTS.has(event)) {
-        this.socket.on(event, (data: T) => {
-          for (const h of handlers) {
-            h(data)
-          }
-        })
-      }
+      this.attachSocketListener(event)
     }
   }
 
@@ -294,8 +338,12 @@ export class SocketService {
     } else {
       handlers.clear()
     }
-    if (handlers.size === 0 && this.socket) {
-      this.socket.off(event)
+    if (handlers.size === 0) {
+      // ✅ P6: снимаем ТОЛЬКО свою обёртку.
+      // Раньше здесь был socket.off(event) — он снимал и внутренние листенеры
+      // из setupConnectionHandlers()/setupEventHandlers() (например,
+      // online-users:update), из-за чего обновления переставали доходить.
+      this.detachSocketListener(event)
       this.eventHandlers.delete(event)
     }
   }
@@ -318,6 +366,78 @@ export class SocketService {
     const handlers = this.eventHandlers.get(event)
     if (!handlers || handlers.size === 0) return
     for (const handler of handlers) handler(payload)
+  }
+
+  /**
+   * ✅ P6: повесить на socket обёртку для события из eventHandlers.
+   *
+   * Обёртка сохраняется в socketWrappers, чтобы off() снимал именно её
+   * и не задевал внутренние листенеры сервиса.
+   */
+  private attachSocketListener(event: string): void {
+    if (!this.socket) return
+    // ✅ P2: manager-события доставляются через dispatch() — на socket их вешать не нужно
+    if (SocketService.MANAGER_EVENTS.has(event)) return
+    if (this.socketWrappers.has(event)) return
+
+    const handlers = this.eventHandlers.get(event)
+    if (!handlers || handlers.size === 0) return
+
+    const wrapper: SocketEventHandler = (data: any) => {
+      for (const handler of handlers) handler(data)
+    }
+
+    this.socketWrappers.set(event, wrapper)
+    this.socket.on(event, wrapper)
+  }
+
+  /**
+   * ✅ P6: снять обёртку события (внутренние листенеры сервиса остаются на месте).
+   */
+  private detachSocketListener(event: string): void {
+    const wrapper = this.socketWrappers.get(event)
+    if (!wrapper) return
+
+    this.socketWrappers.delete(event)
+    this.socket?.off(event, wrapper)
+  }
+
+  /**
+   * ✅ P6: пауза перед «вторым шансом» реконнекта после reconnect_failed (мс).
+   *
+   * С дефолтным бэкоффом 5 попыток (~17 c) socket.io-client прекращает попытки
+   * и больше не восстанавливается сам — пользователю пришлось бы делать F5.
+   */
+  private static readonly FALLBACK_RECONNECT_DELAY = 15000
+
+  /**
+   * ✅ P6: запланировать полный перезапуск реконнекта после reconnect_failed.
+   *
+   * Останавливается в disconnect() (logout) и не срабатывает, если связь
+   * уже восстановлена (или подключение подняли через window 'online').
+   */
+  private scheduleFallbackReconnect(): void {
+    if (!process.client) return
+    if (this.fallbackReconnectTimer) return
+
+    this.fallbackReconnectTimer = setTimeout(() => {
+      this.fallbackReconnectTimer = null
+
+      if (!this.socket || this.socket.connected) return
+
+      console.log('[SocketService] ♻️ Повторная попытка подключения после reconnect_failed...')
+      this.socket.connect()
+    }, SocketService.FALLBACK_RECONNECT_DELAY)
+  }
+
+  /**
+   * ✅ P6: отменить запланированный реконнект.
+   */
+  private clearFallbackReconnect(): void {
+    if (!this.fallbackReconnectTimer) return
+
+    clearTimeout(this.fallbackReconnectTimer)
+    this.fallbackReconnectTimer = null
   }
 
   /**
@@ -484,17 +604,20 @@ export class SocketService {
 
     this.socket.on('connect_error', (error: any) => {
       console.error('[SocketService] ⚠️ Ошибка подключения:', error.message)
-      const isInvalidToken =
-        error.message?.includes('Unauthorized') ||
-        error.message?.includes('Invalid token') ||
-        error.message?.includes('User not found')
 
-      if (isInvalidToken && process.client) {
-        console.log('[SocketService] 🔐 Невалидный токен, очищаем состояние')
-        useCookie('auth_token').value = null
-        useCookie('session_id').value = null
-        window.location.href = '/login'
+      // ✅ P6: единая проверка невалидной авторизации
+      // (см. services/helpers/socketAuthError.ts).
+      // Сервер отдаёт локализованные статус-сообщения ('Неверный или истёкший токен',
+      // 'Пользователь не найден', …), поэтому проверка английских строк не срабатывала.
+      if (isInvalidSocketAuthError(error?.message)) {
+        handleInvalidSocketAuth(error.message)
+        return
       }
+
+      // ✅ P6: если сервер отклонил CONNECT (middleware), socket.io-client
+      // НЕ запускает автореконнект (destroy → Manager._close → skipReconnect) —
+      // планируем повтор сами.
+      this.scheduleFallbackReconnect()
     })
 
     this.socket.on('board:tasks:reordered', (data: {
@@ -531,6 +654,8 @@ export class SocketService {
     manager.on('reconnect_failed', () => {
       console.error('[SocketService] ❌ Не удалось переподключиться после всех попыток')
       this.dispatch('reconnect_failed')
+      // ✅ P6: не оставляем сокет мёртвым — планируем полный рестарт реконнекта
+      this.scheduleFallbackReconnect()
     })
 
     manager.on('reconnect', (attempt: number) => {
@@ -797,9 +922,14 @@ export class SocketService {
 export const socketService = new SocketService({
   path: '/socket.io',
   transports: ['websocket', 'polling'], // ✅ WebSocket первым (P2.9)
+  // ✅ P6: без tryAllTransports engine.io использует ТОЛЬКО transports[0]='websocket'
+  // и никогда не переходит на polling (см. SocketServiceConfig)
+  tryAllTransports: true,
   reconnection: true,
   reconnectionAttempts: 5,
-  reconnectionDelay: 1000
+  reconnectionDelay: 1000,
+  // ✅ P6: ограничение бэкоффа реконнекта
+  reconnectionDelayMax: 5000
 })
 
 // ============================================

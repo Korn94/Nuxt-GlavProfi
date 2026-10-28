@@ -154,6 +154,8 @@ export function getCorsConfig(isDev: boolean) {
  * Ключевые решения:
  * - `perMessageDeflate: false` — отключено, т.к. часто ломает WS через nginx proxy
  * - `transports: ['websocket', 'polling']` — приоритет у WebSocket, fallback на polling
+ *   ⚠️ fallback работает только если клиент передаёт `tryAllTransports: true`
+ *   (см. services/socket.service.ts): engine.io без него использует лишь transports[0]
  * - `pingTimeout: 120000` — увеличен для медленных мобильных сетей
  * - `allowEIO3: true` — поддержка старых клиентов Socket.IO 3.x
  *

@@ -14,6 +14,7 @@ import { defineNuxtPlugin, useCookie } from 'nuxt/app'
 import { computed, watch, nextTick } from 'vue'
 import { useSocketStore } from 'stores/socket'
 import { socketService } from 'services/socket.service'
+import { handleInvalidSocketAuth, isInvalidSocketAuthError } from 'services/helpers/socketAuthError'
 
 export default defineNuxtPlugin(() => {
   // ⛔ Работаем только на клиенте
@@ -124,25 +125,47 @@ export default defineNuxtPlugin(() => {
     socketStore.error = error.message || 'Ошибка подключения'
     console.error(`[SocketPlugin] ❌ Ошибка подключения: ${error.message}`)
 
-    // 🔐 Автоматический логаут при невалидном токене
-    const isInvalidToken =
-      error.message?.includes('Unauthorized') ||
-      error.message?.includes('Invalid token') ||
-      error.message?.includes('User not found')
-
-    if (isInvalidToken) {
-      console.log('[SocketPlugin] 🔐 Невалидный токен, очищаем состояние')
-      useCookie('auth_token').value = null
-      useCookie('session_id').value = null
-      // Не используем navigateTo здесь чтобы избежать циклических зависимостей
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login'
-      }
+    // 🔐 Автоматический логаут при невалидном токене.
+    // ✅ P6: единая проверка (services/helpers/socketAuthError.ts) — раньше здесь
+    // сверялись английские строки, а сервер отдаёт локализованные статус-сообщения,
+    // поэтому автологаут не срабатывал. Редирект/чистка cookie выполняются один раз.
+    if (isInvalidSocketAuthError(error?.message)) {
+      handleInvalidSocketAuth(error.message)
     }
   })
 
   // ============================================
-  // ✅ 6. Корректная очистка при закрытии вкладки
+  // ✅ 6. Восстановление связи (сеть / возврат во вкладку)
+  // ============================================
+  // ✅ P6: socket.io-client прекращает попытки после reconnectionAttempts,
+  // а при отклонении CONNECT middleware автореконнекта нет вообще.
+  // Поэтому при появлении сети и возврате в активную вкладку инициируем подключение сами
+  // (только если есть токен и сокет сейчас отключён).
+  const resumeConnection = (reason: string) => {
+    if (socketStore.isConnected || !jwtToken.value) return
+
+    console.log(`[SocketPlugin] 🔄 ${reason} — инициируем подключение сокета...`)
+    try {
+      socketService.connect()
+    } catch (err) {
+      console.error('[SocketPlugin] ❌ Ошибка восстановления соединения:', err)
+    }
+  }
+
+  const handleOnline = () => resumeConnection('Сеть восстановлена')
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === 'visible') {
+      resumeConnection('Вкладка активна')
+    }
+  }
+
+  if (process.client) {
+    window.addEventListener('online', handleOnline)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+  }
+
+  // ============================================
+  // ✅ 7. Корректная очистка при закрытии вкладки
   // ============================================
   const handleBeforeUnload = () => {
     console.log('[SocketPlugin] 🧹 beforeunload: отключаем сокет...')
