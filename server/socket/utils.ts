@@ -273,3 +273,33 @@ export async function joinStandardRooms(
     `${getUserRoomName(user.id)}, ${getRoleRoomName(user.role)}`
   )
 }
+
+/**
+ * ✅ P5: комната для сокетов, которым разрешено видеть список онлайна.
+ * Аудитория совпадает с ACL эндпоинта GET /api/online (server/middleware/auth.ts:302):
+ * страница 'users', действие 'view'.
+ */
+export const ONLINE_VIEWERS_ROOM = 'online:viewers'
+
+/**
+ * ✅ P5: привести членство сокета в ONLINE_VIEWERS_ROOM в соответствие с правами.
+ * Вызывается при подключении и при проверке прав (permissions:check).
+ *
+ * ⚠️ P5: членство в комнате обновляется при connect и при permissions:check.
+ * Мгновенная смена прав без реконнекта/перепроверки не отражается — принятое упрощение.
+ */
+export async function syncOnlineViewersRoom(socket: Socket, user: SocketUser): Promise<void> {
+  try {
+    const canView = await hasUserPermission(user, 'users', 'view')
+
+    if (canView) {
+      await socket.join(ONLINE_VIEWERS_ROOM)
+      socketLog(`[SocketACL] 👁️ User ${user.id} подписан на комнату ${ONLINE_VIEWERS_ROOM}`)
+    } else {
+      await socket.leave(ONLINE_VIEWERS_ROOM)
+      socketLog(`[SocketACL] 🙈 User ${user.id} без права users:view — вышел из комнаты ${ONLINE_VIEWERS_ROOM}`)
+    }
+  } catch (error) {
+    console.error('[SocketACL] ❌ Ошибка проверки права на онлайн-список:', error)
+  }
+}

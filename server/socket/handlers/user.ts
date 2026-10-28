@@ -25,6 +25,7 @@ import { broadcastStatus } from './status'
 import { invalidatePermissionsCache } from '../../utils/permissions'
 import { invalidateOnlineCache } from '../../api/online.get'
 import { socketLog } from '../logger'
+import { ONLINE_VIEWERS_ROOM, syncOnlineViewersRoom } from '../utils'
 
 // ============================================
 // 🆕 УВЕДОМЛЕНИЯ ОБ ИЗМЕНЕНИИ ПРАВ
@@ -232,7 +233,8 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
       const onlineUsers = await getOnlineUsers()
       const usersList = onlineUsers || []
 
-      io.emit('online-users:update', usersList)
+      // ✅ P5: список онлайна уходит только в комнату online:viewers (право users:view)
+      io.to(ONLINE_VIEWERS_ROOM).emit('online-users:update', usersList)
       invalidateOnlineCache()
 
       // ✅ ОТПРАВЛЯЕМ УВЕДОМЛЕНИЕ О ВХОДЕ
@@ -333,6 +335,9 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
 
       // Инвалидируем кэш и получаем свежие права
       invalidatePermissionsCache(user.id)
+
+      // ✅ P5: права могли измениться — обновляем членство в комнате онлайн-зрителей
+      await syncOnlineViewersRoom(socket, user)
 
       // Отправляем подтверждение (клиент сам сделает запрос к /api/permissions)
       socket.emit('permissions:check:ack', {

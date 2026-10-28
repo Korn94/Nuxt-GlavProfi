@@ -2,6 +2,7 @@
 import type { Server } from 'socket.io'
 import { getOnlineUsers } from './sessions'
 import { invalidateOnlineCache } from '../api/online.get'
+import { ONLINE_VIEWERS_ROOM } from '../socket/utils'
 
 let broadcastTimeout: ReturnType<typeof setTimeout> | null = null
 let pendingBroadcast = false
@@ -23,7 +24,8 @@ export function scheduleOnlineBroadcast(io: Server): void {
     
     try {
       const onlineUsers = await getOnlineUsers()
-      io.emit('online-users:update', onlineUsers)
+      // ✅ P5: список онлайна виден только обладателям права users:view
+      io.to(ONLINE_VIEWERS_ROOM).emit('online-users:update', onlineUsers)
       invalidateOnlineCache()
       
       // console.log(`[OnlineBroadcast] 📡 Отправлено ${onlineUsers.length} пользователей (debounced)`)
@@ -48,7 +50,8 @@ export async function immediateOnlineBroadcast(io: Server): Promise<void> {
   
   try {
     const onlineUsers = await getOnlineUsers()
-    io.emit('online-users:update', onlineUsers)
+    // ✅ P5: список онлайна виден только обладателям права users:view
+    io.to(ONLINE_VIEWERS_ROOM).emit('online-users:update', onlineUsers)
     invalidateOnlineCache()
     
     console.log(`[OnlineBroadcast] 📡 Немедленная отправка: ${onlineUsers.length} пользователей`)

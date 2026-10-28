@@ -31,6 +31,7 @@ import {
   getUserFromSocket,
   canUserJoinBoard,
   joinStandardRooms,
+  syncOnlineViewersRoom,
   parseBoardRoomName,
   getBoardRoomName,
   withAcl
@@ -159,6 +160,9 @@ export function setupSocketServer(io: Server): void {
       // user:{id} — для персональных уведомлений
       // role:{role} — для широковещательных событий по ролям
       await joinStandardRooms(socket, user)
+
+      // ✅ P5: подписываем на комнату онлайн-зрителей только при наличии права users:view
+      await syncOnlineViewersRoom(socket, user)
 
       // ============================================
       // РЕГИСТРАЦИЯ ОБРАБОТЧИКОВ СОБЫТИЙ
@@ -323,10 +327,6 @@ export function setupSocketServer(io: Server): void {
         console.error(`[Socket] ❌ Socket error for user ${userId}:`, error)
       })
 
-      socket.on('connect_error', (error: any) => {
-        console.error(`[Socket] ❌ Connect error for socket ${socket.id}:`, error.message)
-      })
-
       // ============================================
       // HEARTBEAT / PING-PONG
       // ============================================
@@ -349,14 +349,6 @@ export function setupSocketServer(io: Server): void {
       console.error(`[Socket] ❌ Connection error for user ${userId}:`, error)
       socket.disconnect(true)
     }
-  })
-
-  // ============================================
-  // ГЛОБАЛЬНЫЕ ОБРАБОТЧИКИ СЕРВЕРА
-  // ============================================
-
-  io.on('connect_error', (error: any) => {
-    console.error('[Socket] ❌ Global connect error:', error.message)
   })
 
   console.log('[Socket] ✅ Socket.IO server initialized successfully')
