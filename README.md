@@ -326,36 +326,59 @@ npm run start
 
 Система использует **Socket.IO** для real-time обновлений:
 
+### Трекинг активности (activity / AFK)
+
+Трекинг **глобальный** — работает на всех маршрутах (публичные страницы + кабинет):
+
+- композабл `app/composables/useActivityTracker.ts` монтируется один раз в корневом
+  компоненте `app/app.vue` (`if (process.client) useActivityTracker()`), а не в layout кабинета;
+- сессию поднимает сокет на любой странице при наличии cookie `auth_token`
+  (`app/plugins/socket.client.ts` → `server/socket/handlers/user.ts`);
+- трекер стартует по «живой сессии» (`socketStore.isConnected` + cookie `session_id`
+  из `session:initialized`) и останавливается при её потере, отправляя `activity`
+  со `status: 'offline'`;
+- AFK определяется после 5 минут бездействия; `last_activity` в `user_sessions`
+  обновляется heartbeat'ом не чаще 1 раза в минуту (троттлинг).
+
 ### События клиента → сервер
-- `join-room` — подключение к комнате (объект, доска)
-- `leave-room` — выход из комнаты
-- `update-status` — обновление статуса задачи
-- `send-notification` — отправка уведомления
-- `typing-start` / `typing-end` — индикация набора текста
+- `join` / `leave` — подписка/отписка от комнаты `board:{id}` (с ACL-проверкой на `join`)
+- `activity` — активность пользователя (`online`/`afk`/`offline`, троттлинг 1 минута)
+- `activity:resume` / `activity:afk` — возврат из AFK / уход в AFK (сразу broadcast)
+- `tab:register` — регистрация вкладки (мультивкладочность)
+- `tab:navigate` — навигация вкладки (обновляет `current_path` сессии)
+- `permissions:check` — запрос переиндексации кэша прав (опциональный «ручной» API)
 
 ### События сервера → клиент
-- `task-updated` — задача обновлена
-- `task-created` — создана новая задача
-- `notification` — новое уведомление
-- `user-online` / `user-offline` — статус пользователя
-- `comment-added` — добавлен комментарий
+- `session:initialized` — сессия создана/восстановлена (приходит `sessionId`)
+- `online-users:update` — список онлайна (комната `online:viewers`, право `users:view`)
+- `user:status` — смена статуса другого пользователя (online/afk/offline)
+- `permissions:changed` — права пользователя изменились (комната `user:{id}`)
+- `force:disconnect` — принудительное отключение (блокировка/отзыв прав)
+- `board:task:*`, `board:subtask:*`, `board:column:*` — изменения на доске (комната `board:{id}`)
+
+### Переменные окружения сокета
+| Переменная | Назначение | По умолчанию |
+|---|---|---|
+| `SOCKET_PORT` | Порт отдельного сокет-сервера в dev (`server/socket/dev.ts`) | `3001` |
+| `NUXT_PUBLIC_SOCKET_PORT` | Порт для клиента (`runtimeConfig.public.socketPort`) | = `SOCKET_PORT` |
+| `NUXT_PUBLIC_SOCKET_URL` | Явный адрес сокет-сервера, если он не на том же origin | пусто |
+
+В dev Socket.IO поднимается отдельным HTTP-процессом на `SOCKET_PORT`; в production —
+привязывается к серверу Nitro (`server/socket/prod.ts`), nginx проксирует `/socket.io/`.
+Адрес на клиенте вычисляется в `services/socket.service.ts → resolveSocketUrl()`.
 
 ### Пример подключения
 ```typescript
-// stores/socket/index.ts
-import { io } from 'socket.io-client'
+// Сервис-синглтон: services/socket.service.ts (плагин app/plugins/socket.client.ts
+// подключает его автоматически при наличии auth_token в cookie)
+import { socketService } from 'services/socket.service'
 
-const socket = io(process.env.NUXT_PUBLIC_SOCKET_URL, {
-  transports: ['websocket'],
-  auth: { token: userToken }
-})
+socketService.init()          // создаёт соединение (адрес — из runtimeConfig)
+socketService.connect(token)  // переподключает с актуальным JWT
 
-socket.on('connect', () => {
-  console.log('Connected to WebSocket')
-})
-
-socket.on('notification', (data) => {
-  // Обработка уведомления
+socketService.on('connect', () => console.log('Connected to WebSocket'))
+socketService.on('session:initialized', ({ sessionId }) => {
+  console.log('sessionId:', sessionId)
 })
 ```
 

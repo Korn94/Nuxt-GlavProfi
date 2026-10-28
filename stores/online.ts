@@ -40,6 +40,16 @@ interface OnlineState {
   isInitialized: boolean
 }
 
+/**
+ * ✅ P7: ссылка на текущий socket-обработчик списка онлайна.
+ *
+ * Зачем не анонимная функция в on(): `socketService.off(event)` БЕЗ handler
+ * удаляет все листенеры события — включая чужие (например, тестовую страницу),
+ * из-за чего обновления у них перестают приходить. Храним ссылку и отписываемся
+ * точечно. Одновременно активна максимум одна подписка store (флаг isSubscribed).
+ */
+let onlineUpdateHandler: ((users: OnlineUser[]) => void) | null = null
+
 export const useOnlineStore = defineStore('online', {
   // ============================================
   // STATE
@@ -223,10 +233,13 @@ export const useOnlineStore = defineStore('online', {
       console.log('[OnlineStore] 🔔 Подписка на socket-обновления...')
 
       try {
-        socketService.on('online-users:update', (users: OnlineUser[]) => {
+        // ✅ P7: сохраняем ссылку на обработчик для точечной отписки
+        onlineUpdateHandler = (users: OnlineUser[]) => {
           console.log(`[OnlineStore] 📡 Получено обновление: ${users?.length || 0} пользователей`)
           this.updateUsers(users)
-        })
+        }
+
+        socketService.on('online-users:update', onlineUpdateHandler)
 
         this.isSubscribed = true
         console.log('[OnlineStore] ✅ Подписка активна')
@@ -248,7 +261,11 @@ export const useOnlineStore = defineStore('online', {
       console.log('[OnlineStore] 📴 Отписка от socket-обновлений...')
 
       try {
-        socketService.off('online-users:update')
+        // ✅ P7: снимаем ТОЛЬКО свой листенер (без handler off() чистит все подписки события)
+        if (onlineUpdateHandler) {
+          socketService.off('online-users:update', onlineUpdateHandler)
+          onlineUpdateHandler = null
+        }
         this.isSubscribed = false
         console.log('[OnlineStore] ✅ Отписка завершена')
       } catch (error) {

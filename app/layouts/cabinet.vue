@@ -27,15 +27,14 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, watch, ref } from 'vue'
 import { useAuthStore } from '../../stores/auth'
-import { useSocketStore } from '../../stores/socket'
-import { useActivityTracker } from '~/composables/useActivityTracker'
 import { useUserStatusNotifications } from '~/composables/notifications/useUserStatus'
 import { useThemeStore } from 'stores/settings/theme'
 import { useAuthCookie } from '~/composables/useAuthCookie'
 
+// ✅ Трекинг активности/AFK больше не живёт в layout кабинета: он глобальный
+// и монтируется один раз в app/app.vue. Иначе авторизованный пользователь на
+// публичных страницах оставался «онлайн» без heartbeat и AFK-событий.
 const authStore = useAuthStore()
-const socketStore = useSocketStore()
-const activityTracker = useActivityTracker()
 const themeStore = useThemeStore()
 const { hasCookie } = useAuthCookie()
 
@@ -68,15 +67,6 @@ onMounted(() => {
 onUnmounted(() => {
   document.body.classList.remove('crm')
 })
-
-watch(
-  () => socketStore.isConnected,
-  (isConnected) => {
-    if (!isConnected && activityTracker.isTracking.value) {
-      activityTracker.stopTracking()
-    }
-  }
-)
 </script>
 
 <style lang="scss">

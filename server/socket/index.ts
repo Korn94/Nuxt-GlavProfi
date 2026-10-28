@@ -22,7 +22,6 @@ import { socketAuthMiddleware } from './middleware/auth'
 import {
   setupUserHandlers,
   setupActivityHandlers,
-  setupStatusHandlers,
   registerTaskHandlers
 } from './handlers'
 import { socketLog } from './logger'
@@ -170,7 +169,9 @@ export function setupSocketServer(io: Server): void {
 
       setupUserHandlers(socket, user, io)
       setupActivityHandlers(socket, user, io)
-      setupStatusHandlers(socket, user, io)
+      // ✅ P7: setupStatusHandlers() удалён — единственный его обработчик
+      // 'status:update' не отправлялся ни одним клиентом (статусы меняются
+      // через 'activity:afk'/'activity:resume' в setupActivityHandlers).
 
       // ============================================
       // 🛡️ ОБРАБОТЧИК ПОДПИСКИ НА ДОСКУ (С ACL-ПРОВЕРКОЙ)
@@ -247,14 +248,9 @@ export function setupSocketServer(io: Server): void {
       // Все подключённые пользователи этой роли получают уведомление
       // и должны обновить свои права (или переподключиться).
 
-      socket.on('permissions:reload', async () => {
-        socketLog(`[Socket] 🔄 User ${userId} запросил перезагрузку прав`)
-        // Клиент сам вызовет /api/permissions и обновит authStore
-        // Мы просто подтверждаем получение
-        socket.emit('permissions:reload:ack', {
-          timestamp: new Date().toISOString()
-        })
-      })
+      // ✅ P7: обработчик 'permissions:reload' удалён — клиент его не отправляет
+      // (ни usePermissionsSocket, ни socketStore). Актуальный флоу синхронизации прав:
+      // сервер → 'permissions:changed' в комнату user:{id} (см. notifyUserPermissionsChanged).
 
       // ============================================
       // ОТЛАДОЧНЫЕ ОБРАБОТЧИКИ
@@ -308,12 +304,9 @@ export function setupSocketServer(io: Server): void {
           // Из комнат досок Socket.IO удаляет сокет автоматически при disconnect —
           // отдельная очистка не требуется.
 
-          // Уведомляем других пользователей об отключении
-          socket.broadcast.emit('user:disconnected', {
-            userId,
-            socketId: socket.id,
-            timestamp: new Date().toISOString()
-          })
+          // ✅ P7: broadcast 'user:disconnected' удалён — в приложении нет ни одного
+          // слушателя этого события; изменения присутствия идут через 'user:status'
+          // (broadcastStatus) и комнату online:viewers.
         } catch (error) {
           console.error(`[Socket] ❌ Error during disconnect cleanup:`, error)
         }
@@ -328,9 +321,12 @@ export function setupSocketServer(io: Server): void {
       })
 
       // ============================================
-      // HEARTBEAT / PING-PONG
+      // HEARTBEAT (диагностика)
       // ============================================
-
+      // ⚠️ Основной клиент (SocketService) heartbeat НЕ отправляет — живость
+      // соединения обеспечивают транспортные ping/pong engine.io, а статус —
+      // activity-трекинг. Обработчик оставлен для диагностической страницы
+      // /cabinet/testpage (кнопка «heartbeat» + ожидание 'heartbeat:ack').
       socket.on('heartbeat', () => {
         socket.emit('heartbeat:ack', {
           timestamp: new Date().toISOString(),
@@ -338,13 +334,8 @@ export function setupSocketServer(io: Server): void {
         })
       })
 
-      socket.on('ping', () => {
-        socket.emit('pong', {
-          timestamp: Date.now(),
-          socketId: socket.id
-        })
-      })
-
+      // ✅ P7: обработчики 'ping'/'pong' удалены — ни один клиент их не отправляет
+      // (в testpage 'pong' лишь закомментирован).
     } catch (error) {
       console.error(`[Socket] ❌ Connection error for user ${userId}:`, error)
       socket.disconnect(true)

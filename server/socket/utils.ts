@@ -95,6 +95,27 @@ export function getUserFromSocket(socket: Socket): SocketUser {
 }
 
 // ============================================
+// СЕТЕВЫЕ ДАННЫЕ СОКЕТА
+// ============================================
+
+/**
+ * ✅ P7: IP-адрес клиента из самого сокета (единая точка для логов и user_sessions).
+ *
+ * Раньше логика была продублирована в handlers/user.ts, а обработчики активности
+ * писали в БД `ipAddress` из payload — то есть значение, полностью контролируемое
+ * клиентом (клиент присылал window.location.hostname, например «100.98.3.33»).
+ */
+export function getSocketIp(socket: Socket): string {
+  // socket.conn.remoteAddress отсутствует в типах socket.io, но есть в runtime
+  const conn = (socket as any).conn
+  const remoteAddr = conn?.remoteAddress || socket.handshake?.address
+  if (typeof remoteAddr === 'string' && remoteAddr.length > 0) {
+    return remoteAddr.replace(/^::ffff:/, '')
+  }
+  return 'unknown'
+}
+
+// ============================================
 // БАЗОВЫЕ ACL-ПРОВЕРКИ
 // ============================================
 

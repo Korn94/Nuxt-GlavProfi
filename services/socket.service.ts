@@ -13,9 +13,8 @@
  */
 
 import { io, type Socket } from 'socket.io-client'
-import { useCookie } from '#app'
+import { useCookie, useRuntimeConfig } from 'nuxt/app'
 import type { Subtask, Task, BoardColumn } from '~/types/boards'
-import { setSessionId } from 'services/helpers/sessionId'
 import { handleInvalidSocketAuth, isInvalidSocketAuthError } from 'services/helpers/socketAuthError'
 
 // ============================================
@@ -203,9 +202,7 @@ export class SocketService {
       console.log('[SocketService] 🚀 Инициализация Socket.IO...')
 
       const isProd = process.env.NODE_ENV === 'production'
-      const socketUrl = isProd
-        ? `${window.location.protocol}//${window.location.host}`
-        : `http://${window.location.hostname}:3001`
+      const socketUrl = this.resolveSocketUrl(isProd)
 
       console.log(`[SocketService] 📍 Socket URL: ${socketUrl} (prod: ${isProd})`)
 
@@ -273,6 +270,41 @@ export class SocketService {
   }
 
   /**
+   * ✅ P7: единый источник правды для адреса сокет-сервера.
+   *
+   * Раньше в dev-режиме здесь был жёстко зашит порт 3001, а сервер читал
+   * `process.env.SOCKET_PORT` (server/socket/dev.ts) — рассинхрон приводил
+   * к тихому `connect_error`. Теперь обе стороны берут значения из
+   * runtimeConfig.public.socketUrl / runtimeConfig.public.socketPort
+   * (см. nuxt.config.ts), которые можно переопределить переменными
+   * NUXT_PUBLIC_SOCKET_URL / NUXT_PUBLIC_SOCKET_PORT.
+   *
+   * @param isProd — режим production
+   */
+  private resolveSocketUrl(isProd: boolean): string {
+    let configuredUrl = ''
+    let configuredPort = ''
+
+    try {
+      const runtimeConfig = useRuntimeConfig()
+      configuredUrl = String(runtimeConfig?.public?.socketUrl || '').replace(/\/+$/, '')
+      configuredPort = String(runtimeConfig?.public?.socketPort || '')
+    } catch {
+      // Вне контекста Nuxt (тесты, ранние вызовы) используем дефолты ниже
+      console.warn('[SocketService] ⚠️ runtimeConfig недоступен, используем значения по умолчанию')
+    }
+
+    // 1. Явно заданный адрес сокет-сервера (в т.ч. внешний хост)
+    if (configuredUrl) return configuredUrl
+
+    // 2. Продакшен — тот же origin (nginx проксирует /socket.io/)
+    if (isProd) return `${window.location.protocol}//${window.location.host}`
+
+    // 3. Dev — отдельный сокет-сервер (порт общий с сервером, см. nuxt.config.ts)
+    return `http://${window.location.hostname}:${configuredPort || '3001'}`
+  }
+
+  /**
    * ✅ P6: установить токен авторизации для следующих CONNECT-пакетов.
    *
    * ⚠️ ВАЖНО: socket.io-client копирует auth ПО ЗНАЧЕНИЮ при создании Socket
@@ -304,7 +336,10 @@ export class SocketService {
     if (!this.socket) return
     console.log('[SocketService] 🔌 Отключение от сервера...')
 
-    this.unsubscribeFromAll()
+    // ✅ P7: НЕ эмитим 'leave' перед закрытием — socket.disconnect() уничтожает
+    // транспорт, поэтому пакеты всё равно не доставляются (раньше это давало
+    // шумный лог «Отписка от всех досок» при каждом F5). Локальное состояние чистим.
+    this.clearSubscriptions()
     this.socket.disconnect()
     this.socket = null
     this.socketWrappers.clear()
@@ -528,12 +563,23 @@ export class SocketService {
   }
 
   unsubscribeFromAll(): void {
-    if (!this.socket) return
+    if (!this.socket) {
+      this.clearSubscriptions()
+      return
+    }
     console.log(`[SocketService] 📴 Отписка от всех досок (${this.subscribedBoards.size})`)
     this.subscribedBoards.forEach(boardId => {
       const roomName = `board:${boardId}`
       this.socket?.emit('leave', roomName)
     })
+    this.clearSubscriptions()
+  }
+
+  /**
+   * ✅ P7: очистка локального состояния подписок без эмита 'leave'.
+   * Используется при закрытии соединения (disconnect/logout/unload).
+   */
+  private clearSubscriptions(): void {
     this.subscribedBoards.clear()
     this.currentBoardId = null
   }
@@ -550,7 +596,8 @@ export class SocketService {
   }
 
   getTransport(): string {
-    return this.socket?.io?.engine?.transport?.name || 'unknown'
+    // ✅ P7: '—' — тот же sentinel, что ждёт UI (app/pages/cabinet/testpage.vue)
+    return this.socket?.io?.engine?.transport?.name || '—'
   }
 
   getCurrentBoardId(): number | null {
@@ -667,14 +714,10 @@ export class SocketService {
   private setupEventHandlers(): void {
     if (!this.socket) return
 
-    // ✅ Обработка обновления списка онлайн-пользователей
-    this.socket.on('online-users:update', (users: any[]) => {
-      if (!process.client) return
-      import('stores/online').then(({ useOnlineStore }) => {
-        const onlineStore = useOnlineStore()
-        onlineStore.updateUsers(users)
-      }).catch(() => {})
-    })
+    // ✅ P7: обработчик 'online-users:update' удалён — он дублировал подписку
+    // stores/online.ts (subscribeToUpdates/resubscribe), из-за чего список
+    // онлайна обновлялся дважды, а store инстанцировался на любой странице.
+    // Источник правды — подписка самого store (OnlineWidget / cabinet/online).
 
     // События для задач
     this.socket.on('board:task:created', (data: { task: Task; boardId: number }) => {
@@ -907,9 +950,10 @@ export class SocketService {
   private handleSessionInitialized(data: { sessionId: string; userId: number }): void {
     if (!process.client) return
     try {
-      // ✅ Сохраняем sessionId из события session:initialized
+      // ✅ P7: единственный владелец записи cookie session_id — stores/socket
+      // (stores/socket/index.ts, обработчик 'session:initialized'). Здесь только
+      // кэшируем значение для отладки, чтобы не дублировать запись в cookie.
       this.sessionId = data.sessionId
-      setSessionId(data.sessionId)
     } catch (error) {
       console.error('[SocketService] ❌ Ошибка сохранения session_id:', error)
     }

@@ -14,7 +14,6 @@ import { defineNuxtPlugin, useCookie } from 'nuxt/app'
 import { computed, watch, nextTick } from 'vue'
 import { useSocketStore } from 'stores/socket'
 import { socketService } from 'services/socket.service'
-import { handleInvalidSocketAuth, isInvalidSocketAuthError } from 'services/helpers/socketAuthError'
 
 export default defineNuxtPlugin(() => {
   // ⛔ Работаем только на клиенте
@@ -120,19 +119,12 @@ export default defineNuxtPlugin(() => {
     console.log(`[SocketPlugin] 🔴 Сокет отключён: ${reason}`)
   })
 
-  socketService.on('connect_error', (error: any) => {
-    socketStore.isConnected = false
-    socketStore.error = error.message || 'Ошибка подключения'
-    console.error(`[SocketPlugin] ❌ Ошибка подключения: ${error.message}`)
-
-    // 🔐 Автоматический логаут при невалидном токене.
-    // ✅ P6: единая проверка (services/helpers/socketAuthError.ts) — раньше здесь
-    // сверялись английские строки, а сервер отдаёт локализованные статус-сообщения,
-    // поэтому автологаут не срабатывал. Редирект/чистка cookie выполняются один раз.
-    if (isInvalidSocketAuthError(error?.message)) {
-      handleInvalidSocketAuth(error.message)
-    }
-  })
+  // ✅ P7: обработчик 'connect_error' здесь больше не регистрируется.
+  // Владельцы ответственности:
+  // - состояние (isConnected/error/reconnectAttempts) — stores/socket/index.ts;
+  // - сброс авторизации при невалидном токене — services/helpers/socketAuthError.ts,
+  //   который вызывается из services/socket.service.ts (единственная точка входа).
+  // Раньше это было продублировано в трёх слоях (service/store/plugin).
 
   // ============================================
   // ✅ 6. Восстановление связи (сеть / возврат во вкладку)
@@ -165,15 +157,22 @@ export default defineNuxtPlugin(() => {
   }
 
   // ============================================
-  // ✅ 7. Корректная очистка при закрытии вкладки
+  // ✅ 7. Корректная очистка при закрытии/уходе со страницы
   // ============================================
-  const handleBeforeUnload = () => {
-    console.log('[SocketPlugin] 🧹 beforeunload: отключаем сокет...')
+  // ✅ P7: 'pagehide' добавлен, т.к. на мобильном Safari/iOS 'beforeunload'
+  // не срабатывает (вкладка уходит в bfcache) и сессия оставалась «онлайн».
+  // disconnect() идемпотентен: повторный вызов после beforeunload просто выходит.
+  const handlePageExit = (eventName: string) => {
+    console.log(`[SocketPlugin] 🧹 ${eventName}: отключаем сокет...`)
     socketService.disconnect()
   }
 
+  const handleBeforeUnload = () => handlePageExit('beforeunload')
+  const handlePageHide = () => handlePageExit('pagehide')
+
   if (process.client) {
     window.addEventListener('beforeunload', handleBeforeUnload)
+    window.addEventListener('pagehide', handlePageHide)
   }
 
   console.log('[SocketPlugin] ✅ Плагин успешно запущен')

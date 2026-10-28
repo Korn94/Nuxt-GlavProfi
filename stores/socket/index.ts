@@ -10,6 +10,11 @@
  * - 🆕 Обрабатывает принудительное отключение
  *
  * ❌ Heartbeat удалён (P2.8) — дублирует Activity Tracking в SocketService
+ * ❌ P7: удалены неиспользуемые actions connect()/disconnect() (жизненным циклом
+ *    сокета управляют services/socket.service.ts, plugins/socket.client.ts и auth store)
+ *    и legacy-очередь сообщений (queueMessage/sendQueuedMessages/clearMessageQueue).
+ * ❌ P7: удалена дублирующая обработка невалидного токена — источник правды
+ *    services/helpers/socketAuthError.ts, вызов из services/socket.service.ts.
  */
 
 import { defineStore } from 'pinia'
@@ -47,12 +52,6 @@ export const useSocketStore = defineStore('socket', () => {
   const reconnectAttempts = ref(0)
   const maxReconnectAttempts = ref(5)
   const tabId = ref<string | null>(null)
-  const messageQueue = ref<Array<{
-    event: string
-    data: any
-    resolve?: (value: any) => void
-    reject?: (reason?: any) => void
-  }>>([])
 
   // ============================================
   // GETTERS
@@ -88,32 +87,22 @@ export const useSocketStore = defineStore('socket', () => {
       // ✅ Генерируем ID вкладки, но НЕ регистрируем — ждём session:initialized
       tabId.value = generateTabId()
       console.log('[SocketStore] 🆔 Вкладка подготовлена:', tabId.value, '(регистрация после получения sessionId)')
-
-      // Отправляем накопленные сообщения
-      sendQueuedMessages()
     })
-
     // ✅ ОШИБКА ПОДКЛЮЧЕНИЯ
     socketService.on('connect_error', (err: any) => {
       console.error('[SocketStore] ❌ Ошибка подключения:', err.message)
       isConnecting.value = false
       isConnected.value = false
       error.value = `Ошибка подключения: ${err.message}`
-      reconnectAttempts.value++
 
-      // 🔐 Очищаем куки только при невалидном токене, НЕ при его отсутствии
-      const isInvalidToken =
-        err.message?.includes('Unauthorized') ||
-        err.message?.includes('Invalid token') ||
-        err.message?.includes('User not found')
-
-      if (isInvalidToken && process.client) {
-        console.log('[SocketStore] 🔐 Невалидный токен, очищаем состояние')
-        useCookie('auth_token').value = null
-        useCookie('session_id').value = null
-        // Не вызываем logout() чтобы избежать циклических зависимостей и Buffer errors
-        window.location.href = '/login'
-      }
+      // ✅ P7: здесь больше нет «legacy»-обработки невалидного токена
+      // (сравнение английских строк 'Unauthorized'/'Invalid token'/'User not found'
+      // и собственный редирект на /login с обходом authResetInProgress).
+      // Единственный владелец сброса авторизации — services/helpers/socketAuthError.ts,
+      // вызывающийся из services/socket.service.ts при connect_error.
+      // reconnectAttempts тоже не инкрементируем: попытками управляет Manager
+      // (событие 'reconnect_attempt' ниже), и раньше счётчик рос даже на
+      // неисправимой auth-ошибке.
     })
 
     // ✅ ОТКЛЮЧЕНИЕ
@@ -152,6 +141,8 @@ export const useSocketStore = defineStore('socket', () => {
     })
 
     // ✅ ИНИЦИАЛИЗАЦИЯ СЕССИИ
+    // ✅ P7: единственная точка записи cookie session_id на клиенте
+    // (в SocketService.handleSessionInitialized запись убрана, чтобы не дублировать).
     socketService.on('session:initialized', (data: { sessionId: string; userId: number }) => {
       console.log('[SocketStore] 🎫 Сессия инициализирована:', data.sessionId)
       setSessionId(data.sessionId)
@@ -253,31 +244,6 @@ export const useSocketStore = defineStore('socket', () => {
   }
 
   // ============================================
-  // ACTIONS — Подключение
-  // ============================================
-
-  /**
-   * Подключение к сокет-серверу
-   * Вызывается из plugins/socket.client.ts
-   */
-  function connect() {
-    console.log('[SocketStore] 🔗 Подключение к серверу...')
-    isConnecting.value = true
-    socketService.connect()
-  }
-
-  /**
-   * Отключение от сокет-сервера
-   */
-  function disconnect() {
-    console.log('[SocketStore] 🔌 Отключение от сервера...')
-    socketService.disconnect()
-    isConnected.value = false
-    isConnecting.value = false
-    userId.value = null
-  }
-
-  // ============================================
   // ACTIONS — Подписки на доски
   // ============================================
 
@@ -297,60 +263,11 @@ export const useSocketStore = defineStore('socket', () => {
   }
 
   // ============================================
-  // ACTIONS — Очередь сообщений
-  // ============================================
-
-  /**
-   * ⚠️ Legacy: очередь работает в режиме fire-and-forget (P2),
-   * поэтому промис резолвится значением true (ack от сервера не приходит).
-   * Потребителей в коде нет — кандидат на удаление (P5).
-   */
-  function queueMessage<T>(event: string, data: any): Promise<T> {
-    return new Promise((resolve, reject) => {
-      messageQueue.value.push({
-        event,
-        data,
-        resolve: resolve as (value: any) => void,
-        reject
-      })
-
-      if (isConnected.value) {
-        sendQueuedMessages()
-      }
-    })
-  }
-
-  function sendQueuedMessages() {
-    if (messageQueue.value.length === 0) return
-
-    console.log(`[SocketStore] 📤 Отправка ${messageQueue.value.length} сообщений из очереди`)
-
-    while (messageQueue.value.length > 0) {
-      const { event, data, resolve, reject } = messageQueue.value.shift()!
-
-      // ✅ P2: события без серверного ack — отправляем fire-and-forget
-      const sent = socketService.emitNoAck(event, data)
-
-      if (sent) {
-        resolve?.(true)
-      } else {
-        reject?.(new Error(`Socket not connected, event "${event}" not sent`))
-      }
-    }
-  }
-
-  function clearMessageQueue() {
-    console.log('[SocketStore] 🧹 Очистка очереди сообщений')
-    messageQueue.value = []
-  }
-
-  // ============================================
   // ACTIONS — Утилиты
   // ============================================
 
   function clearState() {
     console.log('[SocketStore] 🧹 Очистка состояния')
-    clearMessageQueue()
     isConnected.value = false
     isConnecting.value = false
     userId.value = null
@@ -379,7 +296,6 @@ export const useSocketStore = defineStore('socket', () => {
     error,
     reconnectAttempts,
     maxReconnectAttempts,
-    messageQueue,
     tabId,
 
     // Getters
@@ -387,19 +303,10 @@ export const useSocketStore = defineStore('socket', () => {
     hasError,
     isReconnecting,
 
-    // Actions — Подключение
-    connect,
-    disconnect,
-
     // Actions — Подписки
     subscribeToBoard,
     unsubscribeFromBoard,
     unsubscribeFromAll,
-
-    // Actions — Очередь
-    queueMessage,
-    sendQueuedMessages,
-    clearMessageQueue,
 
     // Actions — Утилиты
     clearState,

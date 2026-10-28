@@ -25,7 +25,7 @@ import { broadcastStatus } from './status'
 import { invalidatePermissionsCache } from '../../utils/permissions'
 import { invalidateOnlineCache } from '../../api/online.get'
 import { socketLog } from '../logger'
-import { ONLINE_VIEWERS_ROOM, syncOnlineViewersRoom } from '../utils'
+import { ONLINE_VIEWERS_ROOM, syncOnlineViewersRoom, getSocketIp } from '../utils'
 
 // ============================================
 // 🆕 УВЕДОМЛЕНИЯ ОБ ИЗМЕНЕНИИ ПРАВ
@@ -132,15 +132,9 @@ export function setupUserHandlers(socket: Socket, user: any, io: Server) {
 
   const userName = user.name || user.email || 'Unknown'
 
-  // Получаем IP-адрес пользователя (с защитой от ошибок)
-  const ipAddress = (() => {
-    // @ts-ignore - socket.conn может быть недоступен в типах
-    const remoteAddr = socket.conn?.remoteAddress || socket.handshake.address
-    if (typeof remoteAddr === 'string') {
-      return remoteAddr.replace(/^::ffff:/, '')
-    }
-    return 'unknown'
-  })()
+  // ✅ P7: IP-адрес берём общим хелпером (server/socket/utils.ts → getSocketIp),
+  // чтобы логика не дублировалась в обработчиках активности.
+  const ipAddress = getSocketIp(socket)
 
   socketLog(`   IP: ${ipAddress}`)
 

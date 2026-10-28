@@ -3,6 +3,7 @@ import type { Socket, Server } from 'socket.io'
 import { updateSessionStatus } from '../../utils/sessions'
 import { broadcastStatus } from './status'
 import { scheduleOnlineBroadcast } from '../../utils/online-broadcast'
+import { getSocketIp } from '../utils'
 import { socketLog } from '../logger'
 
 /**
@@ -27,7 +28,12 @@ export function setupActivityHandlers(socket: Socket, user: any, io: Server) {
       const serverSessionId = getSocketSessionId(socket)
       if (!serverSessionId) return
 
-      const { status, ipAddress } = data
+      const { status } = data || {}
+
+      // ✅ P7: IP берём из самого сокета, а не из payload клиента
+      // (раньше клиент присылал window.location.hostname, и это значение
+      // попадало в user_sessions.ip_address).
+      const ipAddress = getSocketIp(socket)
 
       // ✅ P4: защита от мусорного status из payload
       const allowed: Array<'online' | 'afk' | 'offline'> = ['online', 'afk', 'offline']
@@ -48,12 +54,13 @@ export function setupActivityHandlers(socket: Socket, user: any, io: Server) {
   })
 
   // ✅ ВОЗВРАТ ИЗ AFK — немедленный broadcast (важное событие)
-  socket.on('activity:resume', async (data) => {
+  socket.on('activity:resume', async () => {
     try {
       const serverSessionId = getSocketSessionId(socket)
       if (!serverSessionId) return
 
-      const { ipAddress } = data
+      // ✅ P7: IP из сокета (payload клиента игнорируется)
+      const ipAddress = getSocketIp(socket)
 
       socketLog(`[Activity] 🟢 User ${serverSessionId} resumed from AFK`)
 
@@ -73,12 +80,13 @@ export function setupActivityHandlers(socket: Socket, user: any, io: Server) {
   })
 
   // ✅ УХОД В AFK — немедленный broadcast (важное событие)
-  socket.on('activity:afk', async (data) => {
+  socket.on('activity:afk', async () => {
     try {
       const serverSessionId = getSocketSessionId(socket)
       if (!serverSessionId) return
 
-      const { ipAddress } = data
+      // ✅ P7: IP из сокета (payload клиента игнорируется)
+      const ipAddress = getSocketIp(socket)
 
       await updateSessionStatus(serverSessionId, 'afk', { ipAddress })
 

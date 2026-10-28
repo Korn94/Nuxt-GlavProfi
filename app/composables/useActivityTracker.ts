@@ -7,25 +7,49 @@
  * - Автоматическое определение AFK-статуса (5 минут бездействия)
  * - Отправка событий активности через SocketService
  * - Отслеживание навигации по страницам
- * - ✅ НОВОЕ: Обработка visibilitychange для фоновых вкладок
- * - Автоматический запуск/остановка при авторизации
+ * - ✅ Обработка visibilitychange для фоновых вкладок
+ * - ✅ Singleton на всё приложение: монтируется ОДИН раз — в app/app.vue
+ *   (`if (process.client) useActivityTracker()`), поэтому трекинг работает
+ *   и на публичных страницах, и в кабинете (раньше жил только в layout кабинета).
+ * - Автоматический запуск/остановка при появлении/потере «живой» сессии
  */
 
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useSocketStore } from '../../stores/socket'
-import { useAuthStore } from '../../stores/auth'
 import { useCookie } from 'nuxt/app'
 import { useRoute } from 'vue-router'
 import { socketService } from 'services/socket.service'
 
+// ============================================
+// MODULE-LEVEL STATE (singleton на приложение)
+// ============================================
+// ✅ Состояние и таймеры живут на уровне модуля: app.vue монтирует трекер один раз,
+// а повторный вызов useActivityTracker() не создаёт второй набор слушателей
+// и не дублирует события 'activity'.
+// ⚠️ Мутации происходят только на клиенте (все входные точки под process.client),
+// поэтому SSR-рендер этот модульный стейт не изменяет.
+const isTracking = ref(false)
+const isAFK = ref(false)
+const lastActivity = ref<Date>(new Date())
+
+let activityTimer: NodeJS.Timeout | null = null
+let navigationWatcher: (() => void) | null = null
+let visibilityHandler: (() => void) | null = null
+// ✅ P0-1: время последней отправки 'activity' (для троттлинга)
+let lastActivitySentAt = 0
+// ✅ Lifecycle-хуки регистрируются ровно один раз
+let lifecycleRegistered = false
+
 /**
  * Композабл для отслеживания активности пользователя
  *
+ * ✅ Singleton: вызывается ОДИН раз — из app/app.vue (только на клиенте).
+ * Возвращает общий на всё приложение API, повторные вызовы безопасны.
+ *
  * @example
  * ```ts
- * const { isTracking, isAFK, startTracking, stopTracking } = useActivityTracker()
- *
- * // Автоматически запускается при авторизации и подключении сокета
+ * // app/app.vue
+ * if (process.client) useActivityTracker()
  * ```
  */
 export function useActivityTracker() {
@@ -33,16 +57,8 @@ export function useActivityTracker() {
   // STORES & UTILS
   // ============================================
   const socketStore = useSocketStore()
-  const authStore = useAuthStore()
   const route = useRoute()
   const sessionIdCookie = useCookie('session_id')
-
-  // ============================================
-  // STATE
-  // ============================================
-  const isTracking = ref(false)
-  const isAFK = ref(false)
-  const lastActivity = ref<Date>(new Date())
 
   // ============================================
   // CONSTANTS
@@ -55,13 +71,25 @@ export function useActivityTracker() {
   const ACTIVITY_THROTTLE_MS = 60000 // 1 минута
 
   // ============================================
-  // PRIVATE STATE
+  // ГЕЙТ «ЖИВОЙ СЕССИИ»
   // ============================================
-  let activityTimer: NodeJS.Timeout | null = null
-  let navigationWatcher: (() => void) | null = null
-  let visibilityHandler: (() => void) | null = null
-  // ✅ P0-1: время последней отправки 'activity' (для троттлинга)
-  let lastActivitySentAt = 0
+  /**
+   * Готов ли трекинг: сокет подключён И сервер подтвердил сессию
+   * (session:initialized → stores/socket/index.ts пишет cookie session_id).
+   *
+   * ⚠️ authStore.isAuthenticated использовать нельзя: app/middleware/auth.ts
+   * НЕ глобальный — он подключён только там, где в definePageMeta указан
+   * middleware: ['auth', ...] (страницы кабинета, /login). На публичных маршрутах
+   * (например /) isAuthenticated остаётся false и трекер не стартовал бы.
+   *
+   * ⚠️ useAuthCookie().hasCookie тоже не подходит: это computed без реактивных
+   * зависимостей — значение «замерзает» после первого чтения.
+   *
+   * session_id из cookie реактивен: useCookie рассылает изменение через
+   * BroadcastChannel('nuxt:cookies:session_id'), поэтому запись из setSessionId()
+   * доходит и до этого ref (в т.ч. при логине без перезагрузки страницы).
+   */
+  const isSessionReady = () => socketStore.isConnected && !!sessionIdCookie.value
 
   // ============================================
   // METHODS - Отправка событий
@@ -80,10 +108,10 @@ export function useActivityTracker() {
     }
 
     // ✅ P2: fire-and-forget — сервер не отвечает ack на событие 'activity'
+    // ✅ P7: IP не передаём — сервер берёт его из сокета (server/socket/utils.ts → getSocketIp)
     socketService.emitNoAck('activity', {
       sessionId: sessionIdCookie.value,
-      status,
-      ipAddress: window.location.hostname
+      status
     })
   }
 
@@ -135,8 +163,7 @@ export function useActivityTracker() {
       if (process.client && socketStore.isConnected && sessionIdCookie.value) {
         // ✅ P2: fire-and-forget — сервер не отвечает ack на событие 'activity:resume'
         socketService.emitNoAck('activity:resume', {
-          sessionId: sessionIdCookie.value,
-          ipAddress: window.location.hostname
+          sessionId: sessionIdCookie.value
         })
       }
     }
@@ -152,7 +179,7 @@ export function useActivityTracker() {
    */
   const checkAFK = () => {
     if (!process.client) return
-    if (!authStore.isAuthenticated || !socketStore.isConnected) return
+    if (!isSessionReady()) return
 
     const now = new Date()
     const diff = now.getTime() - lastActivity.value.getTime()
@@ -163,8 +190,7 @@ export function useActivityTracker() {
       if (sessionIdCookie.value) {
         // ✅ P2: fire-and-forget — сервер не отвечает ack на событие 'activity:afk'
         socketService.emitNoAck('activity:afk', {
-          sessionId: sessionIdCookie.value,
-          ipAddress: window.location.hostname
+          sessionId: sessionIdCookie.value
         })
       }
     }
@@ -288,8 +314,7 @@ export function useActivityTracker() {
       // ✅ P2: fire-and-forget — сервер не отвечает ack на событие 'activity'
       socketService.emitNoAck('activity', {
         sessionId: sessionIdCookie.value,
-        status: 'offline',
-        ipAddress: window.location.hostname
+        status: 'offline'
       })
     }
 
@@ -298,38 +323,10 @@ export function useActivityTracker() {
   }
 
   // ============================================
-  // LIFECYCLE
+  // API
   // ============================================
 
-  onMounted(() => {
-    console.log('[ActivityTracker] 📦 Компонент смонтирован')
-
-    // Запускаем отслеживание только если пользователь авторизован И сокет подключен
-    watch(
-      () => [authStore.isAuthenticated, socketStore.isConnected] as const,
-      ([isAuth, isConnected]) => {
-        if (isAuth && isConnected && !isTracking.value) {
-          console.log('[ActivityTracker] ✅ Auth + Socket ready, starting tracking')
-          startTracking()
-        } else if ((!isAuth || !isConnected) && isTracking.value) {
-          console.log('[ActivityTracker] ⏹️ Auth or Socket lost, stopping tracking')
-          stopTracking()
-        }
-      },
-      { immediate: true }
-    )
-  })
-
-  onUnmounted(() => {
-    console.log('[ActivityTracker] 🗑️ Компонент уничтожается')
-    stopTracking()
-  })
-
-  // ============================================
-  // RETURN
-  // ============================================
-
-  return {
+  const api = {
     // State
     isTracking,
     isAFK,
@@ -348,4 +345,48 @@ export function useActivityTracker() {
       handleVisibilityChange
     }
   }
+
+  // ============================================
+  // LIFECYCLE
+  // ============================================
+  // ✅ Регистрируем ровно один раз: единственная точка входа — app/app.vue.
+  // Повторные вызовы просто получают тот же API без вторых watch'ей/хуков.
+  if (lifecycleRegistered) return api
+  lifecycleRegistered = true
+
+  onMounted(() => {
+    console.log('[ActivityTracker] 📦 Компонент смонтирован')
+
+    // ✅ Запуск/остановка по «живой сессии» (подключённый сокет + session_id),
+    // а не по authStore.isAuthenticated: трекер работает на ВСЕХ маршрутах,
+    // включая публичные, где auth-middleware не выполняется.
+    // Оба источника реактивны: isConnected — ref стора, session_id — cookie-реф,
+    // который обновляется при записи из stores/socket (session:initialized).
+    watch(
+      () => [socketStore.isConnected, sessionIdCookie.value] as const,
+      ([isConnected, sessionId]) => {
+        const ready = isConnected && !!sessionId
+
+        if (ready && !isTracking.value) {
+          console.log('[ActivityTracker] ✅ Socket + session ready, starting tracking')
+          startTracking()
+        } else if (!ready && isTracking.value) {
+          console.log('[ActivityTracker] ⏹️ Socket or session lost, stopping tracking')
+          stopTracking()
+        }
+      },
+      { immediate: true }
+    )
+  })
+
+  onUnmounted(() => {
+    console.log('[ActivityTracker] 🗑️ Компонент уничтожается')
+    stopTracking()
+  })
+
+  // ============================================
+  // RETURN
+  // ============================================
+
+  return api
 }

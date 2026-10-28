@@ -5,8 +5,10 @@
  * Реэкспортирует модули, чьи регистраторы вызываются из setupSocketServer():
  * - user     — setupUserHandlers()
  * - activity — setupActivityHandlers()
- * - status   — setupStatusHandlers()
  * - tasks    — registerTaskHandlers()
+ *
+ * status — экспортирует broadcastStatus() (используется activity/user-обработчиками);
+ * собственного регистратора нет: 'status:update' удалён в P7 (клиент его не отправлял).
  *
  * Вспомогательные эмиттеры (columns/subtasks) используются из API-эндпоинтов
  * и импортируются напрямую из своих файлов — в баррель не выносятся.

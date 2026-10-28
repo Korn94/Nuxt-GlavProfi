@@ -11,6 +11,20 @@
 <script setup>
 // Импортируем конфигурацию мета
 import { siteMeta, metaTags, linkTags, scriptTags } from '~/config/meta.config';
+import { useActivityTracker } from '~/composables/useActivityTracker';
+
+// ============================================
+// ✅ ГЛОБАЛЬНЫЙ ТРЕКИНГ АКТИВНОСТИ / AFK
+// ============================================
+// Монтируется в корневом компоненте → работает на ВСЕХ маршрутах: публичный
+// лендинг, страницы услуг, кабинет. Раньше жил только в app/layouts/cabinet.vue,
+// из-за чего авторизованный пользователь на публичной странице создавал сессию
+// (её поднимает plugins/socket.client.ts), но события activity / activity:afk /
+// tab:navigate не уходили и он «висел онлайн» до закрытия вкладки.
+// Только клиент: на SSR слушателей/таймеров быть не должно (app.vue выполняется и на сервере).
+if (process.client) {
+  useActivityTracker();
+}
 
 const route = useRoute();
 const config = useRuntimeConfig();

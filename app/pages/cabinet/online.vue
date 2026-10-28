@@ -235,12 +235,23 @@ function isActivityStale(lastActivity: string): boolean {
 }
 
 function formatPath(path: string | null | undefined): string {
-  if (!path || path === '/' || path === 'null') return '—'
+  if (!path || path === 'null') return '—'
   const clean = path.replace(/^\/+/, '')
+  // ✅ '/' — это главная публичного сайта: трекинг активности глобальный
+  // (app/composables/useActivityTracker.ts монтируется в app/app.vue),
+  // поэтому авторизованный пользователь может находиться и на публичных страницах.
+  if (!clean) return 'Главная (сайт)'
   const labels: Record<string, string> = {
+    // Кабинет
     'cabinet': 'Кабинет', 'cabinet/online': 'Онлайн', 'cabinet/boards': 'Доски',
     'cabinet/objects': 'Объекты', 'cabinet/operation': 'Операции',
     'cabinet/materials': 'Материалы', 'login': 'Вход',
+    // Публичная часть сайта
+    'about': 'О компании', 'contacts': 'Контакты', 'projects': 'Проекты',
+    'prices': 'Цены', 'partner': 'Партнёрам', 'telegram': 'Telegram',
+    'remont-pomescheniy': 'Ремонт помещений', 'vidy-rabot': 'Виды работ',
+    'privacy-policy': 'Политика', 'terms-of-service': 'Условия',
+    'access-denied': 'Доступ запрещён',
   }
   if (labels[clean]) return labels[clean]
   const parts = clean.split('/')
@@ -252,10 +263,17 @@ function formatPath(path: string | null | undefined): string {
 function getPageIcon(path: string | null | undefined): string {
   if (!path) return 'mdi:web'
   const clean = path.replace(/^\/+/, '')
+  // ✅ '/' — главная публичного сайта (трекинг активности глобальный, app/app.vue)
+  if (!clean) return 'mdi:home-city'
   const icons: Record<string, string> = {
     'cabinet/online': 'mdi:account-group', 'cabinet/boards': 'mdi:view-dashboard',
     'cabinet/objects': 'mdi:office-building-outline', 'cabinet/operation': 'mdi:swap-horizontal',
     'cabinet/materials': 'mdi:receipt-text-outline', 'login': 'mdi:login',
+    // Публичная часть сайта
+    'about': 'mdi:information-outline', 'contacts': 'mdi:phone-outline',
+    'projects': 'mdi:briefcase-outline', 'prices': 'mdi:currency-rub',
+    'partner': 'mdi:handshake', 'telegram': 'mdi:send',
+    'remont-pomescheniy': 'mdi:office-building', 'vidy-rabot': 'mdi:hammer-screwdriver',
   }
   return icons[clean] || 'mdi:web'
 }

@@ -32,40 +32,13 @@ function broadcastStatus(
 }
 
 /**
- * Регистрация обработчиков статусов
+ * Регистрация обработчиков статусов.
+ *
+ * ✅ P7: обработчик 'status:update' удалён — ни один клиент его не отправлял.
+ * Смена статуса идёт через 'activity:afk' / 'activity:resume'
+ * (server/socket/handlers/activity.ts), которые вызывают broadcastStatus().
+ * Функция setupStatusHandlers() удалена вместе с обработчиком.
  */
-export function setupStatusHandlers(socket: Socket, user: any, io: Server) {
-  const userName = user.name || user.login
-
-  socket.on('status:update', async (data: { status: 'online' | 'afk' | 'offline' }) => {
-    try {
-      const sessionId = (socket as any).sessionId
-      if (!sessionId) {
-        console.warn('[Status] No sessionId for status update')
-        return
-      }
-
-      socketLog(`[Status] Manual status update: ${userName} -> ${data.status}`)
-
-      broadcastStatus(io, socket, user.id, userName, data.status, {
-        sessionId
-      })
-
-      // ✅ НЕМЕДЛЕННАЯ ОТПРАВКА (ручное изменение статуса)
-      const { immediateOnlineBroadcast } = await import('../../utils/online-broadcast')
-      await immediateOnlineBroadcast(io)
-
-    } catch (error) {
-      console.error('[Status] Error updating status:', error)
-      socket.emit('error', {
-        message: 'Failed to update status',
-        code: 'STATUS_UPDATE_ERROR'
-      })
-    }
-  })
-
-  socketLog('[Status] Handlers registered for user:', userName)
-}
 
 /**
  * Экспортируем функции для использования в других обработчиках

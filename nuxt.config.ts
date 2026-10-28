@@ -280,6 +280,14 @@ export default defineNuxtConfig({
           ? 'https://glavprofi.ru' 
           : `http://${process.env.NUXT_HOST || '0.0.0.0'}:${process.env.PORT || 3000}`),
       uploadsBaseUrl: process.env.NUXT_PUBLIC_UPLOADS_BASE_URL || '',
+      // ✅ P7: единый источник правды для адреса сокет-сервера.
+      // Клиент: services/socket.service.ts → resolveSocketUrl()
+      // Сервер (dev): server/socket/dev.ts → resolveSocketPort()
+      // Переопределение: NUXT_PUBLIC_SOCKET_PORT / NUXT_PUBLIC_SOCKET_URL.
+      socketPort: Number(process.env.SOCKET_PORT || process.env.NUXT_PUBLIC_SOCKET_PORT) || 3001,
+      // Явный адрес сокет-сервера (если он не на том же origin, например dev-стенд).
+      // Пусто → клиент строит адрес сам: prod — window.location, dev — hostname:порт.
+      socketUrl: process.env.NUXT_PUBLIC_SOCKET_URL || '',
     },
     private: {
       dbHost: process.env.NUXT_DB_HOST,
