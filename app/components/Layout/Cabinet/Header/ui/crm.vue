@@ -186,8 +186,11 @@ const menuItems: MenuItem[] = [
     page: 'test',
     roleCheck: 'admin'
   },
+
+  // ⚠️ id используется как :key в v-for — он обязан быть уникальным,
+  // иначе Vue ругается «Duplicate keys found during update: "test"».
   {
-    id: 'test',
+    id: 'test2',
     title: 'Тест2',
     path: '/cabinet/testpage2',
     icon: 'mdi:flask-outline',

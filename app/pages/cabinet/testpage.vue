@@ -61,11 +61,11 @@
           <span class="card__title">Пользователь</span>
           <button class="btn btn--sm" @click="doForceReauth">↺ Recheck</button>
         </div>
-        <div class="avatar-block" v-if="authStore.user">
+        <div class="avatar-block" v-if="liveAuthUser">
           <div class="avatar">{{ userInitials }}</div>
           <div class="avatar-block__info">
-            <div class="avatar-block__name">{{ authStore.user.name || '—' }}</div>
-            <div class="avatar-block__role">{{ authStore.user.role }}</div>
+            <div class="avatar-block__name">{{ liveAuthUser.name || '—' }}</div>
+            <div class="avatar-block__role">{{ liveAuthUser.role }}</div>
           </div>
         </div>
         <div class="kv-list">
@@ -99,20 +99,20 @@
       <!-- ── Col 4: Online users ── -->
       <div class="card card--tall">
         <div class="card__head">
-          <span class="card__title">Онлайн <span class="badge">{{ onlineStore.users.length }}</span></span>
-          <button class="btn btn--sm" @click="onlineStore.fetchOnlineUsers()">↺</button>
+          <span class="card__title">Онлайн <span class="badge">{{ onlineCount }}</span></span>
+          <button class="btn btn--sm" @click="refreshData">↺</button>
         </div>
         <div class="online-list">
-          <div v-for="u in onlineStore.users" :key="u.userId" class="online-user">
+          <div v-for="u in liveOnlineUsers" :key="u.userId" class="online-user">
             <div :class="['online-user__dot', `online-user__dot--${u.status}`]" />
             <div class="online-user__info">
               <span class="online-user__name">{{ u.user?.name || u.user?.login || '—' }}</span>
-              <span class="online-user__meta">{{ u.user?.role }} · {{ u.activePath || '/' }} · {{ u.tabsCount
-                }}tab</span>
+              <span class="online-user__meta">{{ u.user?.role }} · {{ u.activePath || '/' }} · {{ u.deviceType
+                }}</span>
             </div>
             <span :class="['online-user__status', `online-user__status--${u.status}`]">{{ u.status }}</span>
           </div>
-          <div v-if="!onlineStore.users.length" class="empty">Нет онлайн-пользователей</div>
+          <div v-if="!liveOnlineUsers.length" class="empty">Нет онлайн-пользователей</div>
         </div>
       </div>
 
@@ -153,26 +153,6 @@
         <pre class="snapshot-pre">{{ activeSnapshot }}</pre>
       </div>
 
-      <!-- ── Board subscriptions ── -->
-      <div class="card">
-        <div class="card__head">
-          <span class="card__title">Подписки на доски</span>
-        </div>
-        <div class="sub-input">
-          <input v-model.number="boardIdInput" type="number" placeholder="Board ID" class="input" />
-          <button class="btn btn--sm btn--primary" @click="subscribeBoard" :disabled="!isConnected">+</button>
-          <button class="btn btn--sm btn--danger" @click="unsubscribeBoard" :disabled="!isConnected">−</button>
-        </div>
-        <div class="board-list">
-          <div v-for="id in subscribedBoards" :key="id" class="board-tag">
-            <span class="board-tag__icon">⬡</span>
-            <span>board:{{ id }}</span>
-            <button class="board-tag__remove" @click="socketService.unsubscribeFromBoard(id)">✕</button>
-          </div>
-          <div v-if="!subscribedBoards.length" class="empty">Нет подписок</div>
-        </div>
-      </div>
-
       <!-- ── Fire events ── -->
       <div class="card">
         <div class="card__head">
@@ -180,7 +160,7 @@
         </div>
         <div class="event-grid">
           <button v-for="ev in quickEvents" :key="ev.label" :class="['btn', `btn--${ev.color}`]" @click="fireEvent(ev)"
-            :disabled="!isConnected">{{ ev.label }}</button>
+            :disabled="!isConnected || ev.disabled">{{ ev.label }}</button>
         </div>
         <div class="divider" />
         <div class="custom-event">
@@ -212,7 +192,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useAuthStore } from '../../../stores/auth'
 import { useSocketStore } from '../../../stores/socket'
 import { useOnlineStore } from '../../../stores/online'
@@ -230,15 +210,47 @@ const authStore = useAuthStore()
 const socketStore = useSocketStore()
 const onlineStore = useOnlineStore()
 
+// ── 🛡️ SSR-safe проекции (защита от Hydration mismatch) ──────────────
+// Плагин сокета и auth-store наполняют stores на клиенте ДО того, как Vue
+// завершит гидратацию, поэтому серверная разметка и первый клиентский рендер
+// расходились (Hydration text/class mismatch на строках ниже). Приём тот же,
+// что в app/pages/cabinet/objects/index.vue: пока isMounted === false (SSR и
+// гидратация) отдаём нейтральные значения, после onMounted — живые.
+const isMounted = ref(false)
+
+/** Пользователь из auth-store (до гидратации — null). */
+const liveAuthUser = computed(() => (isMounted.value ? authStore.user : null))
+/** Флаг авторизации (до гидратации — false). */
+const liveIsAuthenticated = computed(() => isMounted.value && authStore.isAuthenticated)
+/** Флаг проверки авторизации/прав (до гидратации — false). */
+const liveIsChecking = computed(() => isMounted.value && authStore.isChecking)
+/** Флаг подключения из socket-store (до гидратации — false). */
+const liveSocketConnected = computed(() => isMounted.value && socketStore.isConnected)
+/** Ошибка из socket-store (до гидратации — null). */
+const liveSocketError = computed(() => (isMounted.value ? socketStore.error : null))
+/** ID вкладки: живёт в sessionStorage — на сервере его нет. */
+const liveTabId = computed(() => (isMounted.value ? socketStore.tabId : null))
+/** userId из socket-store (до гидратации — null). */
+const liveSocketUserId = computed(() => (isMounted.value ? socketStore.userId : null))
+/** Список онлайна (на сервере не загружается). */
+const liveOnlineUsers = computed(() => (isMounted.value ? onlineStore.users : []))
+/** Текущий путь: window недоступен на сервере. */
+const livePath = computed(() =>
+  isMounted.value && typeof window !== 'undefined' ? window.location.pathname : '—'
+)
+
 // ── Cookies ─────────────────────────────────────────────────────────
 const authCookieRaw = useCookie('auth_token')
 const sessionCookieRaw = useCookie('session_id')
-const tabCookieRaw = useCookie('tab_id')
 
+// ⚠️ Куки tab_id в приложении нет: ID вкладки живёт в socketStore.tabId
+// (sessionStorage 'socket_tab_id', см. stores/socket/index.ts). Раньше страница
+// читала несуществующую куку и всегда показывала «—».
 const cookies = computed(() => [
   { name: 'auth_token', value: authCookieRaw.value ? authCookieRaw.value.slice(0, 24) + '…' : null },
-  { name: 'session_id', value: sessionCookieRaw.value || null },
-  { name: 'tab_id', value: tabCookieRaw.value || null },
+  // 🛡️ session_id выдаёт сервер при подключении сокета (setSessionId) — кука
+  // обновляется ДО гидратации, поэтому до onMounted показываем заглушку.
+  { name: 'session_id', value: isMounted.value ? (sessionCookieRaw.value || null) : null },
 ])
 
 // ── Connection state (read from socketService directly — fixes the race bug) ──
@@ -328,6 +340,25 @@ function measurePing() {
   }
 }
 
+// ── Online data ──────────────────────────────────────────────────────
+// /api/online отдаёт ВСЕХ пользователей (включая offline), поэтому счётчики
+// считаем по статусу, а не по длине массива.
+const onlineCount = computed(() => liveOnlineUsers.value.filter(u => u.status === 'online').length)
+
+/**
+ * Первичная загрузка списка онлайна + подписка на real-time обновления.
+ * ✅ Источник подписки на 'online-users:update' — onlineStore (stores/online.ts),
+ * как в cabinet/online.vue; страница только логирует событие (см. businessEvents).
+ */
+async function refreshData() {
+  try {
+    await onlineStore.fetchOnlineUsers()
+    onlineStore.subscribeToUpdates()
+  } catch {
+    // Ошибка уже сохранена в onlineStore.error и видна в карточке «Онлайн»
+  }
+}
+
 // ── Status pills ─────────────────────────────────────────────────────
 const statusPills = computed(() => [
   {
@@ -337,8 +368,8 @@ const statusPills = computed(() => [
   },
   {
     label: 'Auth',
-    value: authStore.isAuthenticated ? 'ok' : 'none',
-    state: authStore.isAuthenticated ? 'ok' : 'err'
+    value: liveIsAuthenticated.value ? 'ok' : 'none',
+    state: liveIsAuthenticated.value ? 'ok' : 'err'
   },
   {
     label: 'Transport',
@@ -347,13 +378,8 @@ const statusPills = computed(() => [
   },
   {
     label: 'Online',
-    value: String(onlineStore.users.length),
-    state: 'dim'
-  },
-  {
-    label: 'Subscriptions',
-    value: String(subscribedBoards.value.length),
-    state: subscribedBoards.value.length > 0 ? 'ok' : 'dim'
+    value: `${onlineCount.value}/${liveOnlineUsers.value.length}`,
+    state: onlineCount.value > 0 ? 'ok' : 'dim'
   },
   {
     label: 'Reconnects',
@@ -368,30 +394,35 @@ const connectionRows = computed(() => [
   { k: 'Socket ID', v: socketId.value || '—', cls: 'kv__v--mono' },
   { k: 'Transport', v: transport.value, cls: transport.value === 'websocket' ? 'kv__v--ok' : transport.value === 'polling' ? 'kv__v--warn' : '' },
   { k: 'Reconnects', v: String(reconnectAttempts.value), cls: reconnectAttempts.value > 0 ? 'kv__v--warn' : '' },
-  { k: 'Store conn.', v: String(socketStore.isConnected), cls: socketStore.isConnected ? 'kv__v--ok' : 'kv__v--err' },
-  { k: 'Store err.', v: socketStore.error || '—', cls: socketStore.error ? 'kv__v--err' : '' },
+  // ⚠️ socketStore наполняется клиентским плагином сокета до гидратации —
+  // до onMounted показываем нейтральные значения (иначе Hydration mismatch).
+  { k: 'Store conn.', v: isMounted.value ? String(liveSocketConnected.value) : '—', cls: isMounted.value ? (liveSocketConnected.value ? 'kv__v--ok' : 'kv__v--err') : '' },
+  { k: 'Store err.', v: liveSocketError.value || '—', cls: liveSocketError.value ? 'kv__v--err' : '' },
 ])
 
 // ── Auth rows ────────────────────────────────────────────────────────
 const userInitials = computed(() => {
-  const name = authStore.user?.name || ''
+  const name = liveAuthUser.value?.name || ''
   return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?'
 })
 
 const authRows = computed(() => [
-  { k: 'User ID', v: String(authStore.user?.id ?? '—'), cls: '' },
-  { k: 'Role', v: authStore.user?.role || '—', cls: '' },
-  { k: 'Auth', v: authStore.isAuthenticated ? 'true' : 'false', cls: authStore.isAuthenticated ? 'kv__v--ok' : 'kv__v--err' },
+  { k: 'User ID', v: String(liveAuthUser.value?.id ?? '—'), cls: '' },
+  { k: 'Role', v: liveAuthUser.value?.role || '—', cls: '' },
+  { k: 'Auth', v: isMounted.value ? String(liveIsAuthenticated.value) : '—', cls: isMounted.value ? (liveIsAuthenticated.value ? 'kv__v--ok' : 'kv__v--err') : '' },
+  // ✅ Куки одинаковы на сервере (из запроса) и на клиенте (document.cookie)
   { k: 'Token', v: authCookieRaw.value ? 'present' : 'absent', cls: authCookieRaw.value ? 'kv__v--ok' : 'kv__v--err' },
-  { k: 'Checking', v: String(authStore.isChecking), cls: '' },
+  { k: 'Checking', v: isMounted.value ? String(liveIsChecking.value) : '—', cls: '' },
 ])
 
 // ── Session rows ─────────────────────────────────────────────────────
 const sessionRows = computed(() => [
-  { k: 'Session ID', v: sessionCookieRaw.value || '—', cls: sessionCookieRaw.value ? 'kv__v--ok' : 'kv__v--warn' },
-  { k: 'Tab ID', v: tabCookieRaw.value || '—', cls: tabCookieRaw.value ? 'kv__v--mono' : '' },
-  { k: 'Socket UID', v: String(socketStore.userId ?? '—'), cls: '' },
-  { k: 'Path', v: typeof window !== 'undefined' ? window.location.pathname : '—', cls: 'kv__v--mono' },
+  // 🛡️ session_id переписывается сокетом на клиенте до гидратации
+  { k: 'Session ID', v: isMounted.value ? (sessionCookieRaw.value || '—') : '—', cls: isMounted.value ? (sessionCookieRaw.value ? 'kv__v--ok' : 'kv__v--warn') : '' },
+  { k: 'Tab ID', v: liveTabId.value || '—', cls: isMounted.value ? (liveTabId.value ? 'kv__v--mono' : 'kv__v--warn') : '' },
+  { k: 'Socket ID', v: socketId.value || '—', cls: socketId.value ? 'kv__v--mono' : '' },
+  { k: 'User ID', v: String(liveSocketUserId.value ?? '—'), cls: '' },
+  { k: 'Path', v: livePath.value, cls: isMounted.value ? 'kv__v--mono' : '' },
 ])
 
 // ── Event log ────────────────────────────────────────────────────────
@@ -448,42 +479,54 @@ function refreshSnapshot() {
       connected: socketService.getConnected(),
       socketId: socketService.getSocketId(),
       transport: socketService.getTransport(),
-      subscribedBoards: socketService.getSubscribedBoards(),
-      currentBoardId: socketService.getCurrentBoardId(),
+      tabId: socketStore.tabId,
+      sessionId: sessionCookieRaw.value,
     }, null, 2),
   }
 }
 
 const activeSnapshot = computed(() => snapshotData.value[activeSnapshotTab.value] || '{}')
 
-// ── Board subscriptions ──────────────────────────────────────────────
-const boardIdInput = ref<number | null>(null)
-const subscribedBoards = ref<number[]>([])
-
-function subscribeBoard() {
-  if (!boardIdInput.value) return
-  socketService.subscribeToBoard(boardIdInput.value)
-  subscribedBoards.value = socketService.getSubscribedBoards()
-  addLog('boards', `Subscribe → board:${boardIdInput.value}`, 'ok')
-}
-
-function unsubscribeBoard() {
-  if (!boardIdInput.value) return
-  socketService.unsubscribeFromBoard(boardIdInput.value)
-  subscribedBoards.value = socketService.getSubscribedBoards()
-  addLog('boards', `Unsubscribe → board:${boardIdInput.value}`, 'warn')
-}
-
 // ── Quick events ─────────────────────────────────────────────────────
+// ⚠️ Сервер игнорирует клиентские поля sessionId/ipAddress: sessionId берётся
+// из самого сокета, IP — из соединения (server/socket/handlers/activity.ts,
+// server/socket/utils.ts → getSocketIp), поэтому в payload идёт только status.
 const quickEvents = computed(() => [
-  { label: '🟢 activity:online', color: 'ok', event: 'activity', payload: () => ({ sessionId: sessionCookieRaw.value, status: 'online', ipAddress: window.location.hostname }) },
-  { label: '🟡 activity:afk', color: 'warn', event: 'activity:afk', payload: () => ({ sessionId: sessionCookieRaw.value, ipAddress: window.location.hostname }) },
-  { label: '⚫ activity:offline', color: 'dim', event: 'activity', payload: () => ({ sessionId: sessionCookieRaw.value, status: 'offline', ipAddress: window.location.hostname }) },
-  { label: '🔄 activity:resume', color: 'primary', event: 'activity:resume', payload: () => ({ sessionId: sessionCookieRaw.value, ipAddress: window.location.hostname }) },
-  { label: '💓 heartbeat', color: 'sm', event: 'heartbeat', payload: () => undefined },
-  { label: '🔍 debug:rooms', color: 'sm', event: 'debug:rooms', payload: () => undefined },
-  { label: '📊 debug:stats', color: 'sm', event: 'debug:stats', payload: () => undefined },
-  { label: '📌 tab:register', color: 'sm', event: 'tab:register', payload: () => ({ tabId: tabCookieRaw.value, currentPath: window.location.pathname }) },
+  {
+    label: '🟢 activity:online',
+    color: 'ok',
+    event: 'activity',
+    payload: () => ({ status: 'online' }),
+    disabled: false
+  },
+  { label: '🟡 activity:afk', color: 'warn', event: 'activity:afk', payload: () => undefined, disabled: false },
+  {
+    label: '⚫ activity:offline',
+    color: 'dim',
+    event: 'activity',
+    payload: () => ({ status: 'offline' }),
+    disabled: false
+  },
+  {
+    label: '🔄 activity:resume',
+    color: 'primary',
+    event: 'activity:resume',
+    payload: () => undefined,
+    disabled: false
+  },
+  { label: '💓 heartbeat', color: 'sm', event: 'heartbeat', payload: () => undefined, disabled: false },
+  { label: '🔍 debug:rooms', color: 'sm', event: 'debug:rooms', payload: () => undefined, disabled: false },
+  { label: '📊 debug:stats', color: 'sm', event: 'debug:stats', payload: () => undefined, disabled: false },
+  {
+    label: '📌 tab:register',
+    color: 'sm',
+    event: 'tab:register',
+    payload: () => ({ tabId: socketStore.tabId, currentPath: window.location.pathname }),
+    // ✅ tabId появляется после 'session:initialized' (stores/socket/index.ts) —
+    // без него сервер логирует «Получена регистрация вкладки без sessionId или tabId».
+    // 🛡️ liveTabId — как в rows: до гидратации кнопка disabled, как на SSR.
+    disabled: !liveTabId.value
+  },
 ])
 
 async function fireEvent(ev: typeof quickEvents.value[0]) {
@@ -532,7 +575,8 @@ const apiTests = ref<ApiTest[]>([
   { method: 'GET', path: '/api/me', status: '—', statusClass: '' },
   { method: 'GET', path: '/api/online', status: '—', statusClass: '' },
   { method: 'GET', path: '/api/auth/check', status: '—', statusClass: '' },
-  { method: 'GET', path: '/api/boards', status: '—', statusClass: '' },
+  { method: 'GET', path: '/api/permissions', status: '—', statusClass: '' },
+  { method: 'GET', path: '/api/users', status: '—', statusClass: '' },
 ])
 
 const lastApiResult = ref<string | null>(null)
@@ -593,8 +637,7 @@ function registerSocketListeners() {
     socketId.value = socketService.getSocketId() || null
     transport.value = socketService.getTransport()
     reconnectAttempts.value = 0
-    subscribedBoards.value = socketService.getSubscribedBoards()
-    addLog('socket', `Connected — ID: ${socketId.value} | transport: ${transport.value}`, 'ok')
+    addLog('socket', `Connected — ID: ${socketId.value} | transport: ${transport.value} | tab: ${socketStore.tabId || '—'}`, 'ok')
     refreshSnapshot()
   })
 
@@ -629,28 +672,19 @@ function registerSocketListeners() {
     addLog('socket', 'Reconnect failed — gave up', 'err')
   })
 
-  // Transport upgrade
-  if (socketService.getConnected()) {
-    // @ts-ignore
-    const engine = (socketService as any).socket?.io?.engine
-    if (engine) {
-      engine.once('upgrade', (t: any) => {
-        transport.value = t?.name || 'websocket'
-        addLog('socket', `Transport upgraded → ${transport.value}`, 'ok')
-      })
-    }
-  }
+  // ✅ Транспорт: НЕ читаем приватное поле socketService.socket.io.engine.
+  // Сервис сам логирует upgrade (services/socket.service.ts), а страница
+  // обновляет transport.value в обработчике 'connect' и в тике часов (getTransport()).
 
-  // Business events
+  // ✅ Только события, которые сервер реально эмитит (server/socket/*).
+  // 'user:update'/'user:disconnected' удалены на сервере (P7), board:* — досок нет.
   const businessEvents = [
-    'session:initialized', 'board:subscribed', 'board:unsubscribed',
-    'board:task:created', 'board:task:updated', 'board:task:deleted',
-    'board:subtask:created', 'board:subtask:updated', 'board:subtask:deleted',
-    'board:column:created', 'board:column:updated', 'board:column:deleted',
-    'board:tasks:reordered', 'board:columns:reordered',
-    'user:status', 'user:update', 'user:disconnected',
-    // 'online-users:update',
-    // 'heartbeat:ack', 'pong',
+    'session:initialized',
+    'user:status',
+    // ✅ 'online-users:update' логируем и здесь: подписка онлайн-списка живёт в
+    // onlineStore, а off() снимает только свой листенер (P6) — дублирования нет.
+    'online-users:update',
+    'permissions:changed', 'permissions:check:ack', 'force:disconnect',
     'debug:rooms', 'debug:stats',
   ]
 
@@ -667,17 +701,20 @@ function registerSocketListeners() {
 
 // ── Lifecycle ────────────────────────────────────────────────────────
 onMounted(() => {
+  // ✅ 🛡️ Гидратация завершена — включаем «живые» значения вместо SSR-safe
+  // заглушек (см. блок live-* выше). После этого разметка не сверяется с сервером.
+  isMounted.value = true
+
   registerSocketListeners()
   refreshSnapshot()
-  onlineStore.fetchOnlineUsers()
-  subscribedBoards.value = socketService.getSubscribedBoards()
+  // ✅ fetchOnlineUsers() + subscribeToUpdates() — как в cabinet/online.vue
+  refreshData()
 
   addLog('init', `Page mounted — socket ${socketService.getConnected() ? 'already connected' : 'not connected'}`, 'info')
 
   currentTime.value = new Date().toLocaleTimeString('ru-RU')
   clockTimer = setInterval(() => {
     currentTime.value = new Date().toLocaleTimeString('ru-RU')
-    subscribedBoards.value = socketService.getSubscribedBoards()
 
     // ✅ Polling как страховка от пропущенных событий
     const nowConnected = socketService.getConnected()
@@ -714,6 +751,13 @@ onUnmounted(() => {
     socketService.off(event, handler)
   }
   socketListenerRefs.length = 0
+
+  // ⚠️ onlineStore.unsubscribeFromUpdates() здесь СОЗНАТЕЛЬНО не вызываем:
+  // подписка на 'online-users:update' — app-level (stores/online.ts), от флага
+  // isInitialized зависит resubscribe() после реконнекта сокета, а OnlineWidget
+  // на дашборде подписывается только при !isInitialized. Отписка здесь оставила бы
+  // стор «инициализированным, но не подписанным» — список онлайна перестал бы
+  // обновляться на других страницах.
 })
 
 watch(activeSnapshotTab, refreshSnapshot)
@@ -1320,51 +1364,6 @@ $sans: inherit;
 
   &--sm {
     max-height: 120px;
-  }
-}
-
-// ─── Board subscriptions ─────────────────────────────────────────────
-.sub-input {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-
-.board-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.board-tag {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: $bg2;
-  border: 1px solid $border2;
-  border-radius: 5px;
-  padding: 4px 8px;
-  font-family: $mono;
-  font-size: 12px;
-
-  &__icon {
-    color: $blue;
-    font-size: 10px;
-  }
-
-  &__remove {
-    background: none;
-    border: none;
-    color: $muted;
-    cursor: pointer;
-    padding: 0 2px;
-    font-size: 10px;
-    line-height: 1;
-    transition: color .15s;
-
-    &:hover {
-      color: $err;
-    }
   }
 }
 
