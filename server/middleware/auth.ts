@@ -302,6 +302,14 @@ const PROTECTED_PATHS: Record<string, PathRequirement | PathRequirement[]> = {
   '/api/online': { type: 'page', value: 'users', action: 'view' },
 
   // ═══════════════════════════════════════════════════════════════
+  // 🧪 ТЕСТ / ПАРСИНГ РЕЕСТРА РГР (reestr.rgr.ru)
+  // ═══════════════════════════════════════════════════════════════
+  // Используется блоком RgrRealtors на /cabinet/testpage2 (пункт меню «Тест2»).
+  // Телефоны риелторов собираются по требованию; право — как у страницы: test.view.
+  '/api/rgr/realtors': { type: 'page', value: 'test', action: 'view' },
+  '/api/rgr/phones': { type: 'page', value: 'test', action: 'view' },
+
+  // ═══════════════════════════════════════════════════════════════
   // 🛡️ АДМИН-ПАНЕЛЬ
   // ═══════════════════════════════════════════════════════════════
   '/api/admin/**': { type: 'role', value: 'manager' },

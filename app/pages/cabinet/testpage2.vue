@@ -91,6 +91,9 @@
         <pre>{{ JSON.stringify(rawResponse, null, 2) }}</pre>
       </details>
     </div>
+
+    <!-- ═══ Блок: телефоны риэлторов Рязани из реестра РГР ═══ -->
+    <PagesCabinetTestRgrRealtors />
   </div>
 </template>
 
