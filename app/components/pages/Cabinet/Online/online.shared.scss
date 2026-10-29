@@ -1,0 +1,282 @@
+// app/components/pages/Cabinet/Online/online.shared.scss
+// Общие стили страницы «Онлайн»: состояния, карточки, списки, строки пользователя,
+// бейджи, переключатель «Детали», кнопки и спиннер. Подключается через
+// `@use './online.shared.scss'` в scoped-блоках подкомпонентов.
+
+.online-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 60px 20px;
+  color: var(--crm-text-muted);
+  font-size: var(--crm-text-sm);
+  text-align: center;
+
+  &--error { color: var(--crm-danger); }
+  &__hint { font-size: var(--crm-text-xs); color: var(--crm-text-disabled); max-width: 300px; }
+}
+
+.online-card {
+  background: var(--crm-bg-surface);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-lg);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  &__title {
+    font-size: var(--crm-text-xs);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--crm-text-muted);
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  &__actions { display: flex; gap: 6px; align-items: center; }
+  &__hint {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+    b { color: var(--crm-info); font-family: var(--crm-font-mono); }
+  }
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--crm-bg-overlay);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-sm);
+  padding: 0 5px;
+  font-size: var(--crm-text-xs);
+  font-weight: 600;
+  color: var(--crm-text-muted);
+  min-width: 18px;
+}
+
+.online-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--crm-bg-overlay) transparent;
+  padding-right: 4px;
+  &::-webkit-scrollbar { width: 4px; }
+  &::-webkit-scrollbar-thumb { background: var(--crm-bg-overlay); border-radius: 2px; }
+}
+
+.online-user {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--crm-radius-md);
+  background: var(--crm-bg-elevated);
+  border: 1px solid var(--crm-border);
+  transition: var(--crm-transition);
+
+  &:hover {
+    border-color: var(--crm-border-hover);
+    background: var(--crm-bg-overlay);
+  }
+  &--current {
+    border-color: var(--crm-accent-border);
+    background: var(--crm-accent-dim);
+  }
+  &--offline {
+    opacity: 0.5;
+    &:hover { opacity: 0.75; }
+  }
+  &--idle {
+    opacity: 0.65;
+    &:hover { opacity: 0.85; }
+  }
+
+  &__dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    &--online {
+      background: var(--crm-success);
+      box-shadow: 0 0 5px var(--crm-success-dim);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    &--afk    { background: var(--crm-warning); }
+    &--offline { background: var(--crm-text-disabled); }
+  }
+  &__device {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--crm-text-muted);
+    width: 20px;
+    flex-shrink: 0;
+  }
+  &__info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  &__row  { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  &__name {
+    font-size: var(--crm-text-sm);
+    font-weight: 500;
+    color: var(--crm-text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: var(--crm-text-xs);
+    .kv__k { color: var(--crm-text-muted); margin-right: 4px; }
+  }
+  &__path {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+    .kv__v--truncate { max-width: 180px; }
+  }
+  &--muted {
+    color: var(--crm-text-muted);
+    font-weight: 400;
+    margin-left: 4px;
+
+    &::before {
+      content: '•';
+      margin-right: 4px;
+      color: var(--crm-text-disabled);
+    }
+  }
+  &__ip {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+    text-align: right;
+    min-width: 90px;
+    font-family: var(--crm-font-mono);
+  }
+  &__status {
+    font-size: var(--crm-text-xs);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 2px 6px;
+    border-radius: var(--crm-radius-sm);
+    text-transform: uppercase;
+    &--online  { background: var(--crm-success-dim); color: var(--crm-success); }
+    &--afk     { background: var(--crm-warning-dim); color: var(--crm-warning); }
+    &--offline { background: var(--crm-bg-overlay);  color: var(--crm-text-muted); }
+  }
+}
+
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+.role-badge {
+  display: inline-flex;
+  font-size: var(--crm-text-xs);
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: var(--crm-radius-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  &--admin   { background: var(--crm-danger-dim);  color: var(--crm-danger); }
+  &--manager { background: var(--crm-info-dim);    color: var(--crm-info); }
+  &--foreman { background: var(--crm-warning-dim); color: var(--crm-warning); }
+  &--master  { background: var(--crm-success-dim); color: var(--crm-success); }
+  &--worker  { background: var(--crm-bg-overlay);  color: var(--crm-text-muted); }
+  &--visitor { background: var(--crm-info-dim);    color: var(--crm-info); }
+}
+
+.crm-btn {
+  align-items: center;
+  border-radius: var(--crm-radius-md);
+  cursor: pointer;
+  display: inline-flex;
+  font-weight: 500;
+  gap: 5px;
+  transition: var(--crm-transition);
+  font-size: var(--crm-text-sm);
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid var(--crm-border-hover);
+  color: var(--crm-text-secondary);
+}
+
+.you-badge {
+  font-size: var(--crm-text-xs);
+  font-weight: 700;
+  padding: 1px 5px;
+  background: var(--crm-info-dim);
+  border: 1px solid var(--crm-accent-border);
+  border-radius: var(--crm-radius-sm);
+  color: var(--crm-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.toggle-label {
+  display: flex; align-items: center; gap: 7px;
+  cursor: pointer; font-size: var(--crm-text-xs);
+  color: var(--crm-text-muted); user-select: none;
+}
+.toggle-cb { display: none; }
+.toggle-track {
+  position: relative; display: inline-block;
+  width: 28px; height: 16px;
+  background: var(--crm-bg-overlay);
+  border: 1px solid var(--crm-border-hover);
+  border-radius: 8px; transition: var(--crm-transition); flex-shrink: 0;
+  &::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 10px; height: 10px;
+    background: var(--crm-text-muted); border-radius: 50%;
+    transition: var(--crm-transition);
+  }
+}
+.toggle-cb:checked + .toggle-track {
+  background: var(--crm-warning-dim); border-color: var(--crm-warning);
+  &::after { transform: translateX(12px); background: var(--crm-warning); }
+}
+.toggle-text { white-space: nowrap; }
+
+.kv {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+  &__k { color: var(--crm-text-muted); font-size: var(--crm-text-xs); flex-shrink: 0; }
+  &__v {
+    font-size: var(--crm-text-xs); font-family: var(--crm-font-mono);
+    color: var(--crm-text-secondary); word-break: break-all;
+    &--truncate { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    &--truncate-wide { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    &--warn { color: var(--crm-warning); }
+    &--ok   { color: var(--crm-success); }
+  }
+}
+
+.spin { animation: spin 1s linear infinite; display: inline-block; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+.conv-badge { margin-left: 2px; }
+
+@media (max-width: 700px) {
+  .online-user {
+    grid-template-columns: auto auto 1fr auto;
+    .online-user__ip { display: none; }
+  }
+}
+@media (max-width: 480px) {
+  .online-user__path { display: none; }
+  .online-card__actions { display: none; }
+}
+
+
