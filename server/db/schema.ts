@@ -1,5 +1,5 @@
 // server/db/schema.ts
-import { mysqlTable, serial, varchar, text, decimal, datetime, int, boolean, bigint, index, type AnyMySqlColumn } from 'drizzle-orm/mysql-core'
+import { mysqlTable, serial, varchar, text, decimal, datetime, int, boolean, bigint, index, json, type AnyMySqlColumn } from 'drizzle-orm/mysql-core'
 import { sql } from 'drizzle-orm'
 
 // Таблица пользователей
@@ -1081,3 +1081,112 @@ export const permissionsUserOverrides = mysqlTable('permissions_user_overrides',
   expiresIndex: index('permissions_user_overrides_expires_idx').on(table.expiresAt),
   activeIndex: index('permissions_user_overrides_active_idx').on(table.isActive)
 }))
+
+
+
+// ============================================
+// 📊 АНАЛИТИКА ПОСЕТИТЕЛЕЙ ПУБЛИЧНОГО САЙТА
+// ============================================
+// Горячее состояние живёт в памяти (server/utils/visitorRegistry.ts),
+// в БД оно сбрасывается батчами (server/utils/visitorStorage.ts).
+// IP хранится только в виде хэша с солью (ip_hash) — не персональные данные в явном виде.
+
+// Посетитель (один браузер, ID берётся из cookie visitor_id)
+export const siteVisitors = mysqlTable('site_visitors', {
+  id: varchar('id', { length: 64 }).primaryKey(),
+  firstSeenAt: datetime('first_seen_at', { mode: 'string' }).notNull(),
+  lastSeenAt: datetime('last_seen_at', { mode: 'string' }).notNull(),
+  visitsCount: int('visits_count').default(1).notNull(),
+  firstChannel: varchar('first_channel', { length: 30 }),
+  firstReferrerHost: varchar('first_referrer_host', { length: 255 }),
+  firstUtmSource: varchar('first_utm_source', { length: 100 }),
+  firstUtmMedium: varchar('first_utm_medium', { length: 100 }),
+  firstUtmCampaign: varchar('first_utm_campaign', { length: 255 }),
+  firstLandingPath: varchar('first_landing_path', { length: 300 }),
+  ymClientId: varchar('ym_client_id', { length: 64 }), // clientID Яндекс.Метрики (для сверки отчётов)
+  hasConverted: boolean('has_converted').default(false).notNull(),
+  createdAt: datetime('created_at', { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`)
+}, (table) => ({
+  lastSeenIndex: index('site_visitors_last_seen_idx').on(table.lastSeenAt),
+  firstChannelIndex: index('site_visitors_first_channel_idx').on(table.firstChannel, table.firstSeenAt)
+}))
+
+// Визит (сессия): новый визит начинается после 30 минут без активности
+export const siteVisitorSessions = mysqlTable('site_visitor_sessions', {
+  id: varchar('id', { length: 32 }).primaryKey(),
+  visitorId: varchar('visitor_id', { length: 64 }).notNull(),
+  visitNumber: int('visit_number').default(1).notNull(),
+  startedAt: datetime('started_at', { mode: 'string' }).notNull(),
+  lastActivityAt: datetime('last_activity_at', { mode: 'string' }).notNull(),
+  endedAt: datetime('ended_at', { mode: 'string' }),
+  activeSeconds: int('active_seconds').default(0).notNull(), // время в видимой вкладке
+  pagesCount: int('pages_count').default(0).notNull(),
+  eventsCount: int('events_count').default(0).notNull(),
+  isBounce: boolean('is_bounce').default(false).notNull(),
+  converted: boolean('converted').default(false).notNull(),
+  landingPath: varchar('landing_path', { length: 300 }),
+  exitPath: varchar('exit_path', { length: 300 }),
+  referrerHost: varchar('referrer_host', { length: 255 }),
+  referrerType: varchar('referrer_type', {
+    length: 20,
+    enum: ['direct', 'search', 'social', 'referral']
+  }).default('direct').notNull(),
+  channel: varchar('channel', { length: 30 }).default('direct').notNull(),
+  utmSource: varchar('utm_source', { length: 100 }),
+  utmMedium: varchar('utm_medium', { length: 100 }),
+  utmCampaign: varchar('utm_campaign', { length: 255 }),
+  utmTerm: varchar('utm_term', { length: 255 }),
+  utmContent: varchar('utm_content', { length: 255 }),
+  yclid: varchar('yclid', { length: 100 }),
+  gclid: varchar('gclid', { length: 150 }),
+  ipHash: varchar('ip_hash', { length: 64 }),
+  country: varchar('country', { length: 60 }),
+  region: varchar('region', { length: 100 }),
+  city: varchar('city', { length: 100 }),
+  deviceType: varchar('device_type', { length: 20 }).default('unknown').notNull(),
+  os: varchar('os', { length: 30 }),
+  browser: varchar('browser', { length: 40 }),
+  screenW: int('screen_w'),
+  screenH: int('screen_h'),
+  viewportW: int('viewport_w'),
+  viewportH: int('viewport_h'),
+  language: varchar('language', { length: 20 }),
+  timezone: varchar('timezone', { length: 64 })
+}, (table) => ({
+  visitorStartedIndex: index('svs_visitor_started_idx').on(table.visitorId, table.startedAt),
+  startedIndex: index('svs_started_idx').on(table.startedAt),
+  channelStartedIndex: index('svs_channel_started_idx').on(table.channel, table.startedAt),
+  campaignIndex: index('svs_utm_campaign_idx').on(table.utmCampaign, table.startedAt),
+  landingIndex: index('svs_landing_idx').on(table.landingPath, table.startedAt)
+}))
+
+// Просмотр страницы внутри визита
+export const siteVisitorPageviews = mysqlTable('site_visitor_pageviews', {
+  id: serial('id').primaryKey(),
+  sessionId: varchar('session_id', { length: 32 }).notNull(),
+  visitorId: varchar('visitor_id', { length: 64 }).notNull(),
+  path: varchar('path', { length: 300 }).notNull(),
+  enteredAt: datetime('entered_at', { mode: 'string' }).notNull(),
+  durationSec: int('duration_sec').default(0).notNull(), // активное время на странице
+  maxScrollPct: int('max_scroll_pct').default(0).notNull()
+}, (table) => ({
+  sessionIndex: index('svp_session_idx').on(table.sessionId, table.enteredAt),
+  pathEnteredIndex: index('svp_path_entered_idx').on(table.path, table.enteredAt),
+  enteredIndex: index('svp_entered_idx').on(table.enteredAt)
+}))
+
+// Конверсионные и прочие события (клик по телефону, мессенджеру, отправка формы…)
+export const siteVisitorEvents = mysqlTable('site_visitor_events', {
+  id: serial('id').primaryKey(),
+  sessionId: varchar('session_id', { length: 32 }).notNull(),
+  visitorId: varchar('visitor_id', { length: 64 }).notNull(),
+  type: varchar('type', { length: 40 }).notNull(),
+  path: varchar('path', { length: 300 }),
+  meta: json('meta').$type<Record<string, string | number | boolean | null>>(),
+  createdAt: datetime('created_at', { mode: 'string' }).notNull()
+}, (table) => ({
+  sessionIndex: index('sve_session_idx').on(table.sessionId),
+  typeCreatedIndex: index('sve_type_created_idx').on(table.type, table.createdAt),
+  visitorIndex: index('sve_visitor_idx').on(table.visitorId, table.createdAt)
+}))
+

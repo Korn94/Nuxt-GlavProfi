@@ -35,6 +35,7 @@
 
 <script setup>
 import { ref } from 'vue'
+import { trackVisitorEvent } from '~/composables/useVisitorTracker'
 
 const showModal = ref(false)
 
@@ -46,7 +47,9 @@ const isMobileDevice = () => {
 // Обработка клика по кнопке
 const handleButtonClick = () => {
   if (isMobileDevice()) {
-    window.location.href = "tel:+79109096947"
+    const href = "tel:+79109096947"
+    trackVisitorEvent('click_phone', { href })
+    window.location.href = href
   } else {
     openModal()
   }

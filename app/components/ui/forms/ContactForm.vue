@@ -21,10 +21,15 @@
 </template>
 
 <script>
+import { trackVisitorEvent } from '~/composables/useVisitorTracker'
+
 export default {
   props: {
     // Источник заявки (отображается в сообщении для Telegram/email)
     source: { type: String, default: '' },
+  },
+  mounted() {
+    trackVisitorEvent('form_open', { source: this.source || '' })
   },
   methods: {
     closeModal(event) {

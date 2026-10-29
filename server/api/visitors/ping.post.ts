@@ -1,24 +1,42 @@
 /**
  * 📍 Эндпоинт: POST /api/visitors/ping
  *
- * Назначение:
- * - Публичный «пинг» от браузера посетителя сайта (анонимного, без авторизации).
- * - Фиксирует/обновляет запись в in-memory реестре (server/utils/visitorRegistry.ts).
- * - Данные НЕ пишутся в БД (пока). Реестр хранит всё необходимое для будущей
- *   аналитики, поэтому позже сюда достаточно добавить persist.
+ * Публичный «пинг» от браузера посетителя сайта (без авторизации).
+ * Обновляет визит в in-memory реестре (server/utils/visitorRegistry.ts); оттуда
+ * данные раз в минуту сбрасываются в БД (server/plugins/visitor-flush.ts).
  *
- * Публичный доступ: путь добавлен в PUBLIC_PATHS (server/middleware/auth.ts),
- * т.к. у посетителя нет JWT.
+ * Защита: формат visitorId, rate limit по IP, лимит новых посетителей с IP,
+ * фильтр ботов, исключение /cabinet и своих IP (VISITOR_EXCLUDE_IPS).
  *
- * Тело запроса (все поля необязательны, кроме visitorId по смыслу):
- *   { visitorId?: string, path?: string, referrer?: string, leave?: boolean }
+ * Публичный доступ: путь добавлен в PUBLIC_PATHS (server/middleware/auth.ts).
  *
- * Ответ: { success: true, visitorId: string | null, total: number }
+ * Тело запроса:
+ *   {
+ *     visitorId, tabId, path, referrer,
+ *     visible, idle,                    // вкладка видима / нет действий пользователя
+ *     activeSec, scroll,                // активные секунды с прошлого пинга, глубина скролла %
+ *     prevPath, prevScroll,             // при смене страницы: откуда ушли
+ *     screenW, screenH, viewportW, viewportH, language, timezone, ymClientId,
+ *     leave                             // закрытие вкладки (sendBeacon)
+ *   }
+ *
+ * Ответ: { success: true, visitorId, total, ignored? }
  */
 
 import { defineEventHandler, readBody, createError } from 'h3'
 import { getRequestIp } from '../../utils/requestIp'
-import { touchVisitor, removeVisitor, getVisitorsCount } from '../../utils/visitorRegistry'
+import { getRequestGeo } from '../../utils/requestGeo'
+import { isBotUserAgent } from '../../utils/userAgent'
+import {
+  getOwnHosts,
+  isExcludedIp,
+  isExcludedPath,
+  isNewVisitorFlood,
+  isRateLimited,
+  resolveVisitorId
+} from '../../utils/visitorGuard'
+import { hasVisitorRecord, leaveVisitor, touchVisitor, getVisitorsCount } from '../../utils/visitorRegistry'
+import { getVisitorHistory } from '../../utils/visitorStorage'
 import { scheduleVisitorsBroadcast } from '../../utils/visitor-broadcast'
 
 export default defineEventHandler(async (event) => {
@@ -29,40 +47,80 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 405, statusMessage: 'Method Not Allowed' })
   }
 
-  const body = (await readBody(event).catch(() => null)) as {
-    visitorId?: string
-    path?: string
-    referrer?: string
-    leave?: boolean
-  } | null
-
-  const visitorId = body?.visitorId
-
-  // 🚪 Явный «уход» посетителя (закрытие вкладки / переход на другую вкладку через beacon)
-  if (body?.leave) {
-    const removed = removeVisitor(visitorId)
-    if (removed) scheduleVisitorsBroadcast()
-    return { success: true, visitorId: visitorId || null, total: getVisitorsCount() }
+  const ipAddress = getRequestIp(event)
+  if (isRateLimited('ping', ipAddress)) {
+    throw createError({ statusCode: 429, statusMessage: 'Too Many Requests' })
   }
 
-  const ipAddress = getRequestIp(event)
+  const body = (await readBody(event).catch(() => null)) as Record<string, unknown> | null
+  const visitorId = resolveVisitorId(body?.visitorId)
+  if (!body || !visitorId) {
+    return { success: true, visitorId: null, total: getVisitorsCount(), ignored: 'invalid' }
+  }
+
   const userAgent = event.headers.get('user-agent') || ''
-  const referrer = body?.referrer || event.headers.get('referer') || ''
+
+  // 🤖 Боты, внутренние страницы и свои IP в аналитику не попадают
+  if (isBotUserAgent(userAgent)) {
+    return { success: true, visitorId, total: getVisitorsCount(), ignored: 'bot' }
+  }
+  if (isExcludedIp(ipAddress) || isExcludedPath(body.path)) {
+    return { success: true, visitorId, total: getVisitorsCount(), ignored: 'excluded' }
+  }
+
+  // 🚪 Закрытие вкладки: визит не завершаем (перезагрузка/возврат продолжат его),
+  // просто снимаем вкладку и учитываем последние секунды/скролл
+  if (body.leave) {
+    const changed = leaveVisitor({
+      visitorId,
+      tabId: body.tabId,
+      activeSec: body.activeSec,
+      scroll: body.scroll
+    })
+    if (changed) scheduleVisitorsBroadcast()
+    return { success: true, visitorId, total: getVisitorsCount() }
+  }
+
+  // Посетителя нет в памяти — это новый ID (лимит с IP) либо возврат после рестарта/простоя
+  let history = null
+  if (!hasVisitorRecord(visitorId)) {
+    if (isNewVisitorFlood(ipAddress)) {
+      throw createError({ statusCode: 429, statusMessage: 'Too Many Requests' })
+    }
+    history = await getVisitorHistory(visitorId)
+  }
 
   const record = touchVisitor({
     visitorId,
+    tabId: body.tabId,
     ipAddress,
     userAgent,
-    path: body?.path,
-    referrer
+    path: body.path,
+    referrer: body.referrer,
+    visible: body.visible,
+    idle: body.idle,
+    activeSec: body.activeSec,
+    scroll: body.scroll,
+    prevPath: body.prevPath,
+    prevScroll: body.prevScroll,
+    screenW: body.screenW,
+    screenH: body.screenH,
+    viewportW: body.viewportW,
+    viewportH: body.viewportH,
+    language: body.language,
+    timezone: body.timezone,
+    ymClientId: body.ymClientId,
+    geo: getRequestGeo(event),
+    ownHosts: getOwnHosts(event),
+    history
   })
 
-  // ✅ Мгновенно оповещаем зрителей онлайна (debounced внутри)
+  // ✅ Оповещаем зрителей онлайна (debounced внутри)
   scheduleVisitorsBroadcast()
 
   return {
     success: true,
-    visitorId: record?.id || (visitorId || null),
+    visitorId: record?.id || visitorId,
     total: getVisitorsCount()
   }
 })

@@ -75,6 +75,8 @@ const PUBLIC_PATHS = [
   // ⚠️ Проверка публичных путей идёт РАНЬШЕ требований PROTECTED_PATHS, поэтому
   // требование users:view у '/api/visitors' (ниже) не блокирует пинг по префиксу.
   '/api/visitors/ping',
+  // События посетителя (клик по телефону и т. п.) — тоже без JWT
+  '/api/visitors/event',
 
   '/api/_nuxt_icon',
   '/api/_nuxt_icon/**',

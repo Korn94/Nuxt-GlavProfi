@@ -127,6 +127,7 @@
 import { ref } from 'vue'
 import { useNotifications } from '~/composables/useNotifications'
 import { copyToClipboard } from '~/utils/clipboard'
+import { trackVisitorEvent } from '~/composables/useVisitorTracker'
 
 // Данные
 const currentYear = new Date().getFullYear()
@@ -156,6 +157,7 @@ function handlePhoneClick(phoneNumber) {
   if (/Mobi|Android/i.test(navigator.userAgent)) {
     window.location.href = `tel:${phoneNumber.replace(/\D/g, '')}`
   } else {
+    trackVisitorEvent('copy_phone', { source: 'footer' })
     copyToClipboardLocal(phoneNumber, 'Телефон скопирован')
   }
 }

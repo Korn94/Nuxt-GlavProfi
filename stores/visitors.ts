@@ -13,7 +13,7 @@
 
 import { defineStore } from 'pinia'
 import { socketService } from 'services/socket.service'
-import type { Visitor, VisitorsResponse } from '~/types'
+import type { Visitor, VisitorsResponse, VisitorStatsResponse } from '~/types'
 import { useApi } from '~/composables/useApi'
 
 /**
@@ -22,6 +22,14 @@ import { useApi } from '~/composables/useApi'
 interface VisitorsState {
   /** Список посетителей сайта */
   visitors: Visitor[]
+  /** Сводная аналитика из БД (источники, страницы, обращения, визиты) */
+  stats: VisitorStatsResponse | null
+  /** Период статистики, дней */
+  statsDays: number
+  /** Флаг загрузки статистики */
+  isStatsLoading: boolean
+  /** Ошибка загрузки статистики */
+  statsError: string | null
   /** Флаг загрузки данных */
   isLoading: boolean
   /** Сообщение об ошибке */
@@ -45,6 +53,10 @@ export const useVisitorsStore = defineStore('visitors', {
   // ============================================
   state: (): VisitorsState => ({
     visitors: [],
+    stats: null,
+    statsDays: 30,
+    isStatsLoading: false,
+    statsError: null,
     isLoading: false,
     error: null,
     isSubscribed: false,
@@ -126,6 +138,27 @@ export const useVisitorsStore = defineStore('visitors', {
     },
 
     /**
+     * Загрузка сводной аналитики из БД (таблицы под блоком «Посетители сайта»)
+     */
+    async fetchStats(days?: number) {
+      this.isStatsLoading = true
+      this.statsError = null
+      if (days) this.statsDays = days
+
+      try {
+        const api = useApi()
+        this.stats = await api.get<VisitorStatsResponse>(`/api/visitors/stats?days=${this.statsDays}`)
+        return this.stats
+      } catch (error: any) {
+        console.error('[VisitorsStore] ❌ Ошибка загрузки аналитики:', error)
+        this.statsError = error.data?.message || error.statusMessage || 'Не удалось загрузить аналитику'
+        throw error
+      } finally {
+        this.isStatsLoading = false
+      }
+    },
+
+    /**
      * Обновление списка посетителей (вызывается из socket-событий)
      */
     updateVisitors(visitors: Visitor[]) {
@@ -190,6 +223,8 @@ export const useVisitorsStore = defineStore('visitors', {
      */
     clear() {
       this.visitors = []
+      this.stats = null
+      this.statsError = null
       this.error = null
       this.isSubscribed = false
       this.isInitialized = false

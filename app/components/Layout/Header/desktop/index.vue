@@ -105,6 +105,7 @@
 import { useRoute, useRouter } from "vue-router";
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { copyToClipboard } from "~/utils/clipboard";
+import { trackVisitorEvent } from "~/composables/useVisitorTracker";
 
 const route = useRoute();
 const router = useRouter();
@@ -159,6 +160,7 @@ const navigateTo = (path) => {
 // Копирование номера телефона
 const copyPhoneNumber = () => {
   const phoneNumber = "+79109096947";
+  trackVisitorEvent('copy_phone', { source: 'header' })
   copyToClipboard(phoneNumber);
 };
 

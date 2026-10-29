@@ -122,6 +122,7 @@
 
 <script setup lang="ts">
 import { reactive, ref, computed } from 'vue'
+import { trackVisitorEvent } from '~/composables/useVisitorTracker'
 
 type FormStatus = 'idle' | 'submitting' | 'success' | 'error'
 
@@ -288,6 +289,7 @@ const buildComment = (): string => {
 
 // === Отправка ===
 const submitForm = async () => {
+  trackVisitorEvent('cta_click', { label: 'Рассчитать стоимость' })
   validatePhone()
   if (errors.phone) return
 

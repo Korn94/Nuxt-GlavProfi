@@ -1,7 +1,10 @@
 // server/api/send-message/index.post.ts
-import { defineEventHandler, readBody, readMultipartFormData, createError } from 'h3'
+import { defineEventHandler, readBody, readMultipartFormData, createError, getCookie } from 'h3'
 import nodemailer from 'nodemailer'
 import TelegramBot from 'node-telegram-bot-api'
+import { resolveVisitorId } from '../../utils/visitorGuard'
+import { getVisitorContext, recordVisitorEvent } from '../../utils/visitorRegistry'
+import { scheduleVisitorsBroadcast } from '../../utils/visitor-broadcast'
 
 interface ParsedFields {
   message?: string
@@ -9,6 +12,34 @@ interface ParsedFields {
   phone?: string
   comment?: string
   source?: string
+  visitorId?: string
+}
+
+/** Экранирование для Telegram (parse_mode: HTML) и HTML-письма */
+function escapeHtml(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+/**
+ * Блок «Источник визита» для заявки: откуда пришёл, сколько страниц смотрел,
+ * какой по счёту визит. Пустая строка, если посетитель неизвестен.
+ */
+function buildVisitContext(visitorId: string | null): { text: string; html: string } {
+  const ctx = getVisitorContext(visitorId)
+  if (!ctx) return { text: '', html: '' }
+
+  const parts = [
+    `Канал: ${ctx.channelLabel}`,
+    ctx.utmCampaign ? `Кампания: ${ctx.utmCampaign}` : '',
+    ctx.referrerHost ? `Реферер: ${ctx.referrerHost}` : '',
+    `Визит №${ctx.visitNumber}`,
+    `Страниц: ${ctx.pagesCount}`,
+    `Вход: ${ctx.landingPath}`,
+    `На сайте: ${Math.round(ctx.activeSeconds / 60) || '<1'} мин`
+  ].filter(Boolean)
+
+  const text = `\n\n📊 ${parts.join(' · ')}`
+  return { text: escapeHtml(text), html: escapeHtml(parts.join(' · ')) }
 }
 
 interface ParsedFile {
@@ -59,11 +90,25 @@ export default defineEventHandler(async (event) => {
       fields = body || {}
     }
 
-    const { message, name, phone, comment } = fields
+    const { message: rawMessage, name, phone, comment } = fields
 
-    if (!message) {
+    if (!rawMessage) {
       throw createError({ statusCode: 400, statusMessage: 'Message is required' })
     }
+
+    // 📊 Связь заявки с визитом: visitor_id приходит в cookie (уходит с каждым запросом)
+    // либо явным полем visitorId. Фиксируем событие form_submit и дописываем источник в заявку.
+    const visitorId = resolveVisitorId(fields.visitorId) || resolveVisitorId(getCookie(event, 'visitor_id'))
+    const visitContext = buildVisitContext(visitorId)
+    if (visitorId) {
+      const recorded = recordVisitorEvent({
+        visitorId,
+        type: 'form_submit',
+        meta: { source: fields.source || null }
+      })
+      if (recorded) scheduleVisitorsBroadcast()
+    }
+    const message = `${rawMessage}${visitContext.text}`
 
     const config = useRuntimeConfig()
 
@@ -171,6 +216,10 @@ export default defineEventHandler(async (event) => {
                   ${comment || '-'}
                 </td>
               </tr>
+              ${visitContext.html ? `<tr>
+                <td style="padding:8px;background:#f9f9f9;font-weight:bold;vertical-align:top">Источник визита:</td>
+                <td style="padding:8px;font-size:13px">${visitContext.html}</td>
+              </tr>` : ''}
               ${filesHtmlRow}
             </table>
           </div>`,
