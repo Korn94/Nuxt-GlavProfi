@@ -27,6 +27,11 @@
           <span class="pill__label">Вышли</span>
           <span class="pill__value">{{ offlineCount }}</span>
         </div>
+        <div class="pill pill--info">
+          <span class="pill__dot" />
+          <span class="pill__label">Посетители сайта</span>
+          <span class="pill__value">{{ visitors.length }}</span>
+        </div>
       </div>
 
       <div v-if="onlineStore.isLoading" class="online-state">
@@ -132,6 +137,96 @@
           </div>
         </div>
       </div>
+
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <!-- 👥 ПОСЕТИТЕЛИ САЙТА (анонимные, in-memory реестр, без БД)    -->
+      <!-- Данные: GET /api/visitors + socket 'visitors:update'         -->
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <div v-if="visitorsStore.isLoading && !visitors.length" class="online-state">
+        <Icon name="mdi:loading" size="32" class="spin" />
+        <span>Загрузка посетителей...</span>
+      </div>
+
+      <div v-else-if="visitorsStore.error && !visitors.length" class="online-state online-state--error">
+        <Icon name="mdi:alert-circle-outline" size="32" />
+        <span>{{ visitorsStore.error }}</span>
+      </div>
+
+      <div v-else-if="!visitors.length" class="online-state">
+        <Icon name="mdi:account-search-outline" size="40" />
+        <span>Нет посетителей на сайте</span>
+        <span class="online-state__hint">Анонимные посетители публичных страниц появятся здесь</span>
+      </div>
+
+      <div v-else class="online-card">
+        <div class="online-card__header">
+          <span class="online-card__title">
+            <Icon name="mdi:web" size="14" />
+            Посетители сайта
+            <span class="badge">{{ visitors.length }}</span>
+          </span>
+          <div class="online-card__actions">
+            <span class="online-card__hint">на сайте: <b>{{ visitorsOnlineCount }}</b></span>
+          </div>
+        </div>
+
+        <div class="online-list">
+          <div
+            v-for="visitor in visitors"
+            :key="`${visitor.id}-${visitor.lastActivity}`"
+            class="online-user online-user--visitor"
+            :class="{ 'online-user--idle': visitor.status === 'idle' }"
+          >
+            <div
+              :class="['online-user__dot', `online-user__dot--${visitor.status === 'online' ? 'online' : 'afk'}`]"
+              :title="visitor.status === 'online' ? 'На сайте' : 'Простой'"
+            />
+
+            <!-- Иконка устройства -->
+            <span class="online-user__device" :title="deviceLabels[visitor.deviceType]">
+              <Icon v-if="visitor.deviceType === 'mobile'" name="mdi:cellphone" size="14" />
+              <Icon v-else-if="visitor.deviceType === 'desktop'" name="mdi:monitor" size="14" />
+              <Icon v-else name="mdi:devices" size="14" />
+            </span>
+
+            <div class="online-user__info">
+              <div class="online-user__row">
+                <span class="online-user__name">Гость</span>
+                <span class="role-badge role-badge--visitor">Посетитель</span>
+              </div>
+
+              <div class="online-user__path" :title="visitor.activePath || ''">
+                <span class="kv__k">Страница:</span>
+                <Icon :name="getPageIcon(visitor.activePath)" size="12" />
+                <span class="kv__v kv__v--truncate-wide">{{ formatPath(visitor.activePath) }}</span>
+              </div>
+
+              <div class="online-user__meta" v-if="showDetails">
+                <span class="kv__k">На сайте:</span>
+                <span class="kv__v">{{ getDuration(visitor.startedAt) }}</span>
+                <span class="kv__k">Активность:</span>
+                <span :class="['kv__v', { 'kv__v--warn': visitor.status === 'idle' }]">
+                  {{ formatTimeAgo(visitor.lastActivity) }}
+                </span>
+              </div>
+
+              <div class="online-user__path" v-if="showDetails && visitor.referrer" :title="visitor.referrer">
+                <span class="kv__k">Источник:</span>
+                <Icon name="mdi:link-variant" size="12" />
+                <span class="kv__v kv__v--truncate-wide">{{ formatReferrer(visitor.referrer) }}</span>
+              </div>
+            </div>
+
+            <div class="online-user__ip kv__v" v-if="showDetails" :title="visitor.ipAddress || ''">
+              {{ formatIp(visitor.ipAddress) }}
+            </div>
+
+            <span :class="['online-user__status', `online-user__status--${visitor.status === 'online' ? 'online' : 'afk'}`]">
+              {{ visitor.status === 'online' ? 'на сайте' : 'простой' }}
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -140,9 +235,10 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useOnlineStore } from '../../../stores/online'
+import { useVisitorsStore } from '../../../stores/visitors'
 import { useAuthStore } from '../../../stores/auth'
 import { socketService } from 'services/socket.service'
-import type { OnlineUser } from '~/types'
+import type { OnlineUser, Visitor } from '~/types'
 
 definePageMeta({
   layout: 'cabinet',
@@ -150,9 +246,11 @@ definePageMeta({
 })
 
 const onlineStore = useOnlineStore()
+const visitorsStore = useVisitorsStore()
 const authStore = useAuthStore()
 
 const { users: onlineUsersRaw } = storeToRefs(onlineStore)
+const { visitors: visitorsRaw } = storeToRefs(visitorsStore)
 
 const showDetails = ref(true)
 const currentTime = ref(Date.now())
@@ -194,6 +292,10 @@ const allUsers = computed<OnlineUser[]>(() => {
 const activeCount  = computed(() => allUsers.value.filter(u => u.status === 'online').length)
 const afkCount     = computed(() => allUsers.value.filter(u => u.status === 'afk').length)
 const offlineCount = computed(() => allUsers.value.filter(u => u.status === 'offline').length)
+
+// 👥 Посетители сайта (анонимные) — данные сервер отдаёт уже отсортированными
+const visitors = computed<Visitor[]>(() => visitorsRaw.value || [])
+const visitorsOnlineCount = computed(() => visitors.value.filter(v => v.status === 'online').length)
 
 function formatTimeAgo(dateStr: string | null | undefined): string {
   if (!dateStr) return 'не заходил'
@@ -318,14 +420,34 @@ function formatIp(ip: string | null | undefined): string {
   return parts.length === 4 ? `${parts[0]}.${parts[1]}.*.*` : ip
 }
 
+/**
+ * Короткий вид источника перехода (Referer) для посетителей:
+ * только host + pathname, без протокола и query.
+ */
+function formatReferrer(url: string | null | undefined): string {
+  if (!url) return '—'
+  try {
+    const parsed = new URL(url)
+    return `${parsed.host}${parsed.pathname !== '/' ? parsed.pathname : ''}`
+  } catch {
+    return url.length > 40 ? url.substring(0, 37) + '…' : url
+  }
+}
+
 async function refreshData() {
   try { await onlineStore.fetchOnlineUsers() }
   catch (e) { console.error('[Онлайн] Ошибка обновления:', e) }
+
+  // 👥 Посетители сайта — отдельный источник (in-memory реестр на сервере, без БД)
+  try { await visitorsStore.fetchVisitors() }
+  catch (e) { console.error('[Онлайн] Ошибка обновления посетителей:', e) }
 }
 
 onMounted(() => {
   refreshData()
   onlineStore.subscribeToUpdates()
+  // Посетители: подписка на socket-событие 'visitors:update'
+  visitorsStore.subscribeToUpdates()
   timeInterval = setInterval(() => { currentTime.value = Date.now() }, 1000)
   fallbackPoller = setInterval(() => {
     if (!socketService.getConnected()) {
@@ -337,6 +459,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   onlineStore.unsubscribeFromUpdates()
+  visitorsStore.unsubscribeFromUpdates()
   if (timeInterval) clearInterval(timeInterval)
   if (fallbackPoller) clearInterval(fallbackPoller)
 })
@@ -383,6 +506,7 @@ useHead({
   &--ok   { .pill__dot { background: var(--crm-success); } .pill__value { color: var(--crm-success); } }
   &--warn { .pill__dot { background: var(--crm-warning); } .pill__value { color: var(--crm-warning); } }
   &--off  { .pill__dot { background: var(--crm-text-disabled); } .pill__value { color: var(--crm-text-muted); } }
+  &--info { .pill__dot { background: var(--crm-info); } .pill__value { color: var(--crm-info); } }
 }
 
 .online-state {
@@ -424,6 +548,11 @@ useHead({
     gap: 6px;
   }
   &__actions { display: flex; gap: 6px; align-items: center; }
+  &__hint {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+    b { color: var(--crm-info); font-family: var(--crm-font-mono); }
+  }
 }
 
 .badge {
@@ -475,6 +604,10 @@ useHead({
   &--offline {
     opacity: 0.5;
     &:hover { opacity: 0.75; }
+  }
+  &--idle {
+    opacity: 0.65;
+    &:hover { opacity: 0.85; }
   }
 
   &__dot {
@@ -566,6 +699,7 @@ useHead({
   &--foreman { background: var(--crm-warning-dim); color: var(--crm-warning); }
   &--master  { background: var(--crm-success-dim); color: var(--crm-success); }
   &--worker  { background: var(--crm-bg-overlay);  color: var(--crm-text-muted); }
+  &--visitor { background: var(--crm-info-dim);    color: var(--crm-info); }
 }
 
 .crm-btn {

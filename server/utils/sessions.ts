@@ -3,28 +3,9 @@ import { db } from '../db'
 import { users, userSessions, objects } from '../db/schema'
 import { eq, and, sql, desc, or, isNull, inArray, isNotNull } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
-
-/**
- * Определение типа устройства по user-agent
- */
-function getDeviceType(userAgent?: string): 'desktop' | 'mobile' | 'unknown' {
-  if (!userAgent) return 'unknown'
-
-  const ua = userAgent.toLowerCase()
-
-  // Мобильные устройства
-  if (/mobile|android|iphone|ipad|ipod|blackberry|iemobile|opera mini|fennec|webos/i.test(ua)) {
-    return 'mobile'
-  }
-
-  // Планшеты (iPad, Android планшеты)
-  if (/tablet|ipad|playbook|silk/i.test(ua)) {
-    return 'mobile'
-  }
-
-  // Десктоп
-  return 'desktop'
-}
+// ✅ getDeviceType вынесен в общий модуль: используется и здесь, и в реестре
+// посетителей сайта (server/utils/visitorRegistry.ts).
+import { getDeviceType } from './userAgent'
 
 // ============================================
 // 🏗️ РЕЗОЛВ НАЗВАНИЙ ОБЪЕКТОВ ИЗ ПУТИ СТРАНИЦЫ

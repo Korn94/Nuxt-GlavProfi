@@ -63,6 +63,30 @@ export interface OnlineUser {
 }
 
 /**
+ * Интерфейс посетителя публичного сайта (анонимного, без авторизации)
+ * Данные приходят из in-memory реестра сервера (без записи в БД)
+ */
+export interface Visitor {
+  id: string                // Устойчивый ID посетителя
+  activePath: string        // Текущий (последний известный) путь страницы
+  referrer: string | null   // Откуда пришёл (Referer)
+  status: 'online' | 'idle' // online — активность < 60 c назад
+  lastActivity: string      // Время последнего пинга (ISO)
+  startedAt: string         // Время первого пинга / начала визита (ISO)
+  ipAddress: string         // IP-адрес
+  userAgent: string         // Сырой User-Agent
+  deviceType: 'desktop' | 'mobile' | 'unknown'  // Тип устройства
+}
+
+/**
+ * Ответ GET /api/visitors
+ */
+export interface VisitorsResponse {
+  visitors: Visitor[]
+  total: number
+}
+
+/**
  * Интерфейс сессии пользователя
  */
 export interface UserSession {

@@ -70,6 +70,12 @@ const PUBLIC_PATHS = [
   '/api/portfolio/**',
 
   '/api/send-message',
+
+  // 👥 Посетители сайта: анонимный «пинг» (POST /api/visitors/ping) доступен без JWT.
+  // ⚠️ Проверка публичных путей идёт РАНЬШЕ требований PROTECTED_PATHS, поэтому
+  // требование users:view у '/api/visitors' (ниже) не блокирует пинг по префиксу.
+  '/api/visitors/ping',
+
   '/api/_nuxt_icon',
   '/api/_nuxt_icon/**',
   '/api/**/*.map',
@@ -300,6 +306,10 @@ const PROTECTED_PATHS: Record<string, PathRequirement | PathRequirement[]> = {
   // 🟢 ОНЛАЙН (online)
   // ═══════════════════════════════════════════════════════════════
   '/api/online': { type: 'page', value: 'users', action: 'view' },
+
+  // 👥 Посетители публичного сайта (список) — та же аудитория, что у списка онлайна.
+  // (POST /api/visitors/ping остаётся публичным — см. PUBLIC_PATHS).
+  '/api/visitors': { type: 'page', value: 'users', action: 'view' },
 
   // ═══════════════════════════════════════════════════════════════
   // 🧪 ТЕСТ / ПАРСИНГ РЕЕСТРА РГР (reestr.rgr.ru)

@@ -12,6 +12,7 @@
 // Импортируем конфигурацию мета
 import { siteMeta, metaTags, linkTags, scriptTags } from '~/config/meta.config';
 import { useActivityTracker } from '~/composables/useActivityTracker';
+import { useVisitorTracker } from '~/composables/useVisitorTracker';
 
 // ============================================
 // ✅ ГЛОБАЛЬНЫЙ ТРЕКИНГ АКТИВНОСТИ / AFK
@@ -24,6 +25,9 @@ import { useActivityTracker } from '~/composables/useActivityTracker';
 // Только клиент: на SSR слушателей/таймеров быть не должно (app.vue выполняется и на сервере).
 if (process.client) {
   useActivityTracker();
+  // ✅ Трекинг посетителей публичного сайта (анонимных) — для карточки
+  // «Посетители сайта» на /cabinet/online. Авторизованных пропускает сам трекер.
+  useVisitorTracker();
 }
 
 const route = useRoute();
