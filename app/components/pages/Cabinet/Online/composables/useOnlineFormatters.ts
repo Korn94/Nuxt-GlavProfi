@@ -63,6 +63,16 @@ function formatSeconds(sec: number | null | undefined): string {
   return m < 60 ? `${m}м ${s % 60}с` : `${Math.floor(m / 60)}ч ${m % 60}м`
 }
 
+/** 1254 → «1 254» (разряды) */
+function formatNumber(n: number | null | undefined): string {
+  return Number(n || 0).toLocaleString('ru-RU')
+}
+
+/** 12.5 → «12,5%» */
+function formatPercent(n: number | null | undefined): string {
+  return `${Number(n || 0).toLocaleString('ru-RU', { maximumFractionDigits: 1 })}%`
+}
+
 function formatTimeAgo(dateStr: string | null | undefined): string {
   if (!dateStr) return 'не заходил'
   const diff = currentTime.value - new Date(dateStr).getTime()
@@ -195,6 +205,8 @@ export function useOnlineFormatters() {
     deviceLabels,
     eventLabel,
     formatSeconds,
+    formatNumber,
+    formatPercent,
     formatTimeAgo,
     formatFullDateTime,
     getDuration,

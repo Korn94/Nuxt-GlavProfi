@@ -35,7 +35,7 @@ export default defineApi(async (event) => {
   const pv = siteVisitorPageviews
   const ev = siteVisitorEvents
 
-  const [channelRows, pageRows, exitRows, eventTypeRows, conversionRows, visitRows] = await Promise.all([
+  const [channelRows, pageRows, exitRows, eventTypeRows, conversionRows, visitRows, dailyRows, totalsRows] = await Promise.all([
     db.select({
       channel: s.channel,
       visits: sql<number>`COUNT(*)`,
@@ -99,14 +99,49 @@ export default defineApi(async (event) => {
       deviceType: s.deviceType,
       browser: s.browser,
       city: s.city
-    }).from(s).where(gte(s.startedAt, border)).orderBy(desc(s.startedAt)).limit(40)
+    }).from(s).where(gte(s.startedAt, border)).orderBy(desc(s.startedAt)).limit(40),
+
+    db.select({
+      day: sql<string>`DATE(${s.startedAt})`,
+      visits: sql<number>`COUNT(*)`,
+      visitors: sql<number>`COUNT(DISTINCT ${s.visitorId})`,
+      conversions: sql<number>`COALESCE(SUM(${s.converted}), 0)`
+    }).from(s).where(gte(s.startedAt, border)).groupBy(sql`DATE(${s.startedAt})`).orderBy(sql`DATE(${s.startedAt})`),
+
+    db.select({
+      visits: sql<number>`COUNT(*)`,
+      visitors: sql<number>`COUNT(DISTINCT ${s.visitorId})`,
+      conversions: sql<number>`COALESCE(SUM(${s.converted}), 0)`,
+      bounces: sql<number>`COALESCE(SUM(${s.isBounce}), 0)`,
+      avgSeconds: sql<number>`COALESCE(AVG(${s.activeSeconds}), 0)`,
+      avgPages: sql<number>`COALESCE(AVG(${s.pagesCount}), 0)`
+    }).from(s).where(gte(s.startedAt, border))
   ])
 
   const label = (channel: string) => CHANNEL_LABELS[channel as TrafficChannel] || channel
   const exitsByPath = new Map(exitRows.map(r => [r.path || '', num(r.exits)]))
 
+  const totalsRow = totalsRows?.[0]
+  const totalVisits = num(totalsRow?.visits)
+  const totalConversions = num(totalsRow?.conversions)
+
   return {
     days,
+    totals: {
+      visits: totalVisits,
+      visitors: num(totalsRow?.visitors),
+      conversions: totalConversions,
+      conversionRate: totalVisits ? Math.round((totalConversions / totalVisits) * 1000) / 10 : 0,
+      bounceRate: totalVisits ? Math.round((num(totalsRow?.bounces) / totalVisits) * 1000) / 10 : 0,
+      avgSeconds: Math.round(num(totalsRow?.avgSeconds)),
+      avgPages: Math.round(num(totalsRow?.avgPages) * 10) / 10
+    },
+    daily: dailyRows.map(r => ({
+      day: r.day,
+      visits: num(r.visits),
+      visitors: num(r.visitors),
+      conversions: num(r.conversions)
+    })),
     channels: channelRows.map((r) => {
       const visits = num(r.visits)
       const conversions = num(r.conversions)

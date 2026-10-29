@@ -163,9 +163,30 @@ export interface VisitorVisit {
   city: string | null
 }
 
+/** Динамика по дням (точка временной серии для графика) */
+export interface VisitorDailyStat {
+  day: string          // 'YYYY-MM-DD'
+  visits: number
+  visitors: number
+  conversions: number
+}
+
+/** Сводные показатели за выбранный период */
+export interface VisitorTotals {
+  visits: number
+  visitors: number
+  conversions: number
+  conversionRate: number   // % визитов с обращением
+  bounceRate: number       // % отказов
+  avgSeconds: number
+  avgPages: number
+}
+
 /** Ответ GET /api/visitors/stats */
 export interface VisitorStatsResponse {
   days: number
+  totals: VisitorTotals
+  daily: VisitorDailyStat[]
   channels: VisitorChannelStat[]
   pages: VisitorPageStat[]
   eventTypes: Array<{ type: string; total: number }>
