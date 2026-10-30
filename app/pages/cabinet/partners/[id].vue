@@ -113,12 +113,15 @@
         <div class="field-row">
           <label class="field">
             <span>Сумма договора (₽)</span>
-            <input v-model="leadForm.contractAmount" type="number" class="input" />
+            <input v-model="leadForm.contractAmount" type="number" min="0" class="input" />
           </label>
-          <label class="field">
-            <span>Вознаграждение (₽)</span>
-            <input v-model="leadForm.rewardAmount" type="number" class="input" />
-          </label>
+          <div class="reward-preview">
+            <span class="reward-preview__label">Вознаграждение партнёра (по сетке)</span>
+            <span class="reward-preview__value">{{ formatNumber(calculatedReward) }}</span>
+            <span v-if="calculatedCategory" class="reward-preview__category">
+              Категория «{{ calculatedCategory.name }}» · {{ calculatedCategory.range }}
+            </span>
+          </div>
         </div>
         <label class="field">
           <span>Описание</span>
@@ -149,6 +152,8 @@ import {
   PARTNER_LEAD_STATUS_LABELS,
   PARTNER_LEAD_STATUS_COLORS,
   isPartnerLeadStatus,
+  getPartnerReward,
+  getPartnerRewardCategory,
   type PartnerLeadStatus,
 } from 'shared/constants/partners'
 import type { Partner, PartnerLead } from '~/types/partners'
@@ -204,6 +209,27 @@ function formatMoney(value: string | null | undefined): string {
   return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(num) + ' ₽'
 }
 
+function formatNumber(n: number): string {
+  if (!Number.isFinite(n)) return '0 ₽'
+  return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(n) + ' ₽'
+}
+
+const calculatedReward = computed(() => {
+  const raw = leadForm.value.contractAmount
+  if (raw === '' || raw === null || raw === undefined) return 0
+  const num = Number(raw)
+  if (!Number.isFinite(num)) return 0
+  return getPartnerReward(num)
+})
+
+const calculatedCategory = computed(() => {
+  const raw = leadForm.value.contractAmount
+  if (raw === '' || raw === null || raw === undefined) return null
+  const num = Number(raw)
+  if (!Number.isFinite(num)) return null
+  return getPartnerRewardCategory(num)
+})
+
 async function loadPartner() {
   try {
     partner.value = await api.get<Partner>(`/api/partners/${partnerId}`)
@@ -249,7 +275,6 @@ const emptyLeadForm = () => ({
   objectArea: '' as string | number,
   status: 'new' as PartnerLeadStatus,
   contractAmount: '' as string | number,
-  rewardAmount: '' as string | number,
   description: '',
 })
 const leadForm = ref(emptyLeadForm())
@@ -267,7 +292,6 @@ function openLeadModal(lead?: PartnerLead) {
       objectArea: lead.objectArea ?? '',
       status: lead.status,
       contractAmount: lead.contractAmount ?? '',
-      rewardAmount: lead.rewardAmount ?? '',
       description: lead.description || '',
     }
   } else {
@@ -298,7 +322,6 @@ async function saveLead() {
       objectArea: leadForm.value.objectArea === '' ? null : leadForm.value.objectArea,
       status: leadForm.value.status,
       contractAmount: leadForm.value.contractAmount === '' ? null : leadForm.value.contractAmount,
-      rewardAmount: leadForm.value.rewardAmount === '' ? null : leadForm.value.rewardAmount,
       description: leadForm.value.description,
     }
 
@@ -594,6 +617,32 @@ useHead({
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+}
+
+.reward-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: var(--crm-bg-elevated);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-md);
+
+  &__label {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-secondary);
+  }
+
+  &__value {
+    font-size: var(--crm-text-lg);
+    font-weight: 700;
+    color: var(--crm-success);
+  }
+
+  &__category {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+  }
 }
 
 .input {

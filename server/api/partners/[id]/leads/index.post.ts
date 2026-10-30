@@ -1,18 +1,20 @@
 // server/api/partners/[id]/leads/index.post.ts
 /**
  * Создание сделки (лида) партнёра. Номер лида генерируется автоматически (GP-XXXXX).
+ * Вознаграждение партнёра рассчитывается автоматически из суммы договора по
+ * публичной сетке (shared/constants/partners.ts — единый источник правды).
  *
  * @body {
  *   clientName: string, clientPhone: string, objectAddress?: string, objectArea?: number,
- *   description?: string, status?: LeadStatus, contractAmount?: number, rewardAmount?: number
+ *   description?: string, status?: LeadStatus, contractAmount?: number
  * }
  */
 import { defineEventHandler, readBody, createError, getRouterParam } from 'h3'
 import { db } from '../../../../db'
 import { partners, partnerLeads } from '../../../../db/schema'
-import { eq, desc } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { generateLeadNumber } from '../../../../utils/partnerLeads'
-import { isPartnerLeadStatus } from 'shared/constants/partners'
+import { isPartnerLeadStatus, getPartnerReward } from 'shared/constants/partners'
 
 export default defineEventHandler(async (event) => {
   const idParam = getRouterParam(event, 'id')
@@ -42,6 +44,20 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Недопустимый этап сделки' })
   }
 
+  // Сумма договора + авторасчёт вознаграждения по сетке.
+  const contractAmountRaw =
+    body.contractAmount !== undefined && body.contractAmount !== null
+      ? Number(body.contractAmount)
+      : null
+  const contractAmount =
+    contractAmountRaw !== null && Number.isFinite(contractAmountRaw)
+      ? String(contractAmountRaw)
+      : null
+  const rewardAmount =
+    contractAmountRaw !== null && Number.isFinite(contractAmountRaw)
+      ? String(getPartnerReward(contractAmountRaw))
+      : '0.00'
+
   const leadNumber = await generateLeadNumber()
 
   await db.insert(partnerLeads).values({
@@ -53,8 +69,8 @@ export default defineEventHandler(async (event) => {
     objectArea: body.objectArea !== undefined && body.objectArea !== null ? String(body.objectArea) : null,
     description: body.description?.toString()?.trim() || null,
     status,
-    contractAmount: body.contractAmount !== undefined && body.contractAmount !== null ? String(body.contractAmount) : null,
-    rewardAmount: body.rewardAmount !== undefined && body.rewardAmount !== null ? String(body.rewardAmount) : '0.00',
+    contractAmount,
+    rewardAmount,
   })
 
   const [created] = await db

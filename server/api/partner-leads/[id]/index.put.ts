@@ -2,12 +2,13 @@
 /**
  * Обновление сделки (лида): смена этапа, финансов, данных клиента, привязка объекта.
  * Основной способ ручной простановки этапа сделки (админ/менеджер).
+ * При изменении суммы договора вознаграждение пересчитывается автоматически по сетке.
  */
 import { defineEventHandler, readBody, createError, getRouterParam } from 'h3'
 import { db } from '../../../db'
 import { partnerLeads } from '../../../db/schema'
 import { eq } from 'drizzle-orm'
-import { isPartnerLeadStatus } from 'shared/constants/partners'
+import { isPartnerLeadStatus, getPartnerReward } from 'shared/constants/partners'
 
 export default defineEventHandler(async (event) => {
   const idParam = getRouterParam(event, 'id')
@@ -38,9 +39,11 @@ export default defineEventHandler(async (event) => {
     update.objectArea = body.objectArea === null ? null : String(body.objectArea)
   }
   if (body.contractAmount !== undefined) {
-    update.contractAmount = body.contractAmount === null ? null : String(body.contractAmount)
+    const raw = body.contractAmount === null ? null : Number(body.contractAmount)
+    update.contractAmount = raw === null ? null : String(raw)
+    update.rewardAmount = raw !== null && Number.isFinite(raw) ? String(getPartnerReward(raw)) : '0.00'
   }
-  if (body.rewardAmount !== undefined) {
+  if (body.rewardAmount !== undefined && body.contractAmount === undefined) {
     update.rewardAmount = body.rewardAmount === null ? '0.00' : String(body.rewardAmount)
   }
   if (body.objectId !== undefined) {

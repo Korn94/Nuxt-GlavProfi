@@ -30,6 +30,22 @@
         </div>
       </section>
 
+      <!-- Сводка -->
+      <section class="pp-summary">
+        <div class="pp-summary__card">
+          <span class="pp-summary__label">Всего сделок</span>
+          <span class="pp-summary__value">{{ leads.length }}</span>
+        </div>
+        <div class="pp-summary__card">
+          <span class="pp-summary__label">Сумма договоров</span>
+          <span class="pp-summary__value">{{ formatNumber(totalContract) }}</span>
+        </div>
+        <div class="pp-summary__card pp-summary__card--accent">
+          <span class="pp-summary__label">Вознаграждение</span>
+          <span class="pp-summary__value pp-summary__value--accent">{{ formatNumber(totalReward) }}</span>
+        </div>
+      </section>
+
       <!-- Сделки -->
       <section class="pp-leads">
         <h2 class="pp-leads__title">
@@ -87,7 +103,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { navigateTo } from 'nuxt/app'
 import { useAuthStore } from 'stores/auth'
 import { useApi } from '~/composables/useApi'
@@ -135,6 +151,19 @@ function formatMoney(value: string | null | undefined): string {
     maximumFractionDigits: 0,
   }).format(num) + ' ₽'
 }
+
+function formatNumber(n: number): string {
+  if (!Number.isFinite(n)) return '0 ₽'
+  return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(n) + ' ₽'
+}
+
+const totalContract = computed(() =>
+  leads.value.reduce((sum, l) => sum + (Number.parseFloat(l.contractAmount || '0') || 0), 0)
+)
+
+const totalReward = computed(() =>
+  leads.value.reduce((sum, l) => sum + (Number.parseFloat(l.rewardAmount || '0') || 0), 0)
+)
 
 onMounted(async () => {
   if (authStore.isChecking) {
@@ -238,6 +267,42 @@ onMounted(async () => {
       gap: 6px;
       font-size: 14px;
       color: #4b5563;
+    }
+  }
+}
+
+.pp-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+
+  &__card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 16px 18px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+
+    &--accent {
+      border-color: rgba(0, 195, 245, 0.4);
+      background: linear-gradient(180deg, #f0fbff 0%, #ffffff 100%);
+    }
+  }
+
+  &__label {
+    font-size: 13px;
+    color: #6b7280;
+  }
+
+  &__value {
+    font-size: 22px;
+    font-weight: 700;
+    color: #0f1114;
+
+    &--accent {
+      color: #28a745;
     }
   }
 }

@@ -19,7 +19,7 @@
     </header>
 
     <main class="pc-main">
-      <slot />
+      <NuxtPage />
     </main>
   </div>
 </template>

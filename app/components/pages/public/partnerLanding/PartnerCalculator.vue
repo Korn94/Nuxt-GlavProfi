@@ -123,6 +123,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { PARTNER_REWARD_CATEGORIES, getPartnerReward, getPartnerRewardCategoryIndex } from 'shared/constants/partners'
 
 const dealAmount = ref(1500000)
 
@@ -134,39 +135,16 @@ const presets = [
   { label: 'Объект · 8М', value: 8000000 },
 ]
 
-const categoryInfo = [
-  { name: 'Базовая', range: 'до 1 млн ₽' },
-  { name: 'Стандарт', range: '1 – 2 млн ₽' },
-  { name: 'Плюс', range: '2 – 3 млн ₽' },
-  { name: 'Крупная', range: '3 – 5 млн ₽' },
-  { name: 'Максимум', range: 'свыше 5 млн ₽' },
-]
+// Локальный псевдоним для шаблона (прогресс-бар категорий)
+const categoryInfo = PARTNER_REWARD_CATEGORIES
 
 function formatNumber(n: number): string {
   return n.toLocaleString('ru-RU')
 }
 
-function getCategoryIndex(cost: number): number {
-  if (cost < 1000000) return 0
-  if (cost < 2000000) return 1
-  if (cost < 3000000) return 2
-  if (cost < 5000000) return 3
-  return 4
-}
-
-function getReward(cost: number): number {
-  if (cost < 1000000) return 30000
-  if (cost < 2000000) return 40000
-  if (cost < 3000000) return 50000
-  if (cost < 5000000) return 70000
-
-  const millionsAbove5 = Math.floor((cost - 5000000) / 1000000)
-  return 100000 + millionsAbove5 * 15000
-}
-
-const rewardAmount = computed(() => getReward(dealAmount.value))
-const currentCategoryIndex = computed(() => getCategoryIndex(dealAmount.value))
-// ✅ noUncheckedIndexedAccess: индекс 0..4 всегда валиден (см. getCategoryIndex), но тип этого не знает
+const rewardAmount = computed(() => getPartnerReward(dealAmount.value))
+const currentCategoryIndex = computed(() => getPartnerRewardCategoryIndex(dealAmount.value))
+// ✅ noUncheckedIndexedAccess: индекс 0..4 всегда валиден (см. getPartnerRewardCategoryIndex), но тип этого не знает
 const categoryName = computed(() => categoryInfo[currentCategoryIndex.value]?.name ?? '')
 const categoryRange = computed(() => categoryInfo[currentCategoryIndex.value]?.range ?? '')
 </script>
