@@ -9,7 +9,7 @@
 
 import { defineEventHandler, createError, getRouterParam } from 'h3'
 import { db } from '../../../db'
-import { users } from '../../../db/schema'
+import { users, partners } from '../../../db/schema'
 import { eq } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
@@ -22,13 +22,27 @@ export default defineEventHandler(async (event) => {
   if (isNaN(id)) throw createError({ statusCode: 400, message: 'Неверный формат ID' })
 
   try {
-    const [user] = await db.select().from(users).where(eq(users.id, id))
+    const [row] = await db
+      .select({
+        user: users,
+        partnerId: partners.id,
+        partnerCompanyName: partners.companyName,
+        partnerContactPerson: partners.contactPerson,
+      })
+      .from(users)
+      .leftJoin(partners, eq(partners.userId, users.id))
+      .where(eq(users.id, id))
+
+    if (!row) throw createError({ statusCode: 404, message: 'Пользователь не найден' })
     
-    if (!user) throw createError({ statusCode: 404, message: 'Пользователь не найден' })
-    
-    // ✅ Возвращаем безопасные данные (без пароля)
-    const { password, ...safeUser } = user
-    return safeUser
+    // ✅ Возвращаем безопасные данные (без пароля) + привязку к партнёру
+    const { password, ...safeUser } = row.user
+    return {
+      ...safeUser,
+      partnerId: row.partnerId ?? null,
+      partnerCompanyName: row.partnerCompanyName ?? null,
+      partnerContactPerson: row.partnerContactPerson ?? null,
+    }
     
   } catch (error: any) {
     if (error.statusCode) throw error

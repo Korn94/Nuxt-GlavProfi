@@ -130,6 +130,15 @@ const menuItems: MenuItem[] = [
     page: 'contractors'
   },
 
+  // Партнёры — partners
+  {
+    id: 'partners',
+    title: 'Партнёры',
+    path: '/cabinet/partners',
+    icon: 'mdi:handshake-outline',
+    page: 'partners'
+  },
+
   // Подневка — daily-work (самостоятельная страница)
   {
     id: 'daily-work',

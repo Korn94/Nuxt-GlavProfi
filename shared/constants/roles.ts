@@ -18,7 +18,8 @@ export const ROLE_LEVELS = {
   master: 2,    // Мастер — работа на объекте
   foreman: 3,   // Прораб — управление объектом
   manager: 4,   // Менеджер — управление финансами и людьми
-  admin: 5      // Администратор — полный доступ
+  admin: 5,     // Администратор — полный доступ
+  partner: 1    // Партнёр (риелтор/дизайнер) — изолированный кабинет, не участвует в иерархии CRM
 } as const
 
 /**
@@ -78,7 +79,8 @@ export const ROLE_LABELS: Record<Role, string> = {
   master: 'Мастер',
   foreman: 'Прораб',
   manager: 'Менеджер',
-  admin: 'Администратор'
+  admin: 'Администратор',
+  partner: 'Партнёр'
 } as const
 
 /**
@@ -89,5 +91,6 @@ export const ROLE_COLORS: Record<Role, string> = {
   master: '#17a2b8',    // бирюзовый
   foreman: '#ffc107',   // жёлтый
   manager: '#28a745',   // зелёный
-  admin: '#dc3545'      // красный
+  admin: '#dc3545',     // красный
+  partner: '#8e44ad'    // фиолетовый
 } as const

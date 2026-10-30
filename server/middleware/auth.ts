@@ -324,6 +324,32 @@ const PROTECTED_PATHS: Record<string, PathRequirement | PathRequirement[]> = {
   // ═══════════════════════════════════════════════════════════════
   // 🛡️ АДМИН-ПАНЕЛЬ
   // ═══════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════
+  // 🤝 ПАРТНЁРЫ (партнёрская программа: риелторы, дизайнеры)
+  // ═══════════════════════════════════════════════════════════════════
+  // Личный кабинет партнёра (self). Доступ только у роли 'partner'.
+  // Используем ТОЧНЫЙ путь (не /api/partner), чтобы не пересечься с /api/partners.
+  '/api/partner/me': { type: 'custom', value: (user) => user.role === 'partner' },
+
+  // Админ: управление партнёрами
+  '/api/partners': [
+    { type: 'page', value: 'partners', action: 'view', methods: ['GET'] },
+    { type: 'page', value: 'partners', action: 'create', methods: ['POST'] },
+  ],
+  '/api/partners/[id]': [
+    { type: 'page', value: 'partners', action: 'view', methods: ['GET'] },
+    { type: 'page', value: 'partners', action: 'edit', methods: ['PUT'] },
+    { type: 'page', value: 'partners', action: 'delete', methods: ['DELETE'] },
+  ],
+
+  // Админ: управление сделками (лидами)
+  // (GET/POST /api/partners/[id]/leads покрываются префиксом /api/partners выше)
+  '/api/partner-leads/[id]': [
+    { type: 'page', value: 'partners', action: 'view', methods: ['GET'] },
+    { type: 'page', value: 'partners', action: 'edit', methods: ['PUT'] },
+    { type: 'page', value: 'partners', action: 'delete', methods: ['DELETE'] },
+  ],
+
   '/api/admin/**': { type: 'role', value: 'manager' },
 }
 

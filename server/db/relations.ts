@@ -10,6 +10,8 @@ import {
   masters,
   workers,
   foremans,
+  partners,
+  partnerLeads,
 } from './schema'
 
 export const usersRelations = relations(users, ({ many }) => ({
@@ -57,5 +59,24 @@ export const foremansRelations = relations(foremans, ({ one }) => ({
   user: one(users, {
     fields: [foremans.userId],
     references: [users.id],
+  }),
+}))
+
+export const partnersRelations = relations(partners, ({ one, many }) => ({
+  user: one(users, {
+    fields: [partners.userId],
+    references: [users.id],
+  }),
+  leads: many(partnerLeads),
+}))
+
+export const partnerLeadsRelations = relations(partnerLeads, ({ one }) => ({
+  partner: one(partners, {
+    fields: [partnerLeads.partnerId],
+    references: [partners.id],
+  }),
+  object: one(objects, {
+    fields: [partnerLeads.objectId],
+    references: [objects.id],
   }),
 }))

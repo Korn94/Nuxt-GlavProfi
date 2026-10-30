@@ -7,10 +7,14 @@ export interface User {
   id: number
   login: string
   name: string
-  role: 'admin' | 'manager' | 'foreman' | 'master' | 'worker'
+  role: 'admin' | 'manager' | 'foreman' | 'master' | 'worker' | 'partner'
   telegramId?: number | null
   createdAt?: string
   updatedAt?: string
+  // Привязка к профилю партнёра (приходит из API users)
+  partnerId?: number | null
+  partnerCompanyName?: string | null
+  partnerContactPerson?: string | null
 }
 
 export const useUsersStore = defineStore('users', () => {

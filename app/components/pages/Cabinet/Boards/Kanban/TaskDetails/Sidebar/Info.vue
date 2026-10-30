@@ -151,7 +151,7 @@ interface ApiUser {
   id: number
   login: string
   name: string
-  role: 'admin' | 'manager' | 'foreman' | 'master' | 'worker'
+  role: 'admin' | 'manager' | 'foreman' | 'master' | 'worker' | 'partner'
   telegramId?: number | null
   createdAt?: string
   updatedAt?: string

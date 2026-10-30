@@ -80,7 +80,8 @@ const roleLabels: Record<string, string> = {
   manager: 'Менеджер',
   foreman: 'Прораб',
   master: 'Мастер',
-  worker: 'Рабочий'
+  worker: 'Рабочий',
+  partner: 'Партнёр'
 }
 const roleLabel = computed(() => roleLabels[props.user.role] || props.user.role)
 
@@ -225,6 +226,11 @@ const isHovered = ref(false)
     background: var(--crm-accent-dim);
     color: var(--crm-accent);
     border: 1px solid rgba(0, 195, 245, 0.3);
+  }
+  &--partner {
+    background: rgba(142, 68, 173, 0.12);
+    color: #8e44ad;
+    border: 1px solid rgba(142, 68, 173, 0.3);
   }
 }
 

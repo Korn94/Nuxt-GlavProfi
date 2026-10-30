@@ -15,7 +15,7 @@
 
 import { defineEventHandler, readBody, getRouterParam, createError } from 'h3'
 import { db } from '../../../db'
-import { users, masters, workers, foremans, offices } from '../../../db/schema'
+import { users, masters, workers, foremans, offices, partners } from '../../../db/schema'
 import { eq } from 'drizzle-orm'
 import bcryptjs from 'bcryptjs'
 
@@ -37,9 +37,9 @@ export default defineEventHandler(async (event) => {
 
   try {
     const body = await readBody(event)
-    const { name, login, role, password, contractorType, contractorId } = body
+    const { name, login, role, password, contractorType, contractorId, partnerId } = body
 
-    if (!name && !login && !role && !password && contractorType === undefined && contractorId === undefined) {
+    if (!name && !login && !role && !password && contractorType === undefined && contractorId === undefined && partnerId === undefined) {
       throw createError({ statusCode: 400, message: 'Нет данных для обновления' })
     }
 
@@ -52,6 +52,8 @@ export default defineEventHandler(async (event) => {
     // Получаем старого пользователя (read-only, вне транзакции)
     const [oldUser] = await db.select().from(users).where(eq(users.id, userId))
     if (!oldUser) throw createError({ statusCode: 404, message: 'Пользователь не найден' })
+
+    const newRole = role || oldUser.role
 
     // ✅ Все изменения в одной транзакции
     return await db.transaction(async (tx) => {
@@ -77,14 +79,58 @@ export default defineEventHandler(async (event) => {
       updates.contractorType = contractorType || null
       updates.contractorId = contractorId || null
 
-      // 3. Обновляем пользователя
+      // 3. Партнёр: отвязка/привязка/автосоздание профиля
+      const [oldPartner] = await tx.select().from(partners).where(eq(partners.userId, userId))
+
+      if (newRole !== 'partner') {
+        // Роль больше не «партнёр» — отвязываем профиль
+        if (oldPartner) {
+          await tx.update(partners).set({ userId: null }).where(eq(partners.id, oldPartner.id))
+        }
+      } else {
+        if (partnerId !== undefined) {
+          if (partnerId === null) {
+            // Автосоздание, если профиля ещё нет
+            if (!oldPartner) {
+              await tx.insert(partners).values({
+                userId,
+                companyName: null,
+                contactPerson: name || oldUser.name,
+                isActive: true,
+              })
+            }
+          } else {
+            const pid = Number(partnerId)
+            if (oldPartner && oldPartner.id !== pid) {
+              await tx.update(partners).set({ userId: null }).where(eq(partners.id, oldPartner.id))
+            }
+            const [target] = await tx.select().from(partners).where(eq(partners.id, pid))
+            if (!target) throw createError({ statusCode: 400, message: 'Партнёр для привязки не найден' })
+            if (target.userId && target.userId !== userId) {
+              throw createError({ statusCode: 409, message: 'Партнёр уже привязан к другому пользователю' })
+            }
+            await tx.update(partners).set({ userId }).where(eq(partners.id, pid))
+          }
+        } else if (!oldPartner) {
+          // partnerId не передан, роль стала «партнёр» — автосоздаём профиль
+          await tx.insert(partners).values({
+            userId,
+            companyName: null,
+            contactPerson: name || oldUser.name,
+            isActive: true,
+          })
+        }
+      }
+
+      // 4. Обновляем пользователя
       await tx.update(users).set(updates).where(eq(users.id, userId))
 
-      // 4. Получаем обновлённого пользователя
+      // 5. Получаем обновлённого пользователя
       const [updatedUser] = await tx.select().from(users).where(eq(users.id, userId))
       return updatedUser
     })
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.statusCode) throw error
     console.error('[API/Users/Update] Ошибка:', error)
     throw createError({ statusCode: 500, message: 'Ошибка сервера при обновлении' })
   }

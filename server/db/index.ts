@@ -74,5 +74,8 @@ export const {
   boardsTasksTags,
   boardsAttachments,
   boardsComments,
-  boardsActivityLog
+  boardsActivityLog,
+  // Партнёрская программа
+  partners,
+  partnerLeads
 } = schema

@@ -38,6 +38,7 @@ const PAGE_DESCRIPTIONS: Record<PageSlug, string> = {
   works: 'Учёт выполненных работ',
   'daily-work': 'Подневка — ежедневный учёт работ',
   contractors: 'Мастера, рабочие, прорабы, офис',
+  partners: 'Партнёры (риелторы, дизайнеры) и их сделки',
   portfolio: 'Кейсы и проекты компании',
   price: 'Цены на работы и услуги (публично + управление)',
   users: 'Управление пользователями системы (админка)',
@@ -58,12 +59,13 @@ const PAGE_ORDER: Record<PageSlug, number> = {
   works: 5,
   'daily-work': 6,
   contractors: 7,
-  portfolio: 8,
-  price: 9,
-  users: 10,
-  online: 11,
-  settings: 12,
-  test: 13
+  partners: 8,
+  portfolio: 9,
+  price: 10,
+  users: 11,
+  online: 12,
+  settings: 13,
+  test: 14
 }
 
 // ============================================
@@ -137,6 +139,7 @@ export const ROLE_PERMISSIONS_SEED: RolePermissionsSeed = {
     works: { canView: true, canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
     'daily-work': { canView: true, canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
     contractors: { canView: true, canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
+    partners: { canView: true, canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
     portfolio: { canView: true, canCreate: true, canEdit: true, canDelete: true },
     price: { canView: true, canCreate: true, canEdit: true, canDelete: true, canSpecial: true },
     users: { canView: true, canCreate: true, canEdit: true, canDelete: true },
@@ -154,5 +157,7 @@ export const ROLE_PERMISSIONS_SEED: RolePermissionsSeed = {
   
   master: {}, // Доступ закрыт ко всему
   
-  worker: {}  // Доступ закрыт ко всему
+  worker: {},  // Доступ закрыт ко всему
+  
+  partner: {}  // Партнёр — доступ только к своему кабинету (через роль, не через права страниц)
 }

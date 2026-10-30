@@ -38,6 +38,7 @@ export const PageSlugSchema = z.enum([
   'works',         // 🔨 Работы
   'daily-work',    // 📅 Подневка
   'contractors',   // 👥 Сотрудники
+  'partners',      // 🤝 Партнёры
   'portfolio',     // 📁 Кейсы
   'price',         // 💲 Прайс-лист
   'users',         // 👤 Пользователи (админка)
@@ -103,6 +104,7 @@ export const PAGE_LABELS: Record<PageSlug, string> = {
   works: 'Работы',
   'daily-work': 'Подневка',
   contractors: 'Сотрудники',
+  partners: 'Партнёры',
   portfolio: 'Кейсы',
   price: 'Прайс-лист',
   users: 'Пользователи',
@@ -123,6 +125,7 @@ export const PAGE_ICONS: Record<PageSlug, string> = {
   works: 'mdi:hammer-wrench',
   'daily-work': 'mdi:calendar-today-outline',
   contractors: 'mdi:account-hard-hat',
+  partners: 'mdi:handshake-outline',
   portfolio: 'mdi:briefcase-outline',
   price: 'mdi:format-list-numbered',
   users: 'mdi:account-group',
@@ -165,6 +168,7 @@ export const PAGE_SUPPORTED_ACTIONS: Record<PageSlug, PageAction[]> = {
   works: ['view', 'create', 'edit', 'delete', 'special'],     // special: accept/reject/pay
   'daily-work': ['view', 'create', 'edit', 'delete', 'special'], // special: утверждение/оплата
   contractors: ['view', 'create', 'edit', 'delete', 'special'], // special: recalculate-balance
+  partners: ['view', 'create', 'edit', 'delete', 'special'],   // special: смена этапа сделки
   portfolio: ['view', 'create', 'edit', 'delete'],
   price: ['view', 'create', 'edit', 'delete', 'special'],     // special: reorder
   users: ['view', 'create', 'edit', 'delete'],

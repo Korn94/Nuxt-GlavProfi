@@ -112,13 +112,14 @@ const searchQuery = ref('')
 const selectedRole = ref<string | null>(null)
 const isDeleting = ref(false)
 
-const availableRoles = ['admin', 'manager', 'foreman', 'master', 'worker'] as const
+const availableRoles = ['admin', 'manager', 'foreman', 'master', 'worker', 'partner'] as const
 const roleLabels: Record<string, string> = {
   admin: 'Админ',
   manager: 'Менеджер',
   foreman: 'Прораб',
   master: 'Мастер',
-  worker: 'Рабочий'
+  worker: 'Рабочий',
+  partner: 'Партнёр'
 }
 
 // Клиентская фильтрация (оптимально для <50 записей)

@@ -11,7 +11,7 @@ export const users = mysqlTable('users', {
   name: varchar('name', { length: 255 }).notNull(),
   role: varchar('role', { 
     length: 50,
-    enum: ['admin', 'manager', 'foreman', 'master', 'worker']
+    enum: ['admin', 'manager', 'foreman', 'master', 'worker', 'partner']
   }).default('worker').notNull(),
   contractorType: varchar('contractor_type', {
     length: 50,
@@ -1030,7 +1030,7 @@ export const permissionsRoleAccess = mysqlTable('permissions_role_access', {
   id: serial('id').primaryKey(),
   role: varchar('role', {
     length: 50,
-    enum: ['admin', 'manager', 'foreman', 'master', 'worker']
+    enum: ['admin', 'manager', 'foreman', 'master', 'worker', 'partner']
   }).notNull(),
   pageSlug: varchar('page_slug', { length: 50 })
     .notNull()
@@ -1188,5 +1188,71 @@ export const siteVisitorEvents = mysqlTable('site_visitor_events', {
   sessionIndex: index('sve_session_idx').on(table.sessionId),
   typeCreatedIndex: index('sve_type_created_idx').on(table.type, table.createdAt),
   visitorIndex: index('sve_visitor_idx').on(table.visitorId, table.createdAt)
+}))
+
+// ============================================
+// ПАРТНЁРЫ (риелторы, дизайнеры и пр.)
+// ============================================
+
+// Профиль партнёра (связь 1-к-1 с пользователем роли 'partner')
+export const partners = mysqlTable('partners', {
+  id: serial('id').primaryKey(),
+  userId: bigint('user_id', { mode: 'number', unsigned: true })
+    .references(() => users.id, { onDelete: 'set null' }),
+  companyName: varchar('company_name', { length: 255 }),
+  contactPerson: varchar('contact_person', { length: 255 }),
+  phone: varchar('phone', { length: 255 }),
+  email: varchar('email', { length: 255 }),
+  comment: text('comment'),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: datetime('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull().$type<Date>()
+}, (table) => ({
+  userIndex: index('partner_user_idx').on(table.userId),
+  activeIndex: index('partner_active_idx').on(table.isActive)
+}))
+
+// Лиды (сделки) от партнёров
+export const partnerLeads = mysqlTable('partner_leads', {
+  id: serial('id').primaryKey(),
+  leadNumber: varchar('lead_number', { length: 20 }).unique().notNull(), // Напр. GP-00152
+  partnerId: bigint('partner_id', { mode: 'number', unsigned: true })
+    .notNull()
+    .references(() => partners.id, { onDelete: 'cascade' }),
+  objectId: bigint('object_id', { mode: 'number', unsigned: true })
+    .references(() => objects.id, { onDelete: 'set null' }), // Связь с объектом, когда лид станет объектом
+
+  clientName: varchar('client_name', { length: 255 }).notNull(),
+  clientPhone: varchar('client_phone', { length: 50 }).notNull(),
+  objectAddress: text('object_address'),
+  objectArea: decimal('object_area', { precision: 10, scale: 2 }),
+  description: text('description'),
+
+  // Этапы сделки
+  status: varchar('status', {
+    length: 30,
+    enum: [
+      'new',             // Лид зарегистрирован
+      'contacted',       // Связались с клиентом
+      'visit_scheduled', // Выезд на объект (запланирован)
+      'visit_done',      // Выезд состоялся
+      'contract_signed', // Договор подписан
+      'first_payment',   // Первый платёж получен
+      'reward_paid',     // Вознаграждение выплачено
+      'rejected',        // Отклонен
+      'cancelled'        // Отменен
+    ]
+  }).default('new').notNull(),
+
+  // Финансы
+  contractAmount: decimal('contract_amount', { precision: 12, scale: 2 }), // Сумма договора
+  rewardAmount: decimal('reward_amount', { precision: 10, scale: 2 }).default('0.00').notNull(), // Вознаграждение партнера
+
+  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: datetime('updated_at').default(sql`CURRENT_TIMESTAMP`).notNull().$type<Date>()
+}, (table) => ({
+  partnerIndex: index('partner_lead_partner_idx').on(table.partnerId),
+  statusIndex: index('partner_lead_status_idx').on(table.status),
+  objectIndex: index('partner_lead_object_idx').on(table.objectId)
 }))
 

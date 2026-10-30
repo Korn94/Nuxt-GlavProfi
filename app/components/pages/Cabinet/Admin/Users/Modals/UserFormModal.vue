@@ -81,6 +81,23 @@
       <p v-if="contractorsError" class="error-hint">{{ contractorsError }}</p>
     </div>
 
+    <!-- === Блок привязки к партнёру (только для роли «Партнёр») === -->
+    <div v-if="form.role === 'partner'" class="form-group contractor-group">
+      <label class="form-label">Профиль партнёра</label>
+      <select
+        v-model="partnerId"
+        class="input select"
+        :disabled="isSubmitting || partnersLoading"
+      >
+        <option :value="null">— Создать автоматически —</option>
+        <option v-for="p in availablePartners" :key="p.id" :value="p.id">
+          {{ p.companyName || p.contactPerson || `Партнёр #${p.id}` }}
+        </option>
+      </select>
+      <p class="input-hint">Если оставить «Создать автоматически» — при сохранении будет создан профиль партнёра от имени пользователя.</p>
+      <p v-if="partnersError" class="error-hint">{{ partnersError }}</p>
+    </div>
+
     <div v-if="localError" class="error-msg">
       <Icon name="mdi:alert-circle" size="14" />
       {{ localError }}
@@ -96,7 +113,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, computed } from 'vue'
 import type { User } from 'stores/users'
 
 const props = defineProps<{
@@ -107,7 +124,8 @@ const emit = defineEmits<{
   save: [formData: Partial<User> & { 
     password?: string,
     contractorType?: string | null,
-    contractorId?: number | null
+    contractorId?: number | null,
+    partnerId?: number | null
   }]
   close: []
 }>()
@@ -129,7 +147,8 @@ const roles = [
   { label: 'Менеджер', value: 'manager' },
   { label: 'Прораб', value: 'foreman' },
   { label: 'Мастер', value: 'master' },
-  { label: 'Рабочий', value: 'worker' }
+  { label: 'Рабочий', value: 'worker' },
+  { label: 'Партнёр', value: 'partner' }
 ]
 
 // ── Привязка к контрагенту ─────────────────────────────────────────
@@ -140,6 +159,30 @@ const initialContractorId = ref<number | null>(null) // для кнопки "О�
 const contractorsList = ref<any[]>([])
 const contractorsLoading = ref(false)
 const contractorsError = ref('')
+
+// ── Привязка к партнёру ────────────────────────────────────────────
+const partnerId = ref<number | null>(null)
+const partnersList = ref<any[]>([])
+const partnersLoading = ref(false)
+const partnersError = ref('')
+
+const availablePartners = computed(() => {
+  const currentUserId = props.user?.id
+  return partnersList.value.filter(p => p.userId === null || p.userId === currentUserId)
+})
+
+async function fetchPartners() {
+  partnersLoading.value = true
+  partnersError.value = ''
+  try {
+    partnersList.value = await $fetch<any[]>('/api/partners?includeInactive=true') || []
+  } catch (err: any) {
+    partnersError.value = 'Не удалось загрузить список партнёров'
+    console.error('[UserForm] Ошибка загрузки партнёров:', err)
+  } finally {
+    partnersLoading.value = false
+  }
+}
 
 // Форматирование баланса
 function formatBalance(val: string | number | null) {
@@ -206,6 +249,10 @@ function initForm() {
     if (contractorType.value) {
       fetchContractors(contractorType.value)
     }
+
+    // ✅ Заполняем привязку к партнёру
+    partnerId.value = (props.user as any).partnerId ?? null
+    if (form.value.role === 'partner') fetchPartners()
     
     console.log('[UserFormModal] 🟢 Режим редактирования:', props.user.login)
   } else {
@@ -219,6 +266,8 @@ function initForm() {
     contractorId.value = null
     initialContractorId.value = null
     contractorsList.value = []
+    partnerId.value = null
+    partnersList.value = []
     console.log('[UserFormModal] 🟢 Режим создания')
   }
 }
@@ -261,7 +310,8 @@ function handleSubmit() {
     role: form.value.role,
     // ✅ Привязка к контрагенту
     contractorType: contractorType.value,
-    contractorId: contractorId.value
+    contractorId: contractorId.value,
+    partnerId: partnerId.value
   }
 
   // Передаём пароль только если режим создания или включена смена
@@ -277,6 +327,13 @@ function handleSubmit() {
 watch(() => props.user, (val) => {
   if (val === null && !props.user) {
     isSubmitting.value = false
+  }
+})
+
+// Загружаем список партнёров, когда выбирают роль «Партнёр»
+watch(() => form.value.role, (newRole) => {
+  if (newRole === 'partner' && partnersList.value.length === 0) {
+    fetchPartners()
   }
 })
 </script>

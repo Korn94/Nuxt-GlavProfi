@@ -27,9 +27,14 @@ onMounted(async () => {
     })
   }
 
-  // Все роли теперь идут на одну страницу dashboard
+  // Все роли идут на одну страницу dashboard
   // Внутри dashboard.vue сам определит роль и подключит нужный компонент
-  await router.replace('/cabinet/dashboard')
+  // Партнёров направляем в их отдельный кабинет
+  if (authStore.user?.role === 'partner') {
+    await router.replace('/cabinet/partner')
+  } else {
+    await router.replace('/cabinet/dashboard')
+  }
 })
 
 useHead({
