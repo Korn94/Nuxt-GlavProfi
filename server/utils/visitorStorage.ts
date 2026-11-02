@@ -59,12 +59,14 @@ async function writeVisitor(snap: VisitSnapshot): Promise<void> {
     firstUtmCampaign: v.utmCampaign,
     firstLandingPath: v.landingPath,
     ymClientId: v.ymClientId,
-    hasConverted: v.converted
+    hasConverted: v.converted,
+    linkedUserId: v.linkedUserId
   }).onDuplicateKeyUpdate({
     set: {
       lastSeenAt: toDb(v.lastSeenAt),
       visitsCount: sql`GREATEST(${siteVisitors.visitsCount}, ${v.visitNumber})`,
       hasConverted: sql`GREATEST(${siteVisitors.hasConverted}, ${v.converted ? 1 : 0})`,
+      linkedUserId: sql`COALESCE(${siteVisitors.linkedUserId}, ${v.linkedUserId})`,
       ymClientId: sql`COALESCE(${v.ymClientId}, ${siteVisitors.ymClientId})`
     }
   })
@@ -84,6 +86,7 @@ async function writeSession(snap: VisitSnapshot): Promise<void> {
     eventsCount: s.eventsCount,
     isBounce: s.isBounce,
     converted: s.converted,
+    linkedUserId: s.linkedUserId,
     landingPath: s.landingPath,
     exitPath: s.exitPath,
     referrerHost: s.referrerHost,
@@ -120,6 +123,7 @@ async function writeSession(snap: VisitSnapshot): Promise<void> {
       eventsCount: s.eventsCount,
       isBounce: s.isBounce,
       converted: s.converted,
+      linkedUserId: sql`COALESCE(${siteVisitorSessions.linkedUserId}, ${s.linkedUserId})`,
       exitPath: s.exitPath,
       country: s.country,
       region: s.region,

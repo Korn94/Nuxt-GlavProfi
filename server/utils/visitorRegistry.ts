@@ -155,6 +155,8 @@ function createRecord(input: TouchInput, ctx: {
     pagesCount: 0,
     eventsCount: 0,
     converted: false,
+    linkedUserId: null,
+    linkedUserName: null,
     tabs: new Map(),
     currentPage: null,
     pendingPageviews: [],
@@ -370,6 +372,35 @@ export function getVisitorContext(visitorId: string | null | undefined): {
     landingPath: rec.landingPath,
     activeSeconds: rec.activeSeconds
   }
+}
+
+/**
+ * Связать анонимного посетителя с авторизованным сотрудником (вызывается при логине).
+ *
+ * Когда посетитель, пришедший с публичных страниц, логинится — его анонимный визит
+ * оказывается «своим». Завершаем визит и убираем запись из live-списка (чтобы не было
+ * дубля с карточкой «Пользователи»), а пометку linked_user_id допишем в БД при flush.
+ *
+ * @returns true, если запись была найдена и связана
+ */
+export function linkVisitorToUser(
+  visitorId: string,
+  userId: number,
+  userName: string
+): boolean {
+  const rec = visitors.get(visitorId)
+  if (!rec) return false
+
+  rec.linkedUserId = userId
+  rec.linkedUserName = userName || null
+  rec.dirty = true
+
+  // Завершаем визит (уйдёт в БД со снапшотом, где уже есть linkedUserId) и
+  // удаляем из реестра, чтобы посетитель сразу исчез из «Посетителей сайта».
+  finishVisit(rec)
+  visitors.delete(visitorId)
+
+  return true
 }
 
 /**

@@ -137,6 +137,10 @@ export interface VisitorRecord {
   pagesCount: number
   eventsCount: number
   converted: boolean
+  /** ID пользователя-сотрудника, которым оказался посетитель (заполняется при логине) */
+  linkedUserId: number | null
+  /** Отображаемое имя этого сотрудника (для пометки в истории) */
+  linkedUserName: string | null
 
   tabs: Map<string, TabState>
   currentPage: CurrentPage | null

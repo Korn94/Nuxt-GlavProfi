@@ -174,7 +174,11 @@
                 <td>{{ formatFullDateTime(row.createdAt) }}</td>
                 <td>{{ eventLabel(row.type) }}</td>
                 <td class="stats-path" :title="row.path || ''">{{ row.path || '—' }}</td>
-                <td>{{ row.channelLabel }}<span v-if="row.referrerHost" class="stats-sub"> · {{ row.referrerHost }}</span></td>
+                <td>
+                  {{ row.channelLabel }}
+                  <span v-if="row.referrerHost" class="stats-sub"> · {{ row.referrerHost }}</span>
+                  <span v-if="row.linkedUserId" class="stats-staff">сотрудник: {{ row.linkedUserName || row.linkedUserId }}</span>
+                </td>
                 <td class="stats-path">{{ row.utmCampaign || '—' }}</td>
                 <td>{{ row.visitNumber }}</td>
                 <td>{{ row.pagesCount }}</td>
@@ -203,6 +207,7 @@
                 <td>
                   {{ row.channelLabel }}
                   <span v-if="row.visitNumber > 1" class="stats-sub"> · визит №{{ row.visitNumber }}</span>
+                  <span v-if="row.linkedUserId" class="stats-staff">сотрудник: {{ row.linkedUserName || row.linkedUserId }}</span>
                   <span v-if="row.referrerHost" class="stats-sub"> · {{ row.referrerHost }}</span>
                 </td>
                 <td class="stats-path" :title="row.utmCampaign || ''">{{ row.utmCampaign || '—' }}</td>
@@ -522,6 +527,21 @@ watch(() => props.stats, (s) => {
 @use './online.shared.scss';
 
 .stats-card { gap: 14px; }
+
+.stats-staff {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+  width: max-content;
+  margin-left: 5px;
+  padding: 1px 6px;
+  border-radius: var(--crm-radius-sm);
+  background: var(--crm-info-dim);
+  color: var(--crm-info);
+  font-size: var(--crm-text-xs);
+  font-weight: 600;
+}
 
 .stats-select {
   background: var(--crm-bg-overlay);

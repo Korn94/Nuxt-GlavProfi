@@ -13,7 +13,7 @@
  * @returns { token, user, sessionId, permissions }
  */
 
-import { eventHandler, readBody, createError, getRequestHeader, getRequestIP } from 'h3'
+import { eventHandler, readBody, createError, getRequestHeader, getRequestIP, getCookie } from 'h3'
 import { z } from 'zod'
 
 import { db } from '../../db'
@@ -25,6 +25,9 @@ import { verifyTelegramHash } from '../../utils/verifyTelegramHash'
 import { getObjectsByUser } from '../../utils/objects'
 import { createSession, closeZombieSessions } from '../../utils/sessions'
 import { getUserPermissionsResponse } from '../../utils/permissions'
+import { resolveVisitorId } from '../../utils/visitorGuard'
+import { linkVisitorToUser } from '../../utils/visitorRegistry'
+import { scheduleVisitorsBroadcast } from '../../utils/visitor-broadcast'
 
 // ============================================
 // 1. ZOD-ВАЛИДАЦИЯ ДАННЫХ TELEGRAM
@@ -128,6 +131,15 @@ export default eventHandler(async (event) => {
   // ============================================
   await closeZombieSessions(user.id)
   const session = await createSession(user.id, ipAddress, userAgent)
+
+  // ============================================
+  // 👥 СВЯЗЬ АНОНИМНОГО ПОСЕТИТЕЛЯ С ПОЛЬЗОВАТЕЛЕМ
+  // ============================================
+  // Аналогично обычному логину: помечаем анонимный визит как «свой».
+  const visitorId = resolveVisitorId(getCookie(event, 'visitor_id') || rawBody?.visitorId)
+  if (visitorId && linkVisitorToUser(visitorId, user.id, user.name || body.first_name || user.login)) {
+    scheduleVisitorsBroadcast()
+  }
 
   // ============================================
   // 🆕 ПОЛУЧЕНИЕ ПРАВ (в одном ответе с логином)

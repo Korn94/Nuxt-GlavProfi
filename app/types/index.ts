@@ -144,6 +144,8 @@ export interface VisitorConversion {
   pagesCount: number
   landingPath: string | null
   city: string | null
+  linkedUserId: number | null    // ID сотрудника, если обращение «своё» (после логина)
+  linkedUserName: string | null   // Имя сотрудника для пометки
 }
 
 /** Визит из истории */
@@ -165,6 +167,8 @@ export interface VisitorVisit {
   deviceType: string
   browser: string | null
   city: string | null
+  linkedUserId: number | null    // ID сотрудника, если визит «свой» (после логина)
+  linkedUserName: string | null   // Имя сотрудника для пометки
 }
 
 /** Динамика по дням (точка временной серии для графика) */

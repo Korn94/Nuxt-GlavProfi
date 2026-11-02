@@ -24,6 +24,7 @@ export interface VisitSnapshot {
     landingPath: string
     ymClientId: string | null
     converted: boolean
+    linkedUserId: number | null
   }
   session: {
     id: string
@@ -37,6 +38,7 @@ export interface VisitSnapshot {
     eventsCount: number
     isBounce: boolean
     converted: boolean
+    linkedUserId: number | null
     landingPath: string
     exitPath: string
     referrerHost: string | null
@@ -97,7 +99,8 @@ export function buildSnapshot(rec: VisitorRecord, final: boolean): VisitSnapshot
       utmCampaign: rec.utmCampaign,
       landingPath: rec.landingPath,
       ymClientId: rec.ymClientId,
-      converted: rec.converted
+      converted: rec.converted,
+      linkedUserId: rec.linkedUserId
     },
     session: {
       id: rec.sessionId,
@@ -111,6 +114,7 @@ export function buildSnapshot(rec: VisitorRecord, final: boolean): VisitSnapshot
       eventsCount: rec.eventsCount,
       isBounce: computeIsBounce(rec),
       converted: rec.converted,
+      linkedUserId: rec.linkedUserId,
       landingPath: rec.landingPath,
       exitPath: rec.exitPath,
       referrerHost: rec.referrerHost,

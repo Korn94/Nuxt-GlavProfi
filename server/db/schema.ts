@@ -1105,6 +1105,7 @@ export const siteVisitors = mysqlTable('site_visitors', {
   firstLandingPath: varchar('first_landing_path', { length: 300 }),
   ymClientId: varchar('ym_client_id', { length: 64 }), // clientID Яндекс.Метрики (для сверки отчётов)
   hasConverted: boolean('has_converted').default(false).notNull(),
+  linkedUserId: int('linked_user_id'), // ID пользователя-сотрудника, если визит «свой» (после логина)
   createdAt: datetime('created_at', { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`)
 }, (table) => ({
   lastSeenIndex: index('site_visitors_last_seen_idx').on(table.lastSeenAt),
@@ -1124,6 +1125,7 @@ export const siteVisitorSessions = mysqlTable('site_visitor_sessions', {
   eventsCount: int('events_count').default(0).notNull(),
   isBounce: boolean('is_bounce').default(false).notNull(),
   converted: boolean('converted').default(false).notNull(),
+  linkedUserId: int('linked_user_id'), // ID пользователя-сотрудника, если визит «свой» (после логина)
   landingPath: varchar('landing_path', { length: 300 }),
   exitPath: varchar('exit_path', { length: 300 }),
   referrerHost: varchar('referrer_host', { length: 255 }),

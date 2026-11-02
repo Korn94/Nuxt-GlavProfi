@@ -18,7 +18,7 @@
  * - ✅ типобезопасный User через schema inference
  */
 
-import { eventHandler, readBody, createError, getRequestHeader, getRequestIP } from 'h3'
+import { eventHandler, readBody, createError, getRequestHeader, getRequestIP, getCookie } from 'h3'
 import { z } from 'zod'
 
 import { db } from '../../db'
@@ -29,6 +29,9 @@ import { generateToken } from '../../utils/jwt'
 import { getObjectsByUser } from '../../utils/objects'
 import { createSession, closeZombieSessions } from '../../utils/sessions'
 import { getUserPermissionsResponse } from '../../utils/permissions'
+import { resolveVisitorId } from '../../utils/visitorGuard'
+import { linkVisitorToUser } from '../../utils/visitorRegistry'
+import { scheduleVisitorsBroadcast } from '../../utils/visitor-broadcast'
 
 import bcryptjs from 'bcryptjs'
 
@@ -38,7 +41,8 @@ import bcryptjs from 'bcryptjs'
 
 const LoginBodySchema = z.object({
   login: z.string().min(1, 'Логин обязателен').max(100),
-  password: z.string().min(1, 'Пароль обязателен').max(255)
+  password: z.string().min(1, 'Пароль обязателен').max(255),
+  visitorId: z.string().optional()
 })
 
 // ============================================
@@ -112,6 +116,17 @@ export default eventHandler(async (event) => {
   // ============================================
   await closeZombieSessions(user.id)
   const session = await createSession(user.id, ipAddress, userAgent)
+
+  // ============================================
+  // 👥 СВЯЗЬ АНОНИМНОГО ПОСЕТИТЕЛЯ С ПОЛЬЗОВАТЕЛЕМ
+  // ============================================
+  // Если сотрудник до входа бродил по публичным страницам (visitor_id cookie),
+  // помечаем его анонимный визит как «свой»: в онлайне не будет дубля
+  // («Гость» + «Пользователь»), а в истории визитов появится пометка.
+  const visitorId = resolveVisitorId(getCookie(event, 'visitor_id') || body.visitorId)
+  if (visitorId && linkVisitorToUser(visitorId, user.id, user.name || user.login)) {
+    scheduleVisitorsBroadcast()
+  }
 
   // ============================================
   // 🆕 ПОЛУЧЕНИЕ ПРАВ (в одном ответе с логином)

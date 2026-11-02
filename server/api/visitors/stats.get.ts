@@ -16,7 +16,7 @@ import { desc, eq, gte, inArray, sql } from 'drizzle-orm'
 import { getQuery } from 'h3'
 import { defineApi } from '../../utils/defineApi'
 import { db } from '../../db'
-import { siteVisitorEvents, siteVisitorPageviews, siteVisitorSessions } from '../../db/schema'
+import { siteVisitorEvents, siteVisitorPageviews, siteVisitorSessions, users } from '../../db/schema'
 import { formatMySQLDate } from '../../utils/sessions'
 import { CHANNEL_LABELS, type TrafficChannel } from '../../utils/trafficSource'
 import { CONVERSION_EVENT_TYPES } from '../../utils/visitorTypes'
@@ -75,9 +75,12 @@ export default defineApi(async (event) => {
       visitNumber: s.visitNumber,
       pagesCount: s.pagesCount,
       landingPath: s.landingPath,
-      city: s.city
+      city: s.city,
+      linkedUserId: s.linkedUserId,
+      linkedUserName: users.name
     }).from(ev)
       .innerJoin(s, eq(ev.sessionId, s.id))
+      .leftJoin(users, eq(s.linkedUserId, users.id))
       .where(sql`${ev.createdAt} >= ${border} AND ${inArray(ev.type, [...CONVERSION_EVENT_TYPES])}`)
       .orderBy(desc(ev.createdAt))
       .limit(30),
@@ -98,8 +101,10 @@ export default defineApi(async (event) => {
       converted: s.converted,
       deviceType: s.deviceType,
       browser: s.browser,
-      city: s.city
-    }).from(s).where(gte(s.startedAt, border)).orderBy(desc(s.startedAt)).limit(40),
+      city: s.city,
+      linkedUserId: s.linkedUserId,
+      linkedUserName: users.name
+    }).from(s).leftJoin(users, eq(s.linkedUserId, users.id)).where(gte(s.startedAt, border)).orderBy(desc(s.startedAt)).limit(40),
 
     db.select({
       day: sql<string>`DATE(${s.startedAt})`,
