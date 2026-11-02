@@ -52,6 +52,7 @@ const PUBLIC_PATHS = [
   '/api/auth/telegram',
   '/api/auth/check',
   '/api/auth/logout',
+  '/api/auth/impersonate/exit',
 
   '/api/permissions',
   '/api/me',
@@ -117,6 +118,8 @@ const PROTECTED_PATHS: Record<string, PathRequirement | PathRequirement[]> = {
   // 🔐 АВТОРИЗАЦИЯ
   // ═══════════════════════════════════════════════════════════════
   '/api/auth/logout': { type: 'page', value: 'dashboard', action: 'view' },
+  // 🎭 Имперсонация: начать «просмотр от имени пользователя» может только админ
+  '/api/auth/impersonate': { type: 'role', value: 'admin' },
 
   // ═══════════════════════════════════════════════════════════════
   // 📊 ДАШБОРД
@@ -445,6 +448,21 @@ export default defineEventHandler(async (event) => {
     // ============================================
     const user = await verifyAuth(event)
     event.context.user = user
+
+    // ============================================
+    // 🎭 READ-ONLY GUARD (режим просмотра от имени пользователя)
+    // ============================================
+    // В режиме имперсонации запрещены любые изменения — только чтение
+    // (GET/HEAD/OPTIONS). Мутации исполнялись бы от имени целевого пользователя.
+    if (event.context.impersonating) {
+      const httpMethod = (method || 'GET').toUpperCase()
+      if (httpMethod !== 'GET' && httpMethod !== 'HEAD' && httpMethod !== 'OPTIONS') {
+        throw createError({
+          statusCode: 403,
+          statusMessage: 'Режим просмотра: изменения запрещены'
+        })
+      }
+    }
 
     if (isPermissionsPath) {
       console.log(`[AuthMiddleware] 🔐 Запрос: ${path} [${method}] | User: ID=${user.id}, роль=${user.role}`)

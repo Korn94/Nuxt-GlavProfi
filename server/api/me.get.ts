@@ -23,6 +23,7 @@ import { users } from '../db/schema'
 import { eq } from 'drizzle-orm'
 import { verifyToken } from '../utils/jwt'
 import { extractJwt } from '../utils/cookies'
+import { resolveEffectiveUser } from '../utils/impersonation'
 
 export default eventHandler(async (event) => {
   // ============================================
@@ -53,10 +54,10 @@ export default eventHandler(async (event) => {
     // ============================================
     // 4. ПОЛУЧЕНИЕ ДАННЫХ ПОЛЬЗОВАТЕЛЯ ИЗ БД
     // ============================================
-    const [user] = await db.select().from(users).where(eq(users.id, payload.id))
+    const [realUser] = await db.select().from(users).where(eq(users.id, payload.id))
     
     // Пользователь не найден (удалён, деактивирован) — возвращаем null
-    if (!user) {
+    if (!realUser) {
       return { user: null }
     }
 
@@ -64,15 +65,19 @@ export default eventHandler(async (event) => {
     // 5. ФОРМИРОВАНИЕ БЕЗОПАСНОГО ОТВЕТА
     // ============================================
     // ✅ Возвращаем только публичные поля (никаких паролей, токенов, внутренних данных)
+    // 🎭 Имперсонация: если админ смотрит «от имени» пользователя — возвращаем целевого
+    const resolved = await resolveEffectiveUser(event, realUser)
+
     return {
       user: {
-        id: user.id,
-        login: user.login,
-        role: user.role,
-        name: user.name,
-        contractorId: user.contractorId || undefined,
-        contractorType: user.contractorType || undefined,
-      }
+        id: resolved.user.id,
+        login: resolved.user.login,
+        role: resolved.user.role,
+        name: resolved.user.name,
+        contractorId: resolved.user.contractorId || undefined,
+        contractorType: resolved.user.contractorType || undefined,
+      },
+      impersonating: resolved.impersonating
     }
   } catch (error) {
     // ============================================

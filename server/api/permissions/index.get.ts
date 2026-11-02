@@ -24,6 +24,7 @@ import { users } from '../../db/schema'
 import { verifyToken } from '../../utils/jwt'
 import { extractJwt } from '../../utils/cookies'
 import { getUserPermissionsResponse } from '../../utils/permissions'
+import { resolveEffectiveUser } from '../../utils/impersonation'
 
 export default defineEventHandler(async (event) => {
   // ============================================
@@ -54,13 +55,13 @@ export default defineEventHandler(async (event) => {
   // ============================================
   // 2. ПОЛУЧЕНИЕ ПОЛЬЗОВАТЕЛЯ ИЗ БД
   // ============================================
-  const [user] = await db
+  const [realUser] = await db
     .select()
     .from(users)
     .where(eq(users.id, payload.id))
     .limit(1)
 
-  if (!user) {
+  if (!realUser) {
     throw createError({
       statusCode: 401,
       statusMessage: 'Пользователь не найден'
@@ -77,5 +78,8 @@ export default defineEventHandler(async (event) => {
   // - В pages только те страницы, которые видны пользователю
   // - Видимость определяется наличием хотя бы одного действия
   // - View-only страницы (dashboard, online, test) включаются если canView=true в БД
-  return await getUserPermissionsResponse(user)
+  // 🎭 Имперсонация: отдаём права целевого пользователя при просмотре «от имени»
+  const resolved = await resolveEffectiveUser(event, realUser)
+
+  return await getUserPermissionsResponse(resolved.user)
 })

@@ -23,6 +23,10 @@
 
     <!-- Действия (появляются при ховере на десктопе, всегда видны на мобильных) -->
     <div class="user-item__actions" :class="{ 'actions--hover': isHovered }">
+      <button v-if="canImpersonate" class="action-btn action-btn--view" title="Смотреть как пользователь"
+        @click="$emit('impersonate', user)">
+        <Icon name="mdi:eye" size="15" />
+      </button>
       <button class="action-btn" title="Редактировать" @click="$emit('edit', user)">
         <Icon name="mdi:pencil" size="15" />
       </button>
@@ -39,6 +43,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { User } from 'stores/users'
+import { useAuthStore } from 'stores/auth'
 
 const props = defineProps<{
   user: User
@@ -48,7 +53,17 @@ defineEmits<{
   edit: [user: User]
   'change-password': [user: User]
   delete: [user: User]
+  impersonate: [user: User]
 }>()
+
+const authStore = useAuthStore()
+
+// Кнопку «Смотреть как» видно только админу и не для самого себя
+const canImpersonate = computed(() =>
+  !authStore.isImpersonating &&
+  authStore.user?.role === 'admin' &&
+  authStore.user.id !== props.user.id
+)
 
 // ── Вычисляемые данные ──────────────────────────────────────────────
 const initials = computed(() => {
@@ -290,6 +305,12 @@ const isHovered = ref(false)
     background: var(--crm-danger-dim);
     border-color: rgba(242, 95, 92, 0.3);
     color: var(--crm-danger);
+  }
+
+  &--view:hover {
+    background: var(--crm-accent-dim);
+    border-color: var(--crm-accent-border);
+    color: var(--crm-accent);
   }
 }
 

@@ -50,7 +50,8 @@
 
       <div v-else class="list-container">
         <UserItem v-for="user in filteredUsers" :key="user.id" :user="user" @edit="actions.openEditModal"
-          @change-password="actions.openPasswordModal" @delete="actions.openDeleteConfirm" />
+          @change-password="actions.openPasswordModal" @delete="actions.openDeleteConfirm"
+          @impersonate="handleImpersonate" />
       </div>
     </div>
 
@@ -94,6 +95,7 @@ import UserPasswordModal from '~/components/pages/Cabinet/Admin/Users/Modals/Use
 
 import { useUsersStore } from 'stores/users'
 import { useUserActions } from '~/composables/useUserActions'
+import { useAuthStore } from 'stores/auth'
 import type { User } from 'stores/users'
 
 definePageMeta({
@@ -103,6 +105,7 @@ definePageMeta({
 
 const usersStore = useUsersStore()
 const actions = useUserActions()
+const authStore = useAuthStore()
 
 // Инициализация данных при загрузке страницы
 await usersStore.init()
@@ -180,6 +183,23 @@ async function handleDelete() {
     console.error('Ошибка удаления:', error.message)
   } finally {
     isDeleting.value = false
+  }
+}
+
+// ── Имперсонация: «смотреть как пользователь» ───────────────────────
+async function handleImpersonate(user: User) {
+  const name = user.name || user.login
+  const ok = confirm(
+    `Перейти в кабинет пользователя «${name}»?\n\n` +
+    'Вы увидите кабинет так, как его видит пользователь. ' +
+    'Все изменения будут заблокированы (режим только для чтения).'
+  )
+  if (!ok) return
+
+  try {
+    await authStore.impersonate(user.id)
+  } catch {
+    // Уведомление уже показано в authStore
   }
 }
 

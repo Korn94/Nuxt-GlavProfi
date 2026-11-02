@@ -24,6 +24,7 @@ import { users } from '../../db/schema'
 import { eq } from 'drizzle-orm'
 import { verifyToken } from '../../utils/jwt'
 import { extractJwt } from '../../utils/cookies' // ✅ Централизованный хелпер парсинга куки
+import { resolveEffectiveUser } from '../../utils/impersonation'
 
 export default defineEventHandler(async (event) => {
   // ============================================
@@ -52,26 +53,39 @@ export default defineEventHandler(async (event) => {
     // ============================================
     // 3. ПОЛУЧЕНИЕ ДАННЫХ ПОЛЬЗОВАТЕЛЯ ИЗ БД
     // ============================================
-    const [user] = await db.select().from(users).where(eq(users.id, payload.id))
+    const [realUser] = await db.select().from(users).where(eq(users.id, payload.id))
     
-    if (!user) {
+    if (!realUser) {
       console.log(`[Auth/Check] ⚠️ Пользователь с ID ${payload.id} не найден в БД`)
       throw createError({ statusCode: 401, statusMessage: 'Пользователь не найден' })
     }
 
     // ============================================
-    // 4. ФОРМИРОВАНИЕ ОТВЕТА
+    // 4. ИМПЕРСОНАЦИЯ + ФОРМИРОВАНИЕ ОТВЕТА
     // ============================================
-    // ✅ Возвращаем данные в формате, ожидаемом authStore
+    // ✅ Возвращаем данные в формате, ожидаемом authStore.
+    // Если админ смотрит «от имени» пользователя — отдаём целевого пользователя
+    // и метаданные имперсонации (клиент восстановит режим просмотра после F5).
+    const resolved = await resolveEffectiveUser(event, realUser)
+
     return {
       user: {
-        id: user.id,
-        login: user.login,
-        role: user.role,
-        name: user.name,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt
-      }
+        id: resolved.user.id,
+        login: resolved.user.login,
+        role: resolved.user.role,
+        name: resolved.user.name,
+        createdAt: resolved.user.createdAt,
+        updatedAt: resolved.user.updatedAt
+      },
+      impersonating: resolved.impersonating,
+      impersonator: resolved.realUser
+        ? {
+            id: resolved.realUser.id,
+            name: resolved.realUser.name || resolved.realUser.login,
+            login: resolved.realUser.login,
+            role: resolved.realUser.role
+          }
+        : null
     }
   } catch (error) {
     // ============================================

@@ -13,6 +13,7 @@
 
   <!-- ✅ Основной layout (рендерится после завершения проверки) -->
   <div v-else class="crm" :class="`crm--${themeStore.mode}`">
+    <LayoutCabinetImpersonationBanner />
     <LayoutCabinetHeader />
     <main>
       <NuxtPage v-slot="{ Component }">

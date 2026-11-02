@@ -1,9 +1,15 @@
 // server/utils/jwt.ts
+import type { SignOptions } from 'jsonwebtoken'
+
 export interface TokenPayload {
   id: number
   login: string
   role: string
   objects?: { id: number }[]
+  /** ID реального администратора при имперсонации («просмотр от имени пользователя») */
+  impersonatorId?: number
+  /** Флаг: токен выдан для имперсонации (read-only просмотр) */
+  imp?: boolean
 }
 
 // Ленивая загрузка jwt только на сервере
@@ -16,10 +22,10 @@ async function getJwt() {
   return require('jsonwebtoken') as typeof import('jsonwebtoken')
 }
 
-export async function generateToken(payload: TokenPayload) {
+export async function generateToken(payload: TokenPayload, expiresIn: SignOptions['expiresIn'] = '90d') {
   const jwt = await getJwt()
   const secret = process.env.NUXT_JWT_SECRET || 'fallback-secret-key'
-  return jwt.sign(payload, secret, { expiresIn: '90d' })
+  return jwt.sign(payload, secret, { expiresIn })
 }
 
 export async function verifyToken(token: string): Promise<TokenPayload> {

@@ -6,6 +6,10 @@ type DbUser = typeof users.$inferSelect
 declare module 'h3' {
   interface H3EventContext {
     user?: DbUser
+    /** Реальный пользователь (админ) при имперсонации */
+    realUser?: DbUser | null
+    /** Флаг активного режима «просмотр от имени пользователя» */
+    impersonating?: boolean
   }
 }
 

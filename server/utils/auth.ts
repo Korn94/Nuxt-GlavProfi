@@ -14,6 +14,7 @@ import { db } from '../db'
 import { users } from '../db/schema'
 import { eq } from 'drizzle-orm'
 import { extractJwt } from './cookies'
+import { resolveEffectiveUser } from './impersonation'
 
 export async function verifyAuth(event: H3Event<EventHandlerRequest>) {
   // 🍪 Извлекаем JWT из cookies
@@ -37,5 +38,13 @@ export async function verifyAuth(event: H3Event<EventHandlerRequest>) {
     throw createError({ statusCode: 404, message: 'Пользователь не найден' })
   }
 
-  return user
+  // 🎭 Имперсонация: если админ смотрит «от имени» пользователя —
+  // возвращаем целевого пользователя и фиксируем реального админа в context.
+  const resolved = await resolveEffectiveUser(event, user)
+  if (resolved.impersonating) {
+    event.context.impersonating = true
+    event.context.realUser = resolved.realUser
+  }
+
+  return resolved.user
 }

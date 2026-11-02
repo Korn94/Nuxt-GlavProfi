@@ -44,6 +44,27 @@ interface AuthState {
   roleLevel: number | null
   /** Флаг: первичная инициализация уже выполнена */
   initialized: boolean
+  /** Активен ли режим «просмотр от имени пользователя» (read-only) */
+  isImpersonating: boolean
+  /** Реальный администратор, запустивший просмотр */
+  impersonator: ImpersonatorInfo | null
+}
+
+interface ImpersonatorInfo {
+  id: number
+  name: string
+  login: string
+  role: string
+}
+
+/**
+ * Ответ сервера на POST /api/auth/impersonate
+ */
+interface ImpersonateResponse {
+  viewToken: string
+  user: User
+  permissions: UserPermissionsResponse
+  impersonatedBy: ImpersonatorInfo
 }
 
 /**
@@ -101,6 +122,8 @@ export const useAuthStore = defineStore('auth', {
     pages: null,
     roleLevel: null,
     initialized: false,
+    isImpersonating: false,
+    impersonator: null,
   }),
 
   getters: {
@@ -157,10 +180,10 @@ export const useAuthStore = defineStore('auth', {
      * Это нормально для init, т.к. вызывается один раз при загрузке.
      * Race condition был в login() — там мы его убрали.
      */
-    async init(): Promise<void> {
+    async init(force = false): Promise<void> {
       try {
         // Guard: если уже загружено — не делаем повторных запросов
-        if (this.user && this.pages && !this.isChecking) {
+        if (!force && this.user && this.pages && !this.isChecking) {
           return
         }
 
@@ -174,13 +197,15 @@ export const useAuthStore = defineStore('auth', {
 
         const api = useApi()
         const [userRes, permsRes] = await Promise.all([
-          api.get<{ user: User }>('/api/auth/check'),
+          api.get<{ user: User; impersonating?: boolean; impersonator?: ImpersonatorInfo | null }>('/api/auth/check'),
           api.get<UserPermissionsResponse>('/api/permissions'),
         ])
 
         this.user = userRes.user
         this.pages = permsRes.pages as Record<PageSlug, PagePermissions>
         this.roleLevel = permsRes.level
+        this.isImpersonating = !!userRes.impersonating
+        this.impersonator = userRes.impersonator || null
         this.isAuthenticated = true
         this.initialized = true
       } catch (error) {
@@ -295,6 +320,91 @@ export const useAuthStore = defineStore('auth', {
         throw error
       } finally {
         this.isChecking = false
+      }
+    },
+
+    // ============================================
+    // 🎭 ИМПЕРСОНАЦИЯ («просмотр от имени пользователя», read-only)
+    // ============================================
+
+    /**
+     * Начать просмотр кабинета от имени другого пользователя.
+     *
+     * ВАЖНО: `auth_token` (и сокет) НЕ трогаем — онлайн и сессии целевого
+     * пользователя не затрагиваются. Токен просмотра живёт в отдельной cookie.
+     */
+    async impersonate(userId: number): Promise<void> {
+      const notifications = useNotifications()
+
+      try {
+        const api = useApi()
+        const response = await api.post<ImpersonateResponse>('/api/auth/impersonate', { userId })
+
+        // Токен просмотра — в отдельную cookie (короткоживущую)
+        const viewTokenCookie = useCookie('view_token', {
+          maxAge: 60 * 60, // 1 час
+          sameSite: 'lax',
+          secure: process.env.NODE_ENV === 'production',
+        })
+        viewTokenCookie.value = response.viewToken
+
+        // Переключаем интерфейс «как у пользователя»
+        this.user = response.user
+        this.pages = response.permissions.pages as Record<PageSlug, PagePermissions>
+        this.roleLevel = response.permissions.level
+        this.isImpersonating = true
+        this.impersonator = response.impersonatedBy
+
+        // Сбрасываем кэш «текущего пользователя» (иначе шапка покажет админа)
+        clearCurrentUser()
+
+        notifications.info(
+          `Просмотр: ${response.user.name} (только чтение)`,
+          'Режим просмотра'
+        )
+
+        if (process.client) {
+          const router = useRouter()
+          router.push('/cabinet')
+        }
+      } catch (error: any) {
+        console.error('[AuthStore] Ошибка начала просмотра:', error)
+        const msg = error?.data?.message || error?.statusMessage || 'Не удалось начать просмотр'
+        notifications.error(msg, 'Ошибка просмотра')
+        throw error
+      }
+    },
+
+    /**
+     * Выйти из режима «просмотр от имени пользователя» и вернуться в свой аккаунт.
+     */
+    async exitImpersonation(): Promise<void> {
+      const notifications = useNotifications()
+
+      try {
+        // Публичный эндпоинт — просто подтверждение выхода из режима
+        await $fetch('/api/auth/impersonate/exit', {
+          method: 'POST',
+          credentials: 'include',
+        }).catch(() => {})
+
+        // Удаляем токен просмотра
+        useCookie('view_token').value = null
+
+        // Перезагружаем реальные user + права (уже как админ)
+        this.isImpersonating = false
+        this.impersonator = null
+        await this.init(true)
+        clearCurrentUser()
+
+        notifications.success('Вы вернулись в свой аккаунт')
+      } catch (error) {
+        console.error('[AuthStore] Ошибка выхода из режима просмотра:', error)
+        // На всякий случай всё равно сбрасываем cookie и переинициализируемся
+        useCookie('view_token').value = null
+        this.isImpersonating = false
+        this.impersonator = null
+        await this.init(true)
       }
     },
 
@@ -464,6 +574,8 @@ export const useAuthStore = defineStore('auth', {
       this.pages = null
       this.roleLevel = null
       this.initialized = false
+      this.isImpersonating = false
+      this.impersonator = null
     },
   },
 
@@ -489,6 +601,8 @@ export const useAuthStore = defineStore('auth', {
       state.pages = null
       state.roleLevel = null
       state.initialized = false
+      state.isImpersonating = false
+      state.impersonator = null
       return
     }
 

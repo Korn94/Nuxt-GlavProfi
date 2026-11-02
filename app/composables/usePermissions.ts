@@ -56,6 +56,11 @@ export function usePermissions() {
     // Если страницы нет в правах — она невидима, доступ запрещён
     if (!pagePerms) return false
 
+    // 🎭 Режим «просмотр от имени пользователя» — только чтение
+    if (authStore.isImpersonating && action !== 'view') {
+      return false
+    }
+
     // Для просмотра — чтение данных требует явного canView (Read-Only access),
     // CRUD/special-флаги НЕ дают автоматического чтения
     if (action === 'view') {
