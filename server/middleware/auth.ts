@@ -333,6 +333,7 @@ const PROTECTED_PATHS: Record<string, PathRequirement | PathRequirement[]> = {
   // Личный кабинет партнёра (self). Доступ только у роли 'partner'.
   // Используем ТОЧНЫЙ путь (не /api/partner), чтобы не пересечься с /api/partners.
   '/api/partner/me': { type: 'custom', value: (user) => user.role === 'partner' },
+  '/api/partner/check-phone': { type: 'custom', value: (user) => user.role === 'partner' },
 
   // Админ: управление партнёрами
   '/api/partners': [

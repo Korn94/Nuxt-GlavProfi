@@ -1,50 +1,44 @@
 <!-- app/components/pages/Cabinet/partner/partner/index.vue -->
 <template>
-  <div class="partner-page">
-    <PageTitle
-      title="Кабинет партнёра"
-      icon="mdi:handshake-outline"
-      :badge="leads.length"
-    >
-      <template #actions>
-        <NuxtLink to="/" class="crm-btn crm-btn--ghost crm-btn--sm">
-          <Icon name="mdi:web" size="14" />
-          На сайт
-        </NuxtLink>
-      </template>
-    </PageTitle>
+  <div class="pp">
+    <header class="pp-head">
+      <div>
+        <h1 class="pp-head__title">Сделки</h1>
+        <p class="pp-head__sub">Текущие сделки и партнёрское вознаграждение</p>
+      </div>
+      <NuxtLink to="/" class="pp-head__link">
+        <Icon name="mdi:web" size="15" />
+        На сайт
+      </NuxtLink>
+    </header>
 
     <div v-if="isLoading" class="pp-state">
       <span class="pp-spinner" />
       <span>Загрузка...</span>
     </div>
 
-    <div v-else class="pp-content">
-      <!-- Профиль партнёра -->
-      <section class="pp-profile">
-        <div class="pp-profile__head">
-          <div>
-            <h1 class="pp-profile__title">
-              {{ partner?.companyName || partner?.contactPerson || 'Добро пожаловать!' }}
-            </h1>
-            <p v-if="partner?.contactPerson && partner?.companyName" class="pp-profile__sub">
-              {{ partner.contactPerson }}
-            </p>
+    <template v-else>
+      <section v-if="partner" class="pp-profile">
+        <div class="pp-profile__avatar">{{ profileInitials }}</div>
+        <div class="pp-profile__body">
+          <h2 class="pp-profile__name">
+            {{ partner.companyName || partner.contactPerson || 'Добро пожаловать!' }}
+          </h2>
+          <p v-if="partner.contactPerson && partner.companyName" class="pp-profile__sub">
+            {{ partner.contactPerson }}
+          </p>
+          <div class="pp-profile__meta">
+            <span v-if="partner.phone"><Icon name="mdi:phone" size="14" /> {{ partner.phone }}</span>
+            <span v-if="partner.email"><Icon name="mdi:email" size="14" /> {{ partner.email }}</span>
           </div>
-        </div>
-
-        <div v-if="partner" class="pp-profile__meta">
-          <span v-if="partner.phone"><Icon name="mdi:phone" size="14" /> {{ partner.phone }}</span>
-          <span v-if="partner.email"><Icon name="mdi:email" size="14" /> {{ partner.email }}</span>
         </div>
       </section>
 
-      <!-- Сделки -->
       <section class="pp-leads">
-        <h2 class="pp-leads__title">
-          Мои сделки
+        <div class="pp-leads__head">
+          <h2 class="pp-leads__title">Мои сделки</h2>
           <span class="pp-leads__count">Всего сделок: {{ leads.length }}</span>
-        </h2>
+        </div>
 
         <div v-if="leads.length === 0" class="pp-empty">
           <Icon name="mdi:file-document-outline" size="32" />
@@ -52,23 +46,18 @@
         </div>
 
         <div v-else class="pp-lead-list">
-          <LeadProcessCard
-            v-for="lead in leads"
-            :key="lead.id"
-            :lead="lead"
-          />
+          <LeadProcessCard v-for="lead in leads" :key="lead.id" :lead="lead" />
         </div>
       </section>
-    </div>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { navigateTo } from 'nuxt/app'
 import { useAuthStore } from 'stores/auth'
 import { useApi } from '~/composables/useApi'
-import PageTitle from '~/components/pages/Cabinet/ui/layout/PageTitle.vue'
 import LeadProcessCard from '~/components/pages/Cabinet/partner/ui/LeadProcessCard.vue'
 import type { Partner, PartnerLead } from '~/types/partners'
 
@@ -79,19 +68,25 @@ const isLoading = ref(true)
 const partner = ref<Partner | null>(null)
 const leads = ref<PartnerLead[]>([])
 
+const profileInitials = computed(() => {
+  const name = partner.value?.companyName || partner.value?.contactPerson || ''
+  const parts = name.split(' ').filter(Boolean)
+  if (!parts.length) return 'П'
+  return parts.slice(0, 2).map((w) => w[0]).join('').toUpperCase()
+})
+
 onMounted(async () => {
   if (authStore.isChecking) {
     await authStore.init().catch(() => {})
   }
 
-  // Только партнёр имеет доступ к этому кабинету
   if (authStore.user?.role !== 'partner') {
     await navigateTo('/cabinet')
     return
   }
 
   try {
-    const data = await api.get<{ partner: Partner | null, leads: PartnerLead[] }>('/api/partner/me')
+    const data = await api.get<{ partner: Partner | null; leads: PartnerLead[] }>('/api/partner/me')
     partner.value = data.partner
     leads.value = data.leads || []
   } catch (error) {
@@ -103,22 +98,53 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-.partner-page {
+$ink: #0f1114;
+$surface: #ffffff;
+$border: #e5e7eb;
+$muted: #8a8f94;
+$accent: #00c3f5;
+
+.pp {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  background: var(--crm-bg-base);
-  color: var(--crm-text-primary);
+  gap: 24px;
 }
 
-.pp-content {
+.pp-head {
   display: flex;
-  flex-direction: column;
-  gap: 28px;
-  padding: 24px;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
 
-  @media (max-width: 767.98px) {
-    padding: 16px;
+  &__title {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: $ink;
+  }
+
+  &__sub {
+    margin: 6px 0 0;
+    font-size: 14px;
+    color: $muted;
+  }
+
+  &__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 14px;
+    border-radius: 10px;
+    background: $surface;
+    border: 1px solid $border;
+    color: #5a5e61;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.15s ease;
+
+    &:hover { border-color: $accent; color: $ink; }
   }
 }
 
@@ -126,20 +152,16 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 10px;
-  color: var(--crm-text-muted);
-  font-size: var(--crm-text-md);
-  padding: 24px;
-
-  @media (max-width: 767.98px) {
-    padding: 16px;
-  }
+  color: $muted;
+  font-size: 14px;
+  padding: 32px 0;
 }
 
 .pp-spinner {
   width: 18px;
   height: 18px;
-  border: 2px solid var(--crm-border-hover);
-  border-top-color: var(--crm-accent);
+  border: 2px solid $border;
+  border-top-color: $accent;
   border-radius: 50%;
   animation: pp-spin 0.8s linear infinite;
 }
@@ -149,58 +171,74 @@ onMounted(async () => {
 }
 
 .pp-profile {
-  background: var(--crm-bg-surface);
-  border: 1px solid var(--crm-border);
-  border-radius: var(--crm-radius-xl);
-  padding: 20px 24px;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  background: $surface;
+  border: 1px solid $border;
+  border-radius: 18px;
+  padding: 20px 22px;
 
-  &__head {
+  &__avatar {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    flex-shrink: 0;
     display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16px;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 195, 245, 0.12);
+    color: #00b2e0;
+    font-size: 20px;
+    font-weight: 800;
   }
 
-  &__title {
-    font-size: 22px;
-    font-weight: 600;
+  &__body { flex: 1; min-width: 0; }
+
+  &__name {
     margin: 0;
-    color: var(--crm-text-primary);
+    font-size: 20px;
+    font-weight: 700;
+    color: $ink;
   }
 
   &__sub {
-    font-size: var(--crm-text-md);
-    color: var(--crm-text-secondary);
-    margin: 4px 0 0;
+    margin: 2px 0 0;
+    font-size: 14px;
+    color: $muted;
   }
 
   &__meta {
     display: flex;
     flex-wrap: wrap;
     gap: 18px;
-    margin-top: 14px;
-    padding-top: 14px;
-    border-top: 1px solid var(--crm-border);
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid $border;
 
     span {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      font-size: var(--crm-text-md);
-      color: var(--crm-text-secondary);
+      font-size: 13px;
+      color: #5a5e61;
     }
   }
 }
 
 .pp-leads {
-  &__title {
+  &__head {
     display: flex;
     align-items: center;
-    gap: 10px;
-    font-size: 18px;
-    font-weight: 600;
-    margin: 0 0 16px;
-    color: var(--crm-text-primary);
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 19px;
+    font-weight: 700;
+    color: $ink;
   }
 
   &__count {
@@ -210,12 +248,12 @@ onMounted(async () => {
     min-width: 24px;
     height: 24px;
     padding: 0 10px;
-    background: var(--crm-bg-overlay);
-    border: 1px solid var(--crm-border-hover);
+    background: #fff;
+    border: 1px solid $border;
     border-radius: 12px;
-    font-size: var(--crm-text-sm);
-    font-weight: 500;
-    color: var(--crm-text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+    color: $muted;
   }
 }
 
@@ -223,20 +261,30 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   padding: 48px 24px;
-  background: var(--crm-bg-surface);
-  border: 1px dashed var(--crm-border-hover);
-  border-radius: var(--crm-radius-xl);
-  color: var(--crm-text-muted);
   text-align: center;
+  background: $surface;
+  border: 1px dashed #d5d9db;
+  border-radius: 18px;
+  color: $muted;
 
-  p { margin: 0; font-size: var(--crm-text-md); max-width: 360px; }
+  p {
+    margin: 0;
+    font-size: 14px;
+    max-width: 380px;
+    line-height: 1.6;
+  }
 }
 
 .pp-lead-list {
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+@media (max-width: 640px) {
+  .pp-head { flex-direction: column; align-items: flex-start; }
+  .pp-head__title { font-size: 24px; }
 }
 </style>

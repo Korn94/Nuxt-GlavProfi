@@ -7,7 +7,7 @@
 import PartnerCabinet from '~/components/pages/Cabinet/partner/partner/index.vue'
 
 definePageMeta({
-  layout: 'cabinet',
+  layout: 'partner',
   middleware: ['auth'],
 })
 
