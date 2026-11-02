@@ -130,15 +130,6 @@ const menuItems: MenuItem[] = [
     page: 'contractors'
   },
 
-  // Партнёры — partners
-  {
-    id: 'partners',
-    title: 'Партнёры',
-    path: '/cabinet/partners',
-    icon: 'mdi:handshake-outline',
-    page: 'partners'
-  },
-
   // Подневка — daily-work (самостоятельная страница)
   {
     id: 'daily-work',
@@ -225,6 +216,15 @@ const menuItems: MenuItem[] = [
     path: '/cabinet/portfolio',
     icon: 'mdi:briefcase-outline',
     page: 'portfolio'
+  },
+
+  // Партнёры — partners
+  {
+    id: 'partners',
+    title: 'Партнёры',
+    path: '/cabinet/partners',
+    icon: 'mdi:handshake-outline',
+    page: 'partners'
   },
 
   { id: 'div-3', divider: true },
