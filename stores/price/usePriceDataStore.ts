@@ -149,6 +149,18 @@ export const usePriceDataStore = defineStore('price-data', () => {
     }
   }
 
+  /**
+   * Управление флагом загрузки (показ спиннера).
+   * Связывается с `pending` из useAsyncData на странице [category].vue.
+   * При начале загрузки сбрасываем старую ошибку, чтобы не показывать её во время запроса.
+   */
+  const setLoading = (value: boolean) => {
+    isLoading.value = value
+    if (value) {
+      errorMessage.value = ''
+    }
+  }
+
   // ========================================
   // 🎯 CRUD: ОБЩИЙ ПАТТЕРН ОПТИМИСТИЧНОГО ОБНОВЛЕНИЯ
   // ========================================
@@ -768,6 +780,7 @@ export const usePriceDataStore = defineStore('price-data', () => {
     // Инициализация со страницы
     setData,
     setError,
+    setLoading,
 
     // Update
     updateCategory,

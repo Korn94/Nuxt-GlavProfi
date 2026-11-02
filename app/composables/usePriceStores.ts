@@ -73,6 +73,7 @@ export function usePriceStores() {
     data: pricePayload,
     refresh: refreshData,
     error: priceError,
+    pending: pricePending,
   } = useAsyncData(
     `price-${String(route.params.category)}`,
     async () => {
@@ -118,6 +119,18 @@ export function usePriceStores() {
         return payload
       },
     },
+  )
+
+  // ========================================
+  // ⏳ ИНДИКАТОР ЗАГРУЗКИ (спиннер)
+  // ========================================
+  // Связываем `pending` из useAsyncData с флагом isLoading в DataStore.
+  // Именно этот флаг UI использует, чтобы показать спиннер вместо пустого
+  // состояния «Ничего не найдено» во время реальной загрузки данных с БД.
+  watch(
+    pricePending,
+    (val) => dataStore.setLoading(val),
+    { immediate: true },
   )
 
   // ========================================

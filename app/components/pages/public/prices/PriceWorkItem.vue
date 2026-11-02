@@ -149,7 +149,13 @@
               />
             </button>
             <span class="sub-work-item__title">
-              <span v-if="editStore.editingDetailId !== detail.id">{{ detail.name }}</span>
+              <span v-if="editStore.editingDetailId !== detail.id">
+                <span
+                  v-for="(part, index) in splitText(detail.name)"
+                  :key="index"
+                  :class="{ highlight: part.isMatch }"
+                >{{ part.text }}</span>
+              </span>
               <input
                 v-else
                 v-model="editStore.editingDetailData.name"
@@ -211,7 +217,12 @@
             </button>
             <span class="sub-work-item__title">
               <span v-if="editStore.editingDopworkId !== dopwork.id">
-                <strong>{{ dopwork.label }}</strong> {{ dopwork.dopwork }}
+                <strong>{{ dopwork.label }}</strong>
+                <span
+                  v-for="(part, index) in splitText(dopwork.dopwork)"
+                  :key="index"
+                  :class="{ highlight: part.isMatch }"
+                >{{ part.text }}</span>
               </span>
               <template v-else>
                 <input v-model="editStore.editingDopworkData.label" class="edit-input" style="width: 35%" />
@@ -258,6 +269,7 @@
 import { computed } from 'vue'
 import { usePriceUIStore, usePriceDataStore, usePriceEditStore } from 'stores/price'
 import type { PriceWorkItem } from 'stores/price/types'
+import { highlightText } from '~/utils/priceSearch'
 
 const props = defineProps<{
   item: PriceWorkItem
@@ -277,35 +289,7 @@ const hasNestedItems = computed(
     (props.item.dopworks?.length ?? 0) > 0,
 )
 
-const splitText = (text: string) => {
-  if (!text || !props.searchQuery.trim()) {
-    return [{ text, isMatch: false }]
-  }
-  const query = props.searchQuery.trim().toLowerCase()
-  const parts: Array<{ text: string; isMatch: boolean }> = []
-  let lastIndex = 0
-
-  while (lastIndex < text.length) {
-    const index = text.toLowerCase().indexOf(query, lastIndex)
-    if (index === -1) {
-      parts.push({ text: text.slice(lastIndex), isMatch: false })
-      break
-    }
-
-    if (index > lastIndex) {
-      parts.push({ text: text.slice(lastIndex, index), isMatch: false })
-    }
-
-    parts.push({
-      text: text.slice(index, index + query.length),
-      isMatch: true,
-    })
-
-    lastIndex = index + query.length
-  }
-
-  return parts
-}
+const splitText = (text: string) => highlightText(text, props.searchQuery)
 </script>
 
 <style lang="scss" scoped>

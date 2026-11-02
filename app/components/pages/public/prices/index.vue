@@ -140,13 +140,10 @@
           </div>
         </div>
 
-        <!-- Скелетон загрузки -->
-        <div v-if="dataStore.isLoading" class="skeleton">
-          <div v-for="i in 3" :key="i" class="skeleton__card">
-            <div class="skeleton__line skeleton__line--title"></div>
-            <div class="skeleton__line"></div>
-            <div class="skeleton__line skeleton__line--short"></div>
-          </div>
+        <!-- Индикатор загрузки -->
+        <div v-if="dataStore.isLoading" class="price-list__loading">
+          <Icon name="mdi:loading" size="32" class="spin" />
+          <span>Загружаем цены…</span>
         </div>
 
         <!-- Ошибка -->
@@ -195,6 +192,7 @@ import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePriceUIStore, usePriceDataStore, usePriceEditStore } from 'stores/price'
 import type { PriceCategory } from 'stores/price/types'
+import { buildPriceIndex, searchPriceIndex } from '~/utils/priceSearch'
 
 const props = withDefaults(defineProps<{
   categories: Array<{ id: number; name: string; slug: string }>
@@ -249,8 +247,10 @@ const totalItems = computed(() =>
   ),
 )
 
+const searchIndex = computed(() => buildPriceIndex(dataStore.works ?? []))
+
 const filteredWorks = computed<PriceCategory[]>(() => {
-  const query = uiStore.searchQuery.trim().toLowerCase()
+  const query = uiStore.searchQuery.trim()
   let filtered: PriceCategory[] = dataStore.works ?? []
 
   if (isAdminMode.value && uiStore.activeWork !== 'all') {
@@ -259,13 +259,15 @@ const filteredWorks = computed<PriceCategory[]>(() => {
 
   if (!query) return filtered
 
+  const matchedItemIds = new Set(searchPriceIndex(searchIndex.value, query))
+
   const openSubcategoriesTemp: Record<number, boolean> = {}
   const result = filtered
     .map(category => {
       const filteredSubcategories = category.subcategories
         .map(subcategory => {
           const filteredItems = subcategory.items.filter(item =>
-            item.name.toLowerCase().includes(query),
+            matchedItemIds.has(item.id),
           )
           if (filteredItems.length > 0) {
             openSubcategoriesTemp[subcategory.id] = true
@@ -833,50 +835,34 @@ const setCategory = async (categorySlug: string) => {
 }
 
 /* ═══════════════════════════════════════════ */
-/* SKELETON                                    */
+/* LOADING                                     */
 /* ═══════════════════════════════════════════ */
-.skeleton {
+.price-list__loading {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 60px 20px;
+  color: $blue;
 
-  &__card {
-    padding: 20px;
-    background: #f7f8fa;
-    border-radius: 12px;
-  }
-
-  &__line {
-    height: 12px;
-    background: linear-gradient(90deg, #eef0f3 25%, #f6f7f9 50%, #eef0f3 75%);
-    background-size: 200% 100%;
-    border-radius: 6px;
-    margin-bottom: 10px;
-    animation: shimmer 1.4s infinite;
-
-    &--title {
-      width: 40%;
-      height: 18px;
-      margin-bottom: 16px;
-    }
-
-    &--short {
-      width: 60%;
-      margin-bottom: 0;
-    }
-
-    &:last-child {
-      margin-bottom: 0;
-    }
+  span {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: $text-gray;
   }
 }
 
-@keyframes shimmer {
-  0% {
-    background-position: 200% 0;
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
   }
-  100% {
-    background-position: -200% 0;
+  to {
+    transform: rotate(360deg);
   }
 }
 
