@@ -100,7 +100,7 @@ import type { User } from 'stores/users'
 
 definePageMeta({
   layout: 'cabinet',
-  // middleware: ['auth'],
+  middleware: ['auth'],
 })
 
 const usersStore = useUsersStore()
