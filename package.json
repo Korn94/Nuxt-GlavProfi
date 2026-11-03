@@ -71,5 +71,13 @@
   "engines": {
     "node": ">=18.0.0"
   },
+  "browserslist": [
+    "> 0.3%",
+    "last 2 versions",
+    "Firefox ESR",
+    "not dead",
+    "not op_mini all",
+    "not kaios > 0"
+  ],
   "type": "module"
 }

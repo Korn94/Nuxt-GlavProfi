@@ -38,9 +38,14 @@
 <script setup lang="ts">
 import type { BreadcrumbItem } from './types'
 
-defineProps<{
-  items: BreadcrumbItem[]
-}>()
+withDefaults(defineProps<{
+  items?: BreadcrumbItem[]
+}>(), {
+  // Компонент — переиспользуемый UI-блок: без явного items он просто
+  // не рисует крошки, вместо предупреждения Vue
+  // «Invalid prop: type check failed for prop "items"».
+  items: () => [],
+})
 </script>
 
 <style lang="scss" scoped>

@@ -91,7 +91,9 @@ export function usePriceStores() {
       const role = getUserRole()
       const isAdminUser = isRoleAdmin(role)
 
-      console.log(
+      // Диагностика SSR/авторизации. console.debug — чтобы не шуметь в
+      // в терминале на каждом серверном запросе (включается фильтром Verbose).
+      console.debug(
         `🔐 useAsyncData [price-${slug}]: роль="${role}", isAdminUser=${isAdminUser}, токен=${authStore.token ? '✅' : '❌'}`
       )
 
@@ -127,11 +129,23 @@ export function usePriceStores() {
   // Связываем `pending` из useAsyncData с флагом isLoading в DataStore.
   // Именно этот флаг UI использует, чтобы показать спиннер вместо пустого
   // состояния «Ничего не найдено» во время реальной загрузки данных с БД.
-  watch(
-    pricePending,
-    (val) => dataStore.setLoading(val),
-    { immediate: true },
-  )
+  //
+  // ⚠️ Тонкости SSR (иначе — Vue Hydration node mismatch):
+  // 1. На сервере useAsyncData (lazy: false) дожидается данных через
+  //    onServerPrefetch ДО рендера, поэтому спиннер там не нужен вовсе.
+  // 2. Вотчер с дефолтным flush: 'pre' в SSR не успевает отработать до рендера:
+  //    флаг остаётся true, сервер отдаёт спиннер, а клиент при гидратации
+  //    сразу выставляет false и рендерит контент → разметка расходится.
+  //    Поэтому на клиенте — flush: 'sync', на сервере — сразу false.
+  if (import.meta.client) {
+    watch(
+      pricePending,
+      (val) => dataStore.setLoading(val),
+      { immediate: true, flush: 'sync' },
+    )
+  } else {
+    dataStore.setLoading(false)
+  }
 
   // ========================================
   // 🔄 АВТООБНОВЛЕНИЕ ПРИ ЗАВЕРШЕНИИ АВТОРИЗАЦИИ
@@ -195,7 +209,9 @@ export function usePriceStores() {
     (err) => {
       dataStore.setError(err)
     },
-    { immediate: true },
+    // flush: 'sync' — чтобы текст ошибки попал в SSR-разметку до рендера
+    // и совпал с клиентской гидратацией (см. комментарий выше про isLoading).
+    { immediate: true, flush: 'sync' },
   )
 
   // ========================================
