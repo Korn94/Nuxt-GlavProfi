@@ -129,6 +129,16 @@ export interface CalculatorExtraItem {
   unit: string
   category?: string
   recommended?: boolean
+  /** 🆕 Пояснение под названием (например, «Без грунтовки шпаклёвка может отслоиться») */
+  description?: string
+  /** 🆕 Бейдж «обязательно» — визуально выделяет технологически необходимую доплату */
+  required?: boolean
+  /** 🆕 Показывать доплату только для указанных baseOptions (пусто — для всех) */
+  appliesToOptionIds?: string[]
+  /** 🆕 Включать по умолчанию для указанных baseOptions */
+  defaultFor?: string[]
+  /** 🆕 false — показывать цену, но не прибавлять к итогу (например, работы в м.п.) */
+  countsInTotal?: boolean
 }
 
 export interface ZatirkaOption {
@@ -174,6 +184,10 @@ export interface CalculatorTab {
   baseOptions?: BaseOption[]
   /** 🆕 Кастомный заголовок для блока baseOptions (по умолчанию "Вариант исполнения") */
   baseOptionsLabel?: string
+  /** 🆕 Заголовок блока доплат (по умолчанию «Дополнительно:») */
+  extrasLabel?: string
+  /** 🆕 Показывать доплаты перед блоком «Итого» (чтобы состав читался до суммы) */
+  extrasBeforeTotal?: boolean
   extras: CalculatorExtraItem[]
 }
 

@@ -27,7 +27,10 @@
         </div>
 
         <div class="calculator-body">
-          <div class="calculator-works">
+          <div
+            class="calculator-works"
+            :class="{ 'calculator-works--extras-first': currentTab?.extrasBeforeTotal }"
+          >
             <h3 class="calculator-works__title">Состав работ:</h3>
             
             <!-- Универсальные опции выбора -->
@@ -118,7 +121,7 @@
 
             <!-- Дополнительные опции -->
             <div class="calculator-extras" v-if="currentExtras?.length">
-              <h4>Дополнительно:</h4>
+              <h4>{{ currentTab?.extrasLabel || 'Дополнительно:' }}</h4>
               <div class="extras-list">
                 <label
                   v-for="extra in currentExtras"
@@ -135,7 +138,11 @@
                   <span class="extra-checkbox">
                     <Icon v-if="selectedExtras.includes(extra.id)" name="mdi:check" size="14" />
                   </span>
-                  <span class="extra-name">{{ extra.name }}</span>
+                  <span class="extra-content">
+                    <span class="extra-name">{{ extra.name }}</span>
+                    <span v-if="extra.description" class="extra-desc">{{ extra.description }}</span>
+                  </span>
+                  <span v-if="extra.required" class="extra-required">обязательно</span>
                   <span class="extra-price">
                     <template v-if="extra.price > 0">
                       +{{ extra.price.toLocaleString('ru-RU') }} ₽/{{ extra.unit || 'м²' }}
@@ -254,7 +261,26 @@ const currentTab = computed(() =>
 )
 
 const currentWorks = computed(() => currentTab.value?.works || [])
-const currentExtras = computed(() => currentTab.value?.extras || [])
+
+/** Выбранный базовый вариант (к нему привязываются обязательные доплаты) */
+const currentBaseOptionId = computed(() => {
+  const value = selectedOptions.value['baseOption']
+  return typeof value === 'string' ? value : ''
+})
+
+/** Доплаты, применимые к текущему базовому варианту */
+const currentExtras = computed(() => {
+  const all = currentTab.value?.extras || []
+  const baseId = currentBaseOptionId.value
+
+  if (!baseId) return all
+
+  return all.filter(
+    (extra) =>
+      !extra.appliesToOptionIds?.length ||
+      extra.appliesToOptionIds.includes(baseId)
+  )
+})
 
 /**
  * Универсальные группы опций для отображения
@@ -382,6 +408,28 @@ const toggleOption = (groupId: string, optionId: string, multiple = false) => {
 }
 
 /**
+ * Включает доплаты, которые обязательны для выбранного базового варианта.
+ * Позволяет показывать «700 ₽ слои + 140 ₽ грунтовка + 180 ₽ шлифовка» вместо одной суммы.
+ */
+const applyDefaultExtras = () => {
+  const baseId = currentBaseOptionId.value
+
+  if (!baseId) {
+    selectedExtras.value = []
+    return
+  }
+
+  selectedExtras.value = (currentTab.value?.extras || [])
+    .filter((extra) => extra.defaultFor?.includes(baseId))
+    .filter(
+      (extra) =>
+        !extra.appliesToOptionIds?.length ||
+        extra.appliesToOptionIds.includes(baseId)
+    )
+    .map((extra) => extra.id)
+}
+
+/**
  * Инициализация выбранных опций по умолчанию
  */
 const initSelections = () => {
@@ -394,12 +442,20 @@ const initSelections = () => {
       selectedOptions.value[group.id] = group.multiple ? [defaultOption.id] : defaultOption.id
     }
   })
+
+  applyDefaultExtras()
 }
 
 // SSR-безопасная инициализация выбора по умолчанию.
 // Выполняется и на сервере, и на клиенте в момент setup, чтобы итоговая цена
 // «по умолчанию» (totalPerUnit/totalCost) попадала в исходный HTML до гидратации.
 initSelections()
+
+// При смене базового варианта пересобираем обязательные доплаты:
+// например, у «под лампочку» шлифовка 180 ₽ заменяется на 220 ₽.
+watch(currentBaseOptionId, () => {
+  applyDefaultExtras()
+})
 
 // === Расчёт стоимости ===
 
@@ -432,7 +488,9 @@ const baseTotal = computed(() => {
 const extrasTotal = computed(() =>
   selectedExtras.value.reduce((sum, id) => {
     const extra = currentExtras.value.find((e) => e.id === id)
-    return sum + (extra?.price || 0)
+    // countsInTotal === false — цена показывается справочно (например, работы в м.п.)
+    if (!extra || extra.countsInTotal === false) return sum
+    return sum + (extra.price || 0)
   }, 0)
 )
 
@@ -711,6 +769,18 @@ const handleFormSubmitted = (formData: Record<string, unknown> = {}) => {
   }
 }
 
+/**
+ * Доплаты перед итогом: пользователь сначала видит состав
+ * (700 ₽ слои + 140 ₽ грунтовка + 180 ₽ шлифовка), затем сумму.
+ */
+.calculator-works--extras-first {
+  display: flex;
+  flex-direction: column;
+
+  .calculator-extras { order: 3; }
+  .calculator-total { order: 4; }
+}
+
 .calculator-options {
   margin-bottom: 1.5rem;
   min-width: 0;
@@ -960,14 +1030,43 @@ const handleFormSubmitted = (formData: Record<string, unknown> = {}) => {
     border-color: transparent;
   }
 
-  .extra-name {
+  .extra-content {
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+  }
+
+  .extra-name {
     color: $text-dark;
     font-size: 0.95rem;
     min-width: 0;
     overflow-wrap: anywhere;
     word-break: break-word;
   }
+
+  .extra-desc {
+    font-size: 0.8rem;
+    line-height: 1.35;
+    color: $text-gray;
+  }
+
+  .extra-required {
+    flex-shrink: 0;
+    padding: 0.15rem 0.45rem;
+    background: rgba(0, 195, 245, 0.1);
+    color: $blue;
+    font-size: 0.7rem;
+    font-weight: 600;
+    border-radius: 4px;
+    white-space: nowrap;
+
+    @media (max-width: 600px) {
+      display: none;
+    }
+  }
+
   .extra-price {
     color: $text-gray;
     font-weight: 600;

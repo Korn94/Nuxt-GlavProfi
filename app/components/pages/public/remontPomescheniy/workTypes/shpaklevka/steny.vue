@@ -3,8 +3,8 @@
   <div class="page-shpaklevka-sten">
     <!-- ==================== 1. ШАПКА СТРАНИЦЫ ==================== -->
     <HeaderType
-      title="Шпаклёвка <span>стен</span>"
-      subtitle="Подготовка стен под покраску, обои или декоративную штукатурку."
+      title="Шпаклёвка стен <span>в Рязани</span>"
+      subtitle="Два слоя под покраску — 700 ₽/м², с грунтовкой и шлифовкой — 1 020 ₽/м². Смета фиксируется в договоре, гарантия 3 года, замер бесплатный."
     />
 
     <!-- ==================== 2. ХЛЕБНЫЕ КРОШКИ + STICKYNAV ==================== -->
@@ -13,7 +13,7 @@
         <Breadcrumbs :items="breadcrumbItems" />
       </template>
       <template #nav>
-        <StickyNav :items="navItems" :scroll-offset="110" label="На странице" />
+        <StickyNav :items="visibleNavItems" :scroll-offset="110" label="На странице" />
       </template>
     </NavBreadcrumbsRow>
 
@@ -43,6 +43,10 @@
         title="Полный прайс: <span>шпаклёвка стен</span>"
         subtitle="Все работы по подготовке стен: грунтовка, шпаклёвка, армирование, шлифовка."
         :sub-category-ids="[250, 251, 252, 254, 255]"
+        :exclude-item-ids="[814, 1596, 1597]"
+        :item-name-overrides="{
+          815: 'Работа в помещениях с повышенными требованиями к чистоте',
+        }"
         footer-note="* Цены указаны за работу без учёта стоимости материалов. Доплаты отмечены знаком «+ к цене»."
         theme="light"
       />
@@ -62,28 +66,27 @@
     <section id="overview" class="page-section">
       <WorkTypeOverview
         title="Зачем стенам <span>шпаклёвка</span>"
-        description="Шпаклёвка — это финишное выравнивание стен тонким слоем пасты (0,5–3 мм). Она превращает шероховатую поверхность после штукатурки или гипсокартона в идеально гладкую, готовую под покраску, обои или декоративную отделку."
+        description="Шпаклёвка выравнивает стену тонким слоем пасты 0,5–3 мм и закрывает поры, следы инструмента, стыки и мелкие сколы. Без неё краска ляжет пятнами, обои подчеркнут неровности, а декоративное покрытие проявит дефекты основания."
         :advantages="categoryAdvantages"
       >
         <template #details>
           <p>
             Любое основание — будь то штукатурка, гипсокартон или бетон — имеет
             микронеровности: поры, следы от инструмента, стыки, мелкие сколы.
-            Без шпаклёвки краска ляжет пятнами, обои подчеркнут каждую ямку,
-            а декоративное покрытие покажет все дефекты основания.
+            Шпаклёвка заполняет их и создаёт единую плоскость.
           </p>
           <p>
-            Шпаклёвка заполняет эти дефекты и создаёт единую гладкую плоскость.
-            <span class="blue">Стартовый слой</span> убирает перепады до 3 мм,
-            <span class="blue">финишный</span> — доводит поверхность до идеала,
-            чтобы краска или обои легли ровно и без просветов.
+            <span class="blue">Стартовый слой</span> убирает неровности до 3 мм за проход.
+            Перепады до 5 мм выравниваем отдельной работой — 500 ₽/м².
+            <span class="blue">Финишный слой</span> 1–2 мм даёт поверхность,
+            на которой краска или обои ложатся без просветов.
           </p>
           <p>
-            После шпаклёвки стена готова под
-            <NuxtLink to="/vidy-rabot/pokraska-sten">покраску</NuxtLink>,
-            <NuxtLink to="/vidy-rabot/pokleyka-oboev">поклейку обоев</NuxtLink>,
-            <NuxtLink to="/vidy-rabot/dekorativnaya-otdelka">декоративную штукатурку</NuxtLink>
-            или укладку плитки (в случае цементных составов).
+            <!-- TODO: страницы /vidy-rabot/pokraska-sten, /pokleyka-oboev и
+                 /dekorativnaya-otdelka ещё не собраны. Вернуть NuxtLink, когда появятся:
+                 сейчас оставляем текстом, чтобы не вести пользователя на 404. -->
+            После шпаклёвки стена готова под покраску или поклейку обоев,
+            а цементные составы — под укладку плитки.
           </p>
         </template>
       </WorkTypeOverview>
@@ -96,7 +99,7 @@
         subtitle="Зависит от финишной отделки и требований к качеству поверхности."
         :methods="comparisonMethods"
         :price-data="sections"
-        summary="Не уверены, какой уровень подготовки нужен? <strong>Инженер бесплатно приедет на осмотр</strong>, оценит состояние стен и порекомендует оптимальный вариант под вашу отделку."
+        :summary="methodsSummary"
       />
     </section>
 
@@ -162,7 +165,7 @@
     <section id="stages" class="page-section">
       <WorkStagesTimeline
         title="Как <span>мы работаем</span>: 6 этапов"
-        subtitle="От заявки до идеально гладких стен, готовых под отделку"
+        subtitle="От заявки до ровных стен, готовых под отделку"
         :stages="workStages"
       />
     </section>
@@ -178,19 +181,21 @@
     </section>
 
     <!-- ==================== 15. ПОРТФОЛИО ==================== -->
-    <section id="portfolio" class="page-section">
+    <section v-if="hasBeforeAfter" id="portfolio" class="page-section">
       <BeforeAfterGallery
         title="Наши работы: <span>шпаклёвка стен</span>"
         :slugs="projectSlugs"
+        :projects="portfolioProjects"
         theme="dark"
       />
     </section>
 
     <!-- ==================== 16. ПРОЕКТЫ ==================== -->
-    <section id="projects" class="page-section">
+    <section v-if="hasShowcase" id="projects" class="page-section">
       <ProjectsShowcase
         title="Наши реализованные проекты <span>для бизнеса в Рязани</span>"
-        :slugs="projectSlugs"
+        :slugs="projectShowcaseSlugs"
+        :projects="portfolioProjects"
       />
     </section>
 
@@ -210,9 +215,9 @@
     <!-- ==================== 18. ДРУГИЕ РАБОТЫ ГРУППЫ ==================== -->
     <section id="related" class="page-section">
       <RelatedWorkTypes
-        title="Другие работы <span>по шпаклёвке</span>"
-        subtitle="Каждый вид — на отдельной странице с ценами и калькулятором."
-        :items="relatedShpaklevkaWorkTypes"
+        title="Смежные работы <span>по отделке стен</span>"
+        subtitle="Следующие этапы после шпаклёвки — на отдельных страницах с ценами."
+        :items="relatedWorkTypes"
         :price-data="sections"
         theme="light"
       />
@@ -222,10 +227,10 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRoute } from 'nuxt/app'
+import { useAsyncData } from 'nuxt/app'
 
 // === Данные из shared (общие для группы «Шпаклёвка») ===
-import { shpaklevkaWorkTypes, shpaklevkaMaterials, shpaklevkaThicknesses } from '../data/shared/shpaklevka'
+import { shpaklevkaMaterials, shpaklevkaThicknesses } from '../data/shared/shpaklevka'
 
 // === Данные из pages (специфичные для этой страницы) ===
 import {
@@ -239,11 +244,16 @@ import {
   guarantees,
   faqItems,
   projectSlugs,
+  projectShowcaseSlugs,
+  relatedWorkTypes,
   customFields,
   messageConfig,
   seoData,
   WORK_IDS,
 } from '../data/pages/shpaklevka-sten'
+
+// === Типы портфолио ===
+import type { Project } from '../../ui/types'
 
 // === UI: workTypes ===
 import HeaderType from '../ui/HeaderType.vue'
@@ -277,15 +287,42 @@ import { usePriceFetcher } from '~/composables/calculator/usePriceFetcher'
 import type { NormalizedWorkItem } from '~/types/calculator'
 
 // ============================================================
-// ОПРЕДЕЛЕНИЕ АКТИВНОЙ СТРАНИЦЫ ПО URL
+// ПОРТФОЛИО (SSR-загрузка, чтобы блоки не были пустыми в HTML)
 // ============================================================
-const route = useRoute()
+const { data: portfolioResponse } = await useAsyncData(
+  'worktype-portfolio',
+  () => $fetch<{ data?: Project[] } | Project[]>('/api/portfolio'),
+  { default: () => ({ data: [] as Project[] }) }
+)
 
-const relatedShpaklevkaWorkTypes = computed(() =>
-  shpaklevkaWorkTypes.map(item => ({
-    ...item,
-    active: route.path === item.to,
-  }))
+const portfolioProjects = computed<Project[]>(() => {
+  const payload = portfolioResponse.value
+  const list = Array.isArray(payload) ? payload : payload?.data
+  return Array.isArray(list) ? list : []
+})
+
+const hasBeforeAfter = computed(() =>
+  portfolioProjects.value.some(
+    (project) =>
+      !!project.slug &&
+      projectSlugs.includes(project.slug) &&
+      (project.images ?? []).some((image) => image.type === 'before' || image.type === 'after')
+  )
+)
+
+const hasShowcase = computed(() =>
+  portfolioProjects.value.some(
+    (project) => !!project.slug && projectShowcaseSlugs.includes(project.slug)
+  )
+)
+
+/** Пункты навигации, которые действительно отрендерятся на странице */
+const visibleNavItems = computed(() =>
+  navItems.filter((item) => {
+    if (item.id === 'portfolio') return hasBeforeAfter.value
+    if (item.id === 'projects') return hasShowcase.value
+    return true
+  })
 )
 
 // ============================================================
@@ -354,7 +391,15 @@ const premiumPrice = computed(() => {
   return Math.round(g + s + p + sh)
 })
 
-const minPrice = computed(() => startWork.value ? Math.round(startWork.value.pricePerUnit) : 0)
+/**
+ * Цена для title и JSON-LD: два слоя шпаклёвки под покраску (300 + 400 = 700 ₽/м²).
+ * Должна совпадать с базовой карточкой калькулятора — без приставки «от».
+ */
+const minPrice = computed(() => {
+  const s = startWork.value?.pricePerUnit ?? 0
+  const f = finishWork.value?.pricePerUnit ?? 0
+  return Math.round(s + f)
+})
 
 const formatPrice = (price: number): string => {
   if (!price) return '—'
@@ -365,11 +410,32 @@ const formatPrice = (price: number): string => {
 // ВЫЧИСЛЯЕМЫЕ ТЕКСТЫ
 // ============================================================
 const insightsSummary = computed(() => {
-  const delta = finishPrice.value - startPrice.value
-  if (delta > 0) {
-    return `Финишная шпаклёвка добавляет <strong>+${delta.toLocaleString('ru-RU')} ₽/м²</strong> к стоимости. Это второй слой, который превращает стену в идеально гладкую поверхность. Если планируете красить — без него краска подчеркнёт все микродефекты основания.`
+  const f = finishWork.value?.pricePerUnit ?? 0
+  const sh = shlifWork.value?.pricePerUnit ?? 0
+
+  if (f > 0) {
+    const delta = Math.round(f + sh)
+    return `Финишный слой ${formatPrice(f)} и шлифовка ${sh} ₽/м² добавляют <strong>+${delta.toLocaleString('ru-RU')} ₽/м²</strong> к стартовой подготовке ${startPrice.value.toLocaleString('ru-RU')} ₽/м². Без финишного слоя краска подчеркнёт микродефекты; под плотные обои он не обязателен.`
   }
-  return 'Финишная шпаклёвка создаёт идеально гладкую поверхность, готовую под покраску любого типа. Без неё краска подчеркнёт все микродефекты основания.'
+
+  return 'Финишный слой и шлифовка дают ровную поверхность под покраску. Под плотные обои достаточно стартового слоя.'
+})
+
+/**
+ * Пояснение к таблице уровней: цены за слои и комплексы с грунтовкой/шлифовкой.
+ * Цифры берутся из прайса — при изменении цен текст обновится сам.
+ */
+const methodsSummary = computed(() => {
+  const g = Math.round(gruntWork.value?.pricePerUnit ?? 0)
+  const sh1 = Math.round(shlifWork.value?.pricePerUnit ?? 0)
+  const sh2 = Math.round(shlifPokrWork.value?.pricePerUnit ?? 0)
+  const complexes = [
+    startPrice.value.toLocaleString('ru-RU'),
+    finishPrice.value.toLocaleString('ru-RU'),
+    premiumPrice.value.toLocaleString('ru-RU'),
+  ].join(' / ')
+
+  return `Цены в таблице — за шпаклёвочные слои. С грунтовкой ${g} ₽/м² и шлифовкой ${sh1}–${sh2} ₽/м² комплекс стоит <strong>${complexes} ₽/м²</strong> — как в калькуляторе. Не уверены, какой уровень нужен? <strong>Инженер бесплатно приедет на осмотр</strong> и подскажет вариант под вашу отделку.`
 })
 
 // ============================================================
@@ -392,6 +458,7 @@ useWorkTypeSeo({
   ...seoData,
   priceFrom: minPrice,
   faq: faqItems,
+  breadcrumbs: breadcrumbItems,
 })
 </script>
 

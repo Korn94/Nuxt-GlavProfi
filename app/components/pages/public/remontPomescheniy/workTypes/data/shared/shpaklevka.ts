@@ -61,7 +61,7 @@ export const shpaklevkaMaterials = [
     colorLabel: 'Белая или светло-серая паста',
     badge: 'Универсальная',
     properties: [
-      { label: 'Быстро сохнет', icon: 'mdi:clock-fast' },
+      { label: 'Сохнет 12–24 часа', icon: 'mdi:clock-fast' },
       { label: 'Легко шлифуется', icon: 'mdi:fan' },
     ],
     useFor: [
@@ -91,10 +91,10 @@ export const shpaklevkaMaterials = [
     name: 'Полимерная',
     fullName: 'Полимерная (латексная/акриловая) шпаклёвка',
     color: '#F5F5F5',
-    colorLabel: 'Идеально белая, эластичная',
-    badge: 'Премиум-финиш',
+    colorLabel: 'Белая, эластичная',
+    badge: 'Тонкий финиш',
     properties: [
-      { label: 'Идеальная гладкость', icon: 'mdi:circle-outline' },
+      { label: 'Мелкая дисперсия', icon: 'mdi:circle-outline' },
       { label: 'Эластичность', icon: 'mdi:wave' },
     ],
     useFor: [
@@ -109,8 +109,8 @@ export const shpaklevkaMaterials = [
  * Толщина слоёв и их назначение.
  */
 export const shpaklevkaThicknesses = [
-  { value: '0,5–1 мм', purpose: 'Финишный слой под покраску — идеально гладкая поверхность' },
-  { value: '1–3 мм', purpose: 'Стартовая шпаклёвка — выравнивание мелких дефектов' },
-  { value: '3–5 мм', purpose: 'Выравнивание перепадов — локальная заделка' },
-  { value: '> 5 мм', purpose: 'Требуется штукатурка, шпаклёвка не подходит' },
+  { value: '0,5–1 мм', purpose: 'Финишный слой под покраску: ровная поверхность при боковом свете' },
+  { value: '1–3 мм', purpose: 'Стартовая шпаклёвка: мелкие дефекты и стыки' },
+  { value: '3–5 мм', purpose: 'Перепады до 5 мм — отдельная работа 500 ₽/м²' },
+  { value: '> 5 мм', purpose: 'Нужна штукатурка: шпаклёвка такой слой не держит' },
 ]

@@ -12,6 +12,11 @@ export interface WorkTypeSeoOptions {
   categoryName: string
   slug: string
   title: string
+  /**
+   * 🆕 Кастомный meta title. Функция получает готовую подпись цены.
+   * Суффикс «| ГлавПрофи» добавляет `titleTemplate` в app.vue — здесь его дублировать нельзя.
+   */
+  metaTitle?: string | ((ctx: { priceLabel: string }) => string)
   description: string
   city: string
   /** Минимальная цена (принимает Ref/Computed — будет реактивным) */
@@ -84,6 +89,30 @@ export function useWorkTypeSeo(options: WorkTypeSeoOptions) {
     return p ? `${p.toLocaleString('ru-RU')} ₽/м²` : 'цена по запросу'
   })
 
+  /**
+   * Итоговый meta title.
+   * Суффикс «| ГлавПрофи» добавляет `titleTemplate` в app.vue, поэтому здесь его нет —
+   * иначе в <title> появлялся дубль «ГлавПрофи | ГлавПрофи».
+   */
+  const resolvedTitle = computed(() => {
+    const custom = options.metaTitle
+
+    if (typeof custom === 'function') {
+      const value = custom({ priceLabel: priceLabel.value })
+      if (value.trim()) return value
+    } else if (typeof custom === 'string' && custom.trim()) {
+      return custom
+    }
+
+    // Если в title уже есть город («Штукатурка стен в Рязани…») — не добавляем «в Рязани» второй раз
+    const cityLower = city.toLocaleLowerCase('ru-RU')
+    const cityInTitle = title.toLocaleLowerCase('ru-RU').includes(cityLower)
+
+    return cityInTitle
+      ? `${title} — ${priceLabel.value}`
+      : `${title} в ${city} — ${priceLabel.value}`
+  })
+
   // === Хлебные крошки ===
   const crumbs: WorkTypeBreadcrumb[] = breadcrumbs ?? [
     { label: 'Главная', to: '/' },
@@ -93,9 +122,9 @@ export function useWorkTypeSeo(options: WorkTypeSeoOptions) {
 
   // === 1. Базовые мета-теги (реактивные — обновятся при изменении цены) ===
   useSeoMeta({
-    title: () => `${title} в ${city} — ${priceLabel.value} | ${companyName}`,
+    title: () => resolvedTitle.value,
     description,
-    ogTitle: () => `${title} — ${categoryName} работы в ${city}`,
+    ogTitle: () => `${serviceType ?? `${categoryName} работы`} в ${city}`,
     ogDescription: description,
     ogImage,
     ogUrl: pageUrl,

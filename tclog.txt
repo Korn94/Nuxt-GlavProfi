@@ -1,5 +1,0 @@
-[36mтД╣[39m Nuxt Icon server bundle mode is set to [36mlocal[39m
-[90m[[90mnuxt:icon[90m][39m [32mтЬФ[39m Nuxt Icon discovered local-installed 7 collections: material-symbols, material-symbols-light, mdi, ph, solar, stash, weui
-
- WARN  Duplicated imports "DbUser", the one from "G:/Work/GlavProfi/server/utils/impersonation.ts" has been ignored and "G:/Work/GlavProfi/server/utils/permissions/index.ts" is used
-

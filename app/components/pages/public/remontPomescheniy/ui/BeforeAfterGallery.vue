@@ -120,6 +120,8 @@ const props = withDefaults(
   defineProps<{
     /** Массив slugs для фильтрации из API */
     slugs?: string[]
+    /** 🆕 Готовые проекты от родителя (SSR) — тогда собственный fetch не выполняется */
+    projects?: Project[]
     /** URL API для загрузки */
     fetchUrl?: string
     /** Заголовок секции */
@@ -141,9 +143,16 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const fetchedProjects = ref<Project[]>([])
 
+// Приоритет: готовые проекты от родителя (SSR) или загруженные самим блоком
+const sourceProjects = computed<Project[]>(() =>
+  props.projects && props.projects.length > 0
+    ? props.projects
+    : fetchedProjects.value
+)
+
 // Собираем все изображения before/after из отфильтрованных проектов
 const allImages = computed<(ProjectImage & { projectSlug?: string })[]>(() => {
-  const projects = fetchedProjects.value
+  const projects = sourceProjects.value
   const images: (ProjectImage & { projectSlug?: string })[] = []
 
   projects.forEach((project) => {
@@ -170,20 +179,10 @@ const afterPool = computed(() =>
   allImages.value.filter((img) => img.type === 'after')
 )
 
-// Перемешиваем и выбираем по 5
-const shuffleArray = <T>(arr: T[]): T[] => {
-  const shuffled = [...arr]
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    const temp = shuffled[i] as T
-    shuffled[i] = shuffled[j] as T
-    shuffled[j] = temp
-  }
-  return shuffled
-}
-
-const beforeImages = computed(() => shuffleArray(beforePool.value).slice(0, 5))
-const afterImages = computed(() => shuffleArray(afterPool.value).slice(0, 5))
+// Берём первые 5 в стабильном порядке: Math.random давал разные фото
+// на сервере и клиенте, из-за чего ломалась гидратация.
+const beforeImages = computed(() => beforePool.value.slice(0, 5))
+const afterImages = computed(() => afterPool.value.slice(0, 5))
 
 // Все изображения для lightbox (объединяем: сначала after, потом before)
 const allImagesForLightbox = computed(() => [
@@ -250,6 +249,12 @@ const handleKeydown = (e: KeyboardEvent) => {
 
 // ---- Fetch ----
 const fetchProjects = async () => {
+  // Если родитель передал проекты (SSR-загрузка) — повторный запрос не нужен
+  if (props.projects && props.projects.length > 0) {
+    loading.value = false
+    return
+  }
+
   loading.value = true
   error.value = null
 
@@ -264,8 +269,8 @@ const fetchProjects = async () => {
         (p) => p.slug && props.slugs!.includes(p.slug)
       )
     } else {
-      // Если slugs пуст — берем случайные 3 проекта
-      fetchedProjects.value = shuffleArray(allProjects).slice(0, 3)
+      // Если slugs пуст — берём первые 3 проекта в стабильном порядке
+      fetchedProjects.value = allProjects.slice(0, 3)
     }
   } catch (err) {
     console.error('[BeforeAfterGallery] Ошибка загрузки проектов:', err)
@@ -277,7 +282,9 @@ const fetchProjects = async () => {
 }
 
 onMounted(() => {
-  fetchProjects()
+  if (!props.projects || props.projects.length === 0) {
+    fetchProjects()
+  }
   window.addEventListener('keydown', handleKeydown)
 })
 

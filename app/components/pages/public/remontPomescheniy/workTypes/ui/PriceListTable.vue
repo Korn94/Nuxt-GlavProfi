@@ -102,6 +102,10 @@ const props = withDefaults(
     /** ID подкатегории или массив ID */
     subCategoryIds: number | number[]
     showSubCategoryTitles?: boolean
+    /** 🆕 ID позиций, которые нужно скрыть (например, потолочные работы на странице стен) */
+    excludeItemIds?: number[]
+    /** 🆕 Временные названия для отдельных позиций (пока текст не поправлен в CRM) */
+    itemNameOverrides?: Record<number, string>
     footerNote?: string
     /** 🆕 Ссылка на полный прайс-лист (передайте пустую строку, чтобы скрыть кнопку) */
     viewAllLink?: string
@@ -112,6 +116,8 @@ const props = withDefaults(
   }>(),
   {
     showSubCategoryTitles: true,
+    excludeItemIds: () => [],
+    itemNameOverrides: () => ({}),
     viewAllLink: '/prices/otdelochnye-raboty',
     viewAllText: 'Смотреть полный прайс-лист',
     theme: 'light',
@@ -124,7 +130,19 @@ const groups = computed<PriceGroup[]>(() => {
   const ids = Array.isArray(props.subCategoryIds)
     ? props.subCategoryIds
     : [props.subCategoryIds]
+  const excluded = new Set(props.excludeItemIds)
+
   return getItemsBySubCategoryIds(ids)
+    .map((group) => ({
+      ...group,
+      items: group.items
+        .filter((item) => !excluded.has(item.id))
+        .map((item) => ({
+          ...item,
+          name: props.itemNameOverrides[item.id] ?? item.name,
+        })),
+    }))
+    .filter((group) => group.items.length > 0)
 })
 
 function formatPrice(price: string | number): string {
