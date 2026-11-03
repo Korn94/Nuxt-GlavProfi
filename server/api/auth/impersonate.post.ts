@@ -21,8 +21,7 @@ import { db } from '../../db'
 import { users } from '../../db/schema'
 import { eq } from 'drizzle-orm'
 import { createImpersonationToken } from '../../utils/impersonation'
-import { getUserPermissionsResponse } from '../../utils/permissions'
-import type { DbUser } from '../../utils/impersonation'
+import { getUserPermissionsResponse, type DbUser } from '../../utils/permissions'
 
 const BodySchema = z.object({
   userId: z.number().int().positive()

@@ -17,8 +17,9 @@ import { generateToken, verifyToken } from './jwt'
 import { db } from '../db'
 import { users } from '../db/schema'
 import { eq } from 'drizzle-orm'
-
-export type DbUser = typeof users.$inferSelect
+// Тип пользователя БД — единый источник в server/utils/permissions
+// (иначе Nitro ругается: Duplicated imports "DbUser")
+import type { DbUser } from './permissions'
 
 /** Название cookie с токеном просмотра */
 export const VIEW_TOKEN_COOKIE = 'view_token'
