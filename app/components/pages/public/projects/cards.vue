@@ -45,7 +45,7 @@
     <div v-else-if="error" class="cases-section__state cases-section__state--error">
       <Icon name="mdi:alert-circle-outline" size="32" />
       <p>{{ error }}</p>
-      <button class="cases-section__retry" @click="fetchData">
+      <button class="cases-section__retry" @click="fetchData()">
         Попробовать снова
       </button>
     </div>
@@ -126,12 +126,27 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 
-const loading = ref(true)
+const props = defineProps({
+  /**
+   * Первая страница кейсов, загруженная на сервере (передаётся из
+   * app/components/pages/public/projects/index.vue через :initial-cards).
+   * Благодаря этому ссылки на проекты попадают в SSR-разметку — их видят
+   * поисковые роботы, а при гидратации не мигает лоадер.
+   */
+  initialCards: {
+    type: Array,
+    default: () => [],
+  },
+})
+
+const limit = 12
+
+const cards = ref([...props.initialCards])
+const loading = ref(props.initialCards.length === 0)
 const loadingMore = ref(false)
 const error = ref(null)
 const currentPage = ref(1)
-const hasMore = ref(true)
-const limit = 12
+const hasMore = ref(props.initialCards.length === limit)
 
 const allTabs = [
   'Все', 'Кафе', 'Магазины', 'Клиники', 'Банки',
@@ -139,7 +154,6 @@ const allTabs = [
 ]
 
 const activeTab = ref('Все')
-const cards = ref([])
 
 const categoryCounts = computed(() => {
   const counts = {}
@@ -223,7 +237,11 @@ const loadMore = () => {
 }
 
 onMounted(() => {
-  fetchData()
+  // Fallback: SSR-данных нет (API был недоступен на сервере или проектов ещё нет) —
+  // догружаем на клиенте, как раньше.
+  if (!props.initialCards.length) {
+    fetchData()
+  }
 })
 </script>
 

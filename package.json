@@ -17,7 +17,8 @@
     "seed:roles": "tsx server/db/seed.ts --roles",
     "seed:force": "FORCE_SEED=true tsx server/db/seed.ts",
     "db:setup": "npm run migrate && npm run seed",
-    "db:reset-roles": "npm run seed:roles"
+    "db:reset-roles": "npm run seed:roles",
+    "sitemap:check": "node scripts/check-sitemap.mjs"
   },
   "dependencies": {
     "@iconify-json/material-symbols": "^1.2.35",

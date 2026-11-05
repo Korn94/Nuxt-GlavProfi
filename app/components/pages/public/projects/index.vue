@@ -54,7 +54,9 @@
     <!-- Светлая секция с карточками (оставляем ваш компонент без изменений) -->
     <section class="portfolio-cases">
       <div class="container">
-        <PagesPublicProjectsCards :tabs="tabs" />
+        <!-- :initial-cards — первая страница кейсов из SSR (см. allProjects ниже),
+             чтобы ссылки на проекты были в HTML, а не только после клиентского фетча -->
+        <PagesPublicProjectsCards :tabs="tabs" :initial-cards="allProjects || []" />
       </div>
     </section>
 

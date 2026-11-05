@@ -112,10 +112,15 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
   ],
 
+  // ⚠️ @nuxtjs/sitemap v7. Опции `routes` (v6), `gzip` и `strictNuxtPagePaths` в 7.x
+  // НЕ существуют и молча игнорировались — из-за этого в sitemap.xml не попадали
+  // /prices/* и /projects/<slug>.
+  // • Статические страницы модуль собирает сам из app/pages (nuxt:pages).
+  // • Динамические разделы отдаёт источник /api/__sitemap__/urls (server/api/__sitemap__/urls.get.ts).
   sitemap: {
-    hostname: process.env.NUXT_PUBLIC_SITE_URL,
-    gzip: true,
-    strictNuxtPagePaths: false,
+    hostname: process.env.NUXT_PUBLIC_SITE_URL || 'https://glavprofi.ru',
+    // Кэш готового sitemap.xml на сервере (сек). Источник URL кэшируется отдельно.
+    cacheMaxAgeSeconds: 60 * 60,
     exclude: [
       '/cabinet',
       '/cabinet/**',
@@ -125,32 +130,7 @@ export default defineNuxtConfig({
       '/access-denied',
       '/telegram',
     ],
-    routes: [
-      '/',
-      '/about',
-      '/contacts',
-      '/projects',
-      '/projects/ddx',
-      '/projects/zerno',
-      '/projects/klinika-alma',
-      '/projects/fora-bank',
-      '/privacy-policy',
-      '/terms-of-service',
-      '/prices/otdelochnye-raboty',
-      '/prices/plumbing',
-      '/prices/electricity',
-      '/remont-pomescheniy/ofisy',
-      '/remont-pomescheniy/magaziny',
-      '/remont-pomescheniy/sklady',
-      '/remont-pomescheniy/angary',
-      '/remont-pomescheniy/kliniki',
-      '/remont-pomescheniy/fasady',
-      '/remont-pomescheniy/fitness',
-      '/remont-pomescheniy/proizvodstvo',
-      '/remont-pomescheniy/salony',
-      '/remont-pomescheniy/mopy',
-      '/remont-pomescheniy/banki',
-    ],
+    sources: ['/api/__sitemap__/urls'],
   },
   
   nitro: {
@@ -222,6 +202,10 @@ export default defineNuxtConfig({
         headers: {
           'X-Robots-Tag': 'noindex, nofollow',
         }
+      },
+      // /prices (без категории) раньше отдавал 404 — ведём на основную категорию прайса
+      '/prices': {
+        redirect: { to: '/prices/otdelochnye-raboty', statusCode: 301 }
       },
       '/prices/floor': {
         redirect: { to: '/prices/otdelochnye-raboty', statusCode: 301 }
