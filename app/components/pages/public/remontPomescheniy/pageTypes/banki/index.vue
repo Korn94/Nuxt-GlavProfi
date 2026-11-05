@@ -120,9 +120,9 @@
       />
     </section>
 
-    <section id="before-after" class="page-section">
+    <section v-if="hasProjects" id="before-after" class="page-section">
       <BeforeAfterGallery
-        :slugs="projectSlugs"
+        :projects="projects"
         title="Фото банков <span>до и после</span> ремонта"
       />
     </section>
@@ -132,10 +132,11 @@
     </section>
 
     <!-- ==================== БЛОК 6: ПРОЕКТЫ ==================== -->
-    <section id="projects" class="page-section">
+    <section v-if="hasProjects" id="projects" class="page-section">
       <ProjectsShowcase
         title="Наши реализованные проекты <span>банковских отделений в Рязани</span>"
-        :slugs="projectSlugs"
+        :subtitle="projectsSubtitle"
+        :projects="projects"
       />
     </section>
 
@@ -180,12 +181,28 @@ import FAQBlock from '../../ui/FAQBlock.vue'
 import ApplicationCTA from '../../ui/ApplicationCTA.vue'
 import Breadcrumbs from '../../ui/Breadcrumbs.vue'
 import NavBreadcrumbsRow from '../../ui/NavBreadcrumbsRow.vue'
+
+// === Портфолио: категории кейсов + общий SSR-загрузчик проектов ===
+import { usePortfolioProjects } from '~/composables/portfolio/usePortfolioProjects'
+import { getProjectsCategories, getProjectsSubtitle, PROJECTS_LIMIT } from '../data/projectsByCategory'
 import BeforeAfterShowcase from '../../workTypes/ui/BeforeAfterShowcase.vue'
 
 // === Типы данных ===
 import type { RepairVariant } from '../ui/RepairTypes.vue'
 import type { RiskGroup } from '../ui/RisksSection.vue'
 import type { PriceFactor, FAQItem, StickyNavItem } from '../../ui/types'
+
+// === Проекты (SSR: карточки попадают в HTML, фильтр по категории — на сервере) ===
+const { projects, ownCount } = await usePortfolioProjects({
+  key: 'premises-projects:banki',
+  categories: getProjectsCategories('banki'),
+  limit: PROJECTS_LIMIT,
+})
+
+// Секции «Фото до/после» и «Проекты» рендерятся только при наличии кейсов:
+// пустых блоков и мёртвых пунктов в StickyNav быть не должно
+const hasProjects = projects.length > 0
+const projectsSubtitle = getProjectsSubtitle('banki', ownCount, projects.length)
 
 // === Навигация ===
 const navItems: StickyNavItem[] = [
@@ -194,7 +211,7 @@ const navItems: StickyNavItem[] = [
   { id: 'calculator', label: 'Калькулятор сметы', icon: 'mdi:calculator' },
   { id: 'risks', label: 'Риски', icon: 'mdi:alert-circle-outline' },
   { id: 'before-after', label: 'Фото до/после', icon: 'mdi:image-multiple-outline' },
-  { id: 'projects', label: 'Проекты', icon: 'mdi:briefcase-outline' },
+  ...(hasProjects ? [{ id: 'projects', label: 'Проекты', icon: 'mdi:briefcase-outline' }] : []),
   { id: 'cta', label: 'Оставить заявку', icon: 'mdi:send-outline' },
   { id: 'faq', label: 'Вопросы', icon: 'mdi:help-circle-outline' },
 ]
@@ -333,8 +350,6 @@ const riskGroups: RiskGroup[] = [
   },
 ]
 
-// === Проекты ===
-const projectSlugs: string[] = ['fora-bank']
 
 // === FAQ ===
 const faqItems: FAQItem[] = [

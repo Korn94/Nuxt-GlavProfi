@@ -43,6 +43,27 @@ export default eventHandler(async (event) => {
     categoryFilter = category as Category
   }
 
+  // 🔥 Новый параметр: categories=Банки,Клиники → фильтр по нескольким категориям.
+  // Нужен блоку «Наши реализованные проекты»: основная категория помещения
+  // + смежные (см. app/components/.../pageTypes/data/projectsByCategory.ts).
+  const categoriesStr = query.categories as string | undefined
+  const requestedCategories: Category[] = categoriesStr
+    ? categoriesStr
+        .split(',')
+        .map((item) => item.trim())
+        .filter(
+          (item): item is Category =>
+            item !== 'Все' && validCategories.includes(item as Category)
+        )
+    : []
+
+  // Итоговое условие фильтрации: одна категория → несколько категорий → без фильтра
+  const categoryCondition = categoryFilter
+    ? eq(portfolioCases.category, categoryFilter)
+    : requestedCategories.length > 0
+      ? inArray(portfolioCases.category, requestedCategories)
+      : undefined
+
   // 🔥 Фильтр по публикации: только для публичного режима
   const publishedFilter = isAdminMode ? undefined : eq(portfolioCases.isPublished, true)
 
@@ -55,7 +76,7 @@ export default eventHandler(async (event) => {
     .where(
       and(
         publishedFilter,
-        categoryFilter ? eq(portfolioCases.category, categoryFilter) : undefined
+        categoryCondition
       )
     )
 
@@ -76,7 +97,7 @@ export default eventHandler(async (event) => {
     .where(
       and(
         publishedFilter,
-        categoryFilter ? eq(portfolioCases.category, categoryFilter) : undefined
+        categoryCondition
       )
     )
     .limit(limit)
