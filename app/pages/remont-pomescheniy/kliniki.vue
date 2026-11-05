@@ -1,25 +1,6 @@
 <!-- app/pages/remont-pomescheniy/kliniki.vue -->
  <template>
   <div class="page-kliniki-routing">
-    <!-- Хлебные крошки -->
-    <nav class="breadcrumbs" aria-label="Хлебные крошки">
-      <div class="breadcrumbs__container">
-        <ol class="breadcrumbs__list">
-          <li class="breadcrumbs__item">
-            <NuxtLink to="/" class="breadcrumbs__link">Главная</NuxtLink>
-          </li>
-          <li class="breadcrumbs__item">
-            <NuxtLink to="/remont-pomescheniy" class="breadcrumbs__link">
-              Ремонт помещений
-            </NuxtLink>
-          </li>
-          <li class="breadcrumbs__item breadcrumbs__item--current" aria-current="page">
-            Клиники
-          </li>
-        </ol>
-      </div>
-    </nav>
-
     <!-- Сборщик страницы -->
     <KlinikiPage />
   </div>
@@ -80,60 +61,5 @@ usePageSeo({
 
 .page-kliniki-routing {
   background: $background-dark;
-}
-
-.breadcrumbs {
-  background: rgba(0, 0, 0, 0.25);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  padding: 0.85rem 0;
-
-  &__container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 2rem;
-
-    @media (max-width: 768px) {
-      padding: 0 1.2rem;
-    }
-  }
-
-  &__list {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.4rem;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    font-size: 0.88rem;
-  }
-
-  &__item {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    color: rgba($text-light, 0.55);
-
-    &:not(:last-child)::after {
-      content: '/';
-      color: rgba($text-light, 0.3);
-      margin-left: 0.1rem;
-    }
-
-    &--current {
-      color: rgba($text-light, 0.85);
-      font-weight: 500;
-    }
-  }
-
-  &__link {
-    color: rgba($text-light, 0.65);
-    text-decoration: none;
-    transition: color 0.2s ease;
-
-    &:hover {
-      color: $blue-light;
-    }
-  }
 }
 </style>

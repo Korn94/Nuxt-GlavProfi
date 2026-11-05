@@ -91,6 +91,9 @@
       />
     </section>
 
+    <!-- ==================== БЛОК: КАКИЕ РАБОТЫ ВЫПОЛНЯЕМ ==================== -->
+    <WorkTypesLinks category="angary" />
+
     <!-- ==================== БЛОК 4: КАЛЬКУЛЯТОР ==================== -->
     <section id="calculator" class="page-section page-section--light">
       <div class="calculator-wrap">
@@ -170,6 +173,7 @@ import StickyNav from '../../ui/StickyNav.vue'
 import BeforeAfterSlider from '../../ui/BeforeAfterSlider.vue'
 import MiniEstimateForm from '../../ui/MiniEstimateForm.vue'
 import RepairTypes from '../ui/RepairTypes.vue'
+import WorkTypesLinks from '../ui/WorkTypesLinks.vue'
 import PriceFactors from '../../ui/PriceFactors.vue'
 import RisksSection from '../ui/RisksSection.vue'
 import BeforeAfterGallery from '../../ui/BeforeAfterGallery.vue'
@@ -188,6 +192,7 @@ import type { PriceFactor, FAQItem, StickyNavItem } from '../../ui/types'
 // === Навигация ===
 const navItems: StickyNavItem[] = [
   { id: 'repair-types', label: 'Варианты ремонта', icon: 'mdi:format-paint' },
+  { id: 'works', label: 'Виды работ', icon: 'mdi:hammer-screwdriver' },
   { id: 'calculator', label: 'Калькулятор сметы', icon: 'mdi:calculator' },
   { id: 'risks', label: 'Риски', icon: 'mdi:alert-circle-outline' },
   { id: 'projects', label: 'Проекты', icon: 'mdi:briefcase-outline' },
