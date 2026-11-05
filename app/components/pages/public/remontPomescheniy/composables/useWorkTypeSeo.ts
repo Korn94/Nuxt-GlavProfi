@@ -75,11 +75,15 @@ export function useWorkTypeSeo(options: WorkTypeSeoOptions) {
     ? `${baseUrl}${options.pageUrl}`
     : `${baseUrl}${route.path}`
 
+  // Хаб «виды работ» живёт на /remont-pomescheniy: отдельной страницы /vidy-rabot
+  // нет (301 → /remont-pomescheniy), см. nitro.routeRules в nuxt.config.ts.
   const categoryUrl = options.categoryUrl
     ? `${baseUrl}${options.categoryUrl}`
-    : `${baseUrl}/vidy-rabot`
+    : `${baseUrl}/remont-pomescheniy`
 
-  const hubUrl = `${baseUrl}/vidy-rabot`
+  // Название хаб-категории для JSON-LD — совпадает с крошкой на /remont-pomescheniy
+  // (см. breadcrumbItems в workTypes/*/*.vue).
+  const hubName = 'Ремонт помещений'
 
   // === 🆕 Реактивная цена (обновляется вместе с прайсом) ===
   const resolvedPrice = computed(() => resolvePrice(priceFrom))
@@ -116,7 +120,7 @@ export function useWorkTypeSeo(options: WorkTypeSeoOptions) {
   // === Хлебные крошки ===
   const crumbs: WorkTypeBreadcrumb[] = breadcrumbs ?? [
     { label: 'Главная', to: '/' },
-    { label: 'Виды работ', to: '/vidy-rabot' },
+    { label: 'Виды работ', to: '/remont-pomescheniy' },
     { label: title },
   ]
 
@@ -166,13 +170,13 @@ export function useWorkTypeSeo(options: WorkTypeSeoOptions) {
         isPartOf: {
           '@type': 'Service',
           '@id': `${categoryUrl}#category`,
-          name: `${categoryName} работы`,
+          name: hubName,
         },
       },
       {
         '@type': 'Service',
         '@id': `${categoryUrl}#category`,
-        name: `${categoryName} работы`,
+        name: hubName,
         url: categoryUrl,
         provider: { '@type': 'LocalBusiness', '@id': `${baseUrl}#organization` },
       },

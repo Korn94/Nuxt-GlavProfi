@@ -531,5 +531,4 @@ export const seoData = {
   serviceType: 'Монтаж гипсокартона',
   ogImage: 'https://glavprofi.ru/og-gkl-steny.jpg',
   pageUrl: '/vidy-rabot/oblitsovka-gkl',
-  categoryUrl: '/vidy-rabot/oblitsovka-gkl',
 }

@@ -874,5 +874,4 @@ export const seoData = {
   serviceType: 'Укладка плитки',
   ogImage: 'https://glavprofi.ru/og-ukladka-plitki.jpg',
   pageUrl: '/vidy-rabot/ukladka-plitki',
-  categoryUrl: '/vidy-rabot/ukladka-plitki',
 }

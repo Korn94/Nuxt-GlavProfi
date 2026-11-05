@@ -598,5 +598,4 @@ export const seoData = {
   serviceType: 'Штукатурка стен',
   ogImage: 'https://glavprofi.ru/og-shtukaturka-sten.jpg',
   pageUrl: '/vidy-rabot/shtukaturka-sten',
-  categoryUrl: '/vidy-rabot/shtukaturka-sten',
 }

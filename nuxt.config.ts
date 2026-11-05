@@ -222,6 +222,13 @@ export default defineNuxtConfig({
       '/commerc': {
         redirect: { to: '/remont-pomescheniy', statusCode: 301 }
       },
+      // /vidy-rabot — НЕ отдельный хаб. Единственная точка входа в «виды работ» —
+      // блок WorksGrid (#works-grid) на /remont-pomescheniy.
+      // Правило матчит только точный путь: дочерние /vidy-rabot/<slug> продолжают
+      // работать как обычные страницы (cross-linking, canonical, sitemap).
+      '/vidy-rabot': {
+        redirect: { to: '/remont-pomescheniy', statusCode: 301 }
+      },
     }
   },
   // 🔧 DEV-ONLY: физические /uploads/** отдаёт nginx прод-сервера

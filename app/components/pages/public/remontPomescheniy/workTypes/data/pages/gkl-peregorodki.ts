@@ -512,5 +512,4 @@ export const seoData = {
   serviceType: 'Перегородки из ГКЛ',
   ogImage: 'https://glavprofi.ru/og-gkl-peregorodki.jpg',
   pageUrl: '/vidy-rabot/peregorodki-gkl',
-  categoryUrl: '/vidy-rabot/oblitsovka-gkl',
 }

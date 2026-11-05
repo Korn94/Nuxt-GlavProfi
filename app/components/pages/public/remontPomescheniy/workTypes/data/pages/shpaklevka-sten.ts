@@ -612,5 +612,4 @@ export const seoData = {
   serviceType: 'Шпаклёвка стен',
   ogImage: 'https://glavprofi.ru/og-remont-kommercheskih.jpg',
   pageUrl: '/vidy-rabot/shpaklevka-sten',
-  categoryUrl: '/remont-pomescheniy',
 }
