@@ -111,7 +111,9 @@ async function writeSession(snap: VisitSnapshot): Promise<void> {
     viewportW: s.viewportW,
     viewportH: s.viewportH,
     language: s.language,
-    timezone: s.timezone
+    timezone: s.timezone,
+    userAgent: s.userAgent,
+    isBot: s.isBot
   }
 
   await db.insert(siteVisitorSessions).values(values).onDuplicateKeyUpdate({
@@ -133,7 +135,9 @@ async function writeSession(snap: VisitSnapshot): Promise<void> {
       viewportW: s.viewportW,
       viewportH: s.viewportH,
       language: s.language,
-      timezone: s.timezone
+      timezone: s.timezone,
+      userAgent: s.userAgent,
+      isBot: s.isBot
     }
   })
 }

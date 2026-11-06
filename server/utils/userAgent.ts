@@ -53,13 +53,23 @@ export interface ParsedUserAgent {
  */
 const BOT_UA_REGEX = new RegExp(
   [
+    // Поисковые и служебные боты
     'bot', 'crawl', 'spider', 'slurp', 'mediapartners', 'adsbot', 'googlebot', 'google-',
-    'apis-google', 'headless', 'phantomjs', 'puppeteer', 'playwright', 'selenium',
-    'lighthouse', 'pagespeed', 'gtmetrix', 'pingdom', 'uptime', 'monitor',
-    'curl', 'wget', 'python', 'java/', 'go-http', 'okhttp', 'axios', 'node-fetch',
-    'scrapy', 'httpclient', 'libwww', 'facebookexternalhit', 'telegrambot', 'whatsapp',
-    'skypeuripreview', 'yandex(?!search|browser)', 'bing', 'duckduck', 'baidu',
-    'semrush', 'ahrefs', 'mj12', 'dotbot', 'petalbot', 'bytespider', 'preview', 'metrika'
+    'apis-google', 'bingbot', 'bingpreview', 'duckduck', 'baiduspider', 'baidu',
+    'yandex(?!search|browser)', 'petalbot', 'bytespider', 'mj12', 'dotbot',
+    // Headless / автоматизация
+    'headless', 'phantomjs', 'puppeteer', 'playwright', 'selenium', 'webdriver',
+    // Скоростные / аптайм-сканеры
+    'lighthouse', 'pagespeed', 'gtmetrix', 'pingdom', 'uptimerobot',
+    // HTTP-клиенты
+    'curl', 'wget', 'python', 'python-requests', 'python-httpx', 'aiohttp', 'fasthttp',
+    'java/', 'go-http', 'okhttp', 'axios', 'node-fetch', 'undici', 'scrapy',
+    'httpclient', 'libwww', 'zgrab', 'masscan', 'censys',
+    // Превью соцсетей/мессенджеров
+    'facebookexternalhit', 'facebookbot', 'telegrambot', 'twitterbot', 'slackbot',
+    'discordbot', 'linkedinbot', 'skypeuripreview',
+    // Прочие SEO/сканеры
+    'semrush', 'ahrefs', 'metrika'
   ].join('|'),
   'i'
 )

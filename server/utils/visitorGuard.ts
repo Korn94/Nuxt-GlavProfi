@@ -69,3 +69,14 @@ export function isRateLimited(kind: 'ping' | 'event', ip: string): boolean {
 export function isNewVisitorFlood(ip: string): boolean {
   return !allowRequest(`new-visitor:${ip}`, 30, 10 * 60_000)
 }
+
+/**
+ * Похоже ли, что запрос пришёл НЕ из браузера.
+ * fetch()/sendBeacon() в браузере всегда добавляют Sec-Fetch-Site; Chromium — ещё и sec-ch-ua.
+ * curl/requests/axios/node-fetch их не шлют, даже подделав обычный Chrome User-Agent.
+ */
+export function isNonBrowserClient(headers: { get(name: string): string | null }): boolean {
+  const secFetchSite = headers.get('sec-fetch-site')
+  const secChUa = headers.get('sec-ch-ua')
+  return !secFetchSite && !secChUa
+}

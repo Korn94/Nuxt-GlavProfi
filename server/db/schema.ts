@@ -1153,7 +1153,9 @@ export const siteVisitorSessions = mysqlTable('site_visitor_sessions', {
   viewportW: int('viewport_w'),
   viewportH: int('viewport_h'),
   language: varchar('language', { length: 20 }),
-  timezone: varchar('timezone', { length: 64 })
+  timezone: varchar('timezone', { length: 64 }),
+  userAgent: text('user_agent'),
+  isBot: boolean('is_bot').default(false).notNull()
 }, (table) => ({
   visitorStartedIndex: index('svs_visitor_started_idx').on(table.visitorId, table.startedAt),
   startedIndex: index('svs_started_idx').on(table.startedAt),

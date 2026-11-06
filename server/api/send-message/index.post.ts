@@ -2,7 +2,8 @@
 import { defineEventHandler, readBody, readMultipartFormData, createError, getCookie } from 'h3'
 import nodemailer from 'nodemailer'
 import TelegramBot from 'node-telegram-bot-api'
-import { resolveVisitorId } from '../../utils/visitorGuard'
+import { isBotUserAgent } from '../../utils/userAgent'
+import { isNonBrowserClient, resolveVisitorId } from '../../utils/visitorGuard'
 import { getVisitorContext, recordVisitorEvent } from '../../utils/visitorRegistry'
 import { scheduleVisitorsBroadcast } from '../../utils/visitor-broadcast'
 
@@ -100,7 +101,10 @@ export default defineEventHandler(async (event) => {
     // либо явным полем visitorId. Фиксируем событие form_submit и дописываем источник в заявку.
     const visitorId = resolveVisitorId(fields.visitorId) || resolveVisitorId(getCookie(event, 'visitor_id'))
     const visitContext = buildVisitContext(visitorId)
-    if (visitorId) {
+    // 🤖 Событие form_submit фиксируем только для настоящего браузера, чтобы скрипт
+    // не мог «накрутить» конверсию без реального визита.
+    const userAgent = event.headers.get('user-agent') || ''
+    if (visitorId && !isBotUserAgent(userAgent) && !isNonBrowserClient(event.headers)) {
       const recorded = recordVisitorEvent({
         visitorId,
         type: 'form_submit',

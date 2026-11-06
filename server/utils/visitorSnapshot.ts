@@ -3,7 +3,7 @@
  * Снимки визитов для записи в БД (формат между реестром и visitorStorage.ts).
  */
 
-import type { VisitorDeviceType } from './userAgent'
+import { isBotUserAgent, type VisitorDeviceType } from './userAgent'
 import type { ReferrerType, TrafficChannel } from './trafficSource'
 import { BOUNCE_MAX_SEC, type EventRow, type PageviewRow, type VisitorRecord } from './visitorTypes'
 
@@ -64,6 +64,8 @@ export interface VisitSnapshot {
     viewportH: number | null
     language: string | null
     timezone: string | null
+    userAgent: string | null
+    isBot: boolean
   }
   pageviews: PageviewRow[]
   events: EventRow[]
@@ -139,7 +141,9 @@ export function buildSnapshot(rec: VisitorRecord, final: boolean): VisitSnapshot
       viewportW: rec.viewportW,
       viewportH: rec.viewportH,
       language: rec.language,
-      timezone: rec.timezone
+      timezone: rec.timezone,
+      userAgent: rec.userAgent || null,
+      isBot: isBotUserAgent(rec.userAgent)
     },
     pageviews,
     events

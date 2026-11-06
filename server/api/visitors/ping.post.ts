@@ -32,6 +32,7 @@ import {
   isExcludedIp,
   isExcludedPath,
   isNewVisitorFlood,
+  isNonBrowserClient,
   isRateLimited,
   resolveVisitorId
 } from '../../utils/visitorGuard'
@@ -61,7 +62,7 @@ export default defineEventHandler(async (event) => {
   const userAgent = event.headers.get('user-agent') || ''
 
   // 🤖 Боты, внутренние страницы и свои IP в аналитику не попадают
-  if (isBotUserAgent(userAgent)) {
+  if (isBotUserAgent(userAgent) || isNonBrowserClient(event.headers)) {
     return { success: true, visitorId, total: getVisitorsCount(), ignored: 'bot' }
   }
   if (isExcludedIp(ipAddress) || isExcludedPath(body.path)) {

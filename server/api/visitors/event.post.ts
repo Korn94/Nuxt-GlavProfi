@@ -12,7 +12,7 @@
 import { defineEventHandler, readBody, createError } from 'h3'
 import { getRequestIp } from '../../utils/requestIp'
 import { isBotUserAgent } from '../../utils/userAgent'
-import { isExcludedIp, isExcludedPath, isRateLimited, resolveVisitorId } from '../../utils/visitorGuard'
+import { isExcludedIp, isExcludedPath, isNonBrowserClient, isRateLimited, resolveVisitorId } from '../../utils/visitorGuard'
 import { recordVisitorEvent } from '../../utils/visitorRegistry'
 import { scheduleVisitorsBroadcast } from '../../utils/visitor-broadcast'
 
@@ -34,7 +34,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const userAgent = event.headers.get('user-agent') || ''
-  if (isBotUserAgent(userAgent) || isExcludedIp(ipAddress) || isExcludedPath(body.path)) {
+  if (isBotUserAgent(userAgent) || isNonBrowserClient(event.headers) || isExcludedIp(ipAddress) || isExcludedPath(body.path)) {
     return { success: true, recorded: false }
   }
 
