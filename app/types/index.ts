@@ -106,6 +106,17 @@ export interface VisitorsResponse {
   total: number
 }
 
+/**
+ * Ответ DELETE /api/visitors/history/[id]
+ * Удаление одного визита из истории (только администратор)
+ */
+export interface DeleteVisitResponse {
+  success: boolean
+  message: string
+  visitorId: string            // Посетитель, которому принадлежал визит
+  visitorDeleted: boolean      // true — удалён и агрегат посетителя (визитов больше нет)
+}
+
 /** Источник трафика (строка таблицы GET /api/visitors/stats) */
 export interface VisitorChannelStat {
   channel: string

@@ -56,8 +56,11 @@
         :stats-days="statsDays"
         :loading="visitorsStore.isStatsLoading"
         :error="visitorsStore.statsError"
+        :is-admin="isAdmin"
+        :deleting-id="deletingVisitId"
         @update:stats-days="onStatsDaysChange"
         @refresh="loadStats"
+        @delete-visit="onDeleteVisit"
       />
     </div>
   </div>
@@ -70,12 +73,14 @@ import { useOnlineStore } from 'stores/online'
 import { useVisitorsStore } from 'stores/visitors'
 import { useAuthStore } from 'stores/auth'
 import { socketService } from 'services/socket.service'
-import type { OnlineUser, Visitor } from '~/types'
+import { useNotifications } from '~/composables/useNotifications'
+import type { OnlineUser, Visitor, VisitorVisit } from '~/types'
 import { useOnlineFormatters } from './composables/useOnlineFormatters'
 
 const onlineStore = useOnlineStore()
 const visitorsStore = useVisitorsStore()
 const authStore = useAuthStore()
+const notifications = useNotifications()
 
 const { users: onlineUsersRaw } = storeToRefs(onlineStore)
 const { visitors: visitorsRaw } = storeToRefs(visitorsStore)
@@ -83,6 +88,10 @@ const { visitors: visitorsRaw } = storeToRefs(visitorsStore)
 const { startClock, stopClock } = useOnlineFormatters()
 
 const showDetails = ref(true)
+// 🛡️ Удаление визитов из истории доступно только администратору
+// (сервер повторно проверяет роль в DELETE /api/visitors/history/[id])
+const isAdmin = computed(() => authStore.user?.role === 'admin')
+const deletingVisitId = ref<string | null>(null)
 
 let fallbackPoller: ReturnType<typeof setInterval> | null = null
 
@@ -119,6 +128,42 @@ async function loadStats() {
 function onStatsDaysChange(value: number) {
   statsDays.value = value
   loadStats()
+}
+
+/**
+ * 🗑️ Удаление визита из истории (только администратор).
+ * Нужно, чтобы вручную вычищать записи роботов и случайных посетителей.
+ */
+async function onDeleteVisit(visit: VisitorVisit) {
+  if (!isAdmin.value) return
+
+  const confirmed = confirm(
+    `Удалить визит от ${new Date(visit.startedAt).toLocaleString('ru-RU')} из истории?\n\n` +
+    'Действие необратимо: визит, его просмотры и события будут удалены из БД.'
+  )
+  if (!confirmed) return
+
+  deletingVisitId.value = visit.id
+  try {
+    const result = await visitorsStore.deleteVisit(visit.id)
+    notifications.success(
+      result?.visitorDeleted
+        ? 'Визит удалён, посетитель полностью удалён из истории'
+        : 'Визит удалён из истории',
+      'Посетители сайта'
+    )
+    // Пересчитываем аналитику и живой список (если визит был активен)
+    await loadStats()
+    await visitorsStore.fetchVisitors()
+  } catch (error: any) {
+    console.error('[Онлайн] ❌ Ошибка удаления визита:', error)
+    notifications.error(
+      error?.data?.statusMessage || 'Не удалось удалить визит',
+      'Ошибка удаления'
+    )
+  } finally {
+    deletingVisitId.value = null
+  }
 }
 
 async function refreshData() {

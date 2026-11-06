@@ -13,7 +13,7 @@
 
 import { defineStore } from 'pinia'
 import { socketService } from 'services/socket.service'
-import type { Visitor, VisitorsResponse, VisitorStatsResponse } from '~/types'
+import type { Visitor, VisitorsResponse, VisitorStatsResponse, DeleteVisitResponse } from '~/types'
 import { useApi } from '~/composables/useApi'
 
 /**
@@ -34,6 +34,8 @@ interface VisitorsState {
   isLoading: boolean
   /** Сообщение об ошибке */
   error: string | null
+  /** ID визита, который удаляется прямо сейчас (для спиннера на кнопке) */
+  deletingVisitId: string | null
   /** Флаг активной подписки на сокет-события */
   isSubscribed: boolean
   /** Флаг, были ли данные хотя бы раз загружены */
@@ -59,6 +61,7 @@ export const useVisitorsStore = defineStore('visitors', {
     statsError: null,
     isLoading: false,
     error: null,
+    deletingVisitId: null,
     isSubscribed: false,
     isInitialized: false
   }),
@@ -159,6 +162,30 @@ export const useVisitorsStore = defineStore('visitors', {
     },
 
     /**
+     * Удаление визита из истории (только администратор).
+     *
+     * Сервер удаляет визит, его просмотры/события и — если других визитов
+     * не осталось — агрегат посетителя. После успешного вызова нужно
+     * перезагрузить статистику (fetchStats), чтобы таблицы пересчитались.
+     */
+    async deleteVisit(sessionId: string) {
+      this.deletingVisitId = sessionId
+
+      try {
+        const api = useApi()
+        const response = await api.delete<DeleteVisitResponse>(`/api/visitors/history/${sessionId}`)
+
+        console.log(`[VisitorsStore] 🗑️ Визит ${sessionId} удалён из истории`)
+        return response
+      } catch (error: any) {
+        console.error('[VisitorsStore] ❌ Ошибка удаления визита:', error)
+        throw error
+      } finally {
+        this.deletingVisitId = null
+      }
+    },
+
+    /**
      * Обновление списка посетителей (вызывается из socket-событий)
      */
     updateVisitors(visitors: Visitor[]) {
@@ -226,6 +253,7 @@ export const useVisitorsStore = defineStore('visitors', {
       this.stats = null
       this.statsError = null
       this.error = null
+      this.deletingVisitId = null
       this.isSubscribed = false
       this.isInitialized = false
       this.unsubscribeFromUpdates()

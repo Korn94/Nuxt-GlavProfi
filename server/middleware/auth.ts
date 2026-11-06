@@ -317,6 +317,10 @@ const PROTECTED_PATHS: Record<string, PathRequirement | PathRequirement[]> = {
   // ═══════════════════════════════════════════════════════════════
   '/api/online': { type: 'page', value: 'users', action: 'view' },
 
+  // 🗑️ Удаление визита из истории посетителей — только администратор.
+  // ⚠️ Должно идти ПЕРЕД '/api/visitors', иначе сработает префикс с users.view.
+  '/api/visitors/history/[id]': { type: 'role', value: 'admin', methods: ['DELETE'] },
+
   // 👥 Посетители публичного сайта (список) — та же аудитория, что у списка онлайна.
   // (POST /api/visitors/ping остаётся публичным — см. PUBLIC_PATHS).
   '/api/visitors': { type: 'page', value: 'users', action: 'view' },

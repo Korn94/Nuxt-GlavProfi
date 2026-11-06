@@ -103,6 +103,50 @@ export function getRegistrySize(): number {
   return visitors.size
 }
 
+/**
+ * Есть ли у посетителя данные в памяти: живой визит или завершённый,
+ * но ещё не записанный в БД фоновым flush'ем.
+ */
+export function hasVisitorState(visitorId: string): boolean {
+  if (visitors.has(visitorId)) return true
+  return finishedVisits.some(rec => rec.id === visitorId)
+}
+
+/**
+ * Удалить визит из «горячего» состояния памяти (например, когда админ
+ * удаляет запись из истории посетителей).
+ *
+ * Зачем: если визит ещё не сброшен в БД, следующий flush запишет его
+ * обратно. Поэтому убираем запись из `visitors` и из очереди `finishedVisits`.
+ *
+ * @returns visitorId и остались ли у посетителя другие данные в памяти
+ *          (null, если визита в памяти не было)
+ */
+export function dropVisitorSession(sessionId: string): {
+  visitorId: string
+  visitorStillInMemory: boolean
+} | null {
+  let visitorId: string | null = null
+
+  for (const [id, rec] of visitors) {
+    if (rec.sessionId !== sessionId) continue
+    visitorId = id
+    visitors.delete(id)
+    break
+  }
+
+  for (let i = finishedVisits.length - 1; i >= 0; i--) {
+    const rec = finishedVisits[i]
+    if (!rec || rec.sessionId !== sessionId) continue
+    visitorId = visitorId || rec.id
+    finishedVisits.splice(i, 1)
+  }
+
+  if (!visitorId) return null
+
+  return { visitorId, visitorStillInMemory: hasVisitorState(visitorId) }
+}
+
 /** Создать новую запись визита (внутренняя функция touchVisitor) */
 function createRecord(input: TouchInput, ctx: {
   path: string

@@ -199,6 +199,7 @@
               <tr>
                 <th>Начало</th><th>Источник</th><th>Кампания</th><th>Вход → выход</th><th>Город</th>
                 <th>Страниц</th><th>Время</th><th>Устройство</th><th>Итог</th>
+                <th v-if="isAdmin" class="stats-col-actions" aria-label="Действия"></th>
               </tr>
             </thead>
             <tbody>
@@ -221,6 +222,20 @@
                   <span v-else-if="row.isBounce" class="pill pill--danger">отказ</span>
                   <span v-else class="pill pill--muted">—</span>
                 </td>
+                <td v-if="isAdmin" class="stats-col-actions">
+                  <button
+                    class="crm-btn crm-btn--ghost crm-btn--sm stats-row-delete"
+                    title="Удалить визит из истории"
+                    :disabled="deletingId === row.id"
+                    @click="emit('delete-visit', row)"
+                  >
+                    <Icon
+                      :name="deletingId === row.id ? 'mdi:loading' : 'mdi:trash-outline'"
+                      size="14"
+                      :class="{ spin: deletingId === row.id }"
+                    />
+                  </button>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -238,7 +253,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import * as echarts from 'echarts'
-import type { VisitorStatsResponse, VisitorDailyStat } from '~/types'
+import type { VisitorStatsResponse, VisitorDailyStat, VisitorVisit } from '~/types'
 import { useOnlineFormatters } from './composables/useOnlineFormatters'
 
 const props = defineProps<{
@@ -246,11 +261,16 @@ const props = defineProps<{
   statsDays: number
   loading: boolean
   error?: string | null
+  /** Показывать колонку удаления (только для администратора) */
+  isAdmin?: boolean
+  /** ID визита, который удаляется прямо сейчас */
+  deletingId?: string | null
 }>()
 
 const emit = defineEmits<{
   'update:statsDays': [value: number]
   refresh: []
+  'delete-visit': [visit: VisitorVisit]
 }>()
 
 const { formatSeconds, formatFullDateTime, formatNumber, eventLabel, deviceLabels } = useOnlineFormatters()
@@ -706,6 +726,19 @@ watch(() => props.stats, (s) => {
 .stats-sub { color: var(--crm-text-muted); }
 .stats-ok { color: var(--crm-success); font-weight: 600; }
 .stats-warn { color: var(--crm-warning); }
+
+/* 🗑️ Колонка удаления визита (только администратор) */
+.stats-table .stats-col-actions {
+  width: 1%;
+  text-align: right;
+  font-family: inherit;
+}
+
+.stats-row-delete.crm-btn--ghost:hover {
+  color: var(--crm-danger);
+  border-color: var(--crm-danger);
+  background: var(--crm-danger-dim);
+}
 
 .pill {
   display: inline-flex;
