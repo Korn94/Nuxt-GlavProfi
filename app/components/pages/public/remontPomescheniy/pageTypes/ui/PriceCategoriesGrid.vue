@@ -384,6 +384,7 @@ const getDescription = (item: PricePageItem): string => {
     line-height: 1.55;
     color: var(--pc-card-desc);
     -webkit-line-clamp: 3;
+    line-clamp: 3;
     -webkit-box-orient: vertical;
   }
 

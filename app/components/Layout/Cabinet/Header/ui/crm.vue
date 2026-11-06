@@ -15,7 +15,7 @@
       <li v-else-if="item.divider" class="nav-divider" />
       <!-- ✅ Обычный пункт меню -->
       <li v-else class="nav-item">
-        <NuxtLink :to="item.path" class="nav-link" @click="handleClick">
+        <NuxtLink :to="item.path" :target="item.target" class="nav-link" @click="handleClick">
           <span class="nav-link__icon">
             <Icon v-if="item.icon" :name="item.icon" size="18" />
           </span>
@@ -65,6 +65,7 @@ interface MenuItem {
   title?: string
   path?: string
   icon?: string
+  target?: string          // '_blank' — открывать в новой вкладке
   page?: PageSlug          // slug страницы для проверки прав
   action?: PageAction      // действие (default: 'view')
   roleCheck?: Role         // дополнительная проверка роли
@@ -88,6 +89,8 @@ function getSkeletonMenu(): MenuItem[] {
     { id: 'sk-5', skeleton: true },
     { id: 'sk-div-2', divider: true },
     { id: 'sk-6', skeleton: true },
+    { id: 'sk-7', skeleton: true },
+    { id: 'sk-8', skeleton: true },
   ]
 }
 
@@ -228,6 +231,28 @@ const menuItems: MenuItem[] = [
   },
 
   { id: 'div-3', divider: true },
+
+  // Реквизиты ООО — публичная страница, только admin
+  {
+    id: 'requisites',
+    title: 'Реквизиты ООО',
+    path: '/requisites',
+    icon: 'mdi:file-document-outline',
+    target: '_blank',
+    check: () => hasRole('admin')
+  },
+
+  // Реквизиты ИП — публичная страница, только admin
+  {
+    id: 'requisites-ip',
+    title: 'Реквизиты ИП',
+    path: '/requisites-ip',
+    icon: 'mdi:account-tie-outline',
+    target: '_blank',
+    check: () => hasRole('admin')
+  },
+
+  { id: 'div-4', divider: true },
 
   // Настройки — settings (требуется canEdit)
   {
