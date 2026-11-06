@@ -129,6 +129,10 @@ export default defineNuxtConfig({
       '/api/**',
       '/access-denied',
       '/telegram',
+      // /offers/** — коммерческие предложения (app/pages/offers): сметы для конкретных
+      // клиентов, не для индексации. Страницы уже отдают robots noindex, nofollow;
+      // здесь убираем их из карты сайта. Паттерн покрывает и /offers, и все вложенные.
+      '/offers/**',
     ],
     sources: ['/api/__sitemap__/urls'],
   },
