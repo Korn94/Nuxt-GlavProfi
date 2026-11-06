@@ -9,6 +9,8 @@
 <script setup lang="ts">
 import MagazinyPage from '~/components/pages/public/remontPomescheniy/pageTypes/magaziny/index.vue'
 import { usePageSeo } from '~/components/pages/public/remontPomescheniy/composables/usePageSeo'
+// Цена «от» — из единого каталога (тот же источник, что и карточки услуг)
+import { getPremisesPriceFrom } from '~/components/pages/public/remontPomescheniy/pageTypes/data/premisesCatalog'
 
 usePageSeo({
   type: 'magaziny',
@@ -17,7 +19,7 @@ usePageSeo({
   title: 'Ремонт магазинов и торговых помещений под стандарты ритейла в Рязани',
   description:
     'Ремонт магазинов под ключ в Рязани: под стандарты ритейла, с учётом потоков покупателей, витринного оборудования и пожарной безопасности. Смета и срок фиксируются в договоре. Штатные бригады, гарантия 3 года.',
-  priceFrom: 7500,
+  priceFrom: getPremisesPriceFrom('magaziny'),
   currency: 'RUB',
   phone: '+7-910-909-69-47',
   ogImage: 'https://glavprofi.ru/og-magaziny.jpg',

@@ -9,6 +9,8 @@
 <script setup lang="ts">
 import FasadyPage from '~/components/pages/public/remontPomescheniy/pageTypes/fasady/index.vue'
 import { usePageSeo } from '~/components/pages/public/remontPomescheniy/composables/usePageSeo'
+// Цена «от» — из единого каталога (тот же источник, что и карточки услуг)
+import { getPremisesPriceFrom } from '~/components/pages/public/remontPomescheniy/pageTypes/data/premisesCatalog'
 
 usePageSeo({
   type: 'fasady',
@@ -17,7 +19,7 @@ usePageSeo({
   title: 'Ремонт и отделка фасадов зданий в Рязани: утепление и облицовка под ключ',
   description:
     'Ремонт фасадов в Рязани: мокрые и вентилируемые системы, утепление по СП 50.13330, герметизация швов, высотные работы (леса, люльки, промальп). Смета и срок фиксируются в договоре. Гарантия 3 года.',
-  priceFrom: 3500,
+  priceFrom: getPremisesPriceFrom('fasady'),
   currency: 'RUB',
   phone: '+7-910-909-69-47',
   ogImage: 'https://glavprofi.ru/og-fasady.jpg',

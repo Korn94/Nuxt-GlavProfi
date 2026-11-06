@@ -9,6 +9,8 @@
 <script setup lang="ts">
 import ProizvodstvoPage from '~/components/pages/public/remontPomescheniy/pageTypes/proizvodstvo/index.vue'
 import { usePageSeo } from '~/components/pages/public/remontPomescheniy/composables/usePageSeo'
+// Цена «от» — из единого каталога (тот же источник, что и карточки услуг)
+import { getPremisesPriceFrom } from '~/components/pages/public/remontPomescheniy/pageTypes/data/premisesCatalog'
 
 usePageSeo({
   type: 'proizvodstvo',
@@ -17,7 +19,7 @@ usePageSeo({
   title: 'Ремонт производственных цехов и заводов в Рязани под ключ',
   description:
     'Ремонт производственных цехов в Рязани: промышленные полы под станки, вентиляция с фильтрацией выбросов, электроснабжение 380В, пожарная безопасность. Смета и срок фиксируются в договоре. Гарантия 3 года.',
-  priceFrom: 12000,
+  priceFrom: getPremisesPriceFrom('proizvodstvo'),
   currency: 'RUB',
   phone: '+7-910-909-69-47',
   ogImage: 'https://glavprofi.ru/og-proizvodstvo.jpg',

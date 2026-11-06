@@ -9,6 +9,8 @@
 <script setup lang="ts">
 import KlinikiPage from '~/components/pages/public/remontPomescheniy/pageTypes/kliniki/index.vue'
 import { usePageSeo } from '~/components/pages/public/remontPomescheniy/composables/usePageSeo'
+// Цена «от» — из единого каталога (тот же источник, что и карточки услуг)
+import { getPremisesPriceFrom } from '~/components/pages/public/remontPomescheniy/pageTypes/data/premisesCatalog'
 
 usePageSeo({
   type: 'kliniki',
@@ -17,7 +19,7 @@ usePageSeo({
   title: 'Ремонт клиник и медцентров с учётом СанПиН в Рязани',
   description:
     'Ремонт клиник под ключ в Рязани: с учётом СанПиН 3.3686-21, лицензионных требований и инженерии под медоборудование. Сдача с первого раза. Штатные бригады, фиксированная смета, гарантия 3 года.',
-  priceFrom: 8500,
+  priceFrom: getPremisesPriceFrom('kliniki'),
   currency: 'RUB',
   phone: '+7-910-909-69-47',
   ogImage: 'https://glavprofi.ru/og-kliniki.jpg',

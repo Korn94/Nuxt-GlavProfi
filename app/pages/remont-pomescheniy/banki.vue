@@ -9,6 +9,8 @@
 <script setup lang="ts">
 import BankiPage from '~/components/pages/public/remontPomescheniy/pageTypes/banki/index.vue'
 import { usePageSeo } from '~/components/pages/public/remontPomescheniy/composables/usePageSeo'
+// Цена «от» — из единого каталога (тот же источник, что и карточки услуг)
+import { getPremisesPriceFrom } from '~/components/pages/public/remontPomescheniy/pageTypes/data/premisesCatalog'
 
 usePageSeo({
   type: 'banki',
@@ -17,7 +19,7 @@ usePageSeo({
   title: 'Ремонт банков и банковских отделений под стандарты ЦБ в Рязани',
   description:
     'Ремонт банков под ключ в Рязани: под стандарты ЦБ, требования безопасности и бренд-бук. Смета и срок фиксируются в договоре. Штатные бригады, гарантия 3 года.',
-  priceFrom: 14000,
+  priceFrom: getPremisesPriceFrom('banki'),
   currency: 'RUB',
   phone: '+7-910-909-69-47',
   ogImage: 'https://glavprofi.ru/og-banki.jpg',

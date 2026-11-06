@@ -9,6 +9,8 @@
 <script setup lang="ts">
 import SalonyPage from '~/components/pages/public/remontPomescheniy/pageTypes/salony/index.vue'
 import { usePageSeo } from '~/components/pages/public/remontPomescheniy/composables/usePageSeo'
+// Цена «от» — из единого каталога (тот же источник, что и карточки услуг)
+import { getPremisesPriceFrom } from '~/components/pages/public/remontPomescheniy/pageTypes/data/premisesCatalog'
 
 usePageSeo({
   type: 'salony',
@@ -17,7 +19,7 @@ usePageSeo({
   title: 'Ремонт салонов красоты и барбершопов с учётом СанПиН в Рязани',
   description:
     'Ремонт салонов красоты под ключ в Рязани: с учётом СанПиН, вентиляции под химию, освещения CRI и мокрых зон. Смета и срок фиксируются в договоре. Гарантия 3 года.',
-  priceFrom: 15000,
+  priceFrom: getPremisesPriceFrom('salony'),
   currency: 'RUB',
   phone: '+7-910-909-69-47',
   ogImage: 'https://glavprofi.ru/og-salony.jpg',

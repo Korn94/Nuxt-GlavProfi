@@ -9,6 +9,8 @@
 <script setup lang="ts">
 import SkladyPage from '~/components/pages/public/remontPomescheniy/pageTypes/sklady/index.vue'
 import { usePageSeo } from '~/components/pages/public/remontPomescheniy/composables/usePageSeo'
+// Цена «от» — из единого каталога (тот же источник, что и карточки услуг)
+import { getPremisesPriceFrom } from '~/components/pages/public/remontPomescheniy/pageTypes/data/premisesCatalog'
 
 usePageSeo({
   type: 'sklady',
@@ -17,7 +19,7 @@ usePageSeo({
   title: 'Ремонт складов и логистических центров в Рязани под ключ',
   description:
     'Ремонт складов и логистических центров в Рязани: наливные полы с высокой нагрузкой, антипылевые покрытия, пожарная безопасность, зонирование приёмки и отгрузки. Смета фиксируется в договоре. Гарантия 3 года.',
-  priceFrom: 8500,
+  priceFrom: getPremisesPriceFrom('sklady'),
   currency: 'RUB',
   phone: '+7-910-909-69-47',
   ogImage: 'https://glavprofi.ru/og-sklady.jpg',

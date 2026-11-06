@@ -9,6 +9,8 @@
 <script setup lang="ts">
 import FitnessPage from '~/components/pages/public/remontPomescheniy/pageTypes/fitness/index.vue'
 import { usePageSeo } from '~/components/pages/public/remontPomescheniy/composables/usePageSeo'
+// Цена «от» — из единого каталога (тот же источник, что и карточки услуг)
+import { getPremisesPriceFrom } from '~/components/pages/public/remontPomescheniy/pageTypes/data/premisesCatalog'
 
 usePageSeo({
   type: 'fitness',
@@ -17,7 +19,7 @@ usePageSeo({
   title: 'Ремонт фитнес-клубов и спортивных залов в Рязани под ключ',
   description:
     'Ремонт фитнес-клубов и спортзалов в Рязани: вентиляция с повышенной кратностью, амортизирующие полы, звукоизоляция, мокрые зоны. Смета и срок фиксируются в договоре. Гарантия 3 года.',
-  priceFrom: 14000,
+  priceFrom: getPremisesPriceFrom('fitness'),
   currency: 'RUB',
   phone: '+7-910-909-69-47',
   ogImage: 'https://glavprofi.ru/og-fitness.jpg',

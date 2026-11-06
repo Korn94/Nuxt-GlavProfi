@@ -140,6 +140,9 @@
       />
     </section>
 
+    <!-- ==================== БЛОК: ПОХОЖИЕ УСЛУГИ ==================== -->
+    <RelatedServicesGrid category="banki" />
+
     <!-- ==================== БЛОК 8: CTA ==================== -->
     <section id="cta" class="page-section">
       <ApplicationCTA
@@ -173,6 +176,7 @@ import BeforeAfterSlider from '../../ui/BeforeAfterSlider.vue'
 import MiniEstimateForm from '../../ui/MiniEstimateForm.vue'
 import RepairTypes from '../ui/RepairTypes.vue'
 import WorkTypesLinks from '../ui/WorkTypesLinks.vue'
+import RelatedServicesGrid from '../ui/RelatedServicesGrid.vue'
 import PriceFactors from '../../ui/PriceFactors.vue'
 import RisksSection from '../ui/RisksSection.vue'
 import BeforeAfterGallery from '../../ui/BeforeAfterGallery.vue'

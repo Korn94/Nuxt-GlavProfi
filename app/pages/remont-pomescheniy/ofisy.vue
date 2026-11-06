@@ -7,6 +7,8 @@
 // Explicit import вместо auto-import
 import OfisyPage from '~/components/pages/public/remontPomescheniy/pageTypes/ofisy/index.vue'
 import { usePageSeo } from '~/components/pages/public/remontPomescheniy/composables/usePageSeo'
+// Цена «от» — из единого каталога (тот же источник, что и карточки услуг)
+import { getPremisesPriceFrom } from '~/components/pages/public/remontPomescheniy/pageTypes/data/premisesCatalog'
 
 // === SEO: мета-теги + JSON-LD Schema.org ===
 usePageSeo({
@@ -16,7 +18,7 @@ usePageSeo({
   title: 'Ремонт офисов в Рязани с фиксированной сметой и сроком',
   description:
     'Сдаём офис, в который можно заехать и работать: с готовой планировкой, инженерией и отделкой. Работаем по вашему проекту или составляем ТЗ с нуля. Смета и срок фиксируются в договоре.',
-  priceFrom: 3000,
+  priceFrom: getPremisesPriceFrom('ofisy'),
   currency: 'RUB',
   phone: '+7-910-909-69-47',
   ogImage: 'https://glavprofi.ru/og-ofisy.jpg',

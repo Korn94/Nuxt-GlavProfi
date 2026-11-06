@@ -9,6 +9,8 @@
 <script setup lang="ts">
 import AngaryPage from '~/components/pages/public/remontPomescheniy/pageTypes/angary/index.vue'
 import { usePageSeo } from '~/components/pages/public/remontPomescheniy/composables/usePageSeo'
+// Цена «от» — из единого каталога (тот же источник, что и карточки услуг)
+import { getPremisesPriceFrom } from '~/components/pages/public/remontPomescheniy/pageTypes/data/premisesCatalog'
 
 usePageSeo({
   type: 'angary',
@@ -17,7 +19,7 @@ usePageSeo({
   title: 'Ремонт ангаров, модульных зданий и металлоконструкций в Рязани',
   description:
     'Ремонт ангаров и быстровозводимых зданий в Рязани: утепление сэндвич-панелями и ППУ, антикоррозийная защита, кровля, огнезащита металлоконструкций. Смета и срок фиксируются в договоре. Гарантия 3 года.',
-  priceFrom: 9000,
+  priceFrom: getPremisesPriceFrom('angary'),
   currency: 'RUB',
   phone: '+7-910-909-69-47',
   ogImage: 'https://glavprofi.ru/og-angary.jpg',

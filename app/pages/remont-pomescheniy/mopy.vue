@@ -9,6 +9,8 @@
 <script setup lang="ts">
 import MopyPage from '~/components/pages/public/remontPomescheniy/pageTypes/mopy/index.vue'
 import { usePageSeo } from '~/components/pages/public/remontPomescheniy/composables/usePageSeo'
+// Цена «от» — из единого каталога (тот же источник, что и карточки услуг)
+import { getPremisesPriceFrom } from '~/components/pages/public/remontPomescheniy/pageTypes/data/premisesCatalog'
 
 usePageSeo({
   type: 'mopy',
@@ -17,7 +19,7 @@ usePageSeo({
   title: 'Ремонт МОПов, подъездов и холлов ЖК в Рязани: антивандальная отделка',
   description:
     'Ремонт подъездов и холлов жилых комплексов в Рязани: антивандальные материалы, пожарная безопасность по СП 1.13130, доступность для МГН, инженерия (домофоны, видеонаблюдение, освещение). Смета фиксируется в договоре. Гарантия 3 года.',
-  priceFrom: 4500,
+  priceFrom: getPremisesPriceFrom('mopy'),
   currency: 'RUB',
   phone: '+7-910-909-69-47',
   ogImage: 'https://glavprofi.ru/og-mopy.jpg',
