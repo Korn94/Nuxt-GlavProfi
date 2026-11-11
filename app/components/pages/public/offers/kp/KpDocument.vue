@@ -3,6 +3,8 @@
   <div class="kp">
     <slot />
 
+    <KpQrCode v-if="print" />
+
     <button
       v-if="print"
       type="button"
@@ -31,9 +33,12 @@
  * Задачи оболочки:
  *  • серый фон и типографика КП (класс .kp);
  *  • плавающая кнопка «Скачать PDF» (window.print);
+ *  • QR-код со ссылкой на страницу КП в конце печатного документа (KpQrCode);
  *  • подготовка страницы к печати — скрываем шапку сайта и прочий «хром»
  *    (глобальные правила в app/assets/styles/kp.scss, блок «ПЕЧАТЬ / PDF»).
  */
+import KpQrCode from './blocks/KpQrCode.vue'
+
 withDefaults(defineProps<{
   /** Показывать кнопку «Скачать PDF» */
   print?: boolean

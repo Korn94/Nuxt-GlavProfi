@@ -124,6 +124,30 @@
     }
   }
 
+  // Подпись «ГлавПрофи» — только для печати (в браузере не показываем)
+  &__brand {
+    display: none;
+  }
+
+  &__brand-word {
+    font-family: 'Comfortaa', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: #fff;
+
+    span {
+      color: $blue;
+    }
+  }
+
+  &__brand-note {
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.45);
+  }
+
   &__title {
     font-size: clamp(2rem, 4vw, 3rem);
     font-weight: 700;
@@ -753,8 +777,60 @@
     padding: 10px 0;
     font-size: 1rem;
 
-    span { color: rgba(255, 255, 255, 0.7); }
-    b { font-weight: 600; }
+    span {
+      color: rgba(255, 255, 255, 0.7);
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    b {
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    /* Подзаголовок группы в режиме «по разделам»: «Итого работы», «Итого материалы» */
+    &--subtotal {
+      margin-top: 8px;
+      padding-top: 16px;
+      border-top: 1px dashed rgba(255, 255, 255, 0.16);
+      font-size: 1.05rem;
+
+      span { color: #fff; font-weight: 600; }
+      b { color: #fff; }
+
+      &:first-child {
+        margin-top: 0;
+        padding-top: 0;
+        border-top: none;
+      }
+    }
+
+    /* Раздел внутри группы — вторичная строка */
+    &--section {
+      padding: 6px 0 6px 1.2rem;
+      font-size: 0.92rem;
+      line-height: 1.35;
+
+      span {
+        position: relative;
+        color: rgba(255, 255, 255, 0.55);
+
+        &::before {
+          content: '';
+          position: absolute;
+          top: 0.62em;
+          left: -1.2rem;
+          width: 6px;
+          height: 1px;
+          background: rgba(255, 255, 255, 0.28);
+        }
+      }
+
+      b {
+        color: rgba(255, 255, 255, 0.78);
+        font-weight: 500;
+      }
+    }
 
     &--total {
       margin-top: 10px;
@@ -1054,56 +1130,282 @@
 }
 
 /* ============================================================
+   QR-КОД (печатается только в PDF)
+   ============================================================ */
+
+.kp-qr {
+  display: none;
+}
+
+/* ============================================================
    ПЕЧАТЬ / PDF
    ============================================================ */
 
 @media print {
   @page {
     size: A4;
-    margin: 12mm;
+    margin: 10mm;
   }
 
   // Шапка сайта, кнопки и прочий «хром» в PDF не нужны.
-  // Класс kp-site-header навешивает KpDocument.vue на чужие <header>.
+  // Класс kp-site-header навешивает KpDocument.vue на чужие <header>,
+  // .header-container — обёртка LayoutHeader (у мобильной шапки внутри нет <header>).
   .kp-site-header,
+  .header-container,
   .kp-print,
   .scroll-top,
-  .mobile-bottom-nav {
+  .mobile-bottom-nav,
+  .menu-overlay {
     display: none !important;
   }
 
-  .kp { background: #fff; }
-
-  .kp-hero {
-    background: #18191b !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-    padding: 2rem 0;
+  .kp {
+    background: #fff;
+    min-height: auto;
   }
 
-  // Раздел может занимать несколько страниц (большая смета) — не «склеиваем» его
-  .kp-section { padding: 1.5rem 0; }
+  .kp-container {
+    max-width: none;
+    padding: 0;
+  }
 
-  // Заголовок не должен оставаться в одиночку в конце страницы
+  // ============================================================
+  // ШАПКА КП: белая и компактная — экономит тонер и отдаёт место смете
+  // ============================================================
+
+  .kp-hero {
+    background: #fff !important;
+    color: #18191b;
+    padding: 0 0 1rem;
+    border-bottom: 1px solid #dfe6ec;
+  }
+
+  // Декор и бейдж на бумаге не нужны
+  .kp-hero__bg,
+  .kp-hero__badge {
+    display: none !important;
+  }
+
+  .kp-hero__inner { max-width: none; }
+
+  .kp-hero__title {
+    font-size: 1.45rem;
+    line-height: 1.2;
+    margin: 0 0 .35rem;
+    color: #18191b;
+  }
+
+  // Градиентный текст (background-clip: text) в печати может «пропасть» —
+  // на бумаге заменяем его сплошным цветом
+  .kp-hero__title span {
+    background: none;
+    -webkit-background-clip: border-box;
+    background-clip: border-box;
+    color: #0b7fa8;
+    -webkit-text-fill-color: #0b7fa8;
+  }
+
+  .kp-hero__subtitle {
+    font-size: .9rem;
+    line-height: 1.45;
+    margin: 0 0 .7rem;
+    color: #55606c;
+  }
+
+  .kp-hero__meta {
+    gap: .35rem 1.5rem;
+    margin: 0 0 .9rem;
+
+    span {
+      font-size: 10px;
+      color: #6b7684;
+    }
+
+    b {
+      font-size: .85rem;
+      color: #18191b;
+    }
+  }
+
+  .kp-hero__total {
+    padding: .55rem .9rem;
+    background: none;
+    border: 1px solid #dfe6ec;
+    border-radius: 10px;
+    backdrop-filter: none;
+  }
+
+  .kp-hero__total-label {
+    font-size: 10px;
+    margin-bottom: 2px;
+    color: #6b7684;
+  }
+
+  .kp-hero__total-value {
+    font-size: 1.6rem;
+    background: none;
+    -webkit-background-clip: border-box;
+    background-clip: border-box;
+    color: #18191b;
+    -webkit-text-fill-color: #18191b;
+
+    small {
+      color: #6b7684;
+      -webkit-text-fill-color: #6b7684;
+    }
+  }
+
+  .kp-hero__total-note {
+    margin-top: 4px;
+    font-size: 11px;
+    color: #6b7684;
+  }
+
+  // Бренд «ГлавПрофи» — только в печати, тёмный, с акцентом
+  .kp-hero__brand {
+    display: inline-flex;
+    align-items: baseline;
+    gap: .5rem;
+    margin-bottom: .5rem;
+  }
+
+  .kp-hero__brand-word {
+    font-size: .95rem;
+    color: #18191b;
+
+    span { color: #0b7fa8; }
+  }
+
+  .kp-hero__brand-note {
+    font-size: 9px;
+    color: #6b7684;
+  }
+
+  // ============================================================
+  // ПЕЧАТАЕМ ТОЛЬКО СМЕТУ: работы + материалы + итог.
+  // Остальные блоки (сводка, диаграммы, баннеры, примечания, подвал)
+  // скрываем целиком вместе с паддингами — «белый список» по модификатору
+  // .kp-section--tables (его ставит KpEstimate.vue).
+  // ============================================================
+
+  .kp-section:not(.kp-section--tables),
+  .kp-footer,
+  .kp-tabs,
+  .kp-variant-switch {
+    display: none !important;
+  }
+
+  .kp-section--tables { padding: .75rem 0 0; }
+
+  // Заголовки не должны оставаться в одиночку в конце страницы
   .kp-h2,
   .kp-lead { break-after: avoid; }
 
-  .kp-table-block,
-  .kp-grand,
-  .kp-chart-card,
-  .kp-note,
-  .kp-card { break-inside: avoid; box-shadow: none; }
-  .kp-card:hover,
-  .kp-note:hover { transform: none; }
-  .kp-footer { break-before: page; }
+  .kp-h2 {
+    font-size: 1.15rem;
+    padding-bottom: .5rem;
 
-  // В PDF печатаем все группы сметы, а не только активную вкладку.
-  // Переключатель вариантов в PDF не нужен — печатается активный вариант.
-  .kp-tabs { display: none !important; }
-  .kp-variant-switch { display: none !important; }
+    &::after {
+      width: 48px;
+      height: 3px;
+    }
+  }
+
+  .kp-lead {
+    font-size: .85rem;
+    margin: 0 0 1rem;
+  }
+
+  // Раздел сметы: компактнее, чтобы влезало меньше страниц
+  .kp-table-block {
+    padding: 10px 12px 12px;
+    margin-bottom: .75rem;
+    border-color: #dfe6ec;
+    box-shadow: none;
+    break-inside: avoid;
+  }
+
+  .kp-table-block__head {
+    margin-bottom: .5rem;
+    gap: .5rem;
+  }
+
+  .kp-table-block__num {
+    width: 24px;
+    height: 24px;
+    font-size: .72rem;
+    border-radius: 6px;
+    background: none;
+    border: 1px solid #dfe6ec;
+  }
+
+  .kp-table-block__title { font-size: .95rem; }
+  .kp-table-block__total { font-size: .95rem; }
+
+  .kp-table-block__hint {
+    font-size: .76rem;
+    padding: 6px 8px;
+    margin: 0 0 .5rem;
+    background: none;
+    border-left: 2px solid #cfd8e0;
+  }
+
+  // В PDF печатаем все группы сметы (работы и материалы), а не только активную вкладку
   .kp-estimate__group--hidden { display: block !important; }
 
-  // Таблица целиком по ширине листа, шапка повторяется на каждой странице
+  // ============================================================
+  // QR-КОД: ссылка на актуальную версию КП в конце документа
+  // ============================================================
+
+  .kp-qr {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding: .9rem 1rem;
+    border: 1px solid #dfe6ec;
+    border-radius: 12px;
+    break-inside: avoid;
+  }
+
+  .kp-qr__code {
+    flex: 0 0 auto;
+    width: 26mm;
+    height: 26mm;
+
+    svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  .kp-qr__text { min-width: 0; }
+
+  .kp-qr__title {
+    font-size: .82rem;
+    font-weight: 600;
+    color: #18191b;
+  }
+
+  .kp-qr__link {
+    margin-top: 2px;
+    font-size: .78rem;
+    color: #0b7fa8;
+    word-break: break-all;
+  }
+
+  .kp-qr__hint {
+    margin-top: 4px;
+    font-size: .72rem;
+    line-height: 1.4;
+    color: #6b7684;
+  }
+
+  // ============================================================
+  // ТАБЛИЦЫ: вписываем в A4, шапка повторяется на каждой странице
+  // ============================================================
+
   .kp-table-wrap {
     overflow: visible;
     border: none;
@@ -1112,11 +1414,95 @@
   .kp-table {
     min-width: 0;
     width: 100%;
+    font-size: .78rem;
+
+    th,
+    td { padding: 4px 6px; }
 
     thead { display: table-header-group; }
-    tr { break-inside: avoid; }
+
+    thead th { font-size: .66rem; }
+
+    tbody tr { break-inside: avoid; }
+
+    &__name { min-width: 0; }
   }
 
-  .kp-charts { grid-template-columns: 1fr; }
+  // Колонка «Материал» больше не требует фиксированной ширины
+  .kp-table--materials { min-width: 0; }
+
+  // ============================================================
+  // ИТОГ: светлый блок вместо тёмного градиента
+  // (тёмная заливка на бумаге давала белый текст на белом фоне)
+  // ============================================================
+
+  .kp-grand {
+    margin-top: 1rem;
+    padding: .9rem 1rem;
+    background: none !important;
+    color: #18191b;
+    border: 1px solid #dfe6ec;
+    border-radius: 12px;
+    break-inside: avoid;
+  }
+
+  .kp-grand__row {
+    padding: 5px 0;
+    font-size: .82rem;
+    border-bottom: 1px solid #eef1f4;
+
+    span { color: #55606c; }
+
+    b {
+      color: #18191b;
+      background: none;
+      -webkit-text-fill-color: #18191b;
+    }
+
+    &--subtotal {
+      margin-top: 6px;
+      padding-top: 8px;
+      padding-bottom: 6px;
+      font-size: .86rem;
+      border-top: 1px solid #dfe6ec;
+
+      span,
+      b {
+        color: #18191b;
+        font-weight: 600;
+      }
+    }
+
+    &--section {
+      padding: 3px 0 3px .8rem;
+      font-size: .78rem;
+
+      span {
+        color: #6b7684;
+
+        &::before { background: #cfd8e0; }
+      }
+
+      b {
+        color: #333;
+        font-weight: 500;
+      }
+    }
+
+    &--total {
+      margin-top: 4px;
+      padding-top: 8px;
+      font-size: .95rem;
+      border-top: 2px solid #18191b;
+      border-bottom: none;
+
+      span { color: #18191b; }
+
+      b {
+        color: #18191b;
+        font-weight: 700;
+      }
+    }
+  }
 }
 

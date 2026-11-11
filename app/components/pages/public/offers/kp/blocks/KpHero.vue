@@ -4,6 +4,11 @@
     <div class="kp-hero__bg" aria-hidden="true" />
 
     <div class="kp-container kp-hero__inner">
+      <div class="kp-hero__brand">
+        <span class="kp-hero__brand-word"><span>Г</span>лав<span>П</span>рофи</span>
+        <span class="kp-hero__brand-note">коммерческое предложение</span>
+      </div>
+
       <div v-if="meta.badge !== null" class="kp-hero__badge">
         <Icon :name="meta.badgeIcon || 'material-symbols:description-outline'" />
         {{ meta.badge || 'Предварительный рассчет' }}

@@ -76,7 +76,15 @@
 
       <!-- Итоговый блок -->
       <div class="kp-grand">
-        <div v-for="row in totalRowsData" :key="row.label" class="kp-grand__row">
+        <div
+          v-for="row in totalRowsData"
+          :key="row.key"
+          class="kp-grand__row"
+          :class="{
+            'kp-grand__row--subtotal': row.kind === 'subtotal',
+            'kp-grand__row--section': row.kind === 'section',
+          }"
+        >
           <span>{{ row.label }}</span>
           <b>{{ formatPrice(row.value) }} ₽</b>
         </div>
@@ -135,16 +143,53 @@ const total = computed<number>(() =>
   props.grandTotal ?? props.groups.reduce((sum, group) => sum + group.total, 0),
 )
 
-const totalRowsData = computed<{ label: string, value: number }[]>(() => {
+type KpTotalRowKind = 'plain' | 'subtotal' | 'section'
+
+interface KpTotalRow {
+  key: string
+  label: string
+  value: number
+  kind: KpTotalRowKind
+}
+
+/**
+ * В режиме «по разделам» разделы группируются под итогом своей группы:
+ * сначала «Итого работы» со своей суммой, затем разделы этой группы,
+ * затем «Итого материалы» и её разделы. Длинный список так читается проще.
+ * Если группа одна, подзаголовок не нужен — строки остаются как раньше.
+ */
+const groupSections = computed<boolean>(() => props.totalRows === 'sections' && props.groups.length > 1)
+
+const totalRowsData = computed<KpTotalRow[]>(() => {
   if (props.totalRows === 'sections') {
-    return props.groups.flatMap(group =>
-      group.sections.map(section => ({ label: section.title, value: section.total })),
-    )
+    return props.groups.flatMap<KpTotalRow>((group) => {
+      const sections = group.sections.map<KpTotalRow>((section, index) => ({
+        key: `${group.key}-${section.key}-${index}`,
+        label: section.title,
+        value: section.total,
+        // Вторичный стиль — только когда есть подзаголовки групп
+        kind: groupSections.value ? 'section' : 'plain',
+      }))
+
+      if (!groupSections.value) return sections
+
+      return [
+        {
+          key: `${group.key}-subtotal`,
+          label: group.totalLabel || group.label,
+          value: group.total,
+          kind: 'subtotal',
+        },
+        ...sections,
+      ]
+    })
   }
 
-  return props.groups.map(group => ({
+  return props.groups.map<KpTotalRow>(group => ({
+    key: `${group.key}-total`,
     label: group.totalLabel || group.label,
     value: group.total,
+    kind: 'plain',
   }))
 })
 
