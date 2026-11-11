@@ -85,6 +85,39 @@
             </div>
           </div>
 
+          <!-- Сводка по завершённым объектам (без доп. запросов — из загруженного списка) -->
+          <div
+            v-if="currentTab === 'completed' && !loading && completedSummary.count"
+            class="objects-summary"
+          >
+            <span class="objects-summary__item">
+              <Icon name="mdi:office-building-outline" size="13" />
+              Объектов: <strong>{{ completedSummary.count }}</strong>
+            </span>
+            <span class="objects-summary__item">
+              <Icon name="mdi:file-document-outline" size="13" />
+              Договоры: <strong>{{ formatMoney(completedSummary.contract) }}</strong>
+            </span>
+            <span class="objects-summary__item">
+              <Icon name="mdi:cash-multiple" size="13" />
+              Приход: <strong>{{ formatMoney(completedSummary.income) }}</strong>
+            </span>
+            <span class="objects-summary__item">
+              <Icon name="mdi:chart-line" size="13" />
+              Маржа:
+              <strong :class="completedSummary.margin >= 0 ? 'pos' : 'neg'">
+                {{ formatMoney(completedSummary.margin) }}
+              </strong>
+            </span>
+            <span class="objects-summary__item">
+              <Icon name="mdi:calendar-range" size="13" />
+              Средний срок:
+              <strong>
+                {{ completedSummary.avgDays === null ? '—' : `${completedSummary.avgDays} ${pluralDays(completedSummary.avgDays)}` }}
+              </strong>
+            </span>
+          </div>
+
           <!-- Список -->
           <div class="objects-card">
             <!-- Скелетон -->
@@ -137,6 +170,42 @@
                         Акты {{ obj.actStats.signed }}/{{ obj.actStats.total }}
                       </div>
                     </div>
+
+                    <!-- Доп. статистика завершённого объекта -->
+                    <div v-if="obj.status === 'completed'" class="object-item__stats">
+                      <span
+                        class="stat-chip"
+                        :class="{ 'stat-chip--muted': getWorkDays(obj) === null }"
+                        :title="obj.startDate ? `Старт: ${formatDate(obj.startDate)}` : 'Дата начала не указана'"
+                      >
+                        <Icon name="mdi:calendar-range" size="12" />
+                        {{ getDurationText(obj) }}
+                      </span>
+
+                      <span
+                        v-if="obj.completedDate || obj.statusDate"
+                        class="stat-chip"
+                        :title="getPlanTooltip(obj)"
+                      >
+                        <Icon name="mdi:calendar-check-outline" size="12" />
+                        Завершён {{ formatDate(obj.completedDate || obj.statusDate) }}
+                      </span>
+
+                      <span
+                        v-if="getPlanDeltaDays(obj) !== null"
+                        class="stat-chip"
+                        :class="(getPlanDeltaDays(obj) || 0) > 0 ? 'stat-chip--neg' : 'stat-chip--pos'"
+                        :title="getPlanTooltip(obj)"
+                      >
+                        <Icon name="mdi:clock-alert-outline" size="12" />
+                        {{ getPlanDeltaText(obj) }}
+                      </span>
+
+                      <span v-if="obj.source" class="stat-chip" title="Источник объекта">
+                        <Icon name="mdi:source-branch" size="12" />
+                        {{ obj.source }}
+                      </span>
+                    </div>
                   </div>
 
                   <!-- Финансы справа -->
@@ -160,15 +229,22 @@
                       </div>
                     </template>
 
-                    <!-- Завершённые: маржинальность -->
-                    <template v-else-if="getProfitability(obj)">
+                    <!-- Завершённые: маржинальность + суммы договора и прихода -->
+                    <template v-else>
                       <div class="fin-block">
                         <span class="fin-block__label">Маржа</span>
-                        <span class="fin-block__value" :class="getProfitabilityData(obj).isProfit ? 'pos' : 'neg'">
+                        <span
+                          v-if="getProfitability(obj)"
+                          class="fin-block__value"
+                          :class="getProfitabilityData(obj).isProfit ? 'pos' : 'neg'"
+                        >
                           {{ getProfitabilityData(obj).text }}
                         </span>
+                        <span v-else class="fin-block__value fin-block__value--muted" title="Нет прихода по объекту">—</span>
                       </div>
                       <div class="fin-detail">
+                        <span title="Сумма договора — итог по смете">Договор: {{ formatMoneyOrDash(obj.contractAmount) }}</span>
+                        <span>Приход: {{ formatMoney(obj.totalIncome) }}</span>
                         <span>Работы: {{ formatNumber(obj.totalWorks) }} ₽</span>
                         <span>
                           Мат.:
@@ -285,12 +361,110 @@ const filteredObjects = computed(() => {
   )
 })
 
+/** Сводка по завершённым объектам (считается из уже загруженного массива) */
+const completedSummary = computed(() => {
+  const list = objects.value.filter(o => o.status === 'completed')
+  const sumBy = (fn: (o: any) => number) => list.reduce((total, o) => total + fn(o), 0)
+  const durations = list
+    .map(getWorkDays)
+    .filter((d): d is number => d !== null)
+
+  return {
+    count: list.length,
+    contract: sumBy(o => Number(o.contractAmount) || 0),
+    income: sumBy(o => Number(o.totalIncome) || 0),
+    // Маржа — как в строке списка: приход минус реальные расходы (работы + материалы)
+    margin: sumBy(o => (Number(o.totalIncome) || 0) - (Number(o.expenses) || 0)),
+    avgDays: durations.length
+      ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
+      : null,
+  }
+})
+
 // ============================================
 // ХЕЛПЕРЫ
 // ============================================
 
+const DAY_MS = 86_400_000
+
 function formatNumber(n: any) { 
   return (Number(n) || 0).toLocaleString('ru-RU') 
+}
+
+function formatMoney(v: any) {
+  return `${formatNumber(v)} ₽`
+}
+
+/** Денежное значение или «—», если суммы нет (например, смета не заполнена) */
+function formatMoneyOrDash(v: any) {
+  return Number(v) ? formatMoney(v) : '—'
+}
+
+/**
+ * Парсит дату из БД ("YYYY-MM-DD" или "YYYY-MM-DD HH:mm:ss") в timestamp начала дня.
+ * Ручной разбор — чтобы не зависеть от нестандартного формата MySQL в Safari.
+ */
+function parseDay(value?: string | null): number | null {
+  if (!value) return null
+  const time = new Date(`${String(value).slice(0, 10)}T00:00:00`).getTime()
+  return Number.isNaN(time) ? null : time
+}
+
+function formatDate(value?: string | null) {
+  const time = parseDay(value)
+  return time === null ? '—' : new Date(time).toLocaleDateString('ru-RU')
+}
+
+function pluralDays(days: number) {
+  const mod10 = days % 10
+  const mod100 = days % 100
+  if (mod10 === 1 && mod100 !== 11) return 'день'
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'дня'
+  return 'дней'
+}
+
+/** Сколько календарных дней занял объект: от старта до фактической сдачи (включительно) */
+function getWorkDays(obj: any): number | null {
+  const start = parseDay(obj.startDate)
+  const end = parseDay(obj.completedDate || obj.statusDate)
+  if (start === null || end === null || end < start) return null
+  return Math.round((end - start) / DAY_MS) + 1
+}
+
+/** Плановый срок в днях (включительно) — от старта до плановой даты */
+function getPlanDays(obj: any): number | null {
+  const start = parseDay(obj.startDate)
+  const plan = parseDay(obj.plannedEndDate)
+  if (start === null || plan === null || plan < start) return null
+  return Math.round((plan - start) / DAY_MS) + 1
+}
+
+/** Отклонение от плана в днях: > 0 — просрочка, < 0 — раньше плана */
+function getPlanDeltaDays(obj: any): number | null {
+  const fact = getWorkDays(obj)
+  const plan = getPlanDays(obj)
+  if (fact === null || plan === null) return null
+  return fact - plan
+}
+
+function getDurationText(obj: any) {
+  const days = getWorkDays(obj)
+  return days === null ? 'Срок не указан' : `${days} ${pluralDays(days)}`
+}
+
+function getPlanDeltaText(obj: any) {
+  const delta = getPlanDeltaDays(obj)
+  if (delta === null) return '—'
+  if (delta > 0) return `+${delta} ${pluralDays(delta)} к плану`
+  if (delta < 0) return `${delta} ${pluralDays(Math.abs(delta))} к плану`
+  return 'в срок'
+}
+
+function getPlanTooltip(obj: any) {
+  const plan = getPlanDays(obj)
+  const fact = getWorkDays(obj)
+  if (plan === null || fact === null) return 'Недостаточно дат для сравнения с планом'
+  return `План: ${plan} ${pluralDays(plan)} · Факт: ${fact} ${pluralDays(fact)}`
 }
 
 function getMaterialBalance(obj: any) { 
@@ -348,9 +522,10 @@ function getInvoiceClass(obj: any) {
 }
 
 function getInvoiceTooltip(obj: any) {
-  const { total, signed } = obj.invoiceStats
+  const { total, signed, amount, paidAmount } = obj.invoiceStats
   if (total === 0) return 'Нет счётов'
-  return signed === total ? `Все ${total} оплачены` : `${signed} из ${total} оплачено`
+  const status = signed === total ? `Все ${total} оплачены` : `${signed} из ${total} оплачено`
+  return `${status} · ${formatMoney(paidAmount)} из ${formatMoney(amount)}`
 }
 
 function getActClass(obj: any) {
@@ -360,9 +535,10 @@ function getActClass(obj: any) {
 }
 
 function getActTooltip(obj: any) {
-  const { total, signed } = obj.actStats
+  const { total, signed, amount, signedAmount } = obj.actStats
   if (total === 0) return 'Нет актов'
-  return signed === total ? `Все ${total} подписаны` : `${signed} из ${total} подписано`
+  const status = signed === total ? `Все ${total} подписаны` : `${signed} из ${total} подписано`
+  return `${status} · ${formatMoney(signedAmount)} из ${formatMoney(amount)}`
 }
 
 // ============================================
@@ -554,6 +730,38 @@ onMounted(async () => {
   }
 }
 
+// ── Сводка по завершённым ────────────────────────────────────────────
+.objects-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  background: var(--crm-bg-elevated);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-lg);
+
+  &__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+    white-space: nowrap;
+
+    & + & {
+      padding-left: 8px;
+      border-left: 1px solid var(--crm-border);
+    }
+
+    strong {
+      font-family: var(--crm-font-mono);
+      font-weight: 600;
+      color: var(--crm-text-primary);
+    }
+  }
+}
+
 // ── Карточка ─────────────────────────────────────────────────────────
 .objects-card {
   background: var(--crm-bg-surface);
@@ -639,6 +847,13 @@ onMounted(async () => {
     flex-wrap: wrap;
   }
 
+  &__stats {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+
   &__finance {
     display: flex;
     flex-direction: column;
@@ -681,6 +896,11 @@ onMounted(async () => {
     font-size: var(--crm-text-lg);
     font-weight: 700;
     white-space: nowrap;
+
+    &--muted {
+      color: var(--crm-text-disabled);
+      font-weight: 500;
+    }
   }
 }
 
@@ -755,6 +975,38 @@ onMounted(async () => {
     .doc-chip__dot {
       background: var(--crm-danger);
     }
+  }
+}
+
+// ── Чипы статистики завершённого объекта ─────────────────────────────
+.stat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: var(--crm-radius-sm);
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid var(--crm-border);
+  background: var(--crm-bg-elevated);
+  color: var(--crm-text-secondary);
+  white-space: nowrap;
+
+  &--muted {
+    color: var(--crm-text-disabled);
+    font-style: italic;
+  }
+
+  &--pos {
+    background: var(--crm-success-dim);
+    border-color: rgba(61, 214, 140, .3);
+    color: var(--crm-success);
+  }
+
+  &--neg {
+    background: var(--crm-danger-dim);
+    border-color: rgba(242, 95, 92, .3);
+    color: var(--crm-danger);
   }
 }
 

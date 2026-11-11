@@ -4,13 +4,17 @@
  * ⚠️ Требует право `canViewObjects` (проверяется в мидлваре)
  * 
  * @query { search?: string, status?: 'active'|'waiting'|'completed'|'canceled' }
- * @returns { Array<ObjectWithStats> } — объекты с договором, статистикой документов и рассчитанными финансами
+ * @returns { Array<ObjectWithStats> } — объекты с договором, статистикой документов (кол-во + суммы),
+ *   суммой договора (итог по смете, `contractAmount`) и рассчитанными финансами
  */
 
 import { createError, defineEventHandler, getQuery } from 'h3'
 import { db } from '../../db'
-import { objects, objectContracts, objectInvoices, objectActs, materials as materialsTable } from '../../db/schema'
-import { eq, and, like } from 'drizzle-orm'
+import {
+  objects, objectContracts, objectInvoices, objectActs, objectBudget,
+  materials as materialsTable
+} from '../../db/schema'
+import { eq, and, like, sum } from 'drizzle-orm'
 import { calculateObjectFinance } from '../../utils/calculateObjectFinance'
 
 const VALID_STATUSES = ['active', 'waiting', 'completed', 'canceled'] as const
@@ -38,33 +42,50 @@ export default defineEventHandler(async (event) => {
     .leftJoin(objectContracts, eq(objects.id, objectContracts.objectId))
     .where(whereClause)
 
+  // Сумма по смете («договор») для всех объектов одним запросом — без N+1
+  const budgetRows = await db
+    .select({ objectId: objectBudget.objectId, total: sum(objectBudget.amount).mapWith(Number) })
+    .from(objectBudget)
+    .groupBy(objectBudget.objectId)
+  const budgetByObject = new Map<number, number>(
+    budgetRows.map(row => [Number(row.objectId), Number(row.total) || 0])
+  )
+
   const enhancedObjects = await Promise.all(
     objectsWithContracts.map(async (item) => {
       const obj = item.object
 
       // Счета
       const invoices = await db
-        .select({ id: objectInvoices.id, status: objectInvoices.status })
+        .select({ id: objectInvoices.id, status: objectInvoices.status, amount: objectInvoices.amount })
         .from(objectInvoices)
         .where(eq(objectInvoices.objectId, obj.id))
       const totalInvoices = invoices.length
       const signedInvoices = invoices.filter(inv => inv.status === 'paid').length
+      const invoiceAmount = invoices.reduce((total, inv) => total + (Number(inv.amount) || 0), 0)
+      const paidInvoiceAmount = invoices
+        .filter(inv => inv.status === 'paid')
+        .reduce((total, inv) => total + (Number(inv.amount) || 0), 0)
 
       // Акты
       const acts = await db
-        .select({ id: objectActs.id, status: objectActs.status })
+        .select({ id: objectActs.id, status: objectActs.status, amount: objectActs.amount })
         .from(objectActs)
         .where(eq(objectActs.objectId, obj.id))
       const totalActs = acts.length
       const signedActs = acts.filter(act => act.status === 'signed').length
+      const actAmount = acts.reduce((total, act) => total + (Number(act.amount) || 0), 0)
+      const signedActAmount = acts
+        .filter(act => act.status === 'signed')
+        .reduce((total, act) => total + (Number(act.amount) || 0), 0)
 
       // Материалы
       const materialsList = await db
         .select({ type: materialsTable.type, amount: materialsTable.amount })
         .from(materialsTable)
         .where(eq(materialsTable.objectId, obj.id))
-      const materialIncoming = materialsList.filter(m => m.type === 'incoming').reduce((sum, m) => sum + (Number(m.amount) || 0), 0)
-      const materialOutgoing = materialsList.filter(m => m.type === 'outgoing').reduce((sum, m) => sum + (Number(m.amount) || 0), 0)
+      const materialIncoming = materialsList.filter(m => m.type === 'incoming').reduce((total, m) => total + (Number(m.amount) || 0), 0)
+      const materialOutgoing = materialsList.filter(m => m.type === 'outgoing').reduce((total, m) => total + (Number(m.amount) || 0), 0)
 
       // Финансы из объекта
       const totalIncome = obj.totalIncome ? parseFloat(obj.totalIncome) : 0
@@ -76,9 +97,11 @@ export default defineEventHandler(async (event) => {
       return {
         ...obj,
         ...finance,
+        // Сумма договора = итог по смете (аналогично «Смета (общая)» в карточке объекта)
+        contractAmount: budgetByObject.get(obj.id) || 0,
         contract: item.contract ? { id: item.contract.id, type: item.contract.type, status: item.contract.status } : null,
-        invoiceStats: { total: totalInvoices, signed: signedInvoices },
-        actStats: { total: totalActs, signed: signedActs }
+        invoiceStats: { total: totalInvoices, signed: signedInvoices, amount: invoiceAmount, paidAmount: paidInvoiceAmount },
+        actStats: { total: totalActs, signed: signedActs, amount: actAmount, signedAmount: signedActAmount }
       }
     })
   )
