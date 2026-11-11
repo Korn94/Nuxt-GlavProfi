@@ -1,10 +1,12 @@
 <!-- app/pages/offers/dvizheniya-pervyh-1.vue -->
+<!-- Старая ссылка на второй вариант: открывает тот же документ сразу на «Армстронге». -->
 <template>
-  <OffersIndex />
+  <KpPage :offer="offer" initial-variant="armstrong" />
 </template>
 
 <script setup lang="ts">
-import OffersIndex from '~/components/pages/public/offers/dvizheniya-pervyh/var1.vue'
+import KpPage from '~/components/pages/public/offers/kp/KpPage.vue'
+import offer from '~/components/pages/public/offers/data/dvizheniya-pervyh'
 
 definePageMeta({
   layout: 'empy',

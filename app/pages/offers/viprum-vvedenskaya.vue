@@ -1,10 +1,11 @@
 <!-- app/pages/offers/viprum-vvedenskaya.vue -->
 <template>
-  <ViprumOffer />
+  <KpPage :offer="offer" />
 </template>
 
 <script setup lang="ts">
-import ViprumOffer from '~/components/pages/public/offers/viprum.vue'
+import KpPage from '~/components/pages/public/offers/kp/KpPage.vue'
+import offer from '~/components/pages/public/offers/data/viprum-vvedenskaya'
 
 definePageMeta({
   layout: 'empy',

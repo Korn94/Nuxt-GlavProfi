@@ -1,5 +1,5 @@
-<!-- app/components/pages/public/offers/ui/EChart.client.vue -->
- <template>
+<!-- app/components/pages/public/offers/kp/ui/EChart.client.vue -->
+<template>
   <div ref="el" class="echart" :style="{ height }" />
 </template>
 

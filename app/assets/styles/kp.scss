@@ -1,0 +1,1122 @@
+// app/assets/styles/kp.scss
+// ========================================
+// КОММЕРЧЕСКИЕ ПРЕДЛОЖЕНИЯ — конструктор КП
+// Глобальные стили блоков (app/components/pages/public/offers/kp).
+// Классы имеют префикс kp-, поэтому стили не конфликтуют с остальным сайтом.
+// Подключено в nuxt.config.ts → css: []
+// ========================================
+
+@use 'variables' as *;
+
+
+/* ============================================================
+   КОНТЕЙНЕР
+   ============================================================ */
+
+.kp {
+  background: #f6f8fa;
+  min-height: 100vh;
+  color: $text-dark;
+  font-family: 'Rubik', sans-serif;
+}
+
+.kp-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+
+  @media (max-width: 640px) {
+    padding: 0 1rem;
+  }
+}
+
+/* ============================================================
+   ПЛАВАЮЩАЯ КНОПКА ПЕЧАТИ
+   ============================================================ */
+
+.kp-print {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 50;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: #18191b;
+  background: linear-gradient(120deg, #00c3f5, #71E0FA);
+  border: none;
+  border-radius: 100px;
+  cursor: pointer;
+  box-shadow: 0 10px 28px rgba(0, 195, 245, 0.4);
+  transition: transform .2s ease, box-shadow .2s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 34px rgba(0, 195, 245, 0.55);
+  }
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  @media (max-width: 640px) {
+    right: 16px;
+    bottom: 16px;
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+}
+
+/* ============================================================
+   HERO
+   ============================================================ */
+
+.kp-hero {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #18191b 0%, #202226 100%);
+  color: #fff;
+  padding: 5.5rem 0 6rem;
+
+  @media (max-width: 768px) {
+    padding: 3.5rem 0 4rem;
+  }
+
+  &__bg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(820px 420px at 82% -10%, rgba(0, 195, 245, 0.28), transparent 60%),
+      radial-gradient(600px 380px at 8% 110%, rgba(2, 254, 255, 0.18), transparent 60%),
+      radial-gradient(500px 300px at 50% 50%, rgba(250, 183, 2, 0.06), transparent 70%);
+  }
+
+  &__inner {
+    position: relative;
+    z-index: 1;
+    max-width: 900px;
+  }
+
+  &__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 14px;
+    margin-bottom: 1.5rem;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: #02feff;
+    background: rgba(0, 195, 245, 0.1);
+    border: 1px solid rgba(0, 195, 245, 0.35);
+    border-radius: 100px;
+
+    svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  &__title {
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin: 0 0 1rem;
+
+    span {
+      background: $blue-gradient;
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+  }
+
+  &__subtitle {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0 0 2rem;
+    max-width: 640px;
+  }
+
+  &__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem 2.5rem;
+    padding: 0;
+    margin: 0 0 3rem;
+    list-style: none;
+
+    li {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    span {
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.45);
+    }
+
+    b {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #fff;
+    }
+  }
+
+  &__total {
+    display: inline-block;
+    padding: 1.5rem 2rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(0, 195, 245, 0.3);
+    border-radius: 18px;
+    backdrop-filter: blur(6px);
+
+    @media (max-width: 640px) {
+      padding: 1.2rem 1.4rem;
+    }
+  }
+
+  &__total-label {
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.55);
+    margin-bottom: 6px;
+  }
+
+  &__total-value {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: clamp(2rem, 4.2vw, 3.2rem);
+    font-weight: 700;
+    line-height: 1;
+    background: $blue-gradient;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+
+    small {
+      font-size: 0.5em;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.6);
+      -webkit-text-fill-color: rgba(255, 255, 255, 0.6);
+    }
+  }
+
+  &__total-note {
+    margin-top: 10px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.55);
+  }
+}
+
+/* ============================================================
+   ОБЩИЕ СЕКЦИИ
+   ============================================================ */
+
+.kp-section {
+  padding: 4.5rem 0;
+
+  @media (max-width: 768px) {
+    padding: 3rem 0;
+  }
+}
+
+.kp-h2 {
+  font-size: clamp(1.6rem, 2.6vw, 2rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0 0 .8rem;
+  line-height: 1.2;
+  position: relative;
+  padding-bottom: 1rem;
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 72px;
+    height: 4px;
+    border-radius: 2px;
+    background: $blue-gradient;
+  }
+}
+
+.kp-lead {
+  font-size: 1.02rem;
+  line-height: 1.65;
+  color: $text-gray;
+  margin: 0 0 2.5rem;
+  max-width: 720px;
+}
+
+/* ============================================================
+   СВОДНЫЕ КАРТОЧКИ
+   ============================================================ */
+
+.kp-summary {
+  display: grid;
+  // auto-fit: 2 карточки растянутся на 2 колонки, 3 — на 3, 4 — на 4
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.25rem;
+}
+
+.kp-card {
+  position: relative;
+  padding: 1.75rem 1.75rem 1.6rem;
+  background: #fff;
+  border: 1px solid #e8ecf0;
+  border-radius: 18px;
+  overflow: hidden;
+  transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 44px rgba(0, 0, 0, 0.08);
+  }
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: $blue-gradient;
+    opacity: .9;
+  }
+
+  &__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    margin-bottom: 1.1rem;
+    border-radius: 12px;
+    background: rgba(0, 195, 245, 0.1);
+    color: $blue;
+
+    svg {
+      width: 22px;
+      height: 22px;
+    }
+  }
+
+  &__label {
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: $text-gray;
+    margin-bottom: .5rem;
+  }
+
+  &__value {
+    font-size: 1.9rem;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    color: $text-dark;
+    margin-bottom: .5rem;
+  }
+
+  &__hint {
+    font-size: .85rem;
+    line-height: 1.5;
+    color: $text-gray;
+  }
+
+  &--materials {
+    &::before { background: linear-gradient(90deg, $yellow, #fdd35a); }
+    .kp-card__icon { background: rgba(250, 183, 2, 0.12); color: #b07c00; }
+  }
+
+  &--total {
+    background: linear-gradient(135deg, #18191b, #26282c);
+    color: #fff;
+    border-color: transparent;
+
+    &::before { background: $blue-gradient; }
+    .kp-card__icon { background: rgba(0, 195, 245, 0.18); color: $blue-light; }
+    .kp-card__label { color: rgba(255, 255, 255, 0.6); }
+    .kp-card__value { color: #fff; }
+    .kp-card__hint { color: rgba(255, 255, 255, 0.55); }
+  }
+}
+
+/* ============================================================
+   ГРАФИКИ
+   ============================================================ */
+
+.kp-charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.kp-chart-card {
+  padding: 1.5rem 1.5rem 1.25rem;
+  background: #fff;
+  border: 1px solid #e8ecf0;
+  border-radius: 18px;
+  // Карточка не должна «разъезжаться» от canvas внутри grid/flex
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+
+  &__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1rem;
+
+    h3 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin: 0;
+      color: $text-dark;
+    }
+
+    span {
+      font-size: .8rem;
+      color: $text-gray;
+    }
+  }
+
+  // Единственный график в ряду — на всю ширину
+  &--wide {
+    margin-top: .25rem;
+    grid-column: 1 / -1;
+  }
+
+  @media (max-width: 480px) {
+    padding: 1.25rem 1rem 1rem;
+
+    &__head {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.25rem;
+    }
+  }
+}
+
+/* ============================================================
+   ТАБЫ
+   ============================================================ */
+
+.kp-tabs {
+  display: inline-flex;
+  gap: 6px;
+  padding: 6px;
+  margin-bottom: 2rem;
+  background: #fff;
+  border: 1px solid #e8ecf0;
+  border-radius: 100px;
+
+  &__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    font-family: inherit;
+    font-size: .95rem;
+    font-weight: 500;
+    color: $text-gray;
+    background: transparent;
+    border: none;
+    border-radius: 100px;
+    cursor: pointer;
+    transition: background .2s ease, color .2s ease;
+
+    svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    &:hover { color: $text-dark; }
+
+    &.is-active {
+      color: #18191b;
+      background: linear-gradient(120deg, #00c3f5, #71E0FA);
+      font-weight: 600;
+
+      .kp-tabs__badge {
+        background: rgba(0, 0, 0, 0.1);
+        color: #18191b;
+      }
+    }
+
+    @media (max-width: 640px) {
+      padding: 8px 12px;
+      font-size: .85rem;
+
+      .kp-tabs__badge { display: none; }
+    }
+  }
+
+  &__badge {
+    padding: 3px 8px;
+    font-size: .75rem;
+    font-weight: 600;
+    color: $text-gray;
+    background: #f0f2f5;
+    border-radius: 100px;
+  }
+}
+
+/* ============================================================
+   ВАРИАНТЫ КП
+   ============================================================ */
+
+// Переключатель идёт сразу после hero, поэтому верхний отступ меньше обычного,
+// а снизу его «съедает» отступ следующей секции (summary).
+.kp-section--variants {
+  padding: 2.5rem 0 0;
+
+  @media (max-width: 768px) {
+    padding: 2rem 0 0;
+  }
+}
+
+.kp-variant-switch {
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+  background: #fff;
+  border: 1px solid #e8ecf0;
+  border-radius: 18px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+
+  &__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    flex: 1 1 0;
+    padding: 12px 18px;
+    font-family: inherit;
+    font-size: .95rem;
+    font-weight: 500;
+    color: $text-gray;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 14px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .2s ease, color .2s ease, border-color .2s ease, box-shadow .2s ease;
+
+    svg {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+
+    &:hover {
+      color: $text-dark;
+      background: #f6f8fa;
+    }
+
+    &.is-active {
+      color: #18191b;
+      font-weight: 600;
+      background: linear-gradient(120deg, rgba(0, 195, 245, .16), rgba(113, 224, 250, .16));
+      border-color: rgba(0, 195, 245, .45);
+      box-shadow: 0 8px 20px rgba(0, 195, 245, .12);
+
+      .kp-variant-switch__sum {
+        color: #fff;
+        background: #18191b;
+      }
+    }
+  }
+
+  &__label {
+    &--short { display: none; }
+  }
+
+  &__sum {
+    padding: 3px 9px;
+    font-size: .8rem;
+    font-weight: 600;
+    color: $text-dark;
+    background: #f0f2f5;
+    border-radius: 100px;
+    transition: background .2s ease, color .2s ease;
+  }
+
+  &__delta {
+    font-size: .8rem;
+    font-weight: 600;
+    color: #00a12a;
+
+    &.is-up { color: #d64545; }
+  }
+
+  &__tag {
+    padding: 3px 8px;
+    font-size: .7rem;
+    font-weight: 600;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    color: #b07c00;
+    background: rgba(250, 183, 2, .16);
+    border-radius: 100px;
+  }
+
+  &__hint {
+    max-width: 760px;
+    margin: .85rem 0 0;
+    font-size: .85rem;
+    line-height: 1.55;
+    color: $text-gray;
+  }
+
+  @media (max-width: 900px) {
+    border-radius: 14px;
+
+    &__btn {
+      flex: 1 0 auto;
+      padding: 10px 14px;
+    }
+  }
+
+  @media (max-width: 640px) {
+    &__btn {
+      flex: 0 0 auto;
+      font-size: .85rem;
+    }
+
+    // На узких экранах сумма и полные подписи не помещаются —
+    // показываем короткие названия, итог остаётся в hero.
+    &__sum { display: none; }
+
+    &__label {
+      &--full { display: none; }
+      &--short { display: inline; }
+    }
+  }
+}
+
+/* ============================================================
+   ТАБЛИЦЫ
+   ============================================================ */
+
+.kp-table-block {
+  padding: 1.5rem 1.75rem 1.75rem;
+  margin-bottom: 1.25rem;
+  background: #fff;
+  border: 1px solid #e8ecf0;
+  border-radius: 18px;
+
+  @media (max-width: 640px) {
+    padding: 1.25rem 1rem 1.25rem;
+  }
+
+  &__head {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  &__num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    font-size: .9rem;
+    font-weight: 700;
+    color: $blue;
+    background: rgba(0, 195, 245, 0.1);
+    border-radius: 10px;
+  }
+
+  &__title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 0;
+    color: $text-dark;
+    line-height: 1.3;
+  }
+
+  &__total {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: $text-dark;
+    white-space: nowrap;
+  }
+
+  &__hint {
+    font-size: .85rem;
+    line-height: 1.55;
+    color: $text-gray;
+    margin: 0 0 1rem;
+    padding: 10px 12px;
+    background: #f7f9fb;
+    border-radius: 10px;
+    border-left: 3px solid rgba(0, 195, 245, 0.5);
+  }
+}
+
+.kp-table-wrap {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid #eef1f4;
+}
+
+.kp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .92rem;
+  min-width: 640px;
+
+  th, td {
+    padding: 12px 14px;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid #eef1f4;
+  }
+
+  thead th {
+    font-size: .78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: $text-gray;
+    background: #f7f9fb;
+    white-space: nowrap;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  tbody tr:hover td {
+    background: #fbfcfd;
+  }
+
+  &__name {
+    min-width: 260px;
+  }
+
+  &__sum {
+    text-align: right;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  th.kp-table__sum { text-align: right; }
+}
+
+/* ============================================================
+   ИТОГОВЫЙ БЛОК
+   ============================================================ */
+
+.kp-grand {
+  margin-top: 2rem;
+  padding: 1.75rem 2rem;
+  background: linear-gradient(135deg, #18191b, #232529);
+  color: #fff;
+  border-radius: 18px;
+
+  @media (max-width: 640px) {
+    padding: 1.25rem 1.4rem;
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 10px 0;
+    font-size: 1rem;
+
+    span { color: rgba(255, 255, 255, 0.7); }
+    b { font-weight: 600; }
+
+    &--total {
+      margin-top: 10px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+      font-size: 1.4rem;
+
+      span { color: #fff; font-weight: 600; }
+
+      b {
+        background: $blue-gradient;
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        font-weight: 700;
+      }
+    }
+  }
+}
+
+/* ============================================================
+   ПРИМЕЧАНИЯ
+   ============================================================ */
+
+.kp-notes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.kp-note {
+  padding: 1.5rem;
+  background: #fff;
+  border: 1px solid #e8ecf0;
+  border-radius: 16px;
+  transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+
+  &:hover {
+    transform: translateY(-3px);
+    border-color: rgba(0, 195, 245, 0.4);
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.06);
+  }
+
+  &__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    margin-bottom: 1rem;
+    border-radius: 10px;
+    background: rgba(0, 195, 245, 0.1);
+    color: $blue;
+
+    svg {
+      width: 20px;
+      height: 20px;
+    }
+  }
+
+  h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 .5rem;
+    color: $text-dark;
+  }
+
+  p {
+    font-size: .9rem;
+    line-height: 1.6;
+    color: $text-gray;
+    margin: 0;
+
+    b, i { color: $text-dark; }
+    i { font-style: normal; font-weight: 500; }
+  }
+}
+
+/* ============================================================
+   FOOTER / CTA
+   ============================================================ */
+
+.kp-footer {
+  padding: 3.5rem 0;
+  background: linear-gradient(135deg, #18191b, #202226);
+  color: #fff;
+
+  &__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+
+    h3 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin: 0 0 .5rem;
+    }
+
+    p {
+      font-size: .95rem;
+      line-height: 1.6;
+      color: rgba(255, 255, 255, 0.65);
+      margin: 0;
+      max-width: 540px;
+    }
+
+    @media (max-width: 768px) {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+
+  &__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 26px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #18191b;
+    background: linear-gradient(120deg, #00c3f5, #71E0FA);
+    border-radius: 100px;
+    white-space: nowrap;
+    transition: transform .2s ease, box-shadow .2s ease;
+
+    svg { width: 20px; height: 20px; }
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 34px rgba(0, 195, 245, 0.5);
+      color: #18191b;
+    }
+  }
+}
+
+/* ============================================================
+   БЛОК СМЕТЫ (группы + табы)
+   ============================================================ */
+
+.kp-estimate__group {
+  // В печати показываем все группы, на экране — только активную
+  &--hidden {
+    display: none;
+  }
+}
+
+/* Колонка «Материал» — таблица чуть шире */
+.kp-table--materials {
+  min-width: 820px;
+}
+
+.kp-table__note {
+  display: block;
+  margin-top: 4px;
+  font-size: .8rem;
+  color: $text-gray;
+}
+
+.kp-table tbody tr.is-optional td {
+  color: $text-gray;
+  font-style: italic;
+}
+
+/* ============================================================
+   БАННЕР-АКЦЕНТ (KpCallout)
+   ============================================================ */
+
+.kp-section--schedule {
+  padding: 0 0 4.5rem;
+
+  @media (max-width: 768px) {
+    padding: 0 0 3rem;
+  }
+}
+
+.kp-schedule {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 2.5rem;
+  background: linear-gradient(135deg, #18191b, #26282c);
+  border-radius: 20px;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -10%;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(0, 195, 245, 0.15), transparent 70%);
+    pointer-events: none;
+  }
+
+  &__content {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.5rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  &__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    flex-shrink: 0;
+    border-radius: 14px;
+    background: rgba(0, 195, 245, 0.15);
+    color: #02feff;
+
+    svg {
+      width: 28px;
+      height: 28px;
+    }
+  }
+
+  &__text {
+    h3 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin: 0 0 .75rem;
+      color: #fff;
+      line-height: 1.3;
+    }
+
+    p {
+      font-size: .95rem;
+      line-height: 1.65;
+      color: rgba(255, 255, 255, 0.7);
+      margin: 0;
+    }
+  }
+
+  &__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 28px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #18191b;
+    background: linear-gradient(120deg, #00c3f5, #71E0FA);
+    border-radius: 100px;
+    white-space: nowrap;
+    transition: transform .2s ease, box-shadow .2s ease;
+    position: relative;
+    z-index: 1;
+    flex-shrink: 0;
+
+    svg { width: 22px; height: 22px; }
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 34px rgba(0, 195, 245, 0.5);
+      color: #18191b;
+    }
+  }
+
+  @media (max-width: 900px) {
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+
+    &__btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+
+  @media (max-width: 640px) {
+    padding: 2rem 1.5rem;
+
+    &__content {
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    &__text h3 {
+      font-size: 1.2rem;
+    }
+  }
+}
+
+/* ============================================================
+   ПЕЧАТЬ / PDF
+   ============================================================ */
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  // Шапка сайта, кнопки и прочий «хром» в PDF не нужны.
+  // Класс kp-site-header навешивает KpDocument.vue на чужие <header>.
+  .kp-site-header,
+  .kp-print,
+  .scroll-top,
+  .mobile-bottom-nav {
+    display: none !important;
+  }
+
+  .kp { background: #fff; }
+
+  .kp-hero {
+    background: #18191b !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    padding: 2rem 0;
+  }
+
+  // Раздел может занимать несколько страниц (большая смета) — не «склеиваем» его
+  .kp-section { padding: 1.5rem 0; }
+
+  // Заголовок не должен оставаться в одиночку в конце страницы
+  .kp-h2,
+  .kp-lead { break-after: avoid; }
+
+  .kp-table-block,
+  .kp-grand,
+  .kp-chart-card,
+  .kp-note,
+  .kp-card { break-inside: avoid; box-shadow: none; }
+  .kp-card:hover,
+  .kp-note:hover { transform: none; }
+  .kp-footer { break-before: page; }
+
+  // В PDF печатаем все группы сметы, а не только активную вкладку.
+  // Переключатель вариантов в PDF не нужен — печатается активный вариант.
+  .kp-tabs { display: none !important; }
+  .kp-variant-switch { display: none !important; }
+  .kp-estimate__group--hidden { display: block !important; }
+
+  // Таблица целиком по ширине листа, шапка повторяется на каждой странице
+  .kp-table-wrap {
+    overflow: visible;
+    border: none;
+  }
+
+  .kp-table {
+    min-width: 0;
+    width: 100%;
+
+    thead { display: table-header-group; }
+    tr { break-inside: avoid; }
+  }
+
+  .kp-charts { grid-template-columns: 1fr; }
+}
+

@@ -1,10 +1,11 @@
 <!-- app/pages/offers/dvizheniya-pervyh.vue -->
 <template>
-  <OffersIndex />
+  <KpPage :offer="offer" />
 </template>
 
 <script setup lang="ts">
-import OffersIndex from '~/components/pages/public/offers/index.vue'
+import KpPage from '~/components/pages/public/offers/kp/KpPage.vue'
+import offer from '~/components/pages/public/offers/data/dvizheniya-pervyh'
 
 definePageMeta({
   layout: 'empy',

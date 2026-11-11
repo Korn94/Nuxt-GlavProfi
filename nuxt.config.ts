@@ -50,6 +50,8 @@ export default defineNuxtConfig({
   css: [
     './app/assets/styles/index.scss',
     './app/assets/styles/animations-custom.scss',
+    // Стили коммерческих предложений (конструктор КП): app/components/pages/public/offers/kp
+    './app/assets/styles/kp.scss',
   ],
 
   vite: {
