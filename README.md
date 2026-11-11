@@ -123,7 +123,7 @@
 ## 🚀 Быстрый старт
 
 ### Требования
-- Node.js >= 22.12 (LTS 22 или 24; на проде — 22.19.0)
+- Node.js 24.21.0 (LTS Krypton) — одна и та же версия локально и на проде (см. `.nvmrc`)
 - MySQL >= 8.0
 - npm или yarn
 
@@ -429,7 +429,8 @@ TELEGRAM_WEBHOOK_URL=https://yourdomain.com/api/telegram
 | Команда | Описание |
 |---------|----------|
 | `npm run dev` | Запуск в режиме разработки |
-| `npm run build` | Сборка для продакшена |
+| `npm run build` | Сборка для продакшена (+ `postbuild` — подготовка Linux-бинарников sharp) |
+| `npm run postbuild` | Готовит Linux-сборку sharp в `.output` (вызывается автоматически после `build`) |
 | `npm run start` | Запуск продакшен-сборки |
 | `npm run generate` | Генерация статического сайта |
 | `npm run preview` | Предпросмотр сборки |
@@ -438,6 +439,36 @@ TELEGRAM_WEBHOOK_URL=https://yourdomain.com/api/telegram
 | `npm run migrate:generate` | Генерация миграций |
 | `npm run migrate:push` | Push схемы в БД |
 | `npm run migrate:all` | Генерация + применение миграций |
+
+---
+
+## 🚢 Деплой и зависимости
+
+Сборка выполняется на Windows-машине, на сервер уезжает только `.output/`
+(`./deploy.sh` → `npm run build` + rsync + `pm2 reload`). Сервер сборку не тянет.
+
+- **`.output` самодостаточен.** После `nuxt build` автоматически выполняется
+  `postbuild` → `scripts/prepare-sharp-linux.mjs`: докачивает Linux-сборку sharp
+  (`npm --os=linux --cpu=x64 --libc=glibc`), кладёт `@img/sharp-linux-x64` и
+  `@img/sharp-libvips-linux-x64` в `.output/server/node_modules/@img` и удаляет
+  win32-бинарники (`sharp-win32-x64` — это 19 МБ DLL, на Linux они не нужны).
+  Без этого sharp на сервере не загружается и загрузка фото в портфолио падает.
+- **`node_modules` внутри `.output/server` синхронизируется rsync'ом** — не
+  исключайте его из деплоя. Иначе на сервере остаётся устаревшая копия зависимостей
+  (в разное время это давало расхождение `vue`/`zod`/`mysql2`/`socket.io` и
+  отсутствующие `busboy`, `minisearch`, `uqr`).
+- **Smoke-check после перезапуска.** `deploy.sh` прогоняет
+  `scripts/post-deploy-check.mjs` (sharp с реальной генерацией JPEG, busboy,
+  drizzle-orm/mysql2, minisearch) и завершается с ошибкой, если зависимости
+  не загружаются — вместо тихих 500 в проде.
+- Корневой `node_modules` на сервере рантайму больше не нужен (нужен только для
+  ручного запуска `drizzle-kit`/скриптов).
+- **Версия Node — 24.21.0 локально и на проде** (`.nvmrc`). На сервере её держит nvm,
+  а PM2 запоминает путь к интерпретатору в своём дампе. После `nvm install`/`nvm use`
+  процесс нужно пересоздать, иначе он останется на старом Node:
+  ```bash
+  pm2 delete glavprofi-app && pm2 start ecosystem.config.cjs --update-env && pm2 save
+  ```
 
 ---
 
