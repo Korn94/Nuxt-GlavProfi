@@ -47,11 +47,14 @@ export default defineNuxtConfig({
     strict: true,
   },
 
+  // ⚠️ Nuxt 4.6+ резолвит css-энтри как module id, а не относительно nuxt.config:
+  // относительные пути './app/...' падают в dev с "Failed to resolve import"
+  // (и дают warning NUXT_B5025 при сборке). Поэтому — alias-форма: ~ = app/ (srcDir).
   css: [
-    './app/assets/styles/index.scss',
-    './app/assets/styles/animations-custom.scss',
+    '~/assets/styles/index.scss',
+    '~/assets/styles/animations-custom.scss',
     // Стили коммерческих предложений (конструктор КП): app/components/pages/public/offers/kp
-    './app/assets/styles/kp.scss',
+    '~/assets/styles/kp.scss',
   ],
 
   vite: {
