@@ -126,7 +126,7 @@ useSeoMeta({
 | `KpDocument` | Оболочка: фон, кнопка «Скачать PDF», QR-код для печати, подготовка к печати | `print` |
 | `KpHero` | Шапка: бренд «ГлавПрофи» (только в печати), бейдж, заголовок, объект, №/дата/срок, итог | `meta`, `total` |
 | `KpSummary` | Карточки-итоги | `cards` (`doc.summaryCards`) |
-| `KpEstimate` | Таблицы разделов, табы групп, итоговый блок | `groups`, `grandTotal`, `showTabs`, `totalRows`, `totalLabel` |
+| `KpEstimate` | Таблицы разделов, табы групп, итоговый блок | `groups`, `grandTotal`, `showTabs`, `totalRows`, `totalGroups`, `totalLabel` |
 | `KpBudgetCharts` | Диаграммы «группы» и «разделы» | `groups`, `mode` (`both` / `split` / `structure`) |
 | `KpCallout` | Тёмный баннер-акцент с кнопкой | `title`, `text`, `icon`, `ctaText`, `ctaHref` |
 | `KpNotes` | Сетка примечаний | `items`, `title` |
@@ -137,6 +137,44 @@ useSeoMeta({
 
 `useKpDocument(offer)` возвращает: `groups`, `sections`, `hasMaterials`, `grandTotal`, `summaryCards`, `formatPrice`.
 Принимает и `computed`/`ref` — тогда суммы пересчитываются при смене варианта.
+
+### Итоговый блок сметы (`totalRows` / `totalGroups`)
+
+`totalRows` управляет строками блока «Всего по смете»:
+
+- `groups` (по умолчанию) — по строке на группу;
+- `sections` — подытог группы + все её разделы.
+
+Если табы сгруппированы по одному признаку, а итоги нужны по другому
+(например табы по этажам, а итоги «Работы» / «Материалы»), задайте `totalGroups`:
+
+```ts
+estimate: {
+  totalRows: 'sections',
+  totalGroups: [
+    {
+      label: 'Итого работы',
+      rows: [
+        { sectionKeys: ['works-demolition-2'] },      // подпись — заголовок раздела
+        { label: 'Отделка — 2-й этаж', sectionKeys: ['works-finishing-2'] },
+        { label: 'Логистика — 2-й этаж', sectionKeys: ['logistics-2'] },
+      ],
+    },
+    {
+      label: 'Итого материалы',
+      // одна строка может суммировать несколько разделов
+      rows: [
+        { label: 'Материалы — 2-й этаж', sectionKeys: ['mat-rough-2', 'mat-finish-2', 'mat-electric-2'] },
+        { label: 'Материалы — 3-й этаж', sectionKeys: ['mat-rough-3', 'mat-finish-3', 'mat-electric-3'] },
+      ],
+    },
+  ],
+}
+```
+
+Порядок строк = порядок `rows`, сумма подытога считается по его строкам.
+Если `totalGroups` задан, группы в итоговом блоке не используются (табы при этом
+остаются по группам).
 
 ---
 

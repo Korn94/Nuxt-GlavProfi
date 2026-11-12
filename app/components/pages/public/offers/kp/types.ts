@@ -129,6 +129,25 @@ export interface KpFooterData {
   icon?: string
 }
 
+/** Строка своего подытога итогового блока KpEstimate */
+export interface KpEstimateTotalRow {
+  /**
+   * Подпись строки. Не задана — берётся заголовок единственного раздела
+   * (для строк, где суммируется один раздел)
+   */
+  label?: string
+  /** Ключи разделов, сумма которых попадает в строку */
+  sectionKeys: string[]
+}
+
+/** Свой подытог итогового блока KpEstimate (KpEstimateConfig.totalGroups) */
+export interface KpEstimateTotalGroup {
+  /** Подпись строки-подытога, например «Итого работы» */
+  label: string
+  /** Строки подытога в нужном порядке; сумму подытога считаем по ним */
+  rows: KpEstimateTotalRow[]
+}
+
 /** Настройки блока сметы (KpEstimate) */
 export interface KpEstimateConfig {
   title?: string
@@ -137,6 +156,12 @@ export interface KpEstimateConfig {
   showTabs?: boolean
   /** Строки итогового блока: по группам (по умолчанию) или по разделам */
   totalRows?: 'groups' | 'sections'
+  /**
+   * Свои подытоги итогового блока — когда табы сгруппированы не так, как итоги
+   * (например табы по этажам, а итоги «Работы» / «Материалы»).
+   * Если заданы, группы в итоговом блоке не используются.
+   */
+  totalGroups?: KpEstimateTotalGroup[]
   /** Подпись финальной строки (по умолчанию «Всего по смете») */
   totalLabel?: string
 }

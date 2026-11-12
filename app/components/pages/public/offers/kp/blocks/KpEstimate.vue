@@ -98,8 +98,9 @@
 </template>
 
 <script setup lang="ts">
-import type { KpResolvedGroup } from '../composables/useKpDocument'
+import type { KpResolvedGroup, KpResolvedSection } from '../composables/useKpDocument'
 import { formatPrice, getItemSum } from '../composables/useKpDocument'
+import type { KpEstimateTotalGroup } from '../types'
 
 const props = withDefaults(defineProps<{
   /** Группы сметы (работы, материалы, ...) из useKpDocument() */
@@ -110,6 +111,11 @@ const props = withDefaults(defineProps<{
   showTabs?: boolean
   /** Строки итога: по группам (по умолчанию) или по разделам */
   totalRows?: 'groups' | 'sections'
+  /**
+   * Свои подытоги итогового блока — когда табы сгруппированы не так, как итоги
+   * (например табы по этажам, а итоги «Работы» / «Материалы»)
+   */
+  totalGroups?: KpEstimateTotalGroup[]
   /** Подпись финальной строки итога */
   totalLabel?: string
   /** Итог документа с учётом корректировок (useKpDocument().grandTotal) */
@@ -160,7 +166,56 @@ interface KpTotalRow {
  */
 const groupSections = computed<boolean>(() => props.totalRows === 'sections' && props.groups.length > 1)
 
+/** Разделы по ключу — для своих подытогов (totalGroups) */
+const sectionsByKey = computed<Map<string, KpResolvedSection>>(() => {
+  const map = new Map<string, KpResolvedSection>()
+
+  for (const group of props.groups) {
+    for (const section of group.sections) map.set(section.key, section)
+  }
+
+  return map
+})
+
+/**
+ * Свои подытоги итогового блока: строка-подытог + её строки.
+ * Строка может суммировать несколько разделов (например «Материалы — 2-й этаж» =
+ * черновые + чистовые + электрика + расходники).
+ * Нужны, когда табы собраны по одному признаку (например по этажам),
+ * а итоги считаются по другому (работы / материалы).
+ */
+const customTotalRows = computed<KpTotalRow[]>(() => {
+  if (!props.totalGroups?.length) return []
+
+  return props.totalGroups.flatMap<KpTotalRow>((totalGroup, groupIndex) => {
+    const rows = totalGroup.rows.map<KpTotalRow>((row, rowIndex) => {
+      const sections = row.sectionKeys
+        .map(key => sectionsByKey.value.get(key))
+        .filter((section): section is KpResolvedSection => !!section)
+
+      return {
+        key: `total-group-${groupIndex}-${rowIndex}`,
+        label: row.label ?? (sections.map(section => section.title).join(' + ') || '—'),
+        value: sections.reduce((sum, section) => sum + section.total, 0),
+        kind: 'section',
+      }
+    })
+
+    return [
+      {
+        key: `total-group-${groupIndex}`,
+        label: totalGroup.label,
+        value: rows.reduce((sum, row) => sum + row.value, 0),
+        kind: 'subtotal',
+      },
+      ...rows,
+    ]
+  })
+})
+
 const totalRowsData = computed<KpTotalRow[]>(() => {
+  if (customTotalRows.value.length) return customTotalRows.value
+
   if (props.totalRows === 'sections') {
     return props.groups.flatMap<KpTotalRow>((group) => {
       const sections = group.sections.map<KpTotalRow>((section, index) => ({
