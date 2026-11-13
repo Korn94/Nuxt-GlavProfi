@@ -88,11 +88,30 @@ await check('minisearch (поиск)', async () => {
   await importFromOutput('minisearch')
 })
 
+/**
+ * pinia 4 — ESM-only и требует ручной установки `@vue/devtools-api` (обязательный peer).
+ * Nitro выносит pinia в `.output/server/node_modules` и её dist статически импортирует
+ * `nostics` и `@vue/devtools-api`, поэтому оба пакета обязаны резолвиться из `.output/server`.
+ * Если tracer их не положил — прод падает на старте с ERR_MODULE_NOT_FOUND.
+ */
+await check('pinia 4 (ESM-only + devtools-api peer)', async () => {
+  const { createPinia } = await importFromOutput('pinia')
+  if (typeof createPinia !== 'function') throw new Error('createPinia не найден в pinia')
+  const devtoolsApi = pkgVersion('@vue/devtools-api')
+  if (!devtoolsApi || !devtoolsApi.startsWith('8.')) {
+    throw new Error(`@vue/devtools-api должен быть 8.x, найден: ${devtoolsApi ?? 'нет'}`)
+  }
+  return `pinia@${pkgVersion('pinia')}, @vue/devtools-api@${devtoolsApi}`
+})
+
 await check('ключевые рантайм-пакеты', async () => {
   const names = [
     'sharp',
     'busboy',
     'minisearch',
+    'pinia',
+    '@vue/devtools-api',
+    'nostics',
     'uqr',
     'drizzle-orm',
     'mysql2',
