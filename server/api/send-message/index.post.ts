@@ -1,7 +1,7 @@
 // server/api/send-message/index.post.ts
 import { defineEventHandler, readBody, readMultipartFormData, createError, getCookie } from 'h3'
 import nodemailer from 'nodemailer'
-import TelegramBot from 'node-telegram-bot-api'
+import { Api, InputFile } from 'node-telegram-bot-api'
 import { isBotUserAgent } from '../../utils/userAgent'
 import { isNonBrowserClient, resolveVisitorId } from '../../utils/visitorGuard'
 import { getVisitorContext, recordVisitorEvent } from '../../utils/visitorRegistry'
@@ -117,6 +117,8 @@ export default defineEventHandler(async (event) => {
     const config = useRuntimeConfig()
 
     // --- 1. Telegram ---
+    // v2 node-telegram-bot-api: вместо TelegramBot — Api (polling не нужен),
+    // у каждого метода один объект параметров, файлы передаются через InputFile.
     const sendTelegram = async () => {
       const botToken = config.telegramBotToken
       const chatId = config.telegramChatId
@@ -124,28 +126,31 @@ export default defineEventHandler(async (event) => {
       if (!botToken || !chatId) return false
 
       try {
-        const bot = new TelegramBot(botToken, {
-          polling: false,
-          request: { timeout: 10000 } as any,
+        const api = new Api(botToken, {
+          // Telegram в РФ может «висеть» — не даём фоновой отправке зависнуть.
+          timeoutMs: 10_000,
+          // Одна повторная попытка на транзиентные сбои (сеть/5xx/429).
+          maxRetries: 1,
         })
 
         // ✅ Сначала отправляем текстовое сообщение с деталями заявки
-        await bot.sendMessage(chatId, message, {
+        await api.sendMessage({
+          chat_id: chatId,
+          text: message,
           parse_mode: 'HTML',
-          disable_web_page_preview: true,
+          // v1: disable_web_page_preview → в Bot API это link_preview_options
+          link_preview_options: { is_disabled: true },
         })
 
         // ✅ Затем все файлы отдельными сообщениями (документами)
         for (const f of files) {
-          await bot.sendDocument(
-            chatId,
-            f.data,
-            {},
-            {
+          await api.sendDocument({
+            chat_id: chatId,
+            document: new InputFile(f.data, {
               filename: f.filename,
               contentType: f.type,
-            }
-          )
+            }),
+          })
         }
 
         console.log(
