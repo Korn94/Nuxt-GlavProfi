@@ -117,13 +117,19 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
   ],
 
-  // ⚠️ @nuxtjs/sitemap v7. Опции `routes` (v6), `gzip` и `strictNuxtPagePaths` в 7.x
+  // 🌐 Адрес сайта для <loc> в sitemap.xml (nuxt-site-config → site.url).
+  // ⚠️ Опции `sitemap.hostname` НЕ существует ни в v7, ни в v9 — она молча
+  // игнорировалась, и модуль подставлял адрес из заголовка Host запроса.
+  site: {
+    url: process.env.NUXT_PUBLIC_SITE_URL || 'https://glavprofi.ru',
+  },
+
+  // ⚠️ @nuxtjs/sitemap v9. Опции `routes` (v6), `gzip` и `strictNuxtPagePaths`
   // НЕ существуют и молча игнорировались — из-за этого в sitemap.xml не попадали
   // /prices/* и /projects/<slug>.
   // • Статические страницы модуль собирает сам из app/pages (nuxt:pages).
   // • Динамические разделы отдаёт источник /api/__sitemap__/urls (server/api/__sitemap__/urls.get.ts).
   sitemap: {
-    hostname: process.env.NUXT_PUBLIC_SITE_URL || 'https://glavprofi.ru',
     // Кэш готового sitemap.xml на сервере (сек). Источник URL кэшируется отдельно.
     cacheMaxAgeSeconds: 60 * 60,
     exclude: [

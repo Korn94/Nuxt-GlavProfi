@@ -1,12 +1,16 @@
 // tsconfig.json
 {
   "extends": "./.nuxt/tsconfig.json",
+  // ⚠️ `.nuxt/nuxt.node.d.ts` обязателен: именно он ссылается на `.nuxt/types/modules.d.ts`,
+  // где Nuxt генерирует типы опций модулей (`sitemap`, `site`, `icon`, …).
+  // Без него nuxt.config.ts падает с TS2353 «'site' does not exist in type NuxtConfigInput».
   "include": [
     "**/*.ts",
     "**/*.tsx",
     "**/*.vue",
     "stores/**/*.ts",
     ".nuxt/nuxt.d.ts",
+    ".nuxt/nuxt.node.d.ts",
     ".nuxt/nuxt.shared.d.ts"
   ],
   "exclude": ["node_modules", "dist", ".git", ".output"],
