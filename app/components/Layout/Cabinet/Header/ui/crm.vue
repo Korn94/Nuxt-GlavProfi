@@ -80,18 +80,22 @@ interface MenuItem {
 // ============================================
 
 function getSkeletonMenu(): MenuItem[] {
-  return [
-    { id: 'sk-1', skeleton: true },
-    { id: 'sk-2', skeleton: true },
-    { id: 'sk-3', skeleton: true },
-    { id: 'sk-div-1', divider: true },
-    { id: 'sk-4', skeleton: true },
-    { id: 'sk-5', skeleton: true },
-    { id: 'sk-div-2', divider: true },
-    { id: 'sk-6', skeleton: true },
-    { id: 'sk-7', skeleton: true },
-    { id: 'sk-8', skeleton: true },
-  ]
+  // Количество пунктов между разделителями — как в реальном меню,
+  // чтобы после гидратации не было скачка высоты сайдбара
+  const groups = [6, 3, 1, 1]
+  const items: MenuItem[] = []
+
+  groups.forEach((count, groupIndex) => {
+    if (groupIndex > 0) {
+      items.push({ id: `sk-div-${groupIndex}`, divider: true })
+    }
+
+    for (let i = 0; i < count; i++) {
+      items.push({ id: `sk-${groupIndex}-${i}`, skeleton: true })
+    }
+  })
+
+  return items
 }
 
 // ============================================
@@ -106,12 +110,17 @@ function getSkeletonMenu(): MenuItem[] {
 // - Операции (operations) — объединены приходы + расходы
 // - Онлайн (online) — мониторинг, отдельный от users
 // - Тест (test) — только admin
-// - На сайт — публичный, всегда показываем
-// - Кейсы (portfolio)
+// - Ещё (more) — отдельная страница /cabinet/more со служебными ссылками:
+//     партнёры + кабинет партнёра, кейсы, реквизиты ООО/ИП,
+//     коммерческие предложения (/offers/*, список авто-собирается) и Тест2
+// - На сайт — публичный, показываем только admin
 // - Настройки (settings)
 //
 // Прайс-лист (price) — в меню НЕ показывается, управляется
 // непосредственно на публичной странице сайта
+//
+// Состав страницы «Дополнительно» и видимость её ссылок —
+// в app/composables/useExtraLinks.ts
 // ============================================
 
 const menuItems: MenuItem[] = [
@@ -183,27 +192,27 @@ const menuItems: MenuItem[] = [
   // Тест — test (только admin)
   {
     id: 'test',
-    title: 'Тест',
+    title: 'Диагностика',
     path: '/cabinet/testpage',
     icon: 'mdi:flask-outline',
     page: 'test',
     roleCheck: 'admin'
   },
 
-  // ⚠️ id используется как :key в v-for — он обязан быть уникальным,
-  // иначе Vue ругается «Duplicate keys found during update: "test"».
+  // 🗂 «Ещё» — страница со служебными разделами и документами (/cabinet/more).
+  // Пока пункт виден только админам. Чтобы открыть остальным — заменить
+  // check на проверку прав, например () => hasRole('admin') || can('partners', 'view').
   {
-    id: 'test2',
-    title: 'Тест2',
-    path: '/cabinet/testpage2',
-    icon: 'mdi:flask-outline',
-    page: 'test',
-    roleCheck: 'admin'
+    id: 'more',
+    title: 'Ещё',
+    path: '/cabinet/more',
+    icon: 'mdi:dots-grid',
+    check: () => hasRole('admin')
   },
 
   { id: 'div-2', divider: true },
 
-  // Переход на публичный сайт — всегда показываем
+  // Переход на публичный сайт — показываем только admin
   {
     id: 'website',
     title: 'На сайт',
@@ -212,47 +221,7 @@ const menuItems: MenuItem[] = [
     check: () => hasRole('admin')
   },
 
-  // Кейсы — portfolio
-  {
-    id: 'portfolio',
-    title: 'Кейсы',
-    path: '/cabinet/portfolio',
-    icon: 'mdi:briefcase-outline',
-    page: 'portfolio'
-  },
-
-  // Партнёры — partners
-  {
-    id: 'partners',
-    title: 'Партнёры',
-    path: '/cabinet/partners',
-    icon: 'mdi:handshake-outline',
-    page: 'partners'
-  },
-
   { id: 'div-3', divider: true },
-
-  // Реквизиты ООО — публичная страница, только admin
-  {
-    id: 'requisites',
-    title: 'Реквизиты ООО',
-    path: '/requisites',
-    icon: 'mdi:file-document-outline',
-    target: '_blank',
-    check: () => hasRole('admin')
-  },
-
-  // Реквизиты ИП — публичная страница, только admin
-  {
-    id: 'requisites-ip',
-    title: 'Реквизиты ИП',
-    path: '/requisites-ip',
-    icon: 'mdi:account-tie-outline',
-    target: '_blank',
-    check: () => hasRole('admin')
-  },
-
-  { id: 'div-4', divider: true },
 
   // Настройки — settings (требуется canEdit)
   {
