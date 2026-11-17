@@ -4,7 +4,7 @@
 
 ![Nuxt](https://img.shields.io/badge/Nuxt-4.0.3-00DC82?style=for-the-badge&logo=nuxt.js)
 ![Vue](https://img.shields.io/badge/Vue-3-4FC08D?style=for-the-badge&logo=vue.js)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.8.3-3178C6?style=for-the-badge&logo=typescript)
+![TypeScript](https://img.shields.io/badge/TypeScript-6.0.3-3178C6?style=for-the-badge&logo=typescript)
 ![Pinia](https://img.shields.io/badge/Pinia-3.0.4-ffe975?style=for-the-badge&logo=pinia)
 ![Socket.IO](https://img.shields.io/badge/Socket.IO-4.8.3-010101?style=for-the-badge&logo=socket.io)
 
@@ -439,6 +439,7 @@ TELEGRAM_WEBHOOK_URL=https://yourdomain.com/api/telegram
 | `npm run migrate:generate` | Генерация миграций |
 | `npm run migrate:push` | Push схемы в БД |
 | `npm run migrate:all` | Генерация + применение миграций |
+| `npm run typecheck` | Проверка типов (`nuxt typecheck` → `vue-tsc --noEmit`) |
 
 ---
 
@@ -474,6 +475,15 @@ TELEGRAM_WEBHOOK_URL=https://yourdomain.com/api/telegram
   ```bash
   pm2 delete glavprofi-app && pm2 start ecosystem.config.cjs --update-env && pm2 save
   ```
+- **TypeScript зафиксирован на `~6.0.3` — не обновляйте до 7.x.** 6.0.3 — последняя
+  версия на JS-кодбазе и верхняя граница, которую поддерживает Volar
+  (`@volar/language-service` объявляет peer `typescript: <7`), поэтому `vue-tsc` и
+  `npm run typecheck` работают. TypeScript 7 (нативный порт на Go) не отдаёт
+  классический JS-API — `exports["."]` в пакете указывает на `lib/version.cjs`,
+  API доступен только как `typescript/unstable/*`, — на нём vue-tsc/Volar падают.
+  Сама сборка, `tsx` и `drizzle-kit` от версии TypeScript не зависят
+  (транспиляция идёт через esbuild/oxc), так что апгрейд влияет только на
+  проверку типов в IDE и `npm run typecheck`.
 
 ---
 
