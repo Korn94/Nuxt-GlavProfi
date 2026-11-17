@@ -25,7 +25,7 @@
 
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
-import UiEChart from '../ui/EChart.client.vue'
+import UiEChart from '../ui/EChart.vue'
 import type { KpResolvedGroup } from '../composables/useKpDocument'
 import { formatPrice } from '../composables/useKpDocument'
 
