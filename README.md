@@ -453,6 +453,11 @@ TELEGRAM_WEBHOOK_URL=https://yourdomain.com/api/telegram
   `@img/sharp-libvips-linux-x64` в `.output/server/node_modules/@img` и удаляет
   win32-бинарники (`sharp-win32-x64` — это 19 МБ DLL, на Linux они не нужны).
   Без этого sharp на сервере не загружается и загрузка фото в портфолио падает.
+  Путь к нативному биндингу не хардкодится: с sharp 0.35 файл называется
+  `lib/sharp-linux-x64-<version>.node` и грузится через `index.cjs`, поэтому скрипт
+  берёт точку входа из `exports["./sharp.node"]` в `package.json` пакета
+  (с 0.34 там был `lib/sharp-linux-x64.node`). Скрипт падает на сборке, если
+  биндинг или `libvips` — не настоящий ELF.
 - **`node_modules` внутри `.output/server` синхронизируется rsync'ом** — не
   исключайте его из деплоя. Иначе на сервере остаётся устаревшая копия зависимостей
   (в разное время это давало расхождение `vue`/`zod`/`mysql2`/`socket.io` и

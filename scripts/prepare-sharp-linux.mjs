@@ -3,8 +3,8 @@
  * Подготовка Linux-бинарников sharp для прод-сборки.
  *
  * Сборка выполняется на Windows (`npm run build` → `postbuild`), а прод-сервер —
- * Linux (Ubuntu, glibc). Nitro кладёт в `.output/server/node_modules` тот вариант
- * sharp, который установлен локально, т.е. `@img/sharp-win32-x64` — на сервере
+ * Linux (Debian 12, glibc ≥ 2.28). Nitro кладёт в `.output/server/node_modules` тот
+ * вариант sharp, который установлен локально, т.е. `@img/sharp-win32-x64` — на сервере
  * такой бинарник не загружается (ошибка "Could not load the sharp module using
  * the linux-x64 runtime"), поэтому sharp раньше «работал» только благодаря
  * ручному `npm install` в корне проекта на сервере.
@@ -16,8 +16,16 @@
  *   3. копирует `@img/sharp-linux-x64` и `@img/sharp-libvips-linux-x64`
  *      в `.output/server/node_modules/@img`;
  *   4. удаляет из `.output` не-linux пакеты sharp (`sharp-win32-x64` и т.п.);
- *   5. проверяет, что `.node` — настоящий ELF (иначе сборка падает);
+ *   5. проверяет, что нативный биндинг и библиотека libvips — настоящие ELF
+ *      (иначе сборка падает, а не прод);
  *   6. чистит временный каталог.
+ *
+ * ⚠️ Путь к нативному биндингу не хардкодится: он зависит от версии sharp.
+ *   - 0.34.x — `@img/sharp-linux-x64/lib/sharp-linux-x64.node`;
+ *   - 0.35.x — `@img/sharp-linux-x64/index.cjs` (его отдаёт
+ *     `exports["./sharp.node"]`) + версионированный
+ *     `lib/sharp-linux-x64-<version>.node`.
+ * Поэтому биндинг ищется через `exports["./sharp.node"]` из package.json пакета.
  *
  * На Linux-машине шаг пропускается: там зависимости уже нативные.
  */
@@ -25,13 +33,14 @@ import { execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { cp, mkdir, mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join, relative, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dirname, '..')
 const OUTPUT_SERVER = join(ROOT, '.output', 'server')
 const TARGET_IMG = join(OUTPUT_SERVER, 'node_modules', '@img')
 const LINUX_PACKAGES = ['sharp-linux-x64', 'sharp-libvips-linux-x64']
-const SHARP_BINDING = ['sharp-linux-x64', 'lib', 'sharp-linux-x64.node']
+const SHARP_PACKAGE = 'sharp-linux-x64'
+const LIBVIPS_PACKAGE = 'sharp-libvips-linux-x64'
 
 const log = (msg) => console.log(`[sharp-linux] ${msg}`)
 
@@ -58,6 +67,63 @@ async function dirSize(dir) {
 }
 
 const toMb = (bytes) => (bytes / (1024 * 1024)).toFixed(1)
+
+/**
+ * Путь к нативному биндингу `.node` внутри `@img/sharp-linux-x64`.
+ *
+ * Имя файла биндинга зависит от версии sharp, поэтому берём точку входа из
+ * `exports["./sharp.node"]`:
+ *   - 0.34.x — сразу `lib/sharp-linux-x64.node`;
+ *   - 0.35.x — `index.cjs`, который делает `require('./lib/sharp-linux-x64-<version>.node')`
+ *     (имя файла версионировано).
+ * Если точка входа не `.node`, ищем единственный `lib/sharp-*.node`.
+ */
+async function resolveSharpBinding(pkgDir) {
+  const manifestPath = join(pkgDir, 'package.json')
+  if (!existsSync(manifestPath)) {
+    throw new Error(`нет ${manifestPath}`)
+  }
+  const manifest = JSON.parse(await readFile(manifestPath, 'utf8'))
+  const entry = manifest?.exports?.['./sharp.node']
+  const rel = typeof entry === 'string' ? entry : entry?.require ?? entry?.default
+  if (typeof rel !== 'string') {
+    throw new Error(`в @img/${SHARP_PACKAGE}/package.json нет exports["./sharp.node"]`)
+  }
+
+  const entryPath = join(pkgDir, rel)
+  if (rel.endsWith('.node')) {
+    if (!existsSync(entryPath)) {
+      throw new Error(`нет ${rel} в @img/${SHARP_PACKAGE}`)
+    }
+    return entryPath
+  }
+
+  if (!existsSync(entryPath)) {
+    throw new Error(`exports["./sharp.node"] в @img/${SHARP_PACKAGE} указывает на отсутствующий ${rel}`)
+  }
+  const libDir = join(pkgDir, 'lib')
+  const nativeFiles = existsSync(libDir)
+    ? (await readdir(libDir)).filter((f) => f.startsWith('sharp-') && f.endsWith('.node'))
+    : []
+  if (nativeFiles.length !== 1) {
+    throw new Error(
+      `в @img/${SHARP_PACKAGE}/lib ожидался один файл sharp-*.node, найдено: ${nativeFiles.join(', ') || 'ничего'}`
+    )
+  }
+  return join(libDir, nativeFiles[0])
+}
+
+/** Путь к библиотеке libvips (`.so`) внутри `@img/sharp-libvips-linux-x64`. */
+async function resolveLibvipsLibrary(pkgDir) {
+  const libDir = join(pkgDir, 'lib')
+  const libs = existsSync(libDir)
+    ? (await readdir(libDir)).filter((f) => f.includes('libvips') && f.includes('.so'))
+    : []
+  if (libs.length === 0) {
+    throw new Error(`в @img/${LIBVIPS_PACKAGE}/lib нет библиотек libvips`)
+  }
+  return join(libDir, libs[0])
+}
 
 if (process.platform === 'linux') {
   log('платформа linux — бинарники уже нативные, шаг пропущен')
@@ -108,14 +174,17 @@ try {
     }
   }
 
-  const srcBinding = join(srcImg, ...SHARP_BINDING)
-  if (!existsSync(srcBinding)) {
-    throw new Error(`в @img/sharp-linux-x64 нет ${SHARP_BINDING.slice(1).join('/')}`)
+  const srcSharpDir = join(srcImg, SHARP_PACKAGE)
+  const srcLibvipsDir = join(srcImg, LIBVIPS_PACKAGE)
+  const srcBinding = await resolveSharpBinding(srcSharpDir)
+  if (!(await isElf(srcBinding))) {
+    throw new Error(`${relative(srcImg, srcBinding)} не является ELF-бинарником — на сервере он не загрузится`)
   }
-  const libvipsLibs = (await readdir(join(srcImg, 'sharp-libvips-linux-x64', 'lib'))).filter((f) => f.includes('libvips'))
-  if (libvipsLibs.length === 0) {
-    throw new Error('в @img/sharp-libvips-linux-x64/lib нет библиотек libvips')
+  const srcLibvips = await resolveLibvipsLibrary(srcLibvipsDir)
+  if (!(await isElf(srcLibvips))) {
+    throw new Error(`${relative(srcImg, srcLibvips)} не является ELF-библиотекой`)
   }
+  log(`скачано: @img/${SHARP_PACKAGE}/${relative(srcSharpDir, srcBinding)}, @img/${LIBVIPS_PACKAGE}/${relative(srcLibvipsDir, srcLibvips)}`)
 
   await mkdir(TARGET_IMG, { recursive: true })
 
@@ -134,13 +203,17 @@ try {
     log(`скопирован @img/${pkg} → .output/server/node_modules/@img/${pkg} (${toMb(await dirSize(dest))} МБ)`)
   }
 
-  const destBinding = join(TARGET_IMG, ...SHARP_BINDING)
-  if (!existsSync(destBinding)) {
-    throw new Error(`после копирования нет ${join('.output/server/node_modules/@img', ...SHARP_BINDING)}`)
-  }
+  const destSharpDir = join(TARGET_IMG, SHARP_PACKAGE)
+  const destLibvipsDir = join(TARGET_IMG, LIBVIPS_PACKAGE)
+  const destBinding = await resolveSharpBinding(destSharpDir)
   if (!(await isElf(destBinding))) {
-    throw new Error('sharp-linux-x64.node не является ELF-бинарником — на сервере он не загрузится')
+    throw new Error(`${relative(TARGET_IMG, destBinding)} не является ELF-бинарником — на сервере он не загрузится`)
   }
+  const destLibvips = await resolveLibvipsLibrary(destLibvipsDir)
+  if (!(await isElf(destLibvips))) {
+    throw new Error(`${relative(TARGET_IMG, destLibvips)} не является ELF-библиотекой`)
+  }
+  log(`проверено: @img/${SHARP_PACKAGE}/${relative(destSharpDir, destBinding)}, @img/${LIBVIPS_PACKAGE}/${relative(destLibvipsDir, destLibvips)}`)
 
   if (!existsSync(join(OUTPUT_SERVER, 'node_modules', 'sharp'))) {
     log('ВНИМАНИЕ: .output/server/node_modules/sharp отсутствует — на сервере модуль будет взят из корневого node_modules')
