@@ -102,7 +102,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
-import * as echarts from 'echarts'
+import type { ECharts } from 'echarts'
+import { echarts } from '~/lib/echarts'
 
 const props = defineProps < {
   balance?: any
@@ -113,7 +114,7 @@ const props = defineProps < {
 
 // ── График ───────────────────────────────────────────────────────────
 const chartRef = ref < HTMLElement | null > (null)
-let chartInstance: echarts.ECharts | null = null
+let chartInstance: ECharts | null = null
 
 const totalBalance = computed(() =>
   (props.balance?.totalComings || 0) -

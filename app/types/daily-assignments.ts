@@ -1,7 +1,10 @@
 // app/types/daily-assignments.ts
 
+import type { ContractorType } from './contractors'
+
 export type WorkSource = 'daily' | 'volume'
-export type ContractorType = 'worker' | 'master'
+/** В подневке участвуют только мастера и рабочие (см. ContractorType) */
+export type DailyContractorType = Extract<ContractorType, 'worker' | 'master'>
 export type SplitMode = 'percent' | 'amount'
 
 /** Базовая структура записи подневки */
@@ -9,7 +12,7 @@ export interface DailyAssignment {
   id?: number
   workId?: number // ID записи в таблице `works`, если уже сохранена
   workerId: number
-  contractorType: ContractorType
+  contractorType: DailyContractorType
   date: string // YYYY-MM-DD
   objectId: number
   objectName: string
@@ -31,7 +34,7 @@ export interface DailyWorker {
   name: string
   dailyRate: number // 0 = не на подневке
   balance: number
-  contractorType: ContractorType
+  contractorType: DailyContractorType
 }
 
 /** Активный объект для выбора в модалке */
@@ -44,7 +47,7 @@ export interface ActiveObject {
 /** Payload для массового применения смен */
 export interface BulkAssignmentPayload {
   workerId: number
-  contractorType: ContractorType
+  contractorType: DailyContractorType
   dates: string[]
   dailyRate: number
   assignments: {

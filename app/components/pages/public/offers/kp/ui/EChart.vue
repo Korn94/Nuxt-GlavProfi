@@ -35,9 +35,9 @@ let ro: ResizeObserver | null = null
 onMounted(async () => {
   if (!el.value) return
 
-  let echartsLib: typeof import('echarts')
+  let echartsLib: typeof import('~/lib/echarts')['echarts']
   try {
-    echartsLib = await import('echarts')
+    echartsLib = (await import('~/lib/echarts')).echarts
   } catch (error) {
     console.error('[EChart] Не удалось загрузить echarts', error)
     return

@@ -1,5 +1,4 @@
 import { defineNuxtConfig } from 'nuxt/config';
-import tsconfigPaths from 'vite-tsconfig-paths'
 import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
@@ -143,23 +142,33 @@ export default defineNuxtConfig({
         '@vue/devtools-kit',
         '@telegram-apps/sdk',
         'socket.io-client',
-        'echarts',
+        // echarts собирается модульно (см. app/lib/echarts.ts) — прогреваем именно эти входы.
+        'echarts/core',
+        'echarts/charts',
+        'echarts/components',
+        'echarts/renderers',
         'buffer',
-        'drizzle-orm/mysql-core',
-        'drizzle-orm',
-        'drizzle-orm/mysql2',
-        'mysql2/promise',
         'vue-draggable-plus',
       ],
       exclude: ['jsonwebtoken']
     },
     build: {
-      rollupOptions: {
+      rolldownOptions: {
         external: ['stream', 'url'],
+        output: {
+          codeSplitting: {
+            groups: [
+              // zrender — рендерер echarts (~196 КБ). Выносим отдельным чанком, чтобы
+              // ни один чанк не превышал порог предупреждения Vite (500 КБ):
+              // модульный echarts без сплита — 587 КБ, со сплитом — 379 КБ + 196 КБ.
+              // Оба грузятся параллельно и только на страницах с графиками.
+              { name: 'zrender', test: /node_modules[\\/]zrender[\\/]/ },
+            ],
+          },
+        },
       },
     },
     plugins: [
-      tsconfigPaths(),
       {
         name: 'buffer-polyfill',
         transform(code, id) {

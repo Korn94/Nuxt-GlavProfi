@@ -252,7 +252,8 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
-import * as echarts from 'echarts'
+import type { ECharts, EChartsOption } from 'echarts'
+import { echarts } from '~/lib/echarts'
 import type { VisitorStatsResponse, VisitorDailyStat, VisitorVisit } from '~/types'
 import { useOnlineFormatters } from './composables/useOnlineFormatters'
 
@@ -284,9 +285,9 @@ const dailyChartRef = ref<HTMLElement | null>(null)
 const channelsChartRef = ref<HTMLElement | null>(null)
 const eventsChartRef = ref<HTMLElement | null>(null)
 
-let dailyChart: echarts.ECharts | null = null
-let channelsChart: echarts.ECharts | null = null
-let eventsChart: echarts.ECharts | null = null
+let dailyChart: ECharts | null = null
+let channelsChart: ECharts | null = null
+let eventsChart: ECharts | null = null
 
 const dailyData = computed(() => buildDaily(props.stats?.daily || []))
 
@@ -358,7 +359,7 @@ function themeColors(): ThemeColors {
   }
 }
 
-function dailyOption(): echarts.EChartsOption {
+function dailyOption(): EChartsOption {
   const c = themeColors()
   const d = dailyData.value
   return {
@@ -414,7 +415,7 @@ function dailyOption(): echarts.EChartsOption {
   }
 }
 
-function channelsOption(): echarts.EChartsOption {
+function channelsOption(): EChartsOption {
   const c = themeColors()
   const palette = [c.accent, c.info, c.success, c.warning, c.danger, c.textMuted]
   const data = [...(props.stats?.channels || [])]
@@ -453,7 +454,7 @@ function channelsOption(): echarts.EChartsOption {
   }
 }
 
-function eventsOption(): echarts.EChartsOption {
+function eventsOption(): EChartsOption {
   const c = themeColors()
   const data = [...(props.stats?.eventTypes || [])].sort((a, b) => a.total - b.total)
   return {
