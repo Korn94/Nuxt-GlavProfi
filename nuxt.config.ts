@@ -1,5 +1,80 @@
 import { defineNuxtConfig } from 'nuxt/config';
 import tsconfigPaths from 'vite-tsconfig-paths'
+import { existsSync, readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { dirname, join } from 'node:path'
+
+/**
+ * ⚠️ Воркэраунд для https://github.com/nuxt/icon/issues/571
+ * (@nuxt/icon@2.6.2 + @iconify/vue@5.0.5: клиент игнорирует локальный провайдер
+ * /api/_nuxt_icon и ходит на api.iconify.design / api2.iconify.design).
+ *
+ * Флаг НЕ хардкодим, а считаем по реальному коду установленных пакетов:
+ *  - в сломанном @nuxt/icon есть сравнение с фиксированным списком хостов
+ *    (`DEFAULT_RESOURCES = ["https://api.iconify.design"]`);
+ *    фикс (PR #574) матчит `api*.iconify.design` и этот маркер убирает;
+ *  - баг проявляется только если у @iconify/vue дефолтных хостов не ровно один.
+ *
+ * Как только оба условия перестанут выполняться — воркэраунд отключится сам,
+ * а сборка напомнит удалить app/plugins/iconify-local-provider.client.ts.
+ */
+const ICON_BROKEN_CHECK_MARKER = 'DEFAULT_RESOURCES = ["https://api.iconify.design"]'
+const ICONIFY_VUE_DEFAULTS_RE = /configStorage\[""\]\s*=\s*createAPIConfig\(\{\s*resources:\s*(\[[^\]]*\])/
+
+/** Путь к файлу внутри пакета (@nuxt/icon → dist/runtime/iconify-config.js). */
+function resolvePackageFile(pkg: string, file: string): string | null {
+  try {
+    return join(dirname(createRequire(import.meta.url).resolve(pkg)), file)
+  } catch {
+    const fallback = join(process.cwd(), 'node_modules', pkg, 'dist', file)
+    return existsSync(fallback) ? fallback : null
+  }
+}
+
+function needsIconProviderWorkaround(): boolean {
+  try {
+    const iconRuntimeFile = resolvePackageFile('@nuxt/icon', 'runtime/iconify-config.js')
+    if (!iconRuntimeFile) {
+      console.warn(
+        '[icon] Не найден runtime @nuxt/icon — воркэраунд локального Iconify-провайдера включён принудительно.'
+      )
+      return true
+    }
+
+    const moduleSource = readFileSync(iconRuntimeFile, 'utf-8')
+
+    if (!moduleSource.includes(ICON_BROKEN_CHECK_MARKER)) {
+      console.warn(
+        '[icon] @nuxt/icon уже содержит фикс #571 (PR #574) — воркэраунд отключён.\n' +
+        '[icon] Можно удалить app/plugins/iconify-local-provider.client.ts, флаг iconProviderWorkaround\n' +
+        '[icon] из nuxt.config.ts и @iconify/vue из dependencies.'
+      )
+      return false
+    }
+
+    const iconifyVueFile = resolvePackageFile('@iconify/vue', 'iconify.mjs')
+    if (iconifyVueFile) {
+      const iconifySource = readFileSync(iconifyVueFile, 'utf-8')
+      const defaultsRaw = iconifySource.match(ICONIFY_VUE_DEFAULTS_RE)?.[1]
+      const defaultResources: string[] = defaultsRaw ? JSON.parse(defaultsRaw) : []
+      // Баг есть только при рассинхроне дефолтов @iconify/vue с ожиданием модуля.
+      if (defaultResources.length === 1 && defaultResources[0] === 'https://api.iconify.design') {
+        return false
+      }
+    }
+
+    return true
+  } catch (error) {
+    // Не смогли проверить — считаем, что баг есть (безопаснее, чем потерять иконки).
+    console.warn(
+      '[icon] Не удалось проверить runtime @nuxt/icon — воркэраунд локального Iconify-провайдера включён принудительно.',
+      error
+    )
+    return true
+  }
+}
+
+const iconProviderWorkaround = needsIconProviderWorkaround()
 
 export default defineNuxtConfig({
   app: {
@@ -294,6 +369,9 @@ export default defineNuxtConfig({
       // Явный адрес сокет-сервера (если он не на том же origin, например dev-стенд).
       // Пусто → клиент строит адрес сам: prod — window.location, dev — hostname:порт.
       socketUrl: process.env.NUXT_PUBLIC_SOCKET_URL || '',
+      // ⚠️ Воркэраунд бага @nuxt/icon #571 — см. app/plugins/iconify-local-provider.client.ts.
+      // Вычисляется выше по коду установленных пакетов; выключается сам после апгрейда.
+      iconProviderWorkaround,
     },
     private: {
       dbHost: process.env.NUXT_DB_HOST,
