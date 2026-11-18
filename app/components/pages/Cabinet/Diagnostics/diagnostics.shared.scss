@@ -1,0 +1,339 @@
+// app/components/pages/Cabinet/Diagnostics/diagnostics.shared.scss
+// Общие токены и примитивы страницы «Диагностика».
+// Подключается через `@use '../diagnostics.shared.scss' as *;` (или './diagnostics.shared.scss'
+// для index.vue) в scoped-блоках компонентов — как online.shared.scss на странице «Онлайн».
+//
+// ⚠️ $accent — не $blue: глобальный additionalData уже подмешивает брендовый
+// $blue (#00c3f5) из app/assets/styles/_variables.scss; локальное перекрытие
+// сбивало бы с толку при чтении стилей.
+
+// ─── Tokens ───────────────────────────────────────────────────────────
+$bg0: #0d0f14;
+$bg1: #13161e;
+$bg2: #1a1e28;
+$bg3: #222736;
+$border: rgba(255, 255, 255, 0.07);
+$border2: rgba(255, 255, 255, 0.12);
+$text: #e2e4ec;
+$muted: #7a7f96;
+$ok: #3dd68c;
+$warn: #f5a623;
+$err: #f25f5c;
+$accent: #5b8def;
+$mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+$sans: inherit;
+
+// ─── Card ─────────────────────────────────────────────────────────────
+.card {
+  background: $bg1;
+  border: 1px solid $border;
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  &--wide {
+    grid-column: span 2;
+
+    @media (max-width: 1100px) {
+      grid-column: span 1;
+    }
+  }
+
+  &--tall {
+    max-height: 360px;
+  }
+
+  &__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  &__title {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    color: $muted;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+}
+
+// ─── KV list ──────────────────────────────────────────────────────────
+.kv-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kv {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid $border;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &__k {
+    color: $muted;
+    font-size: 12px;
+    flex-shrink: 0;
+
+    &--cookie {
+      font-family: $mono;
+      font-size: 11px;
+    }
+  }
+
+  &__v {
+    font-size: 12px;
+    font-family: $mono;
+    text-align: right;
+    word-break: break-all;
+
+    &--ok {
+      color: $ok;
+    }
+
+    &--warn {
+      color: $warn;
+    }
+
+    &--err {
+      color: $err;
+    }
+
+    &--mono {
+      font-family: $mono;
+    }
+
+    &--truncate {
+      max-width: 160px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+}
+
+// ─── Snapshot pre ────────────────────────────────────────────────────
+.snapshot-pre {
+  background: $bg0;
+  border: 1px solid $border;
+  border-radius: 5px;
+  padding: 10px 12px;
+  font-family: $mono;
+  font-size: 11px;
+  color: $text;
+  overflow: auto;
+  max-height: 200px;
+  margin: 0;
+  white-space: pre;
+  scrollbar-width: thin;
+  scrollbar-color: $bg3 transparent;
+
+  &--sm {
+    max-height: 120px;
+  }
+}
+
+// ─── Inputs ──────────────────────────────────────────────────────────
+.input {
+  background: $bg0;
+  border: 1px solid $border2;
+  border-radius: 5px;
+  color: $text;
+  font-size: 12px;
+  font-family: $mono;
+  padding: 6px 10px;
+  width: 100%;
+  outline: none;
+  transition: border-color .15s;
+
+  &:focus {
+    border-color: $accent;
+  }
+
+  &::placeholder {
+    color: $muted;
+  }
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 52px;
+}
+
+// ─── Buttons ─────────────────────────────────────────────────────────
+.btn {
+  background: $bg3;
+  border: 1px solid $border2;
+  border-radius: 5px;
+  color: $text;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 12px;
+  transition: all .15s;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    background: $bg2;
+    border-color: rgba(255, 255, 255, .2);
+  }
+
+  &:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+  }
+
+  &--sm {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+
+  &--primary {
+    background: rgba($accent, .18);
+    border-color: rgba($accent, .4);
+    color: $accent;
+
+    &:hover:not(:disabled) {
+      background: rgba($accent, .28);
+    }
+  }
+
+  &--danger {
+    background: rgba($err, .15);
+    border-color: rgba($err, .35);
+    color: $err;
+
+    &:hover:not(:disabled) {
+      background: rgba($err, .25);
+    }
+  }
+
+  &--ok {
+    background: rgba($ok, .15);
+    border-color: rgba($ok, .3);
+    color: $ok;
+
+    &:hover:not(:disabled) {
+      background: rgba($ok, .25);
+    }
+  }
+
+  &--warn {
+    background: rgba($warn, .15);
+    border-color: rgba($warn, .3);
+    color: $warn;
+
+    &:hover:not(:disabled) {
+      background: rgba($warn, .25);
+    }
+  }
+
+  &--dim {
+    background: $bg3;
+    color: $muted;
+  }
+}
+
+// ─── Toggle ──────────────────────────────────────────────────────────
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  font-size: 11px;
+  color: $muted;
+  user-select: none;
+}
+
+.toggle-cb {
+  display: none;
+}
+
+.toggle-track {
+  position: relative;
+  display: inline-block;
+  width: 28px;
+  height: 16px;
+  background: $bg3;
+  border: 1px solid $border2;
+  border-radius: 8px;
+  transition: background .2s;
+  flex-shrink: 0;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 10px;
+    height: 10px;
+    background: $muted;
+    border-radius: 50%;
+    transition: transform .2s, background .2s;
+  }
+}
+
+.toggle-cb:checked+.toggle-track {
+  background: rgba($warn, .25);
+  border-color: rgba($warn, .4);
+
+  &::after {
+    transform: translateX(12px);
+    background: $warn;
+  }
+}
+
+// ─── Badge ───────────────────────────────────────────────────────────
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: $bg3;
+  border: 1px solid $border;
+  border-radius: 4px;
+  padding: 0 5px;
+  font-size: 10px;
+  font-weight: 600;
+  color: $muted;
+  min-width: 18px;
+
+  &--dim {
+    color: $muted;
+  }
+}
+
+// ─── Divider ─────────────────────────────────────────────────────────
+.divider {
+  height: 1px;
+  background: $border;
+  margin: 2px 0;
+}
+
+// ─── Empty state ─────────────────────────────────────────────────────
+.empty {
+  color: $muted;
+  font-size: 12px;
+  text-align: center;
+  padding: 16px 0;
+  opacity: .6;
+}
+

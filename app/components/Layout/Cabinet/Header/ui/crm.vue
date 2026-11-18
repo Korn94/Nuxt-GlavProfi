@@ -189,11 +189,11 @@ const menuItems: MenuItem[] = [
     page: 'online'
   },
 
-  // Тест — test (только admin)
+  // Диагностика — test (slug права в БД; только admin)
   {
-    id: 'test',
+    id: 'diagnostics',
     title: 'Диагностика',
-    path: '/cabinet/testpage',
+    path: '/cabinet/diagnostics',
     icon: 'mdi:flask-outline',
     page: 'test',
     roleCheck: 'admin'

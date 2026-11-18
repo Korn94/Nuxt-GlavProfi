@@ -227,6 +227,11 @@ export default defineNuxtConfig({
           'X-Robots-Tag': 'noindex, nofollow',
         }
       },
+      // Диагностика переименована: /cabinet/testpage → /cabinet/diagnostics
+      // (старые закладки админов продолжают работать)
+      '/cabinet/testpage': {
+        redirect: { to: '/cabinet/diagnostics', statusCode: 301 }
+      },
       // /prices (без категории) раньше отдавал 404 — ведём на основную категорию прайса
       '/prices': {
         redirect: { to: '/prices/otdelochnye-raboty', statusCode: 301 }

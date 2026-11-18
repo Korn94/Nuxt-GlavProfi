@@ -325,7 +325,7 @@ export function setupSocketServer(io: Server): void {
       // ⚠️ Основной клиент (SocketService) heartbeat НЕ отправляет — живость
       // соединения обеспечивают транспортные ping/pong engine.io, а статус —
       // activity-трекинг. Обработчик оставлен для диагностической страницы
-      // /cabinet/testpage (кнопка «heartbeat» + ожидание 'heartbeat:ack').
+      // /cabinet/diagnostics (кнопка «heartbeat» + ожидание 'heartbeat:ack').
       socket.on('heartbeat', () => {
         socket.emit('heartbeat:ack', {
           timestamp: new Date().toISOString(),
@@ -334,7 +334,7 @@ export function setupSocketServer(io: Server): void {
       })
 
       // ✅ P7: обработчики 'ping'/'pong' удалены — ни один клиент их не отправляет
-      // (в testpage 'pong' лишь закомментирован).
+      // (на странице диагностики 'pong' лишь закомментирован).
     } catch (error) {
       console.error(`[Socket] ❌ Connection error for user ${userId}:`, error)
       socket.disconnect(true)

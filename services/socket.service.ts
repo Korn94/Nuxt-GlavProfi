@@ -596,7 +596,7 @@ export class SocketService {
   }
 
   getTransport(): string {
-    // ✅ P7: '—' — тот же sentinel, что ждёт UI (app/pages/cabinet/testpage.vue)
+    // ✅ P7: '—' — тот же sentinel, что ждёт UI (app/components/pages/Cabinet/Diagnostics/index.vue)
     return this.socket?.io?.engine?.transport?.name || '—'
   }
 
