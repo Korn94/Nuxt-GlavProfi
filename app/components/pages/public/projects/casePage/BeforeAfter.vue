@@ -33,7 +33,7 @@
         :class="{ active: index === currentIndex }" @click="selectPair(index)">
         <img :src="useImageUrl(pair.after)" alt="Миниатюра после" class="thumbnail" />
         <div class="click-icon">
-          <Icon name="tabler:click" size="24px" class="ico" />
+          <Icon name="mdi:gesture-tap" size="24px" class="ico" />
         </div>
       </div>
     </div>
