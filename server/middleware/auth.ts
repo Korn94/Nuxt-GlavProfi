@@ -363,6 +363,10 @@ const PROTECTED_PATHS: Record<string, PathRequirement | PathRequirement[]> = {
     { type: 'page', value: 'partners', action: 'delete', methods: ['DELETE'] },
   ],
 
+  // 🪵 Серверные логи (страница «Диагностика»): только администратор.
+  // ⚠️ Должно идти ПЕРЕД '/api/admin/**' (роль manager), иначе сработает префикс.
+  '/api/admin/logs': { type: 'role', value: 'admin' },
+
   '/api/admin/**': { type: 'role', value: 'manager' },
 }
 

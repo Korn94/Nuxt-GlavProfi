@@ -32,6 +32,7 @@ import { getUserPermissionsResponse } from '../../utils/permissions'
 import { resolveVisitorId } from '../../utils/visitorGuard'
 import { linkVisitorToUser } from '../../utils/visitorRegistry'
 import { scheduleVisitorsBroadcast } from '../../utils/visitor-broadcast'
+import { logAuth } from '../../utils/fileLogger'
 
 import bcryptjs from 'bcryptjs'
 
@@ -78,6 +79,15 @@ export default eventHandler(async (event) => {
   const [user] = await db.select().from(users).where(eq(users.login, body.login))
 
   if (!user) {
+    // 📓 Аудит входов (logs/auth.log): неудачная попытка — нет такого логина.
+    // Пароль не пишем никогда; UA обрезаем, чтобы не раздувать файл.
+    await logAuth('login-failed', {
+      login: body.login,
+      reason: 'user-not-found',
+      ip: ipAddress,
+      userAgent: (userAgent || '').slice(0, 200)
+    }, 'WARN')
+
     // Не раскрываем что именно не так (логин или пароль) — защита от перебора
     throw createError({
       statusCode: 401,
@@ -91,6 +101,15 @@ export default eventHandler(async (event) => {
   const isPasswordValid = await bcryptjs.compare(body.password, user.password)
 
   if (!isPasswordValid) {
+    // 📓 Аудит входов: логин существует, пароль неверный
+    await logAuth('login-failed', {
+      login: body.login,
+      userId: user.id,
+      reason: 'bad-password',
+      ip: ipAddress,
+      userAgent: (userAgent || '').slice(0, 200)
+    }, 'WARN')
+
     throw createError({
       statusCode: 401,
       statusMessage: 'Неверные учётные данные'
@@ -134,6 +153,18 @@ export default eventHandler(async (event) => {
   // Убираем race condition: клиент получает permissions сразу,
   // не делая отдельный запрос к /api/permissions
   const permissions = await getUserPermissionsResponse(user)
+
+  // 📓 Аудит входов (logs/auth.log): успешный вход
+  await logAuth('login-ok', {
+    userId: user.id,
+    login: user.login,
+    role: user.role,
+    ip: ipAddress,
+    userAgent: (userAgent || '').slice(0, 200),
+    sessionId: session?.sessionId,
+    visitorId: visitorId || null
+  })
+
 
   // ============================================
   // ФОРМИРОВАНИЕ ОТВЕТА

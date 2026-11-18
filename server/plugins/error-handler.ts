@@ -1,6 +1,6 @@
 // server/plugins/error-handler.ts
 import { defineNitroPlugin } from 'nitropack/runtime/plugin'
-import { logPortfolio } from '../utils/fileLogger'
+import { logError } from '../utils/fileLogger'
 
 /**
  * Логгер серверных ошибок.
@@ -48,7 +48,7 @@ export default defineNitroPlugin((nitroApp) => {
     }
 
     // Дублируем серверные ошибки в отдельный файл error-portfolio.log
-    logPortfolio('ERROR', 'server-error', {
+    logError('server-error', {
       status: statusCode ?? 'UNHANDLED',
       path,
       url: fullUrl || path,

@@ -6,11 +6,11 @@
       <button class="btn btn--sm" @click="emit('refresh')">↺ Refresh</button>
     </template>
 
-    <div class="snapshot-tabs">
+    <div class="tabs">
       <button
         v-for="tab in tabs"
         :key="tab"
-        :class="['snap-tab', activeTabModel === tab && 'snap-tab--active']"
+        :class="['tab', activeTabModel === tab && 'tab--active']"
         @click="activeTabModel = tab"
       >{{ tab }}</button>
     </div>
@@ -43,34 +43,6 @@ const activeTabModel = computed({
 </script>
 
 <style lang="scss" scoped>
+// Табы (.tabs/.tab) и .snapshot-pre — общие примитивы страницы
 @use './diagnostics.shared.scss' as *;
-
-// ─── Snapshot ────────────────────────────────────────────────────────
-.snapshot-tabs {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-
-.snap-tab {
-  background: none;
-  border: 1px solid $border;
-  border-radius: 4px;
-  color: $muted;
-  font-size: 11px;
-  padding: 3px 10px;
-  cursor: pointer;
-  transition: all .15s;
-
-  &:hover {
-    border-color: $border2;
-    color: $text;
-  }
-
-  &--active {
-    background: $bg3;
-    border-color: $accent;
-    color: $text;
-  }
-}
 </style>

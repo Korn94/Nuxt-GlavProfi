@@ -8,6 +8,7 @@
   - SessionCard     — session_id / tabId / socketId / путь + куки
   - OnlineCard      — список онлайна (onlineStore)
   - EventLogCard    — журнал событий (пауза/очистка)
+  - ServerLogsCard  — серверные логи: ошибки/события/входы (поиск, уровень, очистка)
   - SnapshotCard    — JSON-снимок сторов
   - EmitCard        — быстрые и произвольные socket-события
   - ApiCard         — ручные API-пробы
@@ -79,6 +80,26 @@
         @clear="clearLog"
       />
 
+      <PagesCabinetDiagnosticsServerLogsCard
+        v-model:source="serverLogSource"
+        v-model:paused="serverLogsPaused"
+        v-model:search="serverLogSearch"
+        v-model:level="serverLogLevel"
+        :sources="serverLogSources"
+        :entries="serverLogFiltered"
+        :total="serverLogTotal"
+        :exists="serverLogExists"
+        :loading="serverLogsLoading"
+        :levels="serverLogLevels"
+        :fetch-error="serverLogsError"
+        :size-label="serverLogsSize"
+        :last-updated="serverLogsUpdated"
+        :clearing="serverLogsClearing"
+        :auto-refresh-sec="serverLogsIntervalSec"
+        @refresh="refreshServerLogs(true)"
+        @clear="clearServerLogs"
+      />
+
       <PagesCabinetDiagnosticsSnapshotCard
         v-model:active-tab="activeSnapshotTab"
         :tabs="snapshotTabs"
@@ -114,6 +135,7 @@ import { useDiagnosticsLog } from './composables/useDiagnosticsLog'
 import { useDiagnosticsSnapshot } from './composables/useDiagnosticsSnapshot'
 import { useDiagnosticsConnection } from './composables/useDiagnosticsConnection'
 import { useDiagnosticsApi } from './composables/useDiagnosticsApi'
+import { useDiagnosticsServerLogs } from './composables/useDiagnosticsServerLogs'
 
 // ── Stores ──────────────────────────────────────────────────────────
 const authStore = useAuthStore()
@@ -189,6 +211,30 @@ const {
 } = useDiagnosticsConnection({ addLog, refreshSnapshot })
 
 const { apiTests, lastApiResult, runApi } = useDiagnosticsApi(addLog)
+
+// 🪵 Серверные логи (GET/DELETE /api/admin/logs): табы источников, поиск,
+// фильтр по уровню и очистка. Автообновление стартует в onMounted.
+const {
+  sources: serverLogSources,
+  source: serverLogSource,
+  filtered: serverLogFiltered,
+  total: serverLogTotal,
+  exists: serverLogExists,
+  sizeLabel: serverLogsSize,
+  loading: serverLogsLoading,
+  error: serverLogsError,
+  paused: serverLogsPaused,
+  search: serverLogSearch,
+  levelFilter: serverLogLevel,
+  levels: serverLogLevels,
+  lastUpdated: serverLogsUpdated,
+  clearing: serverLogsClearing,
+  autoRefreshSec: serverLogsIntervalSec,
+  refresh: refreshServerLogs,
+  clear: clearServerLogs,
+  start: startServerLogs,
+  stop: stopServerLogs,
+} = useDiagnosticsServerLogs(addLog)
 
 // ── Online data ──────────────────────────────────────────────────────
 // /api/online отдаёт ВСЕХ пользователей (включая offline), поэтому счётчики
@@ -362,11 +408,15 @@ onMounted(() => {
   // ✅ fetchOnlineUsers() + subscribeToUpdates() — как в cabinet/online.vue
   refreshData()
 
+  // хвост серверных логов + автообновление (стоп — в onUnmounted)
+  startServerLogs()
+
   addLog('init', `Page mounted — socket ${socketService.getConnected() ? 'already connected' : 'not connected'}`, 'info')
 })
 
 onUnmounted(() => {
   stopConnection()
+  stopServerLogs()
 
   // ⚠️ onlineStore.unsubscribeFromUpdates() здесь СОЗНАТЕЛЬНО не вызываем:
   // подписка на 'online-users:update' — app-level (stores/online.ts), от флага

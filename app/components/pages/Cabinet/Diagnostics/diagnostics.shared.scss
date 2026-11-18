@@ -6,6 +6,11 @@
 // ⚠️ $accent — не $blue: глобальный additionalData уже подмешивает брендовый
 // $blue (#00c3f5) из app/assets/styles/_variables.scss; локальное перекрытие
 // сбивало бы с толку при чтении стилей.
+//
+// ⚠️ `@use 'sass:color'` обязателен именно здесь: additionalData из nuxt.config
+// подмешивается только в entry-файл (scoped-блок компонента), а не в партиалы,
+// подключённые через @use. Без него color.mix() ниже не скомпилируется.
+@use 'sass:color';
 
 // ─── Tokens ───────────────────────────────────────────────────────────
 $bg0: #0d0f14;
@@ -302,6 +307,37 @@ $sans: inherit;
   }
 }
 
+// ─── Tabs ────────────────────────────────────────────────────────────
+// Общие табы блоков: Store snapshot, Логи сервера
+.tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.tab {
+  background: none;
+  border: 1px solid $border;
+  border-radius: 4px;
+  color: $muted;
+  font-size: 11px;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: all .15s;
+
+  &:hover {
+    border-color: $border2;
+    color: $text;
+  }
+
+  &--active {
+    background: $bg3;
+    border-color: $accent;
+    color: $text;
+  }
+}
+
 // ─── Badge ───────────────────────────────────────────────────────────
 .badge {
   display: inline-flex;
@@ -326,6 +362,81 @@ $sans: inherit;
   height: 1px;
   background: $border;
   margin: 2px 0;
+}
+
+// ─── Log ─────────────────────────────────────────────────────────────
+// Журнал событий (EventLogCard) и серверные логи (ServerLogsCard).
+// Карточка может локально переопределить сетку колонок и высоту.
+.log {
+  flex: 1;
+  overflow-y: auto;
+  font-family: $mono;
+  font-size: 11px;
+  line-height: 1.6;
+  max-height: 260px;
+  scrollbar-width: thin;
+  scrollbar-color: $bg3 transparent;
+
+  &__row {
+    display: grid;
+    grid-template-columns: 68px 130px 1fr;
+    gap: 8px;
+    padding: 2px 4px;
+    border-radius: 3px;
+
+    &:hover {
+      background: $bg2;
+    }
+
+    &--ok {
+      .log__source {
+        color: $ok;
+      }
+    }
+
+    &--warn {
+      .log__source {
+        color: $warn;
+      }
+    }
+
+    &--err {
+      .log__source {
+        color: $err;
+      }
+
+      .log__msg {
+        color: color.mix($err, $text, 30%);
+      }
+    }
+
+    &--dim .log__source {
+      color: $muted;
+    }
+  }
+
+  &__ts {
+    color: $muted;
+    opacity: .7;
+  }
+
+  &__source {
+    color: $accent;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__msg {
+    color: $text;
+    opacity: .8;
+    word-break: break-all;
+  }
+
+  &__empty {
+    padding: 20px 0;
+  }
 }
 
 // ─── Empty state ─────────────────────────────────────────────────────
