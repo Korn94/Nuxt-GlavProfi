@@ -1,0 +1,327 @@
+// app/components/pages/Cabinet/Online/analytics-details.shared.scss
+// Общие стили модалки детализации аналитики (/cabinet/online):
+// KPI-плитки, секции, таблицы, бейджи, таймлайн визита.
+// Подключается через `@use './analytics-details.shared.scss'` в scoped-блоках.
+
+.details-view {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.details-caption {
+  font-size: var(--crm-text-xs);
+  color: var(--crm-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.details-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 8px;
+}
+
+.details-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  background: var(--crm-bg-elevated);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-md);
+  min-width: 0;
+
+  &__label {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__value {
+    font-size: var(--crm-text-md);
+    font-weight: 700;
+    font-family: var(--crm-font-mono);
+    color: var(--crm-text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    &--warn { color: var(--crm-warning); }
+    &--danger { color: var(--crm-danger); }
+    &--success { color: var(--crm-success); }
+    &--info { color: var(--crm-info); }
+  }
+}
+
+.details-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--crm-bg-elevated);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-md);
+  min-width: 0;
+
+  &__title {
+    font-size: var(--crm-text-xs);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--crm-text-muted);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+
+  @media (max-width: 760px) { grid-template-columns: 1fr; }
+}
+
+.details-chart {
+  width: 100%;
+  height: 200px;
+}
+
+.details-chip {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  background: var(--crm-bg-overlay);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-sm);
+  padding: 0 6px;
+  color: var(--crm-text-secondary);
+  font-family: var(--crm-font-mono);
+}
+
+.details-empty {
+  font-size: var(--crm-text-xs);
+  color: var(--crm-text-disabled);
+  padding: 2px 0;
+}
+
+.details-table-wrap {
+  overflow-x: auto;
+  margin: 0 -12px;
+  padding: 0 12px;
+}
+
+.details-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--crm-text-xs);
+
+  th, td {
+    padding: 5px 8px;
+    text-align: left;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--crm-border);
+    vertical-align: middle;
+  }
+
+  th { color: var(--crm-text-muted); font-weight: 600; }
+  td { color: var(--crm-text-secondary); }
+  tbody tr:last-child td { border-bottom: none; }
+
+  &__num { font-family: var(--crm-font-mono); }
+}
+
+.details-row {
+  cursor: pointer;
+  transition: var(--crm-transition);
+
+  &:hover { background: var(--crm-bg-overlay); }
+  &:focus-visible {
+    outline: 1px solid var(--crm-accent);
+    outline-offset: -1px;
+  }
+}
+
+.details-col-action {
+  width: 1%;
+  text-align: right;
+}
+
+.details-link {
+  color: var(--crm-accent);
+  font-weight: 600;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  text-decoration: none;
+
+  &:hover { text-decoration: underline; }
+  &:focus-visible { outline: 1px solid var(--crm-accent); outline-offset: 2px; }
+}
+
+.details-sub {
+  color: var(--crm-text-muted);
+  font-weight: 400;
+}
+
+.details-path {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.details-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: var(--crm-radius-sm);
+  font-size: var(--crm-text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+
+  &--success { background: var(--crm-success-dim); color: var(--crm-success); }
+  &--danger { background: var(--crm-danger-dim); color: var(--crm-danger); }
+  &--muted { background: var(--crm-bg-overlay); color: var(--crm-text-muted); }
+  &--staff { background: var(--crm-info-dim); color: var(--crm-info); }
+  &--warning { background: var(--crm-warning-dim); color: var(--crm-warning); }
+}
+
+.details-scroll {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  &__bar {
+    width: 64px;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--crm-bg-overlay);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  &__fill {
+    display: block;
+    height: 100%;
+    border-radius: 3px;
+    background: var(--crm-info);
+
+    &--low { background: var(--crm-warning); }
+  }
+}
+
+/* ── Профиль посетителя: карточки визитов ───────────────────────────── */
+.details-session {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--crm-bg-elevated);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-md);
+  cursor: pointer;
+  transition: var(--crm-transition);
+
+  &:hover {
+    border-color: var(--crm-border-hover);
+    background: var(--crm-bg-overlay);
+  }
+
+  &__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+  }
+
+  &__visit {
+    font-weight: 700;
+    color: var(--crm-text-primary);
+    font-size: var(--crm-text-sm);
+  }
+
+  &__date {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+    font-family: var(--crm-font-mono);
+  }
+
+  &__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-muted);
+  }
+
+  &__route {
+    font-size: var(--crm-text-xs);
+    color: var(--crm-text-secondary);
+    font-family: var(--crm-font-mono);
+    word-break: break-all;
+  }
+}
+
+/* ── Карточка визита: таймлайн просмотров и события ─────────────────── */
+.details-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.details-timeline__item {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-sm);
+  background: var(--crm-bg-surface);
+  font-size: var(--crm-text-xs);
+
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
+
+.details-timeline__time {
+  color: var(--crm-text-muted);
+  font-family: var(--crm-font-mono);
+}
+
+.details-timeline__path {
+  color: var(--crm-text-secondary);
+  word-break: break-all;
+}
+
+.details-event {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-sm);
+  background: var(--crm-bg-surface);
+  font-size: var(--crm-text-xs);
+
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}

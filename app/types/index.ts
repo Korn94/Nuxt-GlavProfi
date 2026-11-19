@@ -213,6 +213,194 @@ export interface VisitorStatsResponse {
   visits: VisitorVisit[]
 }
 
+/** Заход на страницу внутри сессии (строка детализации страницы) */
+export interface VisitorPageSessionRow {
+  sessionId: string
+  visitorId: string
+  visitNumber: number
+  startedAt: string
+  lastActivityAt: string
+  endedAt: string | null
+  enteredAt: string         // время входа на страницу
+  durationSec: number       // активное время на странице
+  maxScrollPct: number      // максимальная глубина скролла, %
+  channel: string
+  channelLabel: string
+  utmCampaign: string | null
+  referrerHost: string | null
+  city: string | null
+  deviceType: string
+  browser: string | null
+  os: string | null
+  pagesCount: number
+  eventsCount: number
+  activeSeconds: number
+  isBounce: boolean
+  converted: boolean
+  linkedUserId: number | null
+  linkedUserName: string | null
+}
+
+/** Разрез детализации страницы (источник / устройство) */
+export interface VisitorPageChannelRow {
+  channel: string
+  channelLabel: string
+  views: number
+  visitors: number
+  avgSeconds: number
+}
+
+export interface VisitorPageDeviceRow {
+  deviceType: string
+  views: number
+  visitors: number
+}
+
+/** Бакет распределения глубины скролла (0-25 / 25-50 / 50-75 / 75-100) */
+export interface VisitorPageScrollBucket {
+  bucket: string
+  views: number
+  share: number
+}
+
+/** Сводные показатели детализации страницы */
+export interface VisitorPageDetailsSummary {
+  views: number
+  visitors: number
+  sessions: number
+  entries: number           // сессии, начавшиеся на этой странице
+  exits: number             // сессии, закончившиеся на этой странице
+  exitRate: number          // % от просмотров (как в tables stats)
+  avgSeconds: number
+  avgScroll: number
+  conversions: number
+  conversionRate: number    // % сессий, просмотревших страницу, с обращением
+  bounceRate: number        // % сессий с отказом среди просмотревших
+  firstVisits: number       // сессии с visitNumber = 1
+  firstVisitsShare: number
+  firstViewAt: string | null
+  lastViewAt: string | null
+}
+
+/** Ответ GET /api/visitors/page?path=...&days=... */
+export interface VisitorPageDetailsResponse {
+  path: string
+  days: number
+  summary: VisitorPageDetailsSummary
+  daily: Array<{ day: string; views: number; visitors: number }>
+  channels: VisitorPageChannelRow[]
+  devices: VisitorPageDeviceRow[]
+  scroll: VisitorPageScrollBucket[]
+  eventTypes: Array<{ type: string; total: number }>
+  conversions: VisitorConversion[]
+  conversionsTotal: number
+  sessions: VisitorPageSessionRow[]
+  sessionsTotal: number
+}
+
+/** Визит из полной истории посетителя */
+export interface VisitorProfileSession {
+  id: string
+  visitNumber: number
+  startedAt: string
+  lastActivityAt: string
+  endedAt: string | null
+  activeSeconds: number
+  pagesCount: number
+  eventsCount: number
+  isBounce: boolean
+  converted: boolean
+  channel: string
+  channelLabel: string
+  utmSource: string | null
+  utmCampaign: string | null
+  referrerHost: string | null
+  landingPath: string | null
+  exitPath: string | null
+  city: string | null
+  deviceType: string
+  browser: string | null
+  os: string | null
+  linkedUserId: number | null
+  linkedUserName: string | null
+}
+
+/** Ответ GET /api/visitors/profiles/[id] */
+export interface VisitorProfileResponse {
+  visitor: {
+    id: string
+    firstSeenAt: string | null
+    lastSeenAt: string | null
+    visitsCount: number
+    firstChannel: string | null
+    firstChannelLabel: string
+    firstReferrerHost: string | null
+    firstUtmSource: string | null
+    firstUtmMedium: string | null
+    firstUtmCampaign: string | null
+    firstLandingPath: string | null
+    hasConverted: boolean
+    linkedUserId: number | null
+    linkedUserName: string | null
+  }
+  totals: {
+    sessions: number
+    pages: number
+    events: number
+    activeSeconds: number
+    conversions: number
+    bounces: number
+  }
+  latest: {
+    city: string | null
+    deviceType: string
+    browser: string | null
+    os: string | null
+    utmCampaign: string | null
+    referrerHost: string | null
+  } | null
+  sessions: VisitorProfileSession[]
+  sessionsTotal: number
+}
+
+/** Просмотр страницы внутри визита */
+export interface VisitorSessionPageview {
+  path: string
+  enteredAt: string
+  durationSec: number
+  maxScrollPct: number
+}
+
+/** Событие внутри визита */
+export interface VisitorSessionEvent {
+  id: number
+  type: string
+  path: string | null
+  createdAt: string
+  meta: Record<string, string | number | boolean | null> | null
+}
+
+/** Ответ GET /api/visitors/sessions/[id] */
+export interface VisitorSessionDetailsResponse {
+  session: VisitorProfileSession & {
+    utmMedium?: string | null
+    referrerType?: string | null
+    country?: string | null
+    region?: string | null
+    language?: string | null
+  }
+  visitor: {
+    id: string
+    visitsCount: number
+    firstSeenAt: string
+    hasConverted: boolean
+    linkedUserId: number | null
+    linkedUserName: string | null
+  }
+  pageviews: VisitorSessionPageview[]
+  events: VisitorSessionEvent[]
+}
+
 /**
  * Интерфейс сессии пользователя
  */

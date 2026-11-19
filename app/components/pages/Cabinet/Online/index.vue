@@ -67,8 +67,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useRoute, useRouter } from 'vue-router'
 import { useOnlineStore } from 'stores/online'
 import { useVisitorsStore } from 'stores/visitors'
 import { useAuthStore } from 'stores/auth'
@@ -119,6 +120,31 @@ const visitorsOnlineCount = computed(() => visitors.value.filter(v => v.status =
 // 📊 Аналитика из БД (таблицы под блоком «Посетители сайта»)
 const stats = computed(() => visitorsStore.stats)
 const statsDays = ref(visitorsStore.statsDays)
+
+// 🔗 Период синхронизируется с URL-query (?days=7) — ссылкой можно поделиться
+const route = useRoute()
+const router = useRouter()
+const ALLOWED_STATS_DAYS = [1, 7, 30, 90]
+
+function applyDaysFromQuery() {
+  const raw = Array.isArray(route.query.days) ? route.query.days[0] : route.query.days
+  const days = Number(raw)
+  if (!raw || !ALLOWED_STATS_DAYS.includes(days)) return
+  if (days === statsDays.value) return
+
+  statsDays.value = days
+  visitorsStore.statsDays = days
+}
+
+applyDaysFromQuery()
+
+watch(statsDays, (value) => {
+  visitorsStore.statsDays = value
+  if (!import.meta.client) return
+  if (Number(route.query.days) === value) return
+
+  router.replace({ query: { ...route.query, days: String(value) } })
+})
 
 async function loadStats() {
   try { await visitorsStore.fetchStats(statsDays.value) }

@@ -133,11 +133,28 @@
         <div v-else class="stats-table-wrap">
           <table class="stats-table">
             <thead>
-              <tr><th>Страница</th><th>Просмотры</th><th>Время</th><th>Скролл</th><th>Выходы</th></tr>
+              <tr>
+                <th>Страница</th><th>Просмотры</th><th>Время</th><th>Скролл</th><th>Выходы</th>
+                <th class="stats-col-actions" aria-label="Подробнее"></th>
+              </tr>
             </thead>
             <tbody>
-              <tr v-for="row in stats.pages" :key="row.path">
-                <td class="stats-path" :title="row.path">{{ row.path }}</td>
+              <tr
+                v-for="row in stats.pages"
+                :key="row.path"
+                class="stats-row--clickable"
+                tabindex="0"
+                :title="`Показать детали страницы ${row.path}`"
+                @click="openPage(row.path)"
+                @keydown.enter="openPage(row.path)"
+              >
+                <td class="stats-path" :title="row.path">
+                  <button
+                    class="stats-path-link"
+                    @click.stop="openPage(row.path)"
+                    @keydown.stop
+                  >{{ row.path }}</button>
+                </td>
                 <td>{{ formatNumber(row.views) }}</td>
                 <td>{{ formatSeconds(row.avgSeconds) }}</td>
                 <td>
@@ -149,6 +166,9 @@
                   </div>
                 </td>
                 <td :class="{ 'stats-warn': row.exitRate >= 60 }">{{ formatNumber(row.exits) }} ({{ row.exitRate }}%)</td>
+                <td class="stats-col-actions">
+                  <Icon name="mdi:chevron-right" size="14" />
+                </td>
               </tr>
             </tbody>
           </table>
@@ -203,7 +223,15 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="row in stats.visits" :key="row.id">
+              <tr
+                v-for="row in stats.visits"
+                :key="row.id"
+                class="stats-row--clickable"
+                tabindex="0"
+                title="Открыть визит"
+                @click="openSession(row.id, row.visitorId)"
+                @keydown.enter="openSession(row.id, row.visitorId)"
+              >
                 <td>{{ formatFullDateTime(row.startedAt) }}</td>
                 <td>
                   {{ row.channelLabel }}
@@ -227,7 +255,8 @@
                     class="crm-btn crm-btn--ghost crm-btn--sm stats-row-delete"
                     title="Удалить визит из истории"
                     :disabled="deletingId === row.id"
-                    @click="emit('delete-visit', row)"
+                    @click.stop="emit('delete-visit', row)"
+                    @keydown.stop
                   >
                     <Icon
                       :name="deletingId === row.id ? 'mdi:loading' : 'mdi:trash-outline'"
@@ -247,6 +276,17 @@
       <Icon name="mdi:loading" size="24" class="spin" />
       <span>Загрузка аналитики...</span>
     </div>
+
+    <!-- Детализация: страница → посетитель → визит (состояние в URL-query) -->
+    <PagesCabinetOnlineAnalyticsDetails
+      v-if="detailsMounted"
+      v-model:visible="detailsVisible"
+      :stack="detailsStack"
+      :days="statsDays"
+      @push="pushStep"
+      @pop="popStep"
+      @goto="goToStep"
+    />
   </div>
 </template>
 
@@ -254,8 +294,15 @@
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import type { ECharts, EChartsOption } from 'echarts'
 import { echarts } from '~/lib/echarts'
-import type { VisitorStatsResponse, VisitorDailyStat, VisitorVisit } from '~/types'
+import type { VisitorStatsResponse, VisitorVisit } from '~/types'
 import { useOnlineFormatters } from './composables/useOnlineFormatters'
+import { buildDailySeries, chartThemeColors } from './composables/useEchartsTheme'
+import {
+  shortSessionId,
+  shortVisitorId,
+  useAnalyticsRouteSync,
+  type AnalyticsStep
+} from './composables/useAnalyticsRoute'
 
 const props = defineProps<{
   stats: VisitorStatsResponse | null
@@ -280,6 +327,55 @@ function onDaysChange(e: Event) {
   emit('update:statsDays', Number((e.target as HTMLSelectElement).value))
 }
 
+// ── Детализация: стек «страница → посетитель → визит» + URL-query ───────
+const detailsStack = ref<AnalyticsStep[]>([])
+/** Модалка монтируется на клиенте: ссылка из query открывается после гидрации */
+const detailsMounted = ref(false)
+
+const detailsVisible = computed({
+  get: () => detailsStack.value.length > 0,
+  set: (value: boolean) => {
+    if (!value) detailsStack.value = []
+  }
+})
+
+useAnalyticsRouteSync(detailsStack)
+
+/**
+ * Кладёт шаг в стек. Если шаг такого типа уже есть — заменяет его и
+ * отбрасывает более глубокие уровни (например, переход к другому посетителю).
+ */
+function pushStep(step: AnalyticsStep) {
+  const index = detailsStack.value.findIndex(item => item.kind === step.kind)
+  if (index >= 0) {
+    detailsStack.value = [...detailsStack.value.slice(0, index), step]
+  } else {
+    detailsStack.value = [...detailsStack.value, step]
+  }
+}
+
+function popStep() {
+  detailsStack.value = detailsStack.value.slice(0, -1)
+}
+
+function goToStep(index: number) {
+  if (index < 0 || index >= detailsStack.value.length) return
+  detailsStack.value = detailsStack.value.slice(0, index + 1)
+}
+
+/** Клик по строке таблицы «Страницы» */
+function openPage(path: string) {
+  pushStep({ kind: 'page', id: path, title: path })
+}
+
+/** Клик по визиту (история или детали страницы) */
+function openSession(sessionId: string, visitorId?: string) {
+  if (visitorId && !detailsStack.value.some(step => step.kind === 'visitor')) {
+    pushStep({ kind: 'visitor', id: visitorId, title: shortVisitorId(visitorId) })
+  }
+  pushStep({ kind: 'session', id: sessionId, title: `Визит ${shortSessionId(sessionId)}` })
+}
+
 // ── Графики ─────────────────────────────────────────────────────────────
 const dailyChartRef = ref<HTMLElement | null>(null)
 const channelsChartRef = ref<HTMLElement | null>(null)
@@ -289,78 +385,17 @@ let dailyChart: ECharts | null = null
 let channelsChart: ECharts | null = null
 let eventsChart: ECharts | null = null
 
-const dailyData = computed(() => buildDaily(props.stats?.daily || []))
-
-function toDayKey(d: Date): string {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
-
-/** Дорисовывает пропущенные дни нулями, чтобы линия была непрерывной. */
-function buildDaily(daily: VisitorDailyStat[]) {
-  const byDay = new Map(daily.map(d => [d.day, d]))
-  const keys = [...byDay.keys()].filter(Boolean).sort()
-  const labels: string[] = []
-  const visits: number[] = []
-  const conversions: number[] = []
-
-  if (!keys.length) return { labels, visits, conversions }
-
-  const start = new Date(`${keys[0]}T00:00:00`)
-  const end = new Date(`${keys[keys.length - 1]}T00:00:00`)
-  const fmt = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short' })
-
-  for (const d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const key = toDayKey(d)
-    labels.push(fmt.format(d))
-    visits.push(byDay.get(key)?.visits || 0)
-    conversions.push(byDay.get(key)?.conversions || 0)
-  }
-
-  return { labels, visits, conversions }
-}
-
-interface ThemeColors {
-  accent: string
-  success: string
-  info: string
-  warning: string
-  danger: string
-  textPrimary: string
-  textSecondary: string
-  textMuted: string
-  border: string
-  tooltipBg: string
-}
-
-function themeColors(): ThemeColors {
-  const fallback: ThemeColors = {
-    accent: '#00c3f5', success: '#3dd68c', info: '#5b8def', warning: '#f5a623', danger: '#f25f5c',
-    textPrimary: '#e2e4ec', textSecondary: '#9aa0b8', textMuted: '#7a7f96',
-    border: 'rgba(255,255,255,0.07)', tooltipBg: '#1a1e28'
-  }
-  if (typeof window === 'undefined') return fallback
-
-  const s = getComputedStyle(document.documentElement)
-  const get = (prop: string, fb: string) => s.getPropertyValue(prop).trim() || fb
+const dailyData = computed(() => {
+  const { labels, series } = buildDailySeries(props.stats?.daily || [], ['visits', 'conversions'])
   return {
-    accent: get('--crm-accent', fallback.accent),
-    success: get('--crm-success', fallback.success),
-    info: get('--crm-info', fallback.info),
-    warning: get('--crm-warning', fallback.warning),
-    danger: get('--crm-danger', fallback.danger),
-    textPrimary: get('--crm-text-primary', fallback.textPrimary),
-    textSecondary: get('--crm-text-secondary', fallback.textSecondary),
-    textMuted: get('--crm-text-muted', fallback.textMuted),
-    border: get('--crm-border', fallback.border),
-    tooltipBg: get('--crm-bg-elevated', fallback.tooltipBg)
+    labels,
+    visits: series.visits || [],
+    conversions: series.conversions || []
   }
-}
+})
 
 function dailyOption(): EChartsOption {
-  const c = themeColors()
+  const c = chartThemeColors()
   const d = dailyData.value
   return {
     backgroundColor: 'transparent',
@@ -416,7 +451,7 @@ function dailyOption(): EChartsOption {
 }
 
 function channelsOption(): EChartsOption {
-  const c = themeColors()
+  const c = chartThemeColors()
   const palette = [c.accent, c.info, c.success, c.warning, c.danger, c.textMuted]
   const data = [...(props.stats?.channels || [])]
     .filter(r => r.visits > 0)
@@ -455,7 +490,7 @@ function channelsOption(): EChartsOption {
 }
 
 function eventsOption(): EChartsOption {
-  const c = themeColors()
+  const c = chartThemeColors()
   const data = [...(props.stats?.eventTypes || [])].sort((a, b) => a.total - b.total)
   return {
     backgroundColor: 'transparent',
@@ -529,6 +564,7 @@ function onResize() {
 }
 
 onMounted(() => {
+  detailsMounted.value = true
   if (props.stats) renderCharts()
   window.addEventListener('resize', onResize)
 })
@@ -727,6 +763,32 @@ watch(() => props.stats, (s) => {
 .stats-sub { color: var(--crm-text-muted); }
 .stats-ok { color: var(--crm-success); font-weight: 600; }
 .stats-warn { color: var(--crm-warning); }
+
+/* 🖱️ Кликабельные строки таблиц (переход в детализацию) */
+.stats-row--clickable {
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 1px solid var(--crm-accent);
+    outline-offset: -1px;
+  }
+}
+
+.stats-path-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--crm-accent);
+  cursor: pointer;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &:hover { text-decoration: underline; }
+  &:focus-visible { outline: 1px solid var(--crm-accent); outline-offset: 2px; }
+}
 
 /* 🗑️ Колонка удаления визита (только администратор) */
 .stats-table .stats-col-actions {

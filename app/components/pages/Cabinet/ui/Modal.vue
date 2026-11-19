@@ -7,6 +7,7 @@
           'modal--sm': size === 'sm',
           'modal--md': size === 'md',
           'modal--lg': size === 'lg',
+          'modal--xl': size === 'xl',
         }">
           <!-- Заголовок -->
           <div v-if="title || closable" class="modal__header">
@@ -36,7 +37,7 @@ const props = withDefaults(defineProps<{
   visible?: boolean
   title?: string
   closable?: boolean
-  size?: 'sm' | 'md' | 'lg'
+  size?: 'sm' | 'md' | 'lg' | 'xl'
   closeOnClickOutside?: boolean
 }>(), {
   visible: false,
@@ -96,6 +97,10 @@ function handleOverlayClick() {
 
   &--lg {
     max-width: 820px;
+  }
+
+  &--xl {
+    max-width: 1080px;
   }
 }
 
