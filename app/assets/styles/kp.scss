@@ -37,8 +37,8 @@
 
 .kp-print {
   position: fixed;
-  right: 24px;
-  bottom: 24px;
+  right: 84px;
+  bottom: 28px;
   z-index: 50;
   display: inline-flex;
   align-items: center;
@@ -751,7 +751,7 @@
     white-space: nowrap;
   }
 
-  th.kp-table__sum { text-align: right; }
+  th.kp-table__sum, td.kp-table__sum { text-align: right; }
 }
 
 /* ============================================================

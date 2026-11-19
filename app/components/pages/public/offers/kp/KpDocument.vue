@@ -12,7 +12,7 @@
       @click="printPage"
     >
       <Icon name="material-symbols:picture-as-pdf-outline" />
-      Скачать PDF
+      Распечатать
     </button>
   </div>
 </template>
