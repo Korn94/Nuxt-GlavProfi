@@ -15,7 +15,7 @@
         </div>
 
         <!-- Правая часть: форма -->
-        <form class="inline-cta__form" novalidate @submit.prevent="handleSubmit" @focusin="onFormStart">
+        <form ref="formEl" class="inline-cta__form" novalidate @submit.prevent="handleSubmit" @focusin="onFormFocusIn" @input="microForm.onInput">
           <div class="form-row">
             <input
               :id="`${idPrefix}-name`"
@@ -70,8 +70,9 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { trackFormOpen } from '~/composables/visitor/trackerForms'
+import { bindFormMicro, observeFormView } from '~/composables/visitor/trackerFormMicro'
 
 interface MessageConfig {
   emoji: string
@@ -108,6 +109,25 @@ const formSource = (): string => props.messageConfig?.sourceLabel || 'Inline CTA
 
 /** Первое взаимодействие: фиксируем открытие формы (один раз за просмотр страницы) */
 const onFormStart = () => trackFormOpen(formSource(), { once: true })
+
+// 📊 Микро-трекинг формы: form_view (viewport) → form_focus (первый фокус) → form_typing (ввод)
+const formEl = ref<HTMLFormElement | null>(null)
+const microForm = bindFormMicro(formSource)
+let stopFormView: (() => void) | null = null
+
+const onFormFocusIn = (event: Event) => {
+  onFormStart()
+  microForm.onFocusIn(event)
+}
+
+onMounted(() => {
+  stopFormView = observeFormView(formEl.value, formSource)
+})
+
+onBeforeUnmount(() => {
+  stopFormView?.()
+  stopFormView = null
+})
 
 const status = ref<FormStatus>('idle')
 

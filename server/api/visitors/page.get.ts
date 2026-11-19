@@ -18,7 +18,7 @@
  * Данные приходят в БД с задержкой до минуты (flush реестра из памяти).
  */
 
-import { and, desc, eq, gte, inArray, sql } from 'drizzle-orm'
+import { and, desc, eq, gte, inArray, not, sql } from 'drizzle-orm'
 import { createError, getQuery } from 'h3'
 import { defineApi } from '../../utils/defineApi'
 import { db } from '../../db'
@@ -27,9 +27,13 @@ import { formatMySQLDate } from '../../utils/sessions'
 import { CHANNEL_LABELS, normalizePath, type TrafficChannel } from '../../utils/trafficSource'
 import {
   CONVERSION_EVENT_TYPES,
+  FORM_MICRO_EVENT_TYPES,
   VISITOR_EVENT_TYPES,
   isConversionEvent
 } from '../../utils/visitorTypes'
+
+/** Сколько последних микро-событий формы добавляем к таблице страницы */
+const MICRO_EVENTS_LIMIT = 50
 
 const num = (value: unknown): number => {
   const n = Number(value)
@@ -77,6 +81,7 @@ export default defineApi(async (event) => {
     scrollRows,
     eventTypeRows,
     eventRows,
+    microEventRows,
     conversionCountRows,
     conversionRows,
     sessionRows
@@ -164,7 +169,8 @@ export default defineApi(async (event) => {
       .orderBy(desc(sql`COUNT(*)`)),
 
     // Все события страницы: таблица «События» (тип + meta + переход в визит).
-    // Лимит общий с заходами на страницу (параметр limit).
+    // Лимит общий с заходами на страницу (параметр limit); микро-события формы — отдельно,
+    // чтобы показ/фокус/ввод не вытесняли из таблицы конверсии.
     db.select({
       id: ev.id,
       sessionId: ev.sessionId,
@@ -186,9 +192,43 @@ export default defineApi(async (event) => {
       .from(ev)
       .innerJoin(s, eq(ev.sessionId, s.id))
       .leftJoin(users, eq(s.linkedUserId, users.id))
-      .where(and(eq(ev.path, path), gte(ev.createdAt, border)))
+      .where(and(
+        eq(ev.path, path),
+        gte(ev.createdAt, border),
+        not(inArray(ev.type, [...FORM_MICRO_EVENT_TYPES]))
+      ))
       .orderBy(desc(ev.createdAt))
       .limit(limit),
+
+    // Микро-события формы на странице (показ / фокус / ввод) — отдельный, меньший лимит
+    db.select({
+      id: ev.id,
+      sessionId: ev.sessionId,
+      visitorId: ev.visitorId,
+      type: ev.type,
+      path: ev.path,
+      meta: ev.meta,
+      createdAt: ev.createdAt,
+      channel: s.channel,
+      utmCampaign: s.utmCampaign,
+      referrerHost: s.referrerHost,
+      visitNumber: s.visitNumber,
+      pagesCount: s.pagesCount,
+      landingPath: s.landingPath,
+      city: s.city,
+      linkedUserId: s.linkedUserId,
+      linkedUserName: users.name
+    })
+      .from(ev)
+      .innerJoin(s, eq(ev.sessionId, s.id))
+      .leftJoin(users, eq(s.linkedUserId, users.id))
+      .where(and(
+        eq(ev.path, path),
+        gte(ev.createdAt, border),
+        inArray(ev.type, [...FORM_MICRO_EVENT_TYPES])
+      ))
+      .orderBy(desc(ev.createdAt))
+      .limit(MICRO_EVENTS_LIMIT),
 
     // Сколько всего обращений на странице
     db.select({ total: sql<number>`COUNT(*)` })
@@ -325,11 +365,14 @@ export default defineApi(async (event) => {
       isConversion: isConversionEvent(type)
     })),
     eventsTotal,
-    events: eventRows.map(r => ({
-      ...r,
-      channelLabel: label(r.channel),
-      isConversion: isConversionEvent(r.type)
-    })),
+    // Конверсии/CTA + последние микро-события формы, по времени (свежие выше)
+    events: [...eventRows, ...microEventRows]
+      .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+      .map(r => ({
+        ...r,
+        channelLabel: label(r.channel),
+        isConversion: isConversionEvent(r.type)
+      })),
     conversions: conversionRows.map(r => ({ ...r, channelLabel: label(r.channel) })),
     conversionsTotal: num(conversionCountRows[0]?.total),
     sessions: sessionRows.map(r => ({ ...r, channelLabel: label(r.channel) })),

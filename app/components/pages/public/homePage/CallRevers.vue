@@ -12,7 +12,7 @@
         </p>
         <p class="dop">Консультация и замер - бесплатно</p>
       </div>
-      <form class="form" @submit.prevent="openConsentModal" @focusin="onFormFocus">
+      <form ref="formEl" class="form" @submit.prevent="openConsentModal" @focusin="onFormFocusIn" @input="microForm.onInput">
         <input type="text" class="input" placeholder="Имя" v-model="name" @input="textFilter" required />
         <input type="tel" class="input" placeholder="Телефон" v-phone-format v-model="phoneNumber" required :class="{ 'error-border': phoneError }"/>
         <UiButtonsPrimary type="submit" :disabled="isSubmitting">
@@ -30,9 +30,10 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useNotifications } from '~/composables/useNotifications'
 import { onFormInteraction } from '~/composables/visitor/trackerForms'
+import { bindFormMicro, observeFormView } from '~/composables/visitor/trackerFormMicro'
 
 // Данные формы
 const name = ref('')
@@ -44,6 +45,25 @@ const isSubmitting = ref(false)
 /** Подпись формы: одна и та же для form_open и form_submit */
 const FORM_SOURCE = 'Главная — обратный звонок'
 const onFormFocus = onFormInteraction(FORM_SOURCE)
+
+// 📊 Микро-трекинг: показ формы в viewport, первый фокус на поле, первый ввод
+const formEl = ref(null)
+const microForm = bindFormMicro(FORM_SOURCE)
+let stopFormView = null
+
+const onFormFocusIn = (event) => {
+  onFormFocus()
+  microForm.onFocusIn(event)
+}
+
+onMounted(() => {
+  stopFormView = observeFormView(formEl.value, FORM_SOURCE)
+})
+
+onBeforeUnmount(() => {
+  stopFormView?.()
+  stopFormView = null
+})
 
 // Композабл для уведомлений
 const notifications = useNotifications()

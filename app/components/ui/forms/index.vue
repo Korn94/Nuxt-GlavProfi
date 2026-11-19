@@ -1,7 +1,7 @@
 <!-- app\components\ui\forms\index.vue -->
 <template>
 <div>
-  <form @submit.prevent="submitForm">
+  <form ref="formEl" @submit.prevent="submitForm" @focusin="microForm.onFocusIn" @input="microForm.onInput">
     <!-- Блок с именем и телефоном на одной строке -->
     <div class="input-group">
       <input type="text" v-model="name" @input="textFilter" placeholder="Имя (не обязательно)" class="inline-input"/>
@@ -23,20 +23,40 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useNotifications } from '~/composables/useNotifications'
 import { trackFormOpen } from '~/composables/visitor/trackerForms'
+import { bindFormMicro, observeFormView } from '~/composables/visitor/trackerFormMicro'
 
 const notifications = useNotifications()
 
 // Опциональный источник заявки (отображается в Telegram/email)
 const props = defineProps({
   source: { type: String, default: '' },
+  // Показ формы (form_view) через Intersection Observer — только для встроенных форм
+  // (например, /contacts). В модалках не нужен: там показ == form_open при открытии.
+  microView: { type: Boolean, default: false },
 })
 
 // Открытие формы фиксируем здесь: компонент используется и в модалке, и на /contacts.
 // Для модалки это фактически «форма открыта», для встроенной — показ формы.
 onMounted(() => trackFormOpen(props.source))
+
+// 📊 Микро-трекинг: первый фокус на поле и первый ввод.
+// scope 'instance': в модалке каждое открытие — новый цикл (компонент монтируется заново).
+const formEl = ref(null)
+const microForm = bindFormMicro(() => props.source, { scope: 'instance' })
+let stopFormView = null
+
+onMounted(() => {
+  if (!props.microView) return
+  stopFormView = observeFormView(formEl.value, () => props.source)
+})
+
+onBeforeUnmount(() => {
+  stopFormView?.()
+  stopFormView = null
+})
 
 
 // Реактивные данные

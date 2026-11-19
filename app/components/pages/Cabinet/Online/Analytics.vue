@@ -70,10 +70,10 @@
         </div>
       </div>
 
-      <!-- Формы за период: заявки и доходимость -->
+      <!-- Формы за период: полная воронка «показ → открытие → фокус → ввод → заявка» -->
       <div
         class="stats-forms"
-        title="CTA — клик по кнопке, ведущей к форме (cta_click). Открытие формы — форма открыта или начато заполнение (form_open). Заявка — отправленная форма (form_submit). Доходимость — доля визитов с открытой формой, где была заявка."
+        title="CTA — клик по кнопке, ведущей к форме (cta_click). Показ — форма попала в поле зрения (form_view, только встроенные формы). Открытие — форма открыта или начато заполнение (form_open). Фокус — курсор в поле (form_focus). Ввод — начали печатать (form_typing). Заявка — отправленная форма (form_submit). Микро-события включаются точечно (см. NUXT_PUBLIC_VISITOR_MICRO_TRACKING)."
       >
         <span class="stats-forms__item">
           <Icon name="mdi:cursor-default-click-outline" size="13" />
@@ -87,6 +87,18 @@
           <Icon name="mdi:form-select" size="13" />
           Открытий формы: <b>{{ formatNumber(stats.totals?.formOpens) }}</b>
         </span>
+        <span v-if="hasMicroData" class="stats-forms__item">
+          <Icon name="mdi:eye-outline" size="13" />
+          Показ формы: <b>{{ formatNumber(stats.totals?.formViews) }}</b>
+        </span>
+        <span v-if="hasMicroData" class="stats-forms__item">
+          <Icon name="mdi:cursor-text" size="13" />
+          Фокус: <b>{{ formatNumber(stats.totals?.formFocuses) }}</b>
+        </span>
+        <span v-if="hasMicroData" class="stats-forms__item">
+          <Icon name="mdi:keyboard-outline" size="13" />
+          Ввод: <b>{{ formatNumber(stats.totals?.formTypings) }}</b>
+        </span>
         <span class="stats-forms__item">
           <Icon name="mdi:send-check-outline" size="13" />
           Визитов с отправкой: <b>{{ formatNumber(stats.totals?.formSubmits) }}</b>
@@ -99,6 +111,18 @@
           <Icon name="mdi:account-arrow-right-outline" size="13" />
           Без заявки: <b>{{ formatNumber(noLeadVisits) }}</b>
         </span>
+      </div>
+
+      <!-- Полная воронка формы: показ → открытие → фокус → ввод → отправка -->
+      <div v-if="hasMicroData" class="stats-form-ladder" title="Доли считаются от предыдущего шага (отправка — от открытий, как в «Доходимости»)">
+        <template v-for="(step, index) in microFunnel" :key="step.key">
+          <span v-if="index > 0" class="stats-form-ladder__arrow">→</span>
+          <span class="stats-form-ladder__step">
+            <span class="stats-form-ladder__label">{{ step.label }}</span>
+            <b class="stats-form-ladder__value">{{ formatNumber(step.value) }}</b>
+            <span v-if="step.share !== null" class="stats-form-ladder__share">{{ step.share }}%</span>
+          </span>
+        </template>
       </div>
 
       <!-- Графики -->
@@ -276,20 +300,23 @@
         </div>
       </div>
 
-      <!-- Воронка: CTA → открытие формы → заявка (уникальные визиты) -->
+      <!-- Воронка: CTA → показ → открытие → фокус → ввод → заявка (уникальные визиты) -->
       <div class="stats-block">
         <div class="stats-block__title">
-          CTA → форма → заявка
+          Воронка форм по страницам
           <span class="stats-chip">{{ funnelRows.length }} стр. с CTA/формами</span>
         </div>
-        <div v-if="!funnelRows.length" class="stats-empty">CTA и формы за период не открывали</div>
+        <div v-if="!funnelRows.length" class="stats-empty">CTA и формы за период не использовали</div>
         <div v-else class="stats-table-wrap">
           <table class="stats-table">
             <thead>
               <tr>
                 <th>Место формы</th>
                 <th title="Уникальные визиты с кликом по CTA (в скобках — доля визитов, где затем открыли форму)">CTA</th>
+                <th v-if="hasMicroData" title="Уникальные визиты, где форма попала в поле зрения (form_view, встроенные формы)">Показ</th>
                 <th title="Уникальные визиты с открытой формой">Открытий</th>
+                <th v-if="hasMicroData" title="Уникальные визиты с первым фокусом на поле (form_focus)">Фокус</th>
+                <th v-if="hasMicroData" title="Уникальные визиты, где начали печатать в форме (form_typing)">Ввод</th>
                 <th title="Уникальные визиты с отправленной формой">Отправок</th>
                 <th>Доходимость</th>
                 <th>Без заявки</th>
@@ -307,7 +334,25 @@
                   </span>
                   <span v-else>0</span>
                 </td>
+                <td v-if="hasMicroData">
+                  <span v-if="row.views > 0">
+                    {{ formatNumber(row.views) }}<span class="stats-sub"> · {{ row.viewToOpenRate }}%</span>
+                  </span>
+                  <span v-else>—</span>
+                </td>
                 <td>{{ formatNumber(row.opens) }}</td>
+                <td v-if="hasMicroData" :class="{ 'stats-warn': row.opens > 0 && row.openToFocusRate < 50 }">
+                  <span v-if="row.focuses > 0">
+                    {{ formatNumber(row.focuses) }}<span class="stats-sub"> · {{ row.openToFocusRate }}%</span>
+                  </span>
+                  <span v-else>—</span>
+                </td>
+                <td v-if="hasMicroData" :class="{ 'stats-warn': row.focuses > 0 && row.focusToTypingRate < 70 }">
+                  <span v-if="row.typings > 0">
+                    {{ formatNumber(row.typings) }}<span class="stats-sub"> · {{ row.focusToTypingRate }}%</span>
+                  </span>
+                  <span v-else>—</span>
+                </td>
                 <td>
                   <span v-if="row.submits > 0" class="pill pill--success">{{ formatNumber(row.submits) }}</span>
                   <span v-else>0</span>
@@ -325,7 +370,16 @@
                 <td>
                   {{ formatNumber(funnelTotals.ctaClicks) }}<span class="stats-sub"> · {{ funnelTotals.ctaToFormRate }}%</span>
                 </td>
+                <td v-if="hasMicroData">
+                  {{ formatNumber(funnelTotals.views) }}<span class="stats-sub"> · {{ funnelTotals.viewToOpenRate }}%</span>
+                </td>
                 <td>{{ formatNumber(funnelTotals.opens) }}</td>
+                <td v-if="hasMicroData">
+                  {{ formatNumber(funnelTotals.focuses) }}<span class="stats-sub"> · {{ funnelTotals.openToFocusRate }}%</span>
+                </td>
+                <td v-if="hasMicroData">
+                  {{ formatNumber(funnelTotals.typings) }}<span class="stats-sub"> · {{ funnelTotals.focusToTypingRate }}%</span>
+                </td>
                 <td>{{ formatNumber(funnelTotals.submits) }}</td>
                 <td>{{ funnelTotals.submitRate }}%</td>
                 <td>{{ formatNumber(funnelNoLead) }}</td>
@@ -419,7 +473,7 @@
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import type { ECharts, EChartsOption } from 'echarts'
 import { echarts } from '~/lib/echarts'
-import { isConversionEvent } from 'shared/constants/visitorEvents'
+import { isConversionEvent, isFormMicroEvent } from 'shared/constants/visitorEvents'
 import type { VisitorEventRow, VisitorStatsResponse, VisitorVisit } from '~/types'
 import { useOnlineFormatters } from './composables/useOnlineFormatters'
 import { buildDailySeries, chartThemeColors } from './composables/useEchartsTheme'
@@ -467,19 +521,22 @@ type EventFilterKey = 'all' | 'conversion' | 'form_open' | 'other'
 const EVENT_FILTER_HINTS: Record<EventFilterKey, string> = {
   all: 'Все события посетителей за период',
   conversion: 'Обращения: клик по телефону, мессенджеру, email и отправка формы',
-  form_open: 'Форма открыта или начата, но заявка не отправлена',
+  form_open: 'Работа с формой: открытие/начало заполнения (form_open) и микро-события — показ, фокус, ввод',
   other: 'Прочие события: клики по CTA'
 }
 
 const eventFilter = ref<EventFilterKey>('all')
 
+/** Микро-события формы: показ / фокус / ввод (учитываются в группе «Открытия формы») */
+const isFormEvent = (type: string) => type === 'form_open' || isFormMicroEvent(type)
+
 /** Счётчики по группам (полные за период, не только загруженная сотня) */
 const eventTabs = computed(() => {
   const stats = props.stats?.eventStats || []
   const conversionTotal = stats.filter(s => s.isConversion).reduce((sum, s) => sum + s.total, 0)
-  const formOpenTotal = stats.find(s => s.type === 'form_open')?.total || 0
+  const formOpenTotal = stats.filter(s => isFormEvent(s.type)).reduce((sum, s) => sum + s.total, 0)
   const otherTotal = stats
-    .filter(s => !s.isConversion && s.type !== 'form_open')
+    .filter(s => !s.isConversion && !isFormEvent(s.type))
     .reduce((sum, s) => sum + s.total, 0)
   const allTotal = stats.reduce((sum, s) => sum + s.total, 0) || (props.stats?.eventsTotal || 0)
 
@@ -495,8 +552,8 @@ const filteredEvents = computed<VisitorEventRow[]>(() => {
   const events = props.stats?.events || []
   switch (eventFilter.value) {
     case 'conversion': return events.filter(row => isConversionEvent(row.type))
-    case 'form_open': return events.filter(row => row.type === 'form_open')
-    case 'other': return events.filter(row => !isConversionEvent(row.type) && row.type !== 'form_open')
+    case 'form_open': return events.filter(row => isFormEvent(row.type))
+    case 'other': return events.filter(row => !isConversionEvent(row.type) && !isFormEvent(row.type))
     default: return events
   }
 })
@@ -528,10 +585,52 @@ const funnelRows = computed(() => (props.stats?.formFunnel || []).map(row => ({
 })))
 
 const funnelTotals = computed(() => props.stats?.formFunnelTotals || {
-  ctaClicks: 0, opens: 0, submits: 0, ctaToFormRate: 0, submitRate: 0, submitEvents: 0
+  ctaClicks: 0,
+  views: 0,
+  opens: 0,
+  focuses: 0,
+  typings: 0,
+  submits: 0,
+  ctaToFormRate: 0,
+  viewToOpenRate: 0,
+  openToFocusRate: 0,
+  focusToTypingRate: 0,
+  submitRate: 0,
+  submitEvents: 0
 })
 
 const funnelNoLead = computed(() => Math.max(0, funnelTotals.value.opens - funnelTotals.value.submits))
+
+/** Есть ли данные микро-трекинга: иначе шаги «показ/фокус/ввод» не показываем */
+const hasMicroData = computed(() => {
+  const t = props.stats?.totals
+  return ((t?.formViews ?? 0) + (t?.formFocuses ?? 0) + (t?.formTypings ?? 0)) > 0
+})
+
+interface MicroFunnelStep {
+  key: string
+  label: string
+  value: number
+  /** Доля от предыдущего шага (у «показа» базы нет) */
+  share: number | null
+}
+
+/** Полная воронка формы: показ → открытие → фокус → ввод → отправка */
+const microFunnel = computed<MicroFunnelStep[]>(() => {
+  const t = funnelTotals.value
+  const views = t.views ?? 0
+  const focuses = t.focuses ?? 0
+  const typings = t.typings ?? 0
+  const steps: MicroFunnelStep[] = [
+    { key: 'view', label: 'Показ формы', value: views, share: null },
+    { key: 'open', label: 'Открытие', value: t.opens, share: views ? t.viewToOpenRate : null },
+    { key: 'focus', label: 'Фокус', value: focuses, share: t.opens ? t.openToFocusRate : null },
+    { key: 'typing', label: 'Ввод', value: typings, share: focuses ? t.focusToTypingRate : null },
+    { key: 'submit', label: 'Отправка', value: t.submits, share: t.opens ? t.submitRate : null }
+  ]
+  // form_view фиксируется только у встроенных форм: если показов нет, шаг не показываем
+  return views > 0 ? steps : steps.slice(1)
+})
 
 /** Визиты, где форма открыта, но заявки не было (по сводке) */
 const noLeadVisits = computed(() => Math.max(
@@ -866,6 +965,47 @@ watch(() => props.stats, (s) => {
 
   @media (max-width: 480px) {
     gap: 4px 10px;
+  }
+}
+
+/* 🔻 Полная воронка формы: показ → открытие → фокус → ввод → отправка */
+.stats-form-ladder {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: var(--crm-bg-elevated);
+  border: 1px dashed var(--crm-border);
+  border-radius: var(--crm-radius-md);
+  font-size: var(--crm-text-xs);
+
+  &__step {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    white-space: nowrap;
+  }
+
+  &__label {
+    color: var(--crm-text-muted);
+  }
+
+  &__value {
+    color: var(--crm-text-primary);
+    font-family: var(--crm-font-mono);
+    font-weight: 700;
+  }
+
+  &__share {
+    color: var(--crm-accent);
+    font-family: var(--crm-font-mono);
+  }
+
+  &__arrow {
+    color: var(--crm-text-muted);
+    opacity: 0.6;
   }
 }
 

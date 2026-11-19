@@ -308,6 +308,13 @@ export default defineNuxtConfig({
       // Явный адрес сокет-сервера (если он не на том же origin, например dev-стенд).
       // Пусто → клиент строит адрес сам: prod — window.location, dev — hostname:порт.
       socketUrl: process.env.NUXT_PUBLIC_SOCKET_URL || '',
+      // 📊 Микро-трекинг форм (form_view / form_focus / form_typing) — см.
+      // app/composables/visitor/trackerFormMicro.ts. Включён по умолчанию;
+      // выключить полностью: NUXT_PUBLIC_VISITOR_MICRO_TRACKING=false.
+      visitorMicroTracking: process.env.NUXT_PUBLIC_VISITOR_MICRO_TRACKING !== 'false',
+      // Опциональный allowlist подписей форм (как source у form_open), через запятую:
+      // NUXT_PUBLIC_VISITOR_MICRO_SOURCES="Футер — обратный звонок,Hero-форма: Офисы"
+      visitorMicroSources: process.env.NUXT_PUBLIC_VISITOR_MICRO_SOURCES || '',
     },
     private: {
       dbHost: process.env.NUXT_DB_HOST,

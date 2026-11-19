@@ -12,6 +12,10 @@
  * Цепочка вовлечения: cta_click → form_open → form_submit.
  * meta у cta_click: { cta: 'Раздел — кнопка', target: 'подпись формы (= source)', href? },
  * где target совпадает с meta.source у form_open и source в /api/send-message.
+ *
+ * Микро-события формы (опциональные, включаются точечно на конкретных формах):
+ * form_view (форма попала в viewport) → form_focus (фокус в поле) →
+ * form_typing (первый ввод) — детализация «застревания» между form_open и form_submit.
  */
 
 export const VISITOR_EVENT_TYPES = [
@@ -21,7 +25,10 @@ export const VISITOR_EVENT_TYPES = [
   'click_email',
   'form_open',
   'form_submit',
-  'cta_click'
+  'cta_click',
+  'form_view',
+  'form_focus',
+  'form_typing'
 ] as const
 
 export type VisitorEventType = (typeof VISITOR_EVENT_TYPES)[number]
@@ -38,7 +45,10 @@ export const CONVERSION_EVENT_TYPES: readonly VisitorEventType[] = [
 /** События-вовлечения: действие было, но обращения/заявки нет */
 export const ENGAGEMENT_EVENT_TYPES: readonly VisitorEventType[] = [
   'form_open',
-  'cta_click'
+  'cta_click',
+  'form_view',
+  'form_focus',
+  'form_typing'
 ]
 
 /** Заявка: форма успешно отправлена (фиксируется сервером) */
@@ -50,6 +60,22 @@ export const FORM_OPEN_EVENT_TYPE: VisitorEventType = 'form_open'
 /** Клик по CTA-кнопке: вовлечение до открытия формы */
 export const CTA_CLICK_EVENT_TYPE: VisitorEventType = 'cta_click'
 
+/** Форма попала в поле зрения пользователя (встроенные формы, Intersection Observer) */
+export const FORM_VIEW_EVENT_TYPE: VisitorEventType = 'form_view'
+
+/** Первый фокус на поле формы */
+export const FORM_FOCUS_EVENT_TYPE: VisitorEventType = 'form_focus'
+
+/** Первый ввод в поле формы */
+export const FORM_TYPING_EVENT_TYPE: VisitorEventType = 'form_typing'
+
+/** Микро-события формы: детализация воронки между form_open и form_submit */
+export const FORM_MICRO_EVENT_TYPES: readonly VisitorEventType[] = [
+  'form_view',
+  'form_focus',
+  'form_typing'
+]
+
 export const VISITOR_EVENT_LABELS: Record<VisitorEventType, string> = {
   click_phone: 'Клик по телефону',
   copy_phone: 'Копирование телефона',
@@ -57,7 +83,10 @@ export const VISITOR_EVENT_LABELS: Record<VisitorEventType, string> = {
   click_email: 'Email',
   form_open: 'Открытие формы',
   form_submit: 'Отправка формы',
-  cta_click: 'Клик по CTA'
+  cta_click: 'Клик по CTA',
+  form_view: 'Показ формы',
+  form_focus: 'Фокус на поле',
+  form_typing: 'Ввод в форму'
 }
 
 /** Группы событий для фильтров в интерфейсе аналитики */
@@ -73,6 +102,11 @@ export function isConversionEvent(type: string): boolean {
 
 export function isLeadEvent(type: string): boolean {
   return type === LEAD_EVENT_TYPE
+}
+
+/** Микро-событие формы (form_view / form_focus / form_typing) */
+export function isFormMicroEvent(type: string): boolean {
+  return (FORM_MICRO_EVENT_TYPES as readonly string[]).includes(type)
 }
 
 export function eventGroupOf(type: string): VisitorEventGroup {

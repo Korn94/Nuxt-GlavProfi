@@ -1,6 +1,6 @@
 <!-- app/components/pages/public/remontPomescheniy/ui/CtaForm.vue -->
 <template>
-  <form class="cta-form" novalidate @submit.prevent="handleSubmit" @focusin="onFormStart">
+  <form ref="formEl" class="cta-form" novalidate @submit.prevent="handleSubmit" @focusin="onFormFocusIn" @input="microForm.onInput">
     <!-- ==================== ИМЯ ==================== -->
     <div class="form-field">
       <label class="form-field__label" :for="`${idPrefix}-name`">
@@ -152,8 +152,9 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { trackFormOpen } from '~/composables/visitor/trackerForms'
+import { bindFormMicro, observeFormView } from '~/composables/visitor/trackerFormMicro'
 
 // === Типы ===
 interface CustomField {
@@ -213,6 +214,25 @@ const formSource = (): string => props.messageConfig?.sourceLabel || 'CTA-фор
 
 /** Первое взаимодействие: фиксируем открытие формы (один раз за просмотр страницы) */
 const onFormStart = () => trackFormOpen(formSource(), { once: true })
+
+// 📊 Микро-трекинг формы: form_view (viewport) → form_focus (первый фокус) → form_typing (ввод)
+const formEl = ref<HTMLFormElement | null>(null)
+const microForm = bindFormMicro(formSource)
+let stopFormView: (() => void) | null = null
+
+const onFormFocusIn = (event: Event) => {
+  onFormStart()
+  microForm.onFocusIn(event)
+}
+
+onMounted(() => {
+  stopFormView = observeFormView(formEl.value, formSource)
+})
+
+onBeforeUnmount(() => {
+  stopFormView?.()
+  stopFormView = null
+})
 
 // === Состояние формы ===
 const createInitialState = () => {

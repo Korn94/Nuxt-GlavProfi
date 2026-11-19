@@ -287,7 +287,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { ECharts, EChartsOption } from 'echarts'
 import { echarts } from '~/lib/echarts'
 import { useApi } from '~/composables/useApi'
-import { isConversionEvent } from 'shared/constants/visitorEvents'
+import { isConversionEvent, isFormMicroEvent } from 'shared/constants/visitorEvents'
 import type { VisitorEventRow, VisitorPageDetailsResponse } from '~/types'
 import { useOnlineFormatters } from './composables/useOnlineFormatters'
 import { buildDailySeries, chartThemeColors } from './composables/useEchartsTheme'
@@ -383,19 +383,22 @@ type EventFilterKey = 'all' | 'conversion' | 'form_open' | 'other'
 const EVENT_FILTER_HINTS: Record<EventFilterKey, string> = {
   all: 'Все события посетителей на этой странице за период',
   conversion: 'Обращения: клик по телефону, мессенджеру, email и отправка формы',
-  form_open: 'Форма открыта или начата, но заявка не отправлена',
+  form_open: 'Работа с формой: открытие/начало заполнения (form_open) и микро-события — показ, фокус, ввод',
   other: 'Прочие события: клики по CTA'
 }
 
 const eventFilter = ref<EventFilterKey>('all')
 
+/** Микро-события формы: показ / фокус / ввод (учитываются в группе «Открытия формы») */
+const isFormEvent = (type: string) => type === 'form_open' || isFormMicroEvent(type)
+
 /** Счётчики по группам (полные за период, не только загруженная сотня) */
 const eventTabs = computed(() => {
   const stats = data.value?.eventStats || []
   const conversionTotal = stats.filter(s => s.isConversion).reduce((sum, s) => sum + s.total, 0)
-  const formOpenTotal = stats.find(s => s.type === 'form_open')?.total || 0
+  const formOpenTotal = stats.filter(s => isFormEvent(s.type)).reduce((sum, s) => sum + s.total, 0)
   const otherTotal = stats
-    .filter(s => !s.isConversion && s.type !== 'form_open')
+    .filter(s => !s.isConversion && !isFormEvent(s.type))
     .reduce((sum, s) => sum + s.total, 0)
   const allTotal = stats.reduce((sum, s) => sum + s.total, 0) || (data.value?.eventsTotal || 0)
 
@@ -411,8 +414,8 @@ const filteredEvents = computed<VisitorEventRow[]>(() => {
   const events = data.value?.events || []
   switch (eventFilter.value) {
     case 'conversion': return events.filter(row => isConversionEvent(row.type))
-    case 'form_open': return events.filter(row => row.type === 'form_open')
-    case 'other': return events.filter(row => !isConversionEvent(row.type) && row.type !== 'form_open')
+    case 'form_open': return events.filter(row => isFormEvent(row.type))
+    case 'other': return events.filter(row => !isConversionEvent(row.type) && !isFormEvent(row.type))
     default: return events
   }
 })

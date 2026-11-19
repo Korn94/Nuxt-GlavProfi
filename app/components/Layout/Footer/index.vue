@@ -77,7 +77,7 @@
       <div class="footer-social">
         <h3 class="footer-title">Обратный звонок</h3>
         <!-- Форма связи -->
-        <form class="footer-contact-form" @submit.prevent="openConsentModal" @focusin="onFooterFormFocus">
+        <form ref="formEl" class="footer-contact-form" @submit.prevent="openConsentModal" @focusin="onFooterFormFocusIn" @input="microForm.onInput">
           <input type="tel" v-model="phoneNumber" v-phone-format placeholder="Обратный звонок" required
             :class="{ 'error-border': phoneError }" :disabled="isSubmitting" />
           <!-- Изменили type="button" на type="submit" и убрали @click -->
@@ -124,11 +124,12 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useNotifications } from '~/composables/useNotifications'
 import { copyToClipboard } from '~/utils/clipboard'
 import { trackVisitorEvent } from '~/composables/useVisitorTracker'
 import { onFormInteraction } from '~/composables/visitor/trackerForms'
+import { bindFormMicro, observeFormView } from '~/composables/visitor/trackerFormMicro'
 
 // Данные
 const currentYear = new Date().getFullYear()
@@ -140,6 +141,25 @@ const isSubmitting = ref(false)
 /** Подпись формы: одна и та же для form_open и form_submit */
 const FOOTER_FORM_SOURCE = 'Футер — обратный звонок'
 const onFooterFormFocus = onFormInteraction(FOOTER_FORM_SOURCE)
+
+// 📊 Микро-трекинг: показ формы в viewport, первый фокус на поле, первый ввод
+const formEl = ref(null)
+const microForm = bindFormMicro(FOOTER_FORM_SOURCE)
+let stopFormView = null
+
+const onFooterFormFocusIn = (event) => {
+  onFooterFormFocus()
+  microForm.onFocusIn(event)
+}
+
+onMounted(() => {
+  stopFormView = observeFormView(formEl.value, FOOTER_FORM_SOURCE)
+})
+
+onBeforeUnmount(() => {
+  stopFormView?.()
+  stopFormView = null
+})
 
 // Композабл для уведомлений
 const notifications = useNotifications()

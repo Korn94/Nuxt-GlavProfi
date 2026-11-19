@@ -220,24 +220,42 @@ export interface VisitorEventTypeStat {
   isConversion: boolean
 }
 
-/** Воронка формы по странице: CTA → открытия → отправки (уникальные визиты) */
+/** Воронка формы по странице: CTA → показ → открытия → фокус → ввод → отправки (уникальные визиты) */
 export interface VisitorFormFunnelRow {
   path: string | null
   /** Визиты с кликом по CTA на этой странице */
   ctaClicks: number
+  /** Визиты, где форма попала в viewport (только встроенные формы, form_view) */
+  views: number
   opens: number
+  /** Визиты с первым фокусом на поле формы (form_focus) */
+  focuses: number
+  /** Визиты, где начали печатать в форме (form_typing) */
+  typings: number
   submits: number
   /** % визитов с кликом CTA, где затем открыли форму */
   ctaToFormRate: number
+  /** % визитов с показом формы, где затем открыли/начали форму */
+  viewToOpenRate: number
+  /** % визитов с открытой формой, где поставили курсор в поле */
+  openToFocusRate: number
+  /** % визитов с фокусом на поле, где начали печатать */
+  focusToTypingRate: number
   /** % визитов с открытой формой, где форма была отправлена */
   submitRate: number
 }
 
 export interface VisitorFormFunnelTotals {
   ctaClicks: number
+  views: number
   opens: number
+  focuses: number
+  typings: number
   submits: number
   ctaToFormRate: number
+  viewToOpenRate: number
+  openToFocusRate: number
+  focusToTypingRate: number
   submitRate: number
   /** Всего отправок формы (событий, не визитов) */
   submitEvents: number
@@ -256,8 +274,14 @@ export interface VisitorTotals {
   leadEvents: number
   /** Визиты, в которых кликали по CTA */
   ctaClicks: number
+  /** Визиты, где форма попала в viewport (встроенные формы) */
+  formViews: number
   /** Визиты, в которых открывали/начинали форму */
   formOpens: number
+  /** Визиты с первым фокусом на поле формы */
+  formFocuses: number
+  /** Визиты, где начали печатать в форме */
+  formTypings: number
   /** Визиты, в которых отправляли форму */
   formSubmits: number
   /** % визитов с открытой формой, где была отправка */

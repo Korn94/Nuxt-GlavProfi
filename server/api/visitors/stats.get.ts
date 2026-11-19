@@ -6,7 +6,8 @@
  * - pages: страницы (просмотры, среднее время, скролл, выходы);
  * - eventTypes / eventStats: количество событий по типам;
  * - events: последние события ВСЕХ типов (клик, форма, CTA) с местом и meta;
- * - formFunnel: воронка «CTA → форма открыта → заявка отправлена» по страницам;
+ * - formFunnel: воронка «CTA → показ формы → открытие → фокус → ввод → заявка» по страницам
+ *   (form_view / form_focus / form_typing — опциональные микро-события);
  * - conversions: последние обращения с источником и путём посетителя;
  * - visits: последние визиты.
  *
@@ -14,7 +15,7 @@
  * Данные приходят в БД с задержкой до минуты (flush реестра из памяти).
  */
 
-import { and, desc, eq, gte, inArray, sql } from 'drizzle-orm'
+import { and, desc, eq, gte, inArray, not, sql } from 'drizzle-orm'
 import { getQuery } from 'h3'
 import { defineApi } from '../../utils/defineApi'
 import { db } from '../../db'
@@ -24,7 +25,11 @@ import { CHANNEL_LABELS, type TrafficChannel } from '../../utils/trafficSource'
 import {
   CONVERSION_EVENT_TYPES,
   CTA_CLICK_EVENT_TYPE,
+  FORM_FOCUS_EVENT_TYPE,
+  FORM_MICRO_EVENT_TYPES,
   FORM_OPEN_EVENT_TYPE,
+  FORM_TYPING_EVENT_TYPE,
+  FORM_VIEW_EVENT_TYPE,
   LEAD_EVENT_TYPE,
   VISITOR_EVENT_TYPES,
   isConversionEvent
@@ -32,6 +37,9 @@ import {
 
 /** Сколько последних событий отдаём в таблицу (полное число — eventsTotal) */
 const EVENTS_LIMIT = 100
+
+/** Сколько последних микро-событий формы добавляем к таблице (не вытесняют конверсии) */
+const MICRO_EVENTS_LIMIT = 50
 
 const num = (value: unknown): number => {
   const n = Number(value)
@@ -51,14 +59,26 @@ export default defineApi(async (event) => {
   const pv = siteVisitorPageviews
   const ev = siteVisitorEvents
 
-  // Воронка CTA/формы считается по уникальным визитам: одно действие на визит
+  // Воронка CTA/формы считается по уникальным визитам: одно действие на визит.
+  // form_view / form_focus / form_typing — микро-события (опциональные): показ формы,
+  // первый фокус на поле, первый ввод.
   const formEvents = and(
     gte(ev.createdAt, border),
-    inArray(ev.type, [CTA_CLICK_EVENT_TYPE, FORM_OPEN_EVENT_TYPE, LEAD_EVENT_TYPE])
+    inArray(ev.type, [
+      CTA_CLICK_EVENT_TYPE,
+      FORM_OPEN_EVENT_TYPE,
+      LEAD_EVENT_TYPE,
+      FORM_VIEW_EVENT_TYPE,
+      FORM_FOCUS_EVENT_TYPE,
+      FORM_TYPING_EVENT_TYPE
+    ])
   )
   const ctaClicksExpr = sql<number>`COUNT(DISTINCT CASE WHEN ${ev.type} = ${CTA_CLICK_EVENT_TYPE} THEN ${ev.sessionId} END)`
   const formOpensExpr = sql<number>`COUNT(DISTINCT CASE WHEN ${ev.type} = ${FORM_OPEN_EVENT_TYPE} THEN ${ev.sessionId} END)`
   const formSubmitsExpr = sql<number>`COUNT(DISTINCT CASE WHEN ${ev.type} = ${LEAD_EVENT_TYPE} THEN ${ev.sessionId} END)`
+  const formViewsExpr = sql<number>`COUNT(DISTINCT CASE WHEN ${ev.type} = ${FORM_VIEW_EVENT_TYPE} THEN ${ev.sessionId} END)`
+  const formFocusesExpr = sql<number>`COUNT(DISTINCT CASE WHEN ${ev.type} = ${FORM_FOCUS_EVENT_TYPE} THEN ${ev.sessionId} END)`
+  const formTypingsExpr = sql<number>`COUNT(DISTINCT CASE WHEN ${ev.type} = ${FORM_TYPING_EVENT_TYPE} THEN ${ev.sessionId} END)`
 
   const [
     channelRows,
@@ -70,6 +90,7 @@ export default defineApi(async (event) => {
     dailyRows,
     totalsRows,
     eventRows,
+    microEventRows,
     eventTotalRows,
     formFunnelRows,
     formTotalsRows
@@ -160,7 +181,8 @@ export default defineApi(async (event) => {
       avgPages: sql<number>`COALESCE(AVG(${s.pagesCount}), 0)`
     }).from(s).where(gte(s.startedAt, border)),
 
-    // Все события за период: таблица «События» (место + meta + переход в визит)
+    // Все события за период: таблица «События» (место + meta + переход в визит).
+    // Микро-события формы идут отдельной выборкой, чтобы не вытеснять конверсии из сотни.
     db.select({
       id: ev.id,
       sessionId: ev.sessionId,
@@ -181,9 +203,34 @@ export default defineApi(async (event) => {
     }).from(ev)
       .innerJoin(s, eq(ev.sessionId, s.id))
       .leftJoin(users, eq(s.linkedUserId, users.id))
-      .where(gte(ev.createdAt, border))
+      .where(and(gte(ev.createdAt, border), not(inArray(ev.type, [...FORM_MICRO_EVENT_TYPES]))))
       .orderBy(desc(ev.createdAt))
       .limit(EVENTS_LIMIT),
+
+    // Микро-события формы за период (показ / фокус / ввод) — отдельный, меньший лимит
+    db.select({
+      id: ev.id,
+      sessionId: ev.sessionId,
+      visitorId: ev.visitorId,
+      type: ev.type,
+      path: ev.path,
+      meta: ev.meta,
+      createdAt: ev.createdAt,
+      channel: s.channel,
+      utmCampaign: s.utmCampaign,
+      referrerHost: s.referrerHost,
+      visitNumber: s.visitNumber,
+      pagesCount: s.pagesCount,
+      landingPath: s.landingPath,
+      city: s.city,
+      linkedUserId: s.linkedUserId,
+      linkedUserName: users.name
+    }).from(ev)
+      .innerJoin(s, eq(ev.sessionId, s.id))
+      .leftJoin(users, eq(s.linkedUserId, users.id))
+      .where(and(gte(ev.createdAt, border), inArray(ev.type, [...FORM_MICRO_EVENT_TYPES])))
+      .orderBy(desc(ev.createdAt))
+      .limit(MICRO_EVENTS_LIMIT),
 
     db.select({
       total: sql<number>`COUNT(*)`
@@ -192,7 +239,10 @@ export default defineApi(async (event) => {
     db.select({
       path: ev.path,
       ctaClicks: ctaClicksExpr,
+      views: formViewsExpr,
       opens: formOpensExpr,
+      focuses: formFocusesExpr,
+      typings: formTypingsExpr,
       submits: formSubmitsExpr
     }).from(ev)
       .where(formEvents)
@@ -202,7 +252,10 @@ export default defineApi(async (event) => {
 
     db.select({
       ctaClicks: ctaClicksExpr,
+      views: formViewsExpr,
       opens: formOpensExpr,
+      focuses: formFocusesExpr,
+      typings: formTypingsExpr,
       submits: formSubmitsExpr,
       submitEvents: sql<number>`COALESCE(SUM(CASE WHEN ${ev.type} = ${LEAD_EVENT_TYPE} THEN 1 ELSE 0 END), 0)`
     }).from(ev).where(formEvents)
@@ -220,6 +273,9 @@ export default defineApi(async (event) => {
   const ctaClicksTotal = num(formTotals?.ctaClicks)
   const formOpensTotal = num(formTotals?.opens)
   const formSubmitsTotal = num(formTotals?.submits)
+  const formViewsTotal = num(formTotals?.views)
+  const formFocusesTotal = num(formTotals?.focuses)
+  const formTypingsTotal = num(formTotals?.typings)
 
   return {
     days,
@@ -233,7 +289,10 @@ export default defineApi(async (event) => {
       avgPages: Math.round(num(totalsRow?.avgPages) * 10) / 10,
       leadEvents: num(formTotals?.submitEvents),
       ctaClicks: ctaClicksTotal,
+      formViews: formViewsTotal,
       formOpens: formOpensTotal,
+      formFocuses: formFocusesTotal,
+      formTypings: formTypingsTotal,
       formSubmits: formSubmitsTotal,
       formSubmitRate: pct(formSubmitsTotal, formOpensTotal)
     },
@@ -277,29 +336,49 @@ export default defineApi(async (event) => {
       isConversion: isConversionEvent(type)
     })),
     eventsTotal: num(eventTotalRows?.[0]?.total),
-    events: eventRows.map(r => ({
-      ...r,
-      channelLabel: label(r.channel),
-      isConversion: isConversionEvent(r.type)
-    })),
+    // Основная сотня событий + последние микро-события формы, по времени (свежие выше)
+    events: [...eventRows, ...microEventRows]
+      .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+      .map(r => ({
+        ...r,
+        channelLabel: label(r.channel),
+        isConversion: isConversionEvent(r.type)
+      })),
     formFunnel: formFunnelRows.map((r) => {
       const ctaClicks = num(r.ctaClicks)
+      const views = num(r.views)
       const opens = num(r.opens)
+      const focuses = num(r.focuses)
+      const typings = num(r.typings)
       const submits = num(r.submits)
       return {
         path: r.path,
         ctaClicks,
+        views,
         opens,
+        focuses,
+        typings,
         submits,
         ctaToFormRate: pct(opens, ctaClicks),
+        // Показ → открытие: осмысленно для встроенных форм (у модалок form_view нет)
+        viewToOpenRate: pct(opens, views),
+        // Открытие → фокус → ввод: где именно пользователь застревает в форме
+        openToFocusRate: pct(focuses, opens),
+        focusToTypingRate: pct(typings, focuses),
         submitRate: pct(submits, opens)
       }
     }),
     formFunnelTotals: {
       ctaClicks: ctaClicksTotal,
+      views: formViewsTotal,
       opens: formOpensTotal,
+      focuses: formFocusesTotal,
+      typings: formTypingsTotal,
       submits: formSubmitsTotal,
       ctaToFormRate: pct(formOpensTotal, ctaClicksTotal),
+      viewToOpenRate: pct(formOpensTotal, formViewsTotal),
+      openToFocusRate: pct(formFocusesTotal, formOpensTotal),
+      focusToTypingRate: pct(formTypingsTotal, formFocusesTotal),
       submitRate: pct(formSubmitsTotal, formOpensTotal),
       submitEvents: num(formTotals?.submitEvents)
     },

@@ -55,7 +55,7 @@
                 </div>
               </header>
 
-              <form class="lead-modal__form" novalidate @submit.prevent="submitForm">
+              <form class="lead-modal__form" novalidate @submit.prevent="submitForm" @focusin="microForm.onFocusIn" @input="microForm.onInput">
                 <!-- Имя -->
                 <div class="form-field">
                   <label class="form-label" :for="`${idPrefix}-name`">
@@ -149,6 +149,7 @@
 <script setup lang="ts">
 import { ref, reactive, watch, onMounted, onBeforeUnmount, nextTick, computed } from 'vue'
 import { trackFormOpen } from '~/composables/visitor/trackerForms'
+import { bindFormMicro } from '~/composables/visitor/trackerFormMicro'
 import type { CalculationResult, CalculatorState, WorkUnit } from '~/types/calculator'
 
 // -----------------------------------------------------------------------------
@@ -189,6 +190,10 @@ const form = reactive({
 })
 
 const errors = reactive<{ phone?: string; consent?: string }>({})
+
+// 📊 Микро-трекинг формы заявки: первый фокус на поле и первый ввод (form_focus / form_typing).
+// form_view для модалки не нужен: показ формы == form_open при открытии (см. trackFormOpen выше).
+const microForm = bindFormMicro(() => props.sourceLabel, { scope: 'instance' })
 
 // -----------------------------------------------------------------------------
 // 3. Хелперы
@@ -240,6 +245,8 @@ watch(
     if (open) {
       // 📊 Открытие формы заявки калькулятора (каждое открытие — отдельное событие)
       trackFormOpen(props.sourceLabel)
+      // Новое открытие — новый цикл микро-событий (форма в шаблоне под v-if, но биндинг живёт в setup)
+      microForm.reset()
       document.body.style.overflow = 'hidden'
       // Фокус на первое поле после открытия
       nextTick(() => {

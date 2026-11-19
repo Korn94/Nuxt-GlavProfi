@@ -1,6 +1,6 @@
 <!-- app/components/pages/public/remontPomescheniy/ui/MiniEstimateForm.vue -->
 <template>
-  <form class="mini-form" novalidate @submit.prevent="submitForm" @focusin="onFormStart">
+  <form ref="formEl" class="mini-form" novalidate @submit.prevent="submitForm" @focusin="onFormFocusIn" @input="microForm.onInput">
     <h3 class="mini-form__title">Быстрый расчёт стоимости</h3>
     <p class="mini-form__subtitle">Ответим в течение 24 часов</p>
 
@@ -121,8 +121,9 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, computed } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { trackFormOpen } from '~/composables/visitor/trackerForms'
+import { bindFormMicro, observeFormView } from '~/composables/visitor/trackerFormMicro'
 
 type FormStatus = 'idle' | 'submitting' | 'success' | 'error'
 
@@ -257,6 +258,25 @@ const formSource = (): string => `Hero-форма: ${getRoomTypeLabel(props.room
 
 /** Первое взаимодействие: фиксируем открытие формы (один раз за просмотр страницы) */
 const onFormStart = () => trackFormOpen(formSource(), { once: true })
+
+// 📊 Микро-трекинг формы: form_view (viewport) → form_focus (первый фокус) → form_typing (ввод)
+const formEl = ref<HTMLFormElement | null>(null)
+const microForm = bindFormMicro(formSource)
+let stopFormView: (() => void) | null = null
+
+const onFormFocusIn = (event: Event) => {
+  onFormStart()
+  microForm.onFocusIn(event)
+}
+
+onMounted(() => {
+  stopFormView = observeFormView(formEl.value, formSource)
+})
+
+onBeforeUnmount(() => {
+  stopFormView?.()
+  stopFormView = null
+})
 
 // === Формирование HTML-сообщения для Telegram/Email ===
 const buildMessage = (): string => {
