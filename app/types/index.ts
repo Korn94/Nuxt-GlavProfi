@@ -190,6 +190,53 @@ export interface VisitorDailyStat {
   conversions: number
 }
 
+/** Событие посетителя (строка таблицы «События») */
+export interface VisitorEventRow {
+  id: number
+  sessionId: string
+  visitorId: string
+  type: string
+  path: string | null
+  meta: Record<string, string | number | boolean | null> | null
+  createdAt: string
+  channel: string
+  channelLabel: string
+  utmCampaign: string | null
+  referrerHost: string | null
+  visitNumber: number
+  pagesCount: number
+  landingPath: string | null
+  city: string | null
+  linkedUserId: number | null
+  linkedUserName: string | null
+  /** Событие считается обращением (конверсией) */
+  isConversion: boolean
+}
+
+/** Счётчик событий по типу (чипы-фильтры) */
+export interface VisitorEventTypeStat {
+  type: string
+  total: number
+  isConversion: boolean
+}
+
+/** Воронка формы по странице: открытия → отправки (уникальные визиты) */
+export interface VisitorFormFunnelRow {
+  path: string | null
+  opens: number
+  submits: number
+  /** % визитов с открытой формой, где форма была отправлена */
+  submitRate: number
+}
+
+export interface VisitorFormFunnelTotals {
+  opens: number
+  submits: number
+  submitRate: number
+  /** Всего отправок формы (событий, не визитов) */
+  submitEvents: number
+}
+
 /** Сводные показатели за выбранный период */
 export interface VisitorTotals {
   visits: number
@@ -199,6 +246,14 @@ export interface VisitorTotals {
   bounceRate: number       // % отказов
   avgSeconds: number
   avgPages: number
+  /** Заявки (form_submit) за период, штук */
+  leadEvents: number
+  /** Визиты, в которых открывали/начинали форму */
+  formOpens: number
+  /** Визиты, в которых отправляли форму */
+  formSubmits: number
+  /** % визитов с открытой формой, где была отправка */
+  formSubmitRate: number
 }
 
 /** Ответ GET /api/visitors/stats */
@@ -208,7 +263,17 @@ export interface VisitorStatsResponse {
   daily: VisitorDailyStat[]
   channels: VisitorChannelStat[]
   pages: VisitorPageStat[]
+  /** @deprecated используйте eventStats (там же нулевые типы) */
   eventTypes: Array<{ type: string; total: number }>
+  /** Счётчики по всем типам событий за период */
+  eventStats: VisitorEventTypeStat[]
+  /** Последние события всех типов (полный список — eventsTotal) */
+  events: VisitorEventRow[]
+  eventsTotal: number
+  /** Воронка форм по страницам (уникальные визиты) */
+  formFunnel: VisitorFormFunnelRow[]
+  formFunnelTotals: VisitorFormFunnelTotals
+  /** @deprecated для таблицы событий используйте events */
   conversions: VisitorConversion[]
   visits: VisitorVisit[]
 }

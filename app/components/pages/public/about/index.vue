@@ -63,7 +63,7 @@
           Свяжитесь с нами для получения подробной консультации или расчета стоимости вашего проекта!
         </p>
         <UiButtonsPrimary variant="blue" @click="openModal">Связаться с нами</UiButtonsPrimary>
-        <UiFormsContactForm v-if="showModal" @close="closeModal" @formSubmitted="handleFormSubmitted" />
+        <UiFormsContactForm v-if="showModal" source="О компании" @close="closeModal" @formSubmitted="handleFormSubmitted" />
       </section>
     </div>
   </div>

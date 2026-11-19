@@ -1,6 +1,6 @@
 <!-- app/components/pages/public/remontPomescheniy/ui/CtaForm.vue -->
 <template>
-  <form class="cta-form" novalidate @submit.prevent="handleSubmit">
+  <form class="cta-form" novalidate @submit.prevent="handleSubmit" @focusin="onFormStart">
     <!-- ==================== ИМЯ ==================== -->
     <div class="form-field">
       <label class="form-field__label" :for="`${idPrefix}-name`">
@@ -153,6 +153,7 @@
 
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue'
+import { trackFormOpen } from '~/composables/visitor/trackerForms'
 
 // === Типы ===
 interface CustomField {
@@ -206,6 +207,12 @@ const emit = defineEmits<{
   (e: 'success', data: unknown): void
   (e: 'error', err: unknown): void
 }>()
+
+/** Подпись формы: одна и та же для form_open и form_submit */
+const formSource = (): string => props.messageConfig?.sourceLabel || 'CTA-форма'
+
+/** Первое взаимодействие: фиксируем открытие формы (один раз за просмотр страницы) */
+const onFormStart = () => trackFormOpen(formSource(), { once: true })
 
 // === Состояние формы ===
 const createInitialState = () => {
@@ -382,6 +389,7 @@ const handleSubmit = async () => {
     if (form.name) formData.append('name', form.name)
     if (form.contact) formData.append('phone', form.contact)
     formData.append('comment', buildComment())
+    formData.append('source', formSource())
 
     // Все файлы под одним именем 'files'
     form.files.forEach((file: File) => {

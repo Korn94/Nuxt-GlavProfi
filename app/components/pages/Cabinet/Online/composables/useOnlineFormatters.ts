@@ -1,5 +1,6 @@
 // app/components/pages/Cabinet/Online/composables/useOnlineFormatters.ts
 import { ref } from 'vue'
+import { visitorEventLabel } from 'shared/constants/visitorEvents'
 
 /**
  * Разделяемый «тикер» текущего времени.
@@ -41,18 +42,33 @@ const deviceLabels: Record<string, string> = {
   unknown: 'Неизвестное устройство',
 }
 
-const eventLabels: Record<string, string> = {
-  click_phone: 'Клик по телефону',
-  copy_phone: 'Копирование телефона',
-  click_messenger: 'Мессенджер',
-  click_email: 'Email',
-  form_open: 'Открытие формы',
-  form_submit: 'Отправка формы',
-  cta_click: 'Клик по CTA',
+/** Человекочитаемые подписи метаданных события (meta в site_visitor_events) */
+const eventMetaLabels: Record<string, string> = {
+  source: 'форма',
+  messenger: 'мессенджер',
+  href: 'ссылка',
+  label: 'кнопка',
+  form: 'форма',
 }
 
+/** Подпись типа события: единый словарь shared/constants/visitorEvents */
 function eventLabel(type: string): string {
-  return eventLabels[type] || type
+  return visitorEventLabel(type)
+}
+
+/**
+ * Компактная подпись метаданных события: «форма: Футер · мессенджер: telegram».
+ * Пустые значения отбрасываются.
+ */
+function eventMetaText(
+  meta: Record<string, string | number | boolean | null> | null | undefined
+): string {
+  if (!meta) return ''
+
+  return Object.entries(meta)
+    .filter(([, value]) => value !== null && value !== undefined && value !== '')
+    .map(([key, value]) => `${eventMetaLabels[key] || key}: ${value}`)
+    .join(' · ')
 }
 
 /** 125 → «2м 5с» */
@@ -204,6 +220,7 @@ export function useOnlineFormatters() {
     statusLabels,
     deviceLabels,
     eventLabel,
+    eventMetaText,
     formatSeconds,
     formatNumber,
     formatPercent,

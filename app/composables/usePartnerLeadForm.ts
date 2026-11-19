@@ -7,6 +7,10 @@
 
 import { ref, reactive } from 'vue'
 import { useNotifications } from '~/composables/useNotifications'
+import { trackFormOpen } from '~/composables/visitor/trackerForms'
+
+/** Подпись формы: одна и та же для form_open и form_submit */
+const PARTNER_FORM_SOURCE = 'Партнёрская программа (/partner)'
 
 // Синглтон-состояние на уровне модуля, чтобы все вызовы композабла
 // разделяли одно и то же окно/данные формы.
@@ -36,6 +40,8 @@ export function usePartnerLeadForm() {
   }
 
   function open() {
+    // 📊 Открытие модальной формы заявки (каждое открытие — отдельное событие)
+    trackFormOpen(PARTNER_FORM_SOURCE)
     isModalOpen.value = true
   }
 
@@ -79,6 +85,7 @@ export function usePartnerLeadForm() {
       phone: form.phone.trim(),
       company: form.company.trim(),
       comment: `${sourceLine}${companyLine}${commentLine}`.trim(),
+      source: PARTNER_FORM_SOURCE,
       // Дублируем message для обратной совместимости с backend
       message: `Заявка: ${form.name || 'Аноним'}, тел: ${form.phone.trim()}\n${sourceLine}${companyLine}${commentLine}`.trim(),
     }

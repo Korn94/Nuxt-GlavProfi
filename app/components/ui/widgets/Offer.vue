@@ -11,6 +11,7 @@
          Это гарантирует идентичную DOM-структуру на сервере и клиенте. -->
     <Teleport v-if="showModal" to="body">
       <UiFormsContactForm
+        source="Коммерческое предложение"
         @close="closeModal"
         @formSubmitted="handleFormSubmitted"
       />

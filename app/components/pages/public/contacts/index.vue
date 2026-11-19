@@ -43,7 +43,7 @@
 
         <!-- Форма обратной связи -->
         <section class="contact-form">
-          <UiForms />
+          <UiForms source="Контакты" />
         </section>
       </div>
 

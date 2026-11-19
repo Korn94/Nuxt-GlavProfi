@@ -139,6 +139,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { isConversionEvent } from 'shared/constants/visitorEvents'
 import { useApi } from '~/composables/useApi'
 import type { VisitorSessionDetailsResponse } from '~/types'
 import { useOnlineFormatters } from './composables/useOnlineFormatters'
@@ -212,15 +213,8 @@ function metaText(meta: Record<string, string | number | boolean | null> | null)
     .join(' · ')
 }
 
-/** События, которые считаются обращением (см. server/utils/visitorTypes.ts) */
-const CONVERSION_TYPES = new Set([
-  'click_phone',
-  'copy_phone',
-  'click_messenger',
-  'click_email',
-  'form_submit'
-])
-const isConversion = (type: string): boolean => CONVERSION_TYPES.has(type)
+/** События, которые считаются обращением (см. shared/constants/visitorEvents.ts) */
+const isConversion = (type: string): boolean => isConversionEvent(type)
 
 interface KpiItem {
   label: string

@@ -29,26 +29,25 @@ export const BOUNCE_MAX_SEC = 10
 /** Лимит накопленных (ещё не сброшенных в БД) просмотров/событий на визит */
 export const MAX_PENDING = 500
 
-/** Допустимые типы событий (остальные отбрасываются) */
-export const ALLOWED_EVENT_TYPES = [
-  'click_phone',
-  'copy_phone',
-  'click_messenger',
-  'click_email',
-  'form_open',
-  'form_submit',
-  'cta_click'
-] as const
-export type VisitorEventType = typeof ALLOWED_EVENT_TYPES[number]
+// Допустимые типы событий и правило конверсии — единый источник истины в shared/.
+import type { VisitorEventType } from 'shared/constants/visitorEvents'
 
-/** События, считающиеся конверсией (обращением) */
-export const CONVERSION_EVENT_TYPES: readonly VisitorEventType[] = [
-  'click_phone',
-  'copy_phone',
-  'click_messenger',
-  'click_email',
-  'form_submit'
-]
+export {
+  VISITOR_EVENT_TYPES as ALLOWED_EVENT_TYPES,
+  VISITOR_EVENT_TYPES,
+  CONVERSION_EVENT_TYPES,
+  ENGAGEMENT_EVENT_TYPES,
+  LEAD_EVENT_TYPE,
+  FORM_OPEN_EVENT_TYPE,
+  VISITOR_EVENT_LABELS,
+  isVisitorEventType,
+  isConversionEvent,
+  isLeadEvent,
+  eventGroupOf,
+  visitorEventLabel,
+  type VisitorEventType,
+  type VisitorEventGroup
+} from 'shared/constants/visitorEvents'
 
 /** Формат visitor_id, который генерирует клиент (app/composables/useVisitorTracker.ts) */
 export const VISITOR_ID_REGEX = /^v_[A-Za-z0-9_-]{8,60}$/

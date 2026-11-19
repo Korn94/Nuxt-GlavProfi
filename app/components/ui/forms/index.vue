@@ -23,8 +23,9 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useNotifications } from '~/composables/useNotifications'
+import { trackFormOpen } from '~/composables/visitor/trackerForms'
 
 const notifications = useNotifications()
 
@@ -32,6 +33,11 @@ const notifications = useNotifications()
 const props = defineProps({
   source: { type: String, default: '' },
 })
+
+// Открытие формы фиксируем здесь: компонент используется и в модалке, и на /contacts.
+// Для модалки это фактически «форма открыта», для встроенной — показ формы.
+onMounted(() => trackFormOpen(props.source))
+
 
 // Реактивные данные
 const name = ref('')
@@ -70,6 +76,8 @@ async function submitForm() {
     name: name.value.trim(),
     phone: phoneNumber.value,
     comment: `${sourceLine}${commentBody}`.trim(),
+    // Источник (подпись формы) — попадает в meta.source события form_submit
+    source: props.source || null,
     // Дублируем message для обратной совместимости
     message: `Заявка: ${name.value || 'Аноним'}, тел: ${phoneNumber.value}\n${sourceLine}${commentBody}`.trim()
   }

@@ -15,7 +15,7 @@
         </div>
 
         <!-- Правая часть: форма -->
-        <form class="inline-cta__form" novalidate @submit.prevent="handleSubmit">
+        <form class="inline-cta__form" novalidate @submit.prevent="handleSubmit" @focusin="onFormStart">
           <div class="form-row">
             <input
               :id="`${idPrefix}-name`"
@@ -71,6 +71,7 @@
 
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
+import { trackFormOpen } from '~/composables/visitor/trackerForms'
 
 interface MessageConfig {
   emoji: string
@@ -101,6 +102,12 @@ const form = reactive({
   contact: '+7 ',
   consent: false,
 })
+
+/** Подпись формы: одна и та же для form_open и form_submit */
+const formSource = (): string => props.messageConfig?.sourceLabel || 'Inline CTA'
+
+/** Первое взаимодействие: фиксируем открытие формы (один раз за просмотр страницы) */
+const onFormStart = () => trackFormOpen(formSource(), { once: true })
 
 const status = ref<FormStatus>('idle')
 
@@ -152,6 +159,7 @@ const handleSubmit = async () => {
     formData.append('message', buildMessage())
     if (form.name) formData.append('name', form.name)
     if (form.contact) formData.append('phone', form.contact)
+    formData.append('source', formSource())
 
     await $fetch(props.submitUrl, {
       method: 'POST',

@@ -12,7 +12,7 @@
         </p>
         <p class="dop">Консультация и замер - бесплатно</p>
       </div>
-      <form class="form" @submit.prevent="openConsentModal">
+      <form class="form" @submit.prevent="openConsentModal" @focusin="onFormFocus">
         <input type="text" class="input" placeholder="Имя" v-model="name" @input="textFilter" required />
         <input type="tel" class="input" placeholder="Телефон" v-phone-format v-model="phoneNumber" required :class="{ 'error-border': phoneError }"/>
         <UiButtonsPrimary type="submit" :disabled="isSubmitting">
@@ -32,6 +32,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useNotifications } from '~/composables/useNotifications'
+import { onFormInteraction } from '~/composables/visitor/trackerForms'
 
 // Данные формы
 const name = ref('')
@@ -39,6 +40,10 @@ const phoneNumber = ref('+7 ')
 const phoneError = ref(false)
 const showConsentModal = ref(false)
 const isSubmitting = ref(false)
+
+/** Подпись формы: одна и та же для form_open и form_submit */
+const FORM_SOURCE = 'Главная — обратный звонок'
+const onFormFocus = onFormInteraction(FORM_SOURCE)
 
 // Композабл для уведомлений
 const notifications = useNotifications()
@@ -74,6 +79,7 @@ async function acceptConsent() {
     name: name.value.trim(),
     phone: phoneNumber.value,
     comment: '', // В этой форме нет комментария
+    source: FORM_SOURCE,
     // Дублируем message для обратной совместимости и логов
     message: `📞 Заявка с Главной (центр):\n👤 ФИО: ${name.value || 'Аноним'}\n📱 Телефон: ${phoneNumber.value}`
   }

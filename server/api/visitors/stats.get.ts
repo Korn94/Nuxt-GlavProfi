@@ -4,27 +4,42 @@
  * Простые сводные таблицы аналитики из БД для блока на /cabinet/online:
  * - channels: источники трафика (визиты, посетители, обращения, отказы, средняя длительность);
  * - pages: страницы (просмотры, среднее время, скролл, выходы);
+ * - eventTypes / eventStats: количество событий по типам;
+ * - events: последние события ВСЕХ типов (клик, форма, CTA) с местом и meta;
+ * - formFunnel: воронка «форма открыта → заявка отправлена» по страницам;
  * - conversions: последние обращения с источником и путём посетителя;
- * - eventTypes: количество событий по типам;
  * - visits: последние визиты.
  *
  * Доступ: право users:view (префикс /api/visitors в PROTECTED_PATHS).
  * Данные приходят в БД с задержкой до минуты (flush реестра из памяти).
  */
 
-import { desc, eq, gte, inArray, sql } from 'drizzle-orm'
+import { and, desc, eq, gte, inArray, sql } from 'drizzle-orm'
 import { getQuery } from 'h3'
 import { defineApi } from '../../utils/defineApi'
 import { db } from '../../db'
 import { siteVisitorEvents, siteVisitorPageviews, siteVisitorSessions, users } from '../../db/schema'
 import { formatMySQLDate } from '../../utils/sessions'
 import { CHANNEL_LABELS, type TrafficChannel } from '../../utils/trafficSource'
-import { CONVERSION_EVENT_TYPES } from '../../utils/visitorTypes'
+import {
+  CONVERSION_EVENT_TYPES,
+  FORM_OPEN_EVENT_TYPE,
+  LEAD_EVENT_TYPE,
+  VISITOR_EVENT_TYPES,
+  isConversionEvent
+} from '../../utils/visitorTypes'
+
+/** Сколько последних событий отдаём в таблицу (полное число — eventsTotal) */
+const EVENTS_LIMIT = 100
 
 const num = (value: unknown): number => {
   const n = Number(value)
   return Number.isFinite(n) ? n : 0
 }
+
+/** Процент с одним знаком после запятой */
+const pct = (part: number, total: number): number =>
+  total ? Math.round((part / total) * 1000) / 10 : 0
 
 export default defineApi(async (event) => {
   const query = getQuery(event)
@@ -35,7 +50,28 @@ export default defineApi(async (event) => {
   const pv = siteVisitorPageviews
   const ev = siteVisitorEvents
 
-  const [channelRows, pageRows, exitRows, eventTypeRows, conversionRows, visitRows, dailyRows, totalsRows] = await Promise.all([
+  // Воронка формы считается по уникальным визитам: одно открытие/отправка на визит
+  const formEvents = and(
+    gte(ev.createdAt, border),
+    inArray(ev.type, [FORM_OPEN_EVENT_TYPE, LEAD_EVENT_TYPE])
+  )
+  const formOpensExpr = sql<number>`COUNT(DISTINCT CASE WHEN ${ev.type} = ${FORM_OPEN_EVENT_TYPE} THEN ${ev.sessionId} END)`
+  const formSubmitsExpr = sql<number>`COUNT(DISTINCT CASE WHEN ${ev.type} = ${LEAD_EVENT_TYPE} THEN ${ev.sessionId} END)`
+
+  const [
+    channelRows,
+    pageRows,
+    exitRows,
+    eventTypeRows,
+    conversionRows,
+    visitRows,
+    dailyRows,
+    totalsRows,
+    eventRows,
+    eventTotalRows,
+    formFunnelRows,
+    formTotalsRows
+  ] = await Promise.all([
     db.select({
       channel: s.channel,
       visits: sql<number>`COUNT(*)`,
@@ -120,7 +156,52 @@ export default defineApi(async (event) => {
       bounces: sql<number>`COALESCE(SUM(${s.isBounce}), 0)`,
       avgSeconds: sql<number>`COALESCE(AVG(${s.activeSeconds}), 0)`,
       avgPages: sql<number>`COALESCE(AVG(${s.pagesCount}), 0)`
-    }).from(s).where(gte(s.startedAt, border))
+    }).from(s).where(gte(s.startedAt, border)),
+
+    // Все события за период: таблица «События» (место + meta + переход в визит)
+    db.select({
+      id: ev.id,
+      sessionId: ev.sessionId,
+      visitorId: ev.visitorId,
+      type: ev.type,
+      path: ev.path,
+      meta: ev.meta,
+      createdAt: ev.createdAt,
+      channel: s.channel,
+      utmCampaign: s.utmCampaign,
+      referrerHost: s.referrerHost,
+      visitNumber: s.visitNumber,
+      pagesCount: s.pagesCount,
+      landingPath: s.landingPath,
+      city: s.city,
+      linkedUserId: s.linkedUserId,
+      linkedUserName: users.name
+    }).from(ev)
+      .innerJoin(s, eq(ev.sessionId, s.id))
+      .leftJoin(users, eq(s.linkedUserId, users.id))
+      .where(gte(ev.createdAt, border))
+      .orderBy(desc(ev.createdAt))
+      .limit(EVENTS_LIMIT),
+
+    db.select({
+      total: sql<number>`COUNT(*)`
+    }).from(ev).where(gte(ev.createdAt, border)),
+
+    db.select({
+      path: ev.path,
+      opens: formOpensExpr,
+      submits: formSubmitsExpr
+    }).from(ev)
+      .where(formEvents)
+      .groupBy(ev.path)
+      .orderBy(desc(formOpensExpr))
+      .limit(20),
+
+    db.select({
+      opens: formOpensExpr,
+      submits: formSubmitsExpr,
+      submitEvents: sql<number>`COALESCE(SUM(CASE WHEN ${ev.type} = ${LEAD_EVENT_TYPE} THEN 1 ELSE 0 END), 0)`
+    }).from(ev).where(formEvents)
   ])
 
   const label = (channel: string) => CHANNEL_LABELS[channel as TrafficChannel] || channel
@@ -130,16 +211,25 @@ export default defineApi(async (event) => {
   const totalVisits = num(totalsRow?.visits)
   const totalConversions = num(totalsRow?.conversions)
 
+  const eventCounts = new Map(eventTypeRows.map(r => [r.type, num(r.total)]))
+  const formTotals = formTotalsRows?.[0]
+  const formOpensTotal = num(formTotals?.opens)
+  const formSubmitsTotal = num(formTotals?.submits)
+
   return {
     days,
     totals: {
       visits: totalVisits,
       visitors: num(totalsRow?.visitors),
       conversions: totalConversions,
-      conversionRate: totalVisits ? Math.round((totalConversions / totalVisits) * 1000) / 10 : 0,
-      bounceRate: totalVisits ? Math.round((num(totalsRow?.bounces) / totalVisits) * 1000) / 10 : 0,
+      conversionRate: pct(totalConversions, totalVisits),
+      bounceRate: pct(num(totalsRow?.bounces), totalVisits),
       avgSeconds: Math.round(num(totalsRow?.avgSeconds)),
-      avgPages: Math.round(num(totalsRow?.avgPages) * 10) / 10
+      avgPages: Math.round(num(totalsRow?.avgPages) * 10) / 10,
+      leadEvents: num(formTotals?.submitEvents),
+      formOpens: formOpensTotal,
+      formSubmits: formSubmitsTotal,
+      formSubmitRate: pct(formSubmitsTotal, formOpensTotal)
     },
     daily: dailyRows.map(r => ({
       day: r.day,
@@ -156,8 +246,8 @@ export default defineApi(async (event) => {
         visits,
         visitors: num(r.visitors),
         conversions,
-        conversionRate: visits ? Math.round((conversions / visits) * 1000) / 10 : 0,
-        bounceRate: visits ? Math.round((num(r.bounces) / visits) * 1000) / 10 : 0,
+        conversionRate: pct(conversions, visits),
+        bounceRate: pct(num(r.bounces), visits),
         avgSeconds: Math.round(num(r.avgSeconds)),
         avgPages: Math.round(num(r.avgPages) * 10) / 10
       }
@@ -171,10 +261,32 @@ export default defineApi(async (event) => {
         avgSeconds: Math.round(num(r.avgSeconds)),
         avgScroll: Math.round(num(r.avgScroll)),
         exits,
-        exitRate: views ? Math.round((exits / views) * 1000) / 10 : 0
+        exitRate: pct(exits, views)
       }
     }),
     eventTypes: eventTypeRows.map(r => ({ type: r.type, total: num(r.total) })),
+    eventStats: VISITOR_EVENT_TYPES.map(type => ({
+      type,
+      total: eventCounts.get(type) || 0,
+      isConversion: isConversionEvent(type)
+    })),
+    eventsTotal: num(eventTotalRows?.[0]?.total),
+    events: eventRows.map(r => ({
+      ...r,
+      channelLabel: label(r.channel),
+      isConversion: isConversionEvent(r.type)
+    })),
+    formFunnel: formFunnelRows.map((r) => {
+      const opens = num(r.opens)
+      const submits = num(r.submits)
+      return { path: r.path, opens, submits, submitRate: pct(submits, opens) }
+    }),
+    formFunnelTotals: {
+      opens: formOpensTotal,
+      submits: formSubmitsTotal,
+      submitRate: pct(formSubmitsTotal, formOpensTotal),
+      submitEvents: num(formTotals?.submitEvents)
+    },
     conversions: conversionRows.map(r => ({ ...r, channelLabel: label(r.channel) })),
     visits: visitRows.map(r => ({ ...r, channelLabel: label(r.channel) }))
   }

@@ -1,6 +1,6 @@
 <!-- app/components/pages/public/remontPomescheniy/ui/MiniEstimateForm.vue -->
 <template>
-  <form class="mini-form" novalidate @submit.prevent="submitForm">
+  <form class="mini-form" novalidate @submit.prevent="submitForm" @focusin="onFormStart">
     <h3 class="mini-form__title">Быстрый расчёт стоимости</h3>
     <p class="mini-form__subtitle">Ответим в течение 24 часов</p>
 
@@ -122,7 +122,7 @@
 
 <script setup lang="ts">
 import { reactive, ref, computed } from 'vue'
-import { trackVisitorEvent } from '~/composables/useVisitorTracker'
+import { trackFormOpen } from '~/composables/visitor/trackerForms'
 
 type FormStatus = 'idle' | 'submitting' | 'success' | 'error'
 
@@ -252,6 +252,12 @@ const getRoomTypeLabel = (slug: string): string => {
   return map[slug] || slug
 }
 
+/** Подпись формы: одна и та же для form_open и form_submit */
+const formSource = (): string => `Hero-форма: ${getRoomTypeLabel(props.roomType)}`
+
+/** Первое взаимодействие: фиксируем открытие формы (один раз за просмотр страницы) */
+const onFormStart = () => trackFormOpen(formSource(), { once: true })
+
 // === Формирование HTML-сообщения для Telegram/Email ===
 const buildMessage = (): string => {
   const now = new Date().toLocaleString('ru-RU', {
@@ -289,7 +295,6 @@ const buildComment = (): string => {
 
 // === Отправка ===
 const submitForm = async () => {
-  trackVisitorEvent('cta_click', { label: 'Рассчитать стоимость' })
   validatePhone()
   if (errors.phone) return
 
@@ -300,6 +305,7 @@ const submitForm = async () => {
     formData.append('message', buildMessage())
     if (form.phone) formData.append('phone', form.phone)
     formData.append('comment', buildComment())
+    formData.append('source', formSource())
 
     await $fetch(props.submitUrl, {
       method: 'POST',
@@ -501,6 +507,7 @@ span {
     text-align: center;
     padding: 0.4rem 0;
     -moz-appearance: textfield;
+    appearance: textfield;
 
     &::-webkit-outer-spin-button,
     &::-webkit-inner-spin-button {

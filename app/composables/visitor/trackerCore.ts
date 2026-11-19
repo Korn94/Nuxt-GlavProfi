@@ -36,9 +36,7 @@ export const VISITOR_ID_MAX_AGE = 60 * 60 * 24 * 30 // 30 дней
 const VISITOR_ID_PATTERN = /^v_[A-Za-z0-9_-]{8,60}$/
 const EXCLUDED_PREFIXES = ['/cabinet', '/login', '/access-denied']
 
-export type VisitorEventType =
-  | 'click_phone' | 'copy_phone' | 'click_messenger' | 'click_email'
-  | 'form_open' | 'form_submit' | 'cta_click'
+export type { VisitorEventType } from 'shared/constants/visitorEvents'
 
 export function generateId(prefix: string): string {
   try {

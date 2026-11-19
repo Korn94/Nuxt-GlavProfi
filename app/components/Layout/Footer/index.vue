@@ -77,7 +77,7 @@
       <div class="footer-social">
         <h3 class="footer-title">Обратный звонок</h3>
         <!-- Форма связи -->
-        <form class="footer-contact-form" @submit.prevent="openConsentModal">
+        <form class="footer-contact-form" @submit.prevent="openConsentModal" @focusin="onFooterFormFocus">
           <input type="tel" v-model="phoneNumber" v-phone-format placeholder="Обратный звонок" required
             :class="{ 'error-border': phoneError }" :disabled="isSubmitting" />
           <!-- Изменили type="button" на type="submit" и убрали @click -->
@@ -128,6 +128,7 @@ import { ref } from 'vue'
 import { useNotifications } from '~/composables/useNotifications'
 import { copyToClipboard } from '~/utils/clipboard'
 import { trackVisitorEvent } from '~/composables/useVisitorTracker'
+import { onFormInteraction } from '~/composables/visitor/trackerForms'
 
 // Данные
 const currentYear = new Date().getFullYear()
@@ -135,6 +136,10 @@ const phoneNumber = ref('+7 ')
 const showConsentModal = ref(false)
 const phoneError = ref(false)
 const isSubmitting = ref(false)
+
+/** Подпись формы: одна и та же для form_open и form_submit */
+const FOOTER_FORM_SOURCE = 'Футер — обратный звонок'
+const onFooterFormFocus = onFormInteraction(FOOTER_FORM_SOURCE)
 
 // Композабл для уведомлений
 const notifications = useNotifications()
@@ -187,7 +192,7 @@ async function submitForm() {
     name: '', // В футере нет поля имени
     phone: phoneNumber.value,
     comment: '',
-    source: 'footer', // 👈 Источник заявки для аналитики
+    source: FOOTER_FORM_SOURCE, // 👈 Источник заявки для аналитики
     // Дублируем message для логов и обратной совместимости
     message: `📞 Заявка с футера:\n📱 Телефон: ${phoneNumber.value}`
   }

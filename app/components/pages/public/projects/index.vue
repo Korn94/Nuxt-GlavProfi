@@ -85,7 +85,7 @@
 
     <!-- Модальное окно -->
     <Teleport to="body">
-      <UiFormsContactForm v-if="showModal" @close="closeModal" @formSubmitted="handleFormSubmitted" />
+      <UiFormsContactForm v-if="showModal" source="Проекты" @close="closeModal" @formSubmitted="handleFormSubmitted" />
     </Teleport>
   </div>
 </template>

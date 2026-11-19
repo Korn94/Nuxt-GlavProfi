@@ -148,6 +148,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, watch, onMounted, onBeforeUnmount, nextTick, computed } from 'vue'
+import { trackFormOpen } from '~/composables/visitor/trackerForms'
 import type { CalculationResult, CalculatorState, WorkUnit } from '~/types/calculator'
 
 // -----------------------------------------------------------------------------
@@ -237,6 +238,8 @@ watch(
   () => props.isOpen,
   (open) => {
     if (open) {
+      // 📊 Открытие формы заявки калькулятора (каждое открытие — отдельное событие)
+      trackFormOpen(props.sourceLabel)
       document.body.style.overflow = 'hidden'
       // Фокус на первое поле после открытия
       nextTick(() => {
@@ -527,6 +530,7 @@ async function submitForm() {
     if (form.name) formData.append('name', form.name)
     if (form.phone) formData.append('phone', form.phone)
     formData.append('comment', buildComment())
+    formData.append('source', props.sourceLabel)
 
     await $fetch('/api/send-message', {
       method: 'POST',
