@@ -32,6 +32,7 @@
 <script setup>
 import { ref } from 'vue'
 import { trackVisitorEvent } from '~/composables/useVisitorTracker'
+import { trackCtaClick } from '~/composables/visitor/trackerCta'
 
 const showModal = ref(false)
 
@@ -44,6 +45,8 @@ const handleButtonClick = () => {
     window.location.href = href
   } else {
     // Для десктопа открываем модальное окно
+    // 📊 CTA: на мобиле выше уже отправлен click_phone, здесь — вовлечение
+    trackCtaClick('Главная — Позвонить', { target: 'Главная — блок «Заказать звонок»' })
     openModal()
   }
 }

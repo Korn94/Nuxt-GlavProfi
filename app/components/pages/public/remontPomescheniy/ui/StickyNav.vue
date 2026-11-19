@@ -83,6 +83,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { trackCtaClick } from '~/composables/visitor/trackerCta'
 import { useStickyNav } from '../composables/useStickyNav'
 import type { StickyNavItem } from './types'
 
@@ -184,6 +185,11 @@ const handleLinkClick = (id: string, e: MouseEvent) => {
   }
   
   // Иначе — обычный скролл к секции
+  // 📊 CTA-пункт «Оставить заявку»: намерение перейти к форме в конце страницы
+  if (id === 'cta') {
+    const label = props.items.find(item => item.id === id)?.label || 'Оставить заявку'
+    trackCtaClick(`Ремонт помещений — ${label}`, { target: 'form-section', href: `#${id}` })
+  }
   scrollTo(id)
 }
 

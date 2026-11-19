@@ -39,6 +39,7 @@ export {
   ENGAGEMENT_EVENT_TYPES,
   LEAD_EVENT_TYPE,
   FORM_OPEN_EVENT_TYPE,
+  CTA_CLICK_EVENT_TYPE,
   VISITOR_EVENT_LABELS,
   isVisitorEventType,
   isConversionEvent,

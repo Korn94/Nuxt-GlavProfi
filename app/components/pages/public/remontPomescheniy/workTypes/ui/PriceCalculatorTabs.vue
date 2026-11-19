@@ -210,6 +210,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import type { CalculatorTab, BaseOption } from '../../workTypes/types'
+import { trackCtaClick } from '~/composables/visitor/trackerCta'
 
 const props = withDefaults(
   defineProps<{
@@ -588,6 +589,8 @@ const decreaseArea = () => {
 }
 
 const openModal = () => {
+  // 📊 CTA → модальная форма заявки (form_open зафиксирует форма)
+  trackCtaClick('Калькулятор работ — Вызвать замерщика', { target: sourceLabel.value })
   showModal.value = true
 }
 

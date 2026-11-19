@@ -49,6 +49,8 @@ const eventMetaLabels: Record<string, string> = {
   href: 'ссылка',
   label: 'кнопка',
   form: 'форма',
+  cta: 'кнопка',
+  target: 'форма',
 }
 
 /** Подпись типа события: единый словарь shared/constants/visitorEvents */

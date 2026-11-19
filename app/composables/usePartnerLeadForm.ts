@@ -8,6 +8,7 @@
 import { ref, reactive } from 'vue'
 import { useNotifications } from '~/composables/useNotifications'
 import { trackFormOpen } from '~/composables/visitor/trackerForms'
+import { trackCtaClick } from '~/composables/visitor/trackerCta'
 
 /** Подпись формы: одна и та же для form_open и form_submit */
 const PARTNER_FORM_SOURCE = 'Партнёрская программа (/partner)'
@@ -40,6 +41,8 @@ export function usePartnerLeadForm() {
   }
 
   function open() {
+    // 📊 CTA: кнопки «Стать партнёром» в Hero и Closing-секции → форма партнёра
+    trackCtaClick('Партнёрам — Стать партнёром', { target: PARTNER_FORM_SOURCE })
     // 📊 Открытие модальной формы заявки (каждое открытие — отдельное событие)
     trackFormOpen(PARTNER_FORM_SOURCE)
     isModalOpen.value = true

@@ -65,11 +65,14 @@
 
 <script setup>
 import { ref } from 'vue'
+import { trackCtaClick } from '~/composables/visitor/trackerCta'
 
 const telegramLink = 'https://t.me/glavprofii'
 const showModal = ref(false)
 
 const openModal = () => {
+  // 📊 CTA → модальная форма заявки
+  trackCtaClick('Ремонт помещений — Получить КП', { target: 'Ремонт помещений — CTA-блок' })
   showModal.value = true
 }
 

@@ -220,18 +220,24 @@ export interface VisitorEventTypeStat {
   isConversion: boolean
 }
 
-/** Воронка формы по странице: открытия → отправки (уникальные визиты) */
+/** Воронка формы по странице: CTA → открытия → отправки (уникальные визиты) */
 export interface VisitorFormFunnelRow {
   path: string | null
+  /** Визиты с кликом по CTA на этой странице */
+  ctaClicks: number
   opens: number
   submits: number
+  /** % визитов с кликом CTA, где затем открыли форму */
+  ctaToFormRate: number
   /** % визитов с открытой формой, где форма была отправлена */
   submitRate: number
 }
 
 export interface VisitorFormFunnelTotals {
+  ctaClicks: number
   opens: number
   submits: number
+  ctaToFormRate: number
   submitRate: number
   /** Всего отправок формы (событий, не визитов) */
   submitEvents: number
@@ -248,6 +254,8 @@ export interface VisitorTotals {
   avgPages: number
   /** Заявки (form_submit) за период, штук */
   leadEvents: number
+  /** Визиты, в которых кликали по CTA */
+  ctaClicks: number
   /** Визиты, в которых открывали/начинали форму */
   formOpens: number
   /** Визиты, в которых отправляли форму */
@@ -357,6 +365,12 @@ export interface VisitorPageDetailsResponse {
   devices: VisitorPageDeviceRow[]
   scroll: VisitorPageScrollBucket[]
   eventTypes: Array<{ type: string; total: number }>
+  /** Счётчики по всем типам событий на странице (нули для отсутствующих) */
+  eventStats: VisitorEventTypeStat[]
+  /** Последние события всех типов на странице (полный список — eventsTotal) */
+  events: VisitorEventRow[]
+  eventsTotal: number
+  /** @deprecated для таблицы событий используйте events */
   conversions: VisitorConversion[]
   conversionsTotal: number
   sessions: VisitorPageSessionRow[]

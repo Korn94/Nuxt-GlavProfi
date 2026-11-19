@@ -89,13 +89,73 @@
           </div>
         </div>
 
-        <div class="details-section">
-          <div class="details-section__title">События на странице</div>
-          <div v-if="!data.eventTypes.length" class="details-empty">Событий не было</div>
-          <div v-else class="details-events">
-            <span v-for="row in data.eventTypes" :key="row.type" class="details-badge details-badge--muted">
-              {{ eventLabel(row.type) }}: {{ formatNumber(row.total) }}
-            </span>
+        <div class="details-section details-section--wide">
+          <div class="details-section__title">
+            <Icon name="mdi:pulse" size="13" /> События страницы
+            <span class="details-chip">всего: {{ formatNumber(data.eventsTotal) }}</span>
+          </div>
+          <div class="details-tabs">
+            <button
+              v-for="tab in eventTabs"
+              :key="tab.key"
+              type="button"
+              class="details-tab"
+              :class="{ 'details-tab--active': eventFilter === tab.key }"
+              :title="tab.hint"
+              @click="eventFilter = tab.key"
+            >
+              {{ tab.label }}<span class="details-tab__count">{{ formatNumber(tab.total) }}</span>
+            </button>
+          </div>
+
+          <div v-if="!filteredEvents.length" class="details-empty">Событий на странице за период не было</div>
+          <div v-else class="details-table-wrap">
+            <table class="details-table">
+              <thead>
+                <tr>
+                  <th>Время</th><th>Событие</th><th>Детали</th><th>Посетитель</th>
+                  <th>Визит</th><th>Источник</th><th>Город</th>
+                  <th class="details-col-action" aria-label="Подробнее"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="row in filteredEvents"
+                  :key="row.id"
+                  class="details-row"
+                  tabindex="0"
+                  title="Открыть визит"
+                  @click="emit('open-session', row.sessionId, row.visitorId)"
+                  @keydown.enter="emit('open-session', row.sessionId, row.visitorId)"
+                >
+                  <td>{{ formatFullDateTime(row.createdAt) }}</td>
+                  <td>
+                    <span class="details-badge" :class="`details-badge--${eventBadge(row).tone}`">{{ eventBadge(row).label }}</span>
+                    <span class="details-sub"> · {{ eventLabel(row.type) }}</span>
+                  </td>
+                  <td class="details-path" :title="eventMetaText(row.meta)">{{ eventMetaText(row.meta) || '—' }}</td>
+                  <td>
+                    <button class="details-link" @click.stop="emit('open-visitor', row.visitorId)" @keydown.stop>
+                      {{ shortVisitorId(row.visitorId) }}
+                    </button>
+                    <span v-if="row.linkedUserId" class="details-badge details-badge--staff">
+                      {{ row.linkedUserName || `#${row.linkedUserId}` }}
+                    </span>
+                  </td>
+                  <td>№{{ row.visitNumber }}<span class="details-sub"> · {{ row.pagesCount }} стр.</span></td>
+                  <td>
+                    {{ row.channelLabel }}
+                    <span v-if="row.utmCampaign" class="details-sub"> · {{ row.utmCampaign }}</span>
+                    <span v-else-if="row.referrerHost" class="details-sub"> · {{ row.referrerHost }}</span>
+                  </td>
+                  <td>{{ row.city || '—' }}</td>
+                  <td class="details-col-action"><Icon name="mdi:chevron-right" size="14" /></td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-if="hiddenEventsCount > 0" class="details-empty">
+              Показаны последние {{ formatNumber(filteredEvents.length) }} из {{ formatNumber(eventsInFilterTotal) }} событий
+            </div>
           </div>
         </div>
       </div>
@@ -227,7 +287,8 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { ECharts, EChartsOption } from 'echarts'
 import { echarts } from '~/lib/echarts'
 import { useApi } from '~/composables/useApi'
-import type { VisitorPageDetailsResponse } from '~/types'
+import { isConversionEvent } from 'shared/constants/visitorEvents'
+import type { VisitorEventRow, VisitorPageDetailsResponse } from '~/types'
 import { useOnlineFormatters } from './composables/useOnlineFormatters'
 import { buildDailySeries, chartThemeColors } from './composables/useEchartsTheme'
 import { shortVisitorId } from './composables/useAnalyticsRoute'
@@ -247,6 +308,7 @@ const emit = defineEmits<{
 const {
   deviceLabels,
   eventLabel,
+  eventMetaText,
   formatFullDateTime,
   formatNumber,
   formatSeconds
@@ -314,6 +376,60 @@ const SCROLL_LABELS: Record<string, string> = {
 const scrollLabel = (bucket: string): string => SCROLL_LABELS[bucket] || bucket
 
 const hasScrollData = computed(() => Boolean(data.value?.scroll.some(row => row.views > 0)))
+
+// ── События страницы: фильтры по смыслу ────────────────────────────────
+type EventFilterKey = 'all' | 'conversion' | 'form_open' | 'other'
+
+const EVENT_FILTER_HINTS: Record<EventFilterKey, string> = {
+  all: 'Все события посетителей на этой странице за период',
+  conversion: 'Обращения: клик по телефону, мессенджеру, email и отправка формы',
+  form_open: 'Форма открыта или начата, но заявка не отправлена',
+  other: 'Прочие события: клики по CTA'
+}
+
+const eventFilter = ref<EventFilterKey>('all')
+
+/** Счётчики по группам (полные за период, не только загруженная сотня) */
+const eventTabs = computed(() => {
+  const stats = data.value?.eventStats || []
+  const conversionTotal = stats.filter(s => s.isConversion).reduce((sum, s) => sum + s.total, 0)
+  const formOpenTotal = stats.find(s => s.type === 'form_open')?.total || 0
+  const otherTotal = stats
+    .filter(s => !s.isConversion && s.type !== 'form_open')
+    .reduce((sum, s) => sum + s.total, 0)
+  const allTotal = stats.reduce((sum, s) => sum + s.total, 0) || (data.value?.eventsTotal || 0)
+
+  return [
+    { key: 'all' as const, label: 'Все', total: allTotal, hint: EVENT_FILTER_HINTS.all },
+    { key: 'conversion' as const, label: 'Обращения', total: conversionTotal, hint: EVENT_FILTER_HINTS.conversion },
+    { key: 'form_open' as const, label: 'Открытия формы', total: formOpenTotal, hint: EVENT_FILTER_HINTS.form_open },
+    { key: 'other' as const, label: 'Прочее', total: otherTotal, hint: EVENT_FILTER_HINTS.other }
+  ]
+})
+
+const filteredEvents = computed<VisitorEventRow[]>(() => {
+  const events = data.value?.events || []
+  switch (eventFilter.value) {
+    case 'conversion': return events.filter(row => isConversionEvent(row.type))
+    case 'form_open': return events.filter(row => row.type === 'form_open')
+    case 'other': return events.filter(row => !isConversionEvent(row.type) && row.type !== 'form_open')
+    default: return events
+  }
+})
+
+const eventsInFilterTotal = computed(
+  () => eventTabs.value.find(tab => tab.key === eventFilter.value)?.total || 0
+)
+const hiddenEventsCount = computed(
+  () => Math.max(0, eventsInFilterTotal.value - filteredEvents.value.length)
+)
+
+/** Бейдж смысла события: заявка / обращение / вовлечение */
+function eventBadge(row: VisitorEventRow): { label: string; tone: 'success' | 'info' | 'muted' } {
+  if (row.type === 'form_submit') return { label: 'заявка', tone: 'success' }
+  if (row.isConversion) return { label: 'обращение', tone: 'info' }
+  return { label: 'вовлечение', tone: 'muted' }
+}
 
 // ── График ─────────────────────────────────────────────────────────────
 const chartRef = ref<HTMLElement | null>(null)
@@ -433,9 +549,40 @@ onBeforeUnmount(() => {
   max-width: 160px;
 }
 
-.details-events {
+.details-section--wide {
+  grid-column: 1 / -1;
+}
+
+.details-tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+}
+
+.details-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-sm);
+  background: transparent;
+  color: var(--crm-text-secondary);
+  font-size: var(--crm-text-xs);
+  cursor: pointer;
+  transition: var(--crm-transition);
+
+  &:hover { background: var(--crm-bg-overlay); }
+
+  &--active {
+    border-color: var(--crm-accent);
+    color: var(--crm-accent);
+    background: var(--crm-bg-overlay);
+  }
+}
+
+.details-tab__count {
+  font-family: var(--crm-font-mono);
+  color: var(--crm-text-muted);
 }
 </style>

@@ -118,6 +118,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { trackCtaClick } from '~/composables/visitor/trackerCta';
 
 const isDesktop = ref(false);
 const showModal = ref(false);
@@ -149,7 +150,11 @@ const videoSrc = computed(() =>
     // : '/main/video/main-mobile.mp4'
 );
 
-const openModal = () => (showModal.value = true);
+const openModal = () => {
+  // 📊 CTA → модальная форма заявки (цепочка CTA → form_open → form_submit)
+  trackCtaClick('Главная — Получить смету', { target: 'Заявка с главной страницы (первый экран)' })
+  showModal.value = true
+};
 const closeModal = () => (showModal.value = false);
 const handleFormSubmitted = (formData) => {
   console.log('Форма отправлена:', formData);

@@ -71,11 +71,14 @@
 
 <script setup>
 import { ref } from 'vue'
+import { trackCtaClick } from '~/composables/visitor/trackerCta'
 
 const showModal = ref(false)
 
 // Метод для открытия модального окна
 const openModal = () => {
+  // 📊 CTA → модальная форма заявки
+  trackCtaClick('О компании — Связаться с нами', { target: 'О компании' })
   showModal.value = true
 }
 

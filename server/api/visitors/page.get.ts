@@ -7,7 +7,9 @@
  * - summary: просмотры, посетители, сессии, входы (landing), выходы, время,
  *   скролл, обращения, конверсия, отказы, доля первых визитов;
  * - daily: просмотры/посетители по дням (для графика);
- * - channels / devices / scroll / eventTypes: разрезы по этой странице;
+ * - channels / devices / scroll / eventTypes / eventStats: разрезы по этой странице;
+ * - events: последние события ВСЕХ типов на странице (клик, форма, CTA) с meta
+ *   и переходом в визит (полное число — eventsTotal);
  * - conversions: последние обращения, совершённые на странице;
  * - sessions: заходы на страницу по сессиям (для перехода к посетителю
  *   и его полной истории визитов).
@@ -23,7 +25,11 @@ import { db } from '../../db'
 import { siteVisitorEvents, siteVisitorPageviews, siteVisitorSessions, users } from '../../db/schema'
 import { formatMySQLDate } from '../../utils/sessions'
 import { CHANNEL_LABELS, normalizePath, type TrafficChannel } from '../../utils/trafficSource'
-import { CONVERSION_EVENT_TYPES } from '../../utils/visitorTypes'
+import {
+  CONVERSION_EVENT_TYPES,
+  VISITOR_EVENT_TYPES,
+  isConversionEvent
+} from '../../utils/visitorTypes'
 
 const num = (value: unknown): number => {
   const n = Number(value)
@@ -70,6 +76,7 @@ export default defineApi(async (event) => {
     deviceRows,
     scrollRows,
     eventTypeRows,
+    eventRows,
     conversionCountRows,
     conversionRows,
     sessionRows
@@ -156,6 +163,33 @@ export default defineApi(async (event) => {
       .groupBy(ev.type)
       .orderBy(desc(sql`COUNT(*)`)),
 
+    // Все события страницы: таблица «События» (тип + meta + переход в визит).
+    // Лимит общий с заходами на страницу (параметр limit).
+    db.select({
+      id: ev.id,
+      sessionId: ev.sessionId,
+      visitorId: ev.visitorId,
+      type: ev.type,
+      path: ev.path,
+      meta: ev.meta,
+      createdAt: ev.createdAt,
+      channel: s.channel,
+      utmCampaign: s.utmCampaign,
+      referrerHost: s.referrerHost,
+      visitNumber: s.visitNumber,
+      pagesCount: s.pagesCount,
+      landingPath: s.landingPath,
+      city: s.city,
+      linkedUserId: s.linkedUserId,
+      linkedUserName: users.name
+    })
+      .from(ev)
+      .innerJoin(s, eq(ev.sessionId, s.id))
+      .leftJoin(users, eq(s.linkedUserId, users.id))
+      .where(and(eq(ev.path, path), gte(ev.createdAt, border)))
+      .orderBy(desc(ev.createdAt))
+      .limit(limit),
+
     // Сколько всего обращений на странице
     db.select({ total: sql<number>`COUNT(*)` })
       .from(ev)
@@ -240,6 +274,8 @@ export default defineApi(async (event) => {
     CHANNEL_LABELS[(channel || 'direct') as TrafficChannel] || channel || 'direct'
 
   const scrollByBucket = new Map(scrollRows.map(r => [r.bucket, num(r.views)]))
+  const eventCounts = new Map(eventTypeRows.map(r => [r.type, num(r.total)]))
+  const eventsTotal = eventTypeRows.reduce((sum, r) => sum + num(r.total), 0)
 
   return {
     path,
@@ -283,6 +319,17 @@ export default defineApi(async (event) => {
       return { bucket, views: bucketViews, share: pct(bucketViews, views) }
     }),
     eventTypes: eventTypeRows.map(r => ({ type: r.type, total: num(r.total) })),
+    eventStats: VISITOR_EVENT_TYPES.map(type => ({
+      type,
+      total: eventCounts.get(type) || 0,
+      isConversion: isConversionEvent(type)
+    })),
+    eventsTotal,
+    events: eventRows.map(r => ({
+      ...r,
+      channelLabel: label(r.channel),
+      isConversion: isConversionEvent(r.type)
+    })),
     conversions: conversionRows.map(r => ({ ...r, channelLabel: label(r.channel) })),
     conversionsTotal: num(conversionCountRows[0]?.total),
     sessions: sessionRows.map(r => ({ ...r, channelLabel: label(r.channel) })),

@@ -16,7 +16,7 @@
           type="button"
           class="btn-submit"
           :disabled="!isClientReady || total <= 0"
-          @click="isModalOpen = true"
+          @click="openLeadModal"
         >
           <Icon name="mdi:send" size="20" />
           Получить точную смету
@@ -53,6 +53,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
 import type { CalculationResult, CalculatorState, WorkUnit } from '~/types/calculator'
+import { trackCtaClick } from '~/composables/visitor/trackerCta'
 import LeadModal from '../modals/LeadModal.vue'
 
 // -----------------------------------------------------------------------------
@@ -77,6 +78,12 @@ const props = withDefaults(
 const isModalOpen = ref(false)
 const showSuccessBanner = ref(false)
 const isClientReady = ref(false) // ✅ Для предотвращения hydration mismatch
+
+/** CTA-кнопка итога: вовлечение перед открытием формы (form_open зафиксирует LeadModal) */
+function openLeadModal() {
+  trackCtaClick('Калькулятор — Получить точную смету', { target: props.sourceLabel })
+  isModalOpen.value = true
+}
 
 // -----------------------------------------------------------------------------
 // 3. Вычисления

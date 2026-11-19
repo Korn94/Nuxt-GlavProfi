@@ -73,8 +73,12 @@
       <!-- Формы за период: заявки и доходимость -->
       <div
         class="stats-forms"
-        title="Заявка — отправленная форма (form_submit). Открытие формы — форма открыта или пользователь начал заполнение (form_open)."
+        title="CTA — клик по кнопке, ведущей к форме (cta_click). Открытие формы — форма открыта или начато заполнение (form_open). Заявка — отправленная форма (form_submit). Доходимость — доля визитов с открытой формой, где была заявка."
       >
+        <span class="stats-forms__item">
+          <Icon name="mdi:cursor-default-click-outline" size="13" />
+          Кликов CTA: <b>{{ formatNumber(stats.totals?.ctaClicks) }}</b>
+        </span>
         <span class="stats-forms__item stats-forms__item--success">
           <Icon name="mdi:file-send-outline" size="13" />
           Заявки: <b>{{ formatNumber(stats.totals?.leadEvents) }}</b>
@@ -272,23 +276,36 @@
         </div>
       </div>
 
-      <!-- Воронка форм: открытие → отправка (уникальные визиты) -->
+      <!-- Воронка: CTA → открытие формы → заявка (уникальные визиты) -->
       <div class="stats-block">
         <div class="stats-block__title">
-          Формы: открытие → заявка
-          <span class="stats-chip">{{ funnelRows.length }} стр. с формами</span>
+          CTA → форма → заявка
+          <span class="stats-chip">{{ funnelRows.length }} стр. с CTA/формами</span>
         </div>
-        <div v-if="!funnelRows.length" class="stats-empty">Формы за период не открывали</div>
+        <div v-if="!funnelRows.length" class="stats-empty">CTA и формы за период не открывали</div>
         <div v-else class="stats-table-wrap">
           <table class="stats-table">
             <thead>
-              <tr><th>Место формы</th><th title="Уникальные визиты с открытой формой">Открытий</th><th title="Уникальные визиты с отправленной формой">Отправок</th><th>Доходимость</th><th>Без заявки</th></tr>
+              <tr>
+                <th>Место формы</th>
+                <th title="Уникальные визиты с кликом по CTA (в скобках — доля визитов, где затем открыли форму)">CTA</th>
+                <th title="Уникальные визиты с открытой формой">Открытий</th>
+                <th title="Уникальные визиты с отправленной формой">Отправок</th>
+                <th>Доходимость</th>
+                <th>Без заявки</th>
+              </tr>
             </thead>
             <tbody>
               <tr v-for="row in funnelRows" :key="row.path || 'unknown'">
                 <td class="stats-path" :title="formatPath(row.path)">
                   <button v-if="row.path" class="stats-path-link" @click="openPage(row.path)">{{ eventPlace(row.path) }}</button>
                   <span v-else>—</span>
+                </td>
+                <td>
+                  <span v-if="row.ctaClicks > 0">
+                    {{ formatNumber(row.ctaClicks) }}<span class="stats-sub"> · {{ row.ctaToFormRate }}%</span>
+                  </span>
+                  <span v-else>0</span>
                 </td>
                 <td>{{ formatNumber(row.opens) }}</td>
                 <td>
@@ -305,6 +322,9 @@
             <tfoot>
               <tr>
                 <td>Всего</td>
+                <td>
+                  {{ formatNumber(funnelTotals.ctaClicks) }}<span class="stats-sub"> · {{ funnelTotals.ctaToFormRate }}%</span>
+                </td>
                 <td>{{ formatNumber(funnelTotals.opens) }}</td>
                 <td>{{ formatNumber(funnelTotals.submits) }}</td>
                 <td>{{ funnelTotals.submitRate }}%</td>
@@ -508,7 +528,7 @@ const funnelRows = computed(() => (props.stats?.formFunnel || []).map(row => ({
 })))
 
 const funnelTotals = computed(() => props.stats?.formFunnelTotals || {
-  opens: 0, submits: 0, submitRate: 0, submitEvents: 0
+  ctaClicks: 0, opens: 0, submits: 0, ctaToFormRate: 0, submitRate: 0, submitEvents: 0
 })
 
 const funnelNoLead = computed(() => Math.max(0, funnelTotals.value.opens - funnelTotals.value.submits))

@@ -92,12 +92,17 @@
 
 <script setup>
 import { onMounted, ref, computed } from 'vue'
+import { trackCtaClick } from '~/composables/visitor/trackerCta'
 
 const heroSection = ref(null)
 const telegramLink = 'https://t.me/glavprofii'
 const showModal = ref(false)
 
-const openModal = () => { showModal.value = true }
+const openModal = () => {
+  // 📊 CTA → модальная форма заявки
+  trackCtaClick('Проекты — Получить КП', { target: 'Проекты' })
+  showModal.value = true
+}
 const closeModal = () => { showModal.value = false }
 const handleFormSubmitted = (formData) => {
   console.log('📩 Форма отправлена:', formData)

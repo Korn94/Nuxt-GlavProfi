@@ -21,6 +21,7 @@
 
 <script setup>
 import { ref } from 'vue';
+import { trackCtaClick } from '~/composables/visitor/trackerCta';
 
 const props = defineProps({
   title: {
@@ -41,6 +42,8 @@ const showModal = ref(false);
 
 // Метод для открытия модального окна
 const openModal = () => {
+  // 📊 CTA → модальная форма заявки
+  trackCtaClick(`Прайс-лист — ${props.buttonText}`, { target: 'Коммерческое предложение' });
   showModal.value = true;
 };
 

@@ -190,6 +190,7 @@
   white-space: nowrap;
 
   &--success { background: var(--crm-success-dim); color: var(--crm-success); }
+  &--info { background: var(--crm-info-dim); color: var(--crm-info); }
   &--danger { background: var(--crm-danger-dim); color: var(--crm-danger); }
   &--muted { background: var(--crm-bg-overlay); color: var(--crm-text-muted); }
   &--staff { background: var(--crm-info-dim); color: var(--crm-info); }
