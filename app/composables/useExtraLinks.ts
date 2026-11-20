@@ -3,7 +3,8 @@
  * 🗂 Конфигурация страницы «Дополнительно» (/cabinet/more).
  *
  * Здесь собраны «служебные» ссылки, которые занимали место в боковом меню:
- * партнёры, кейсы, реквизиты, коммерческие предложения и тестовые страницы.
+ * партнёры (список, кабинет и публичный оффер), кейсы, реквизиты,
+ * коммерческие предложения и тестовые страницы.
  * Каждая ссылка сама решает, видна ли она (visible), группы фильтруются по
  * правам — поэтому страницу можно открывать любому сотруднику, лишних ссылок
  * он не увидит.
@@ -67,6 +68,16 @@ export function useExtraLinks() {
             icon: 'mdi:account-tie-outline',
             visible: () => isAdmin || hasRole('partner'),
           },
+          {
+            id: 'partner-offer',
+            title: 'Партнёрам',
+            description: 'Оффер для партнёров: условия и калькулятор вознаграждения',
+            path: '/partner',
+            icon: 'mdi:bullhorn-outline',
+            target: '_blank',
+            // Публичный лендинг (layout empy, noindex) — открываем в новой вкладке
+            visible: () => true,
+          },
         ],
       },
 
@@ -95,7 +106,9 @@ export function useExtraLinks() {
         links: offers.map(offer => ({
           id: `offer-${offer.slug}`,
           title: offer.title,
-          description: [offer.number, offer.object, offer.date].filter(Boolean).join(' · '),
+          // В строке списка достаточно адреса объекта и даты:
+          // номер КП и путь ссылки — лишний шум
+          description: [offer.object, offer.date].filter(Boolean).join(' · '),
           path: offer.path,
           icon: 'mdi:file-document-outline',
           target: '_blank',

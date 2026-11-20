@@ -8,7 +8,6 @@
       title="Дополнительно"
       icon="mdi:dots-grid"
       subtitle="Служебные разделы и документы"
-      :badge="totalLinks"
     />
 
     <div class="more-page__content">
@@ -27,21 +26,25 @@
 
         <ul class="more-list">
           <li v-for="link in group.links" :key="link.id" class="more-list__item">
-            <NuxtLink :to="link.path" :target="link.target" class="more-link">
-              <span class="more-link__icon">
+            <NuxtLink
+              :to="link.path"
+              :target="link.target"
+              :rel="link.target === '_blank' ? 'noopener noreferrer' : undefined"
+              class="more-row"
+            >
+              <span class="more-row__icon">
                 <Icon :name="link.icon" size="18" />
               </span>
 
-              <span class="more-link__body">
-                <span class="more-link__title">{{ link.title }}</span>
-                <span v-if="link.description" class="more-link__desc">{{ link.description }}</span>
-                <span class="more-link__path">{{ link.path }}</span>
+              <span class="more-row__text">
+                <span class="more-row__title">{{ link.title }}</span>
+                <span v-if="link.description" class="more-row__desc">{{ link.description }}</span>
               </span>
 
               <Icon
                 :name="link.target === '_blank' ? 'mdi:open-in-new' : 'mdi:chevron-right'"
                 size="16"
-                class="more-link__arrow"
+                class="more-row__arrow"
               />
             </NuxtLink>
           </li>
@@ -52,15 +55,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
 import { useExtraLinks } from '~/composables/useExtraLinks'
 
+// Состав групп и видимость ссылок — в app/composables/useExtraLinks.ts
 const { groups } = useExtraLinks()
-
-/** Общее число доступных ссылок — бейдж в шапке страницы */
-const totalLinks = computed(() =>
-  groups.value.reduce((sum, group) => sum + group.links.length, 0)
-)
 </script>
 
 <style lang="scss" scoped>
@@ -73,7 +71,7 @@ const totalLinks = computed(() =>
     padding: 20px 24px;
     display: flex;
     flex-direction: column;
-    gap: 22px;
+    gap: 20px;
   }
 }
 
@@ -81,17 +79,19 @@ const totalLinks = computed(() =>
 .more-section {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 
   &__head {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     gap: 8px;
+    padding: 0 2px;
   }
 
   &__icon {
     color: var(--crm-text-muted);
     flex-shrink: 0;
+    align-self: center;
   }
 
   &__title {
@@ -102,52 +102,43 @@ const totalLinks = computed(() =>
   }
 
   &__count {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 18px;
-    padding: 1px 6px;
-    background: var(--crm-bg-overlay);
-    border: 1px solid var(--crm-border-hover);
-    border-radius: 10px;
     font-size: var(--crm-text-xs);
-    font-weight: 600;
+    font-weight: 500;
     color: var(--crm-text-muted);
   }
 }
 
-// ── Сетка карточек ───────────────────────────────────────────────────
+// ── Список строк ─────────────────────────────────────────────────────
 .more-list {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 10px;
-
-  &__item {
-    display: flex;
-  }
-}
-
-.more-link {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  width: 100%;
-  padding: 12px 14px;
+  flex-direction: column;
   background: var(--crm-bg-surface);
   border: 1px solid var(--crm-border);
   border-radius: var(--crm-radius-lg);
+  overflow: hidden;
+
+  &__item + &__item {
+    border-top: 1px solid var(--crm-border);
+  }
+}
+
+.more-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  min-height: 54px;
   color: var(--crm-text-primary);
   text-decoration: none;
   transition: var(--crm-transition);
 
   &:hover {
     background: var(--crm-bg-elevated);
-    border-color: var(--crm-accent-border);
 
-    .more-link__arrow {
+    .more-row__arrow {
       color: var(--crm-accent);
       transform: translateX(2px);
     }
@@ -157,8 +148,8 @@ const totalLinks = computed(() =>
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
+    width: 30px;
+    height: 30px;
     flex-shrink: 0;
     background: var(--crm-accent-dim);
     border: 1px solid var(--crm-accent-border);
@@ -167,10 +158,10 @@ const totalLinks = computed(() =>
     transition: var(--crm-transition);
   }
 
-  &__body {
+  &__text {
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 2px;
     flex: 1;
     min-width: 0;
   }
@@ -178,33 +169,23 @@ const totalLinks = computed(() =>
   &__title {
     font-size: var(--crm-text-md);
     font-weight: 500;
-    line-height: 1.35;
+    line-height: 1.3;
     color: var(--crm-text-primary);
   }
 
   &__desc {
     display: -webkit-box;
     -webkit-line-clamp: 2;
-    line-clamp: 2; // Добавлено стандартное свойство
+    line-clamp: 2; // стандартное свойство для не-WebKit браузеров
     -webkit-box-orient: vertical;
     overflow: hidden;
     font-size: var(--crm-text-xs);
-    line-height: 1.45;
+    line-height: 1.4;
     color: var(--crm-text-secondary);
-  }
-
-  &__path {
-    font-family: var(--crm-font-mono);
-    font-size: var(--crm-text-xs);
-    color: var(--crm-text-muted);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 
   &__arrow {
     flex-shrink: 0;
-    margin-top: 8px;
     color: var(--crm-text-muted);
     transition: var(--crm-transition);
   }
@@ -233,11 +214,12 @@ const totalLinks = computed(() =>
 @media (max-width: 767.98px) {
   .more-page__content {
     padding: 16px;
-    gap: 18px;
+    gap: 16px;
   }
 
-  .more-list {
-    grid-template-columns: 1fr;
+  .more-row {
+    gap: 10px;
+    padding: 10px 12px;
   }
 }
 </style>
