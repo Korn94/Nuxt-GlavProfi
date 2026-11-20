@@ -33,9 +33,8 @@
 
           <!-- CTA блок -->
           <div class="hero__actions fade-in-up">
-            <UiButtonsPrimary variant="blue" @click="openModal">
-              <span>Получить КП / Смету</span>
-              <Icon name="lucide:arrow-right" size="18" />
+            <UiButtonsPrimary variant="blue" icon="mdi:arrow-right" @click="openModal">
+              Получить КП / Смету
             </UiButtonsPrimary>
             <p class="hero__disclaimer">
               Бесплатная консультация и предварительный расчёт за 24 часа

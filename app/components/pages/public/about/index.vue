@@ -1,152 +1,166 @@
-<!-- app\components\pages\public\about\index.vue -->
+<!-- app/components/pages/public/about/index.vue -->
 <template>
-  <div class="about-page">
-    <div class="page-header">
-      <h1>О компании</h1>
-    </div>
-    <div class="page-content">
-      <section>
-        <h2>Глав Профи</h2>
-        <p>
-          Работаем с <b>2014</b> года и за это время завоевали доверие сотен клиентов. Нас рекомендуют, а многие работают с нами не первый год, зная, что мы предлагаем надежное качество и четкое выполнение сроков.
-        </p>
-      </section>
-      <section>
-        <h2>С какими объектами мы работаем?</h2>
-        <h3>Мы выполняем ремонт и отделку:</h3>
-        <ul>
-          <li>Офисов</li>
-          <li>Магазинов и торговых точек</li>
-          <li>Ресторанов, кафе и баров</li>
-          <li>Салонов красоты, барбершопов и спа-центров</li>
-          <li>Складов и производственных помещений</li>
-          <li>Спортивных залов и фитнес-клубов</li>
-          <li>Медицинских центров, аптек и лабораторий</li>
-          <li>Учебных центров и образовательных учреждений</li>
-          <li>И другие коммерческие объекты</li>
-        </ul>
-        <p>Готовы взяться за <b>любой коммерческий объект</b>.</p>
-        <h2>Какие виды работ мы проводим? </h2>
-        <h3>Мы предлагаем:</h3>
-        <ul>
-          <li>Косметический и капитальный ремонт</li>
-          <li>Отделочные работы всех типов</li>
-          <li>Монтаж инженерных коммуникаций (электрика, водоснабжение, вентиляция)</li>
-          <li>Установку перегородок, дверей, стеклянных конструкций</li>
-          <li>Покраску, укладку плитки, паркетных полов</li>
-          <li>Сантехнические работы</li>
-          <li>Декоративные работы и монтаж сложных дизайнерских решений</li>
-          <li>И другие работы</li>
-        </ul>
-        <p><b>Полный комплекс услуг</b>: от разработки проекта до финишной отделки. Мы берем на себя все этапы работ!</p>
-      </section>
-      <section>
-        <h2>Наши преимущества</h2>
-        <h3>Почему работать с нами — это удобно? </h3>
-        <ul>
-          <li>Контракт с проверенными поставщиками материалов. Мы закупаем материалы для вас по оптовым ценам</li>
-          <li>Помогаем с выбором, объясняем плюсы и минусы материалов и решений</li>
-          <li>Все организационные моменты берем на себя — от закупок до сдачи объекта</li>
-          <li>Возможность работы под ключ</li>
-        </ul>
-        <h3>Особые условия для клиентов</h3>
-        <ul>
-          <li>Бесплатный выезд и расчет на вашем объекте</li>
-          <li>Консультации по всем вопросам</li>
-          <li>Заключаем официальные договора — никаких рисков для вас</li>
-          <li>Несколько больших бригад, каждая из которых специализируется на своей области, что позволяет нам выполнять работы качественно и точно в срок</li>
-        </ul>
-      </section>
-      <section>
-        <h2>Хотите знать больше?</h2>
-        <p>
-          Свяжитесь с нами для получения подробной консультации или расчета стоимости вашего проекта!
-        </p>
-        <UiButtonsPrimary variant="blue" @click="openModal">Связаться с нами</UiButtonsPrimary>
-        <UiFormsContactForm v-if="showModal" source="О компании" @close="closeModal" @formSubmitted="handleFormSubmitted" />
-      </section>
-    </div>
-  </div>
+  <main class="about-page">
+    <Breadcrumbs :items="breadcrumbs" />
+
+    <AboutHero @open-contact="openModal" />
+
+    <UiAnimationsBlockAnimator>
+      <AboutObjects />
+    </UiAnimationsBlockAnimator>
+
+    <UiAnimationsBlockAnimator>
+      <AboutWorks />
+    </UiAnimationsBlockAnimator>
+
+    <UiAnimationsBlockAnimator>
+      <AboutAdvantages />
+    </UiAnimationsBlockAnimator>
+
+    <UiAnimationsBlockAnimator>
+      <HomeBrands />
+    </UiAnimationsBlockAnimator>
+
+    <UiAnimationsBlockAnimator>
+      <ProjectsShowcase
+        v-if="projects.length"
+        id="about-projects"
+        title="Наши реализованные проекты <span>для бизнеса в Рязани</span>"
+        subtitle="Площади, сроки и состав работ — без рендеров и обещаний."
+        :projects="projects"
+      />
+    </UiAnimationsBlockAnimator>
+
+    <UiAnimationsBlockAnimator>
+      <ProcessTimeline />
+    </UiAnimationsBlockAnimator>
+
+    <UiAnimationsBlockAnimator>
+      <BeforeAfterShowcase
+        title="Наши объекты <span>до и после</span>"
+        subtitle="Фотографии с реальных объектов в Рязани."
+        :items="beforeAfterItems"
+        :auto-switch-after-passes="4"
+      />
+    </UiAnimationsBlockAnimator>
+
+    <UiAnimationsBlockAnimator>
+      <AboutCta @open-contact="openModal" />
+    </UiAnimationsBlockAnimator>
+
+    <!-- Модальная форма заявки -->
+    <UiFormsContactForm
+      v-if="showModal"
+      source="О компании"
+      @close="closeModal"
+      @formSubmitted="handleFormSubmitted"
+    />
+  </main>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue'
-import { trackCtaClick } from '~/composables/visitor/trackerCta'
+
+import AboutHero from './blocks/Hero.vue'
+import AboutObjects from './blocks/Objects.vue'
+import AboutWorks from './blocks/Works.vue'
+import AboutAdvantages from './blocks/Advantages.vue'
+import AboutCta from './blocks/Cta.vue'
+
+import Breadcrumbs from '~/components/pages/public/remontPomescheniy/ui/Breadcrumbs.vue'
+import HomeBrands from '~/components/pages/public/homePage/Brands.vue'
+import ProjectsShowcase from '~/components/pages/public/remontPomescheniy/pageTypes/ui/ProjectsShowcase.vue'
+import ProcessTimeline from '~/components/pages/public/remontPomescheniy/index/blocks/ProcessTimeline.vue'
+import BeforeAfterShowcase from '~/components/pages/public/remontPomescheniy/workTypes/ui/BeforeAfterShowcase.vue'
+
+import type { BreadcrumbItem } from '~/components/pages/public/remontPomescheniy/ui/types'
+import type { ShowcaseItem } from '~/components/pages/public/remontPomescheniy/workTypes/types'
+import { usePortfolioProjects } from '~/composables/portfolio/usePortfolioProjects'
+
+const breadcrumbs: BreadcrumbItem[] = [
+  { label: 'Главная', to: '/' },
+  { label: 'О компании' },
+]
 
 const showModal = ref(false)
 
-// Метод для открытия модального окна
-const openModal = () => {
-  // 📊 CTA → модальная форма заявки
-  trackCtaClick('О компании — Связаться с нами', { target: 'О компании' })
+const { projects } = await usePortfolioProjects({
+  key: 'about-projects',
+  slugs: ['ddx', 'fora-bank', 'klinika-alma', 'zerno'],
+})
+
+const beforeAfterItems: ShowcaseItem[] = [
+  {
+    beforeImage: '/main/7-1.webp',
+    afterImage: '/main/7.webp',
+    beforeAlt: 'Объект до ремонта',
+    afterAlt: 'Объект после ремонта',
+  },
+  {
+    beforeImage: '/main/1-1.jpg',
+    afterImage: '/main/1.jpg',
+    beforeAlt: 'Помещение до отделки',
+    afterAlt: 'Помещение после отделки',
+  },
+  {
+    beforeImage: '/main/vidy-rabot/peregorodki-gkl/10.jpg',
+    afterImage: '/main/vidy-rabot/peregorodki-gkl/2.jpg',
+    beforeAlt: 'Помещение до установки перегородок',
+    afterAlt: 'Помещение после установки перегородок',
+  },
+  {
+    beforeImage: '/main/vidy-rabot/peregorodki-gkl/9.jpg',
+    afterImage: '/main/vidy-rabot/peregorodki-gkl/4.jpg',
+    beforeAlt: 'Помещение до ремонта перегородок',
+    afterAlt: 'Помещение после ремонта перегородок',
+  },
+  {
+    beforeImage: '/main/5.jpg',
+    afterImage: '/main/6.jpg',
+    beforeAlt: 'Коммерческое помещение до ремонта',
+    afterAlt: 'Коммерческое помещение после ремонта',
+  },
+]
+
+function openModal() {
   showModal.value = true
 }
 
-// Метод для закрытия модального окна
-const closeModal = () => {
+function closeModal() {
   showModal.value = false
 }
 
-// Метод для обработки отправки формы
-const handleFormSubmitted = (formData) => {
-  console.log("Форма отправлена:", formData)
-  // Здесь можно добавить логику отправки данных на сервер
-  closeModal() // Закрываем форму после отправки
+function handleFormSubmitted(formData: unknown) {
+  console.log('Форма отправлена:', formData)
+  closeModal()
 }
 </script>
 
 <style lang="scss" scoped>
+@use '@/assets/styles/variables' as *;
+
 .about-page {
-  margin-top: 5em;
-  padding: 40px 20px;
-  font-family: Arial, sans-serif;
-  line-height: 1.6;
-  color: #333;
-  
+  margin-top: 3.75em;
+  overflow: hidden;
+  background: $background-light;
+
   @media (max-width: 768px) {
     margin-top: 2em;
   }
 
-  .page-header {
-    text-align: center;
-    margin-bottom: 40px;
+  // Четыре кейса смотрятся ровно в сетке 2×2,
+  // а не «3 + 1» при auto-fit minmax(320px, 1fr).
+  :deep(.projects-showcase__grid) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
 
-    h1 {
-      font-size: 2rem;
-      color: #18191b;
+    @media (max-width: 768px) {
+      grid-template-columns: 1fr;
     }
   }
 
-  .page-content {
-    max-width: 1200px;
-    margin: 0 auto;
-
-    section {
-      margin-bottom: 30px;
-
-      h2 {
-        font-size: 1.5rem;
-        color: #00c3f5; // Цвет заголовков
-        margin-bottom: 15px;
-      }
-
-      p {
-        font-size: 1rem;
-      }
-
-      ul {
-        margin-left: 20px;
-        list-style-type: disc;
-
-        li {
-          margin-bottom: 5px;
-        }
-      }
-
-      button {
-        margin-top: 1em;
-      }
-    }
+  // Фиксированная шапка не должна перекрывать секцию при переходе по якорю.
+  :deep(#about-projects) {
+    scroll-margin-top: 80px;
   }
 }
 </style>

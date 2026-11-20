@@ -58,6 +58,7 @@ span {
 .breadcrumbs {
   background: $background-dark;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
   padding: 1rem 0;
 
   &__container {
