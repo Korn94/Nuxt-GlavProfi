@@ -31,13 +31,6 @@
             <span v-else class="details-crumb__current">{{ stepLabel(step) }}</span>
           </template>
         </div>
-
-        <div class="details-top__actions">
-          <button class="crm-btn crm-btn--ghost crm-btn--sm" title="Скопировать ссылку на этот экран" @click="copyLink">
-            <Icon name="mdi:link-variant" size="14" />
-            Ссылка
-          </button>
-        </div>
       </div>
 
       <PagesCabinetOnlineAnalyticsPageDetails
@@ -65,7 +58,6 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useNotifications } from '~/composables/useNotifications'
 import {
   shortSessionId,
   shortVisitorId,
@@ -86,8 +78,6 @@ const emit = defineEmits<{
   pop: []
   goto: [index: number]
 }>()
-
-const notifications = useNotifications()
 
 const current = computed<AnalyticsStep | null>(() => props.stack[props.stack.length - 1] || null)
 
@@ -115,39 +105,12 @@ function openVisitor(visitorId: string) {
 
 function openSession(sessionId: string, visitorId?: string) {
   // Из детализации страницы переходим сразу к визиту — добавляем уровень
-  // посетителя, чтобы крошки и ссылка были полными.
+  // посетителя, чтобы крошки были полными.
   const hasVisitor = props.stack.some(step => step.kind === 'visitor')
   if (visitorId && !hasVisitor) {
     emit('push', { kind: 'visitor', id: visitorId, title: shortVisitorId(visitorId) })
   }
   emit('push', { kind: 'session', id: sessionId, title: `Визит ${shortSessionId(sessionId)}` })
-}
-
-/** Копирование текущей ссылки (состояние уже синхронизировано с URL) */
-async function copyLink() {
-  if (!import.meta.client) return
-
-  const url = window.location.href
-  try {
-    await navigator.clipboard.writeText(url)
-    notifications.success('Ссылка скопирована', 'Аналитика')
-  } catch {
-    // Фолбэк для браузеров без Clipboard API / без https
-    const area = document.createElement('textarea')
-    area.value = url
-    area.style.position = 'fixed'
-    area.style.opacity = '0'
-    document.body.appendChild(area)
-    area.select()
-    try {
-      document.execCommand('copy')
-      notifications.success('Ссылка скопирована', 'Аналитика')
-    } catch {
-      notifications.error('Не удалось скопировать ссылку', 'Аналитика')
-    } finally {
-      document.body.removeChild(area)
-    }
-  }
 }
 </script>
 
@@ -165,12 +128,6 @@ async function copyLink() {
   justify-content: space-between;
   gap: 10px;
   flex-wrap: wrap;
-
-  &__actions {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
 }
 
 .details-breadcrumbs {

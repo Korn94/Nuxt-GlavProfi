@@ -183,7 +183,10 @@
       </div>
 
       <div class="stats-block">
-        <div class="stats-block__title">Страницы</div>
+        <div class="stats-block__title">
+          Страницы
+          <span class="stats-chip">{{ stats.pages.length }} стр. · {{ pageGroups.length }} групп</span>
+        </div>
         <div v-if="!stats.pages.length" class="stats-empty">Пока нет данных за период</div>
         <div v-else class="stats-table-wrap">
           <table class="stats-table">
@@ -194,37 +197,60 @@
               </tr>
             </thead>
             <tbody>
-              <tr
-                v-for="row in stats.pages"
-                :key="row.path"
-                class="stats-row--clickable"
-                tabindex="0"
-                :title="`Показать детали страницы ${row.path}`"
-                @click="openPage(row.path)"
-                @keydown.enter="openPage(row.path)"
-              >
-                <td class="stats-path" :title="row.path">
-                  <button
-                    class="stats-path-link"
-                    @click.stop="openPage(row.path)"
-                    @keydown.stop
-                  >{{ row.path }}</button>
-                </td>
-                <td>{{ formatNumber(row.views) }}</td>
-                <td>{{ formatSeconds(row.avgSeconds) }}</td>
-                <td>
-                  <div class="scroll-cell">
-                    <div class="scroll-bar">
-                      <div class="scroll-bar__fill" :class="{ 'scroll-bar__fill--low': row.avgScroll < 25 }" :style="{ width: `${row.avgScroll}%` }" />
+              <template v-for="group in pageGroups" :key="group.key">
+                <tr class="stats-group-row">
+                  <td>
+                    <span class="stats-group-label">
+                      <Icon :name="group.icon" size="13" />
+                      <span class="stats-group-label__text">{{ group.label }}</span>
+                      <span class="stats-chip">{{ group.pages.length }}</span>
+                    </span>
+                  </td>
+                  <td>{{ formatNumber(group.views) }}</td>
+                  <td>{{ formatSeconds(group.avgSeconds) }}</td>
+                  <td>
+                    <div class="scroll-cell">
+                      <div class="scroll-bar">
+                        <div class="scroll-bar__fill" :class="{ 'scroll-bar__fill--low': group.avgScroll < 25 }" :style="{ width: `${group.avgScroll}%` }" />
+                      </div>
+                      <span class="stats-sub" :class="{ 'stats-warn': group.avgScroll < 25 }">{{ group.avgScroll }}%</span>
                     </div>
-                    <span class="stats-sub" :class="{ 'stats-warn': row.avgScroll < 25 }">{{ row.avgScroll }}%</span>
-                  </div>
-                </td>
-                <td :class="{ 'stats-warn': row.exitRate >= 60 }">{{ formatNumber(row.exits) }} ({{ row.exitRate }}%)</td>
-                <td class="stats-col-actions">
-                  <Icon name="mdi:chevron-right" size="14" />
-                </td>
-              </tr>
+                  </td>
+                  <td :class="{ 'stats-warn': group.exitRate >= 60 }">{{ formatNumber(group.exits) }} ({{ group.exitRate }}%)</td>
+                  <td class="stats-col-actions"></td>
+                </tr>
+                <tr
+                  v-for="row in group.pages"
+                  :key="row.path"
+                  class="stats-row--clickable stats-page-row"
+                  tabindex="0"
+                  :title="`Показать детали страницы ${row.path}`"
+                  @click="openPage(row.path)"
+                  @keydown.enter="openPage(row.path)"
+                >
+                  <td class="stats-path" :title="row.path">
+                    <button
+                      class="stats-path-link"
+                      @click.stop="openPage(row.path)"
+                      @keydown.stop
+                    >{{ row.path }}</button>
+                  </td>
+                  <td>{{ formatNumber(row.views) }}</td>
+                  <td>{{ formatSeconds(row.avgSeconds) }}</td>
+                  <td>
+                    <div class="scroll-cell">
+                      <div class="scroll-bar">
+                        <div class="scroll-bar__fill" :class="{ 'scroll-bar__fill--low': row.avgScroll < 25 }" :style="{ width: `${row.avgScroll}%` }" />
+                      </div>
+                      <span class="stats-sub" :class="{ 'stats-warn': row.avgScroll < 25 }">{{ row.avgScroll }}%</span>
+                    </div>
+                  </td>
+                  <td :class="{ 'stats-warn': row.exitRate >= 60 }">{{ formatNumber(row.exits) }} ({{ row.exitRate }}%)</td>
+                  <td class="stats-col-actions">
+                    <Icon name="mdi:chevron-right" size="14" />
+                  </td>
+                </tr>
+              </template>
             </tbody>
           </table>
         </div>
@@ -477,10 +503,10 @@ import { isConversionEvent, isFormMicroEvent } from 'shared/constants/visitorEve
 import type { VisitorEventRow, VisitorStatsResponse, VisitorVisit } from '~/types'
 import { useOnlineFormatters } from './composables/useOnlineFormatters'
 import { buildDailySeries, chartThemeColors } from './composables/useEchartsTheme'
+import { groupPages } from './composables/usePageGroups'
 import {
   shortSessionId,
   shortVisitorId,
-  useAnalyticsRouteSync,
   type AnalyticsStep
 } from './composables/useAnalyticsRoute'
 
@@ -640,9 +666,12 @@ const noLeadVisits = computed(() => Math.max(
 
 const hasEventData = computed(() => (props.stats?.eventStats || []).some(item => item.total > 0))
 
-// ── Детализация: стек «страница → посетитель → визит» + URL-query ───────
+// ── Страницы: логическая группировка по разделам сайта (прайс, офферы…) ─
+const pageGroups = computed(() => groupPages(props.stats?.pages || []))
+
+// ── Детализация: стек «страница → посетитель → визит» ───────────────────
 const detailsStack = ref<AnalyticsStep[]>([])
-/** Модалка монтируется на клиенте: ссылка из query открывается после гидрации */
+/** Модалка монтируется на клиенте, чтобы не рендерить оверлей в SSR */
 const detailsMounted = ref(false)
 
 const detailsVisible = computed({
@@ -651,8 +680,6 @@ const detailsVisible = computed({
     if (!value) detailsStack.value = []
   }
 })
-
-useAnalyticsRouteSync(detailsStack)
 
 /**
  * Кладёт шаг в стек. Если шаг такого типа уже есть — заменяет его и
@@ -1234,6 +1261,33 @@ watch(() => props.stats, (s) => {
   &:hover { text-decoration: underline; }
   &:focus-visible { outline: 1px solid var(--crm-accent); outline-offset: 2px; }
 }
+
+/* 🗂️ Группы в таблице «Страницы»: раздел сайта + вложенные страницы */
+.stats-group-row {
+  background: var(--crm-bg-elevated);
+
+  td {
+    color: var(--crm-text-primary);
+    border-top: 2px solid var(--crm-border-hover);
+  }
+
+  &:first-child td { border-top: none; }
+}
+
+.stats-table tbody .stats-group-row:hover {
+  background: var(--crm-bg-elevated);
+}
+
+.stats-group-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--crm-font-sans);
+
+  &__text { font-weight: 600; }
+}
+
+.stats-page-row td:first-child { padding-left: 26px; }
 
 /* 🗑️ Колонка удаления визита (только администратор) */
 .stats-table .stats-col-actions {
