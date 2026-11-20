@@ -7,6 +7,19 @@
         Аналитика сайта
       </span>
       <div class="online-card__actions">
+        <span v-if="statsUpdatedAt" class="stats-updated" title="Время последней загрузки аналитики">
+          обновлено в {{ formatClock(statsUpdatedAt) }}
+        </span>
+        <label class="toggle-label stats-staff-toggle" title="Не учитывать собственные заходы сотрудников (визиты после логина)">
+          <input
+            type="checkbox"
+            class="toggle-cb"
+            :checked="hideStaff !== false"
+            @change="onHideStaffToggle"
+          >
+          <span class="toggle-track" />
+          <span class="toggle-text">без сотрудников</span>
+        </label>
         <select :value="statsDays" class="stats-select" @change="onDaysChange">
           <option :value="1">Сегодня</option>
           <option :value="7">7 дней</option>
@@ -416,13 +429,26 @@
       </div>
 
       <div class="stats-block">
-        <div class="stats-block__title">История визитов</div>
+        <div class="stats-block__title">
+          История визитов
+          <span v-if="visitsCaption" class="stats-chip">{{ visitsCaption }}</span>
+          <span v-if="hideStaff !== false" class="stats-chip">без сотрудников</span>
+          <button
+            v-if="canShowMoreVisits"
+            class="crm-btn crm-btn--ghost crm-btn--sm stats-more"
+            :disabled="loading"
+            @click="emit('more-visits')"
+          >
+            <Icon name="mdi:chevron-down" size="14" />
+            Показать ещё
+          </button>
+        </div>
         <div v-if="!stats.visits.length" class="stats-empty">Визитов за период нет</div>
         <div v-else class="stats-table-wrap">
           <table class="stats-table">
             <thead>
               <tr>
-                <th>Начало</th><th>Источник</th><th>Кампания</th><th>Вход → выход</th><th>Город</th>
+                <th>Начало</th><th>Посетитель</th><th>Источник</th><th>Кампания</th><th>Вход → выход</th><th>Город</th>
                 <th>Страниц</th><th>Время</th><th>Устройство</th><th>Итог</th>
                 <th v-if="isAdmin" class="stats-col-actions" aria-label="Действия"></th>
               </tr>
@@ -438,6 +464,24 @@
                 @keydown.enter="openSession(row.id, row.visitorId)"
               >
                 <td>{{ formatFullDateTime(row.startedAt) }}</td>
+                <td>
+                  <button
+                    class="stats-visitor"
+                    :title="`Открыть посетителя ${row.visitorId}`"
+                    @click.stop="openVisitor(row.visitorId)"
+                    @keydown.stop
+                  >
+                    {{ shortVisitorId(row.visitorId) }}
+                  </button>
+                  <button
+                    class="stats-copy"
+                    :title="copiedVisitorId === row.visitorId ? 'ID скопирован' : 'Скопировать ID посетителя'"
+                    @click.stop="copyVisitorId(row.visitorId)"
+                    @keydown.stop
+                  >
+                    <Icon :name="copiedVisitorId === row.visitorId ? 'mdi:check' : 'mdi:content-copy'" size="12" />
+                  </button>
+                </td>
                 <td>
                   {{ row.channelLabel }}
                   <span v-if="row.visitNumber > 1" class="stats-sub"> · визит №{{ row.visitNumber }}</span>
@@ -519,10 +563,18 @@ const props = defineProps<{
   isAdmin?: boolean
   /** ID визита, который удаляется прямо сейчас */
   deletingId?: string | null
+  /** Скрывать ли из аналитики визиты сотрудников (по умолчанию да) */
+  hideStaff?: boolean
+  /** Время последней загрузки аналитики (мс) — подпись «обновлено в …» */
+  statsUpdatedAt?: number | null
 }>()
 
 const emit = defineEmits<{
   'update:statsDays': [value: number]
+  /** Переключение фильтра «без сотрудников» */
+  'update:hideStaff': [value: boolean]
+  /** Догрузить ещё визиты в историю */
+  'more-visits': []
   refresh: []
   'delete-visit': [visit: VisitorVisit]
 }>()
@@ -539,6 +591,17 @@ const {
 
 function onDaysChange(e: Event) {
   emit('update:statsDays', Number((e.target as HTMLSelectElement).value))
+}
+
+/** Фильтр «без сотрудников»: скрывает из цифр собственные заходы (после логина) */
+function onHideStaffToggle(e: Event) {
+  emit('update:hideStaff', (e.target as HTMLInputElement).checked)
+}
+
+/** Время последнего обновления аналитики: 14:32:05 */
+function formatClock(ts: number | null | undefined): string {
+  if (!ts) return '—'
+  return new Date(ts).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
 
 // ── События: фильтры по группам ─────────────────────────────────────────
@@ -715,6 +778,46 @@ function openSession(sessionId: string, visitorId?: string) {
   }
   pushStep({ kind: 'session', id: sessionId, title: `Визит ${shortSessionId(sessionId)}` })
 }
+
+/** Клик по ID посетителя в истории визитов — открыть карточку посетителя */
+function openVisitor(visitorId: string) {
+  pushStep({ kind: 'visitor', id: visitorId, title: shortVisitorId(visitorId) })
+}
+
+/** ID посетителя, который только что скопировали (галочка на кнопке) */
+const copiedVisitorId = ref<string | null>(null)
+
+/** Скопировать полный visitor_id — чтобы найти посетителя в БД/логах */
+async function copyVisitorId(visitorId: string) {
+  try {
+    await navigator.clipboard.writeText(visitorId)
+    copiedVisitorId.value = visitorId
+    setTimeout(() => {
+      if (copiedVisitorId.value === visitorId) copiedVisitorId.value = null
+    }, 1500)
+  } catch (error) {
+    console.warn('[Аналитика] Не удалось скопировать ID посетителя:', error)
+  }
+}
+
+/** Максимум визитов, который готов отдать сервер (VISITS_LIMIT_MAX в stats.get.ts) */
+const VISITS_LIMIT_MAX = 300
+
+/** Есть ли ещё визиты за пределами загруженной истории */
+const canShowMoreVisits = computed(() => {
+  const s = props.stats
+  if (!s) return false
+  return s.visits.length < (s.visitsTotal ?? 0) && (s.visitsLimit ?? 0) < VISITS_LIMIT_MAX
+})
+
+/** Подпись к истории визитов: «показаны последние 40 из 646» / «всего 12» */
+const visitsCaption = computed(() => {
+  const s = props.stats
+  if (!s) return ''
+  const total = s.visitsTotal ?? s.visits.length
+  if (s.visits.length >= total) return `всего ${formatNumber(total)}`
+  return `показаны последние ${formatNumber(s.visits.length)} из ${formatNumber(total)}`
+})
 
 // ── Графики ─────────────────────────────────────────────────────────────
 const dailyChartRef = ref<HTMLElement | null>(null)
@@ -1341,4 +1444,44 @@ watch(() => props.stats, (s) => {
     &--low { background: var(--crm-warning); }
   }
 }
+
+/* 👤 История визитов: короткий ID посетителя, копирование и «Показать ещё» */
+.stats-visitor {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--crm-accent);
+  cursor: pointer;
+
+  &:hover { text-decoration: underline; }
+  &:focus-visible { outline: 1px solid var(--crm-accent); outline-offset: 2px; }
+}
+
+.stats-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 4px;
+  padding: 0 2px;
+  background: none;
+  border: none;
+  color: var(--crm-text-muted);
+  cursor: pointer;
+
+  &:hover { color: var(--crm-text-secondary); }
+  &:focus-visible { outline: 1px solid var(--crm-accent); outline-offset: 1px; }
+}
+
+/* 🔄 Шапка блока: время последнего обновления и фильтр «без сотрудников» */
+.stats-updated {
+  font-size: var(--crm-text-xs);
+  font-family: var(--crm-font-mono);
+  color: var(--crm-text-disabled);
+  white-space: nowrap;
+}
+
+.stats-staff-toggle { white-space: nowrap; }
+
+.stats-more { margin-left: auto; }
 </style>

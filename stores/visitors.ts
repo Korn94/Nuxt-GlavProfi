@@ -16,6 +16,11 @@ import { socketService } from 'services/socket.service'
 import type { Visitor, VisitorsResponse, VisitorStatsResponse, DeleteVisitResponse } from '~/types'
 import { useApi } from '~/composables/useApi'
 
+/** Сколько последних визитов грузим в «Историю визитов» (кнопка «Показать ещё») */
+const VISITS_LIMIT_STEP = 60
+/** Максимум строк «Истории визитов», который готов принять сервер */
+const VISITS_LIMIT_MAX = 300
+
 /**
  * Интерфейс состояния store
  */
@@ -26,6 +31,12 @@ interface VisitorsState {
   stats: VisitorStatsResponse | null
   /** Период статистики, дней */
   statsDays: number
+  /** Сколько последних визитов запрашивать в истории (растёт по «Показать ещё») */
+  statsVisitsLimit: number
+  /** Скрывать визиты сотрудников в аналитике (по умолчанию да) */
+  hideStaff: boolean
+  /** Время последней успешной загрузки аналитики (мс) — для подписи «обновлено в …» */
+  statsUpdatedAt: number | null
   /** Флаг загрузки статистики */
   isStatsLoading: boolean
   /** Ошибка загрузки статистики */
@@ -57,6 +68,9 @@ export const useVisitorsStore = defineStore('visitors', {
     visitors: [],
     stats: null,
     statsDays: 30,
+    statsVisitsLimit: 40,
+    hideStaff: true,
+    statsUpdatedAt: null,
     isStatsLoading: false,
     statsError: null,
     isLoading: false,
@@ -142,15 +156,27 @@ export const useVisitorsStore = defineStore('visitors', {
 
     /**
      * Загрузка сводной аналитики из БД (таблицы под блоком «Посетители сайта»)
+     *
+     * @param days период в днях (если не указан — текущий)
+     * @param opts.visitsLimit сколько последних визитов запросить (по умолчанию — текущий лимит)
      */
-    async fetchStats(days?: number) {
+    async fetchStats(days?: number, opts: { visitsLimit?: number } = {}) {
       this.isStatsLoading = true
       this.statsError = null
       if (days) this.statsDays = days
+      if (opts.visitsLimit) this.statsVisitsLimit = opts.visitsLimit
+
+      // limit — сколько последних визитов в истории; excludeStaff — скрыть визиты сотрудников
+      const params = new URLSearchParams({
+        days: String(this.statsDays),
+        limit: String(this.statsVisitsLimit),
+        excludeStaff: this.hideStaff ? '1' : '0'
+      })
 
       try {
         const api = useApi()
-        this.stats = await api.get<VisitorStatsResponse>(`/api/visitors/stats?days=${this.statsDays}`)
+        this.stats = await api.get<VisitorStatsResponse>(`/api/visitors/stats?${params.toString()}`)
+        this.statsUpdatedAt = Date.now()
         return this.stats
       } catch (error: any) {
         console.error('[VisitorsStore] ❌ Ошибка загрузки аналитики:', error)
@@ -159,6 +185,20 @@ export const useVisitorsStore = defineStore('visitors', {
       } finally {
         this.isStatsLoading = false
       }
+    },
+
+    /** «Показать ещё» в истории визитов: поднять лимит и перезагрузить аналитику */
+    async showMoreVisits() {
+      const limit = Math.min(VISITS_LIMIT_MAX, this.statsVisitsLimit + VISITS_LIMIT_STEP)
+      if (limit === this.statsVisitsLimit) return this.stats
+      return this.fetchStats(undefined, { visitsLimit: limit })
+    },
+
+    /** Скрывать/показывать визиты сотрудников (перезагружает аналитику) */
+    async setHideStaff(value: boolean) {
+      if (this.hideStaff === value) return this.stats
+      this.hideStaff = value
+      return this.fetchStats()
     },
 
     /**
@@ -252,6 +292,8 @@ export const useVisitorsStore = defineStore('visitors', {
       this.visitors = []
       this.stats = null
       this.statsError = null
+      this.statsUpdatedAt = null
+      this.statsVisitsLimit = 40
       this.error = null
       this.deletingVisitId = null
       this.isSubscribed = false

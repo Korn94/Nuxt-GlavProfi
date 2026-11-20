@@ -1,5 +1,5 @@
 /**
- * 📍 Эндпоинт: GET /api/visitors/stats?days=30
+ * 📍 Эндпоинт: GET /api/visitors/stats?days=30&limit=40&excludeStaff=1
  *
  * Простые сводные таблицы аналитики из БД для блока на /cabinet/online:
  * - channels: источники трафика (визиты, посетители, обращения, отказы, средняя длительность);
@@ -9,13 +9,19 @@
  * - formFunnel: воронка «CTA → показ формы → открытие → фокус → ввод → заявка» по страницам
  *   (form_view / form_focus / form_typing — опциональные микро-события);
  * - conversions: последние обращения с источником и путём посетителя;
- * - visits: последние визиты.
+ * - visits: последние визиты (не больше limit; полное число за период — visitsTotal).
+ *
+ * Параметры запроса:
+ * - days — период в днях, 1..90 (по умолчанию 30);
+ * - limit — сколько последних визитов отдать в «Истории визитов», 40..300 (по умолчанию 40);
+ * - excludeStaff — скрывать визиты сотрудников (linked_user_id заполняется при логине).
+ *   По умолчанию ВКЛЮЧЁН, чтобы свои заходы не засоряли цифры; excludeStaff=0 покажет всё.
  *
  * Доступ: право users:view (префикс /api/visitors в PROTECTED_PATHS).
  * Данные приходят в БД с задержкой до минуты (flush реестра из памяти).
  */
 
-import { and, desc, eq, gte, inArray, not, sql } from 'drizzle-orm'
+import { and, desc, eq, gte, inArray, isNotNull, isNull, not, notInArray, sql } from 'drizzle-orm'
 import { getQuery } from 'h3'
 import { defineApi } from '../../utils/defineApi'
 import { db } from '../../db'
@@ -41,9 +47,21 @@ const EVENTS_LIMIT = 100
 /** Сколько последних микро-событий формы добавляем к таблице (не вытесняют конверсии) */
 const MICRO_EVENTS_LIMIT = 50
 
+/** Сколько последних визитов отдаём в «Историю визитов» по умолчанию */
+const VISITS_LIMIT = 40
+
+/** Максимум строк «Истории визитов» (кнопка «Показать ещё») */
+const VISITS_LIMIT_MAX = 300
+
 const num = (value: unknown): number => {
   const n = Number(value)
   return Number.isFinite(n) ? n : 0
+}
+
+/** Первое значение query-параметра (при дублях в URL приходит массивом) */
+const firstParam = (value: unknown): string => {
+  if (Array.isArray(value)) return String(value[0] ?? '')
+  return value === null || value === undefined ? '' : String(value)
 }
 
 /** Процент с одним знаком после запятой */
@@ -53,11 +71,35 @@ const pct = (part: number, total: number): number =>
 export default defineApi(async (event) => {
   const query = getQuery(event)
   const days = Math.min(90, Math.max(1, Math.round(num(query.days) || 30)))
+  const visitsLimit = Math.min(
+    VISITS_LIMIT_MAX,
+    Math.max(VISITS_LIMIT, Math.round(num(query.limit) || VISITS_LIMIT))
+  )
+  // 👥 Визиты сотрудников (linked_user_id заполняется при логине) по умолчанию скрываем:
+  // свои заходы не должны засорять цифры. excludeStaff=0 — показать их снова.
+  const excludeStaff = !['0', 'false', 'no'].includes(firstParam(query.excludeStaff).toLowerCase())
   const border = formatMySQLDate(new Date(Date.now() - days * 24 * 60 * 60 * 1000))
 
   const s = siteVisitorSessions
   const pv = siteVisitorPageviews
   const ev = siteVisitorEvents
+
+  // Просмотры и события привязаны к визиту (session_id), а колонки linked_user_id
+  // в этих таблицах нет — «свои» визиты исключаем по списку их id.
+  const staffSessionIds = excludeStaff
+    ? (await db.select({ id: s.id }).from(s).where(isNotNull(s.linkedUserId))).map(row => row.id)
+    : []
+
+  /** Условие «визит не принадлежит сотруднику» — для таблиц сессий (в том числе с join) */
+  const noStaffSession = excludeStaff ? isNull(s.linkedUserId) : undefined
+  /** То же для просмотров страниц (без join с сессиями) */
+  const noStaffPageview = excludeStaff && staffSessionIds.length
+    ? notInArray(pv.sessionId, staffSessionIds)
+    : undefined
+  /** То же для событий (без join с сессиями) */
+  const noStaffEvent = excludeStaff && staffSessionIds.length
+    ? notInArray(ev.sessionId, staffSessionIds)
+    : undefined
 
   // Воронка CTA/формы считается по уникальным визитам: одно действие на визит.
   // form_view / form_focus / form_typing — микро-события (опциональные): показ формы,
@@ -71,7 +113,8 @@ export default defineApi(async (event) => {
       FORM_VIEW_EVENT_TYPE,
       FORM_FOCUS_EVENT_TYPE,
       FORM_TYPING_EVENT_TYPE
-    ])
+    ]),
+    noStaffEvent
   )
   const ctaClicksExpr = sql<number>`COUNT(DISTINCT CASE WHEN ${ev.type} = ${CTA_CLICK_EVENT_TYPE} THEN ${ev.sessionId} END)`
   const formOpensExpr = sql<number>`COUNT(DISTINCT CASE WHEN ${ev.type} = ${FORM_OPEN_EVENT_TYPE} THEN ${ev.sessionId} END)`
@@ -87,6 +130,7 @@ export default defineApi(async (event) => {
     eventTypeRows,
     conversionRows,
     visitRows,
+    visitsTotalRows,
     dailyRows,
     totalsRows,
     eventRows,
@@ -103,24 +147,24 @@ export default defineApi(async (event) => {
       bounces: sql<number>`COALESCE(SUM(${s.isBounce}), 0)`,
       avgSeconds: sql<number>`COALESCE(AVG(${s.activeSeconds}), 0)`,
       avgPages: sql<number>`COALESCE(AVG(${s.pagesCount}), 0)`
-    }).from(s).where(gte(s.startedAt, border)).groupBy(s.channel).orderBy(desc(sql`COUNT(*)`)),
+    }).from(s).where(and(gte(s.startedAt, border), noStaffSession)).groupBy(s.channel).orderBy(desc(sql`COUNT(*)`)),
 
     db.select({
       path: pv.path,
       views: sql<number>`COUNT(*)`,
       avgSeconds: sql<number>`COALESCE(AVG(${pv.durationSec}), 0)`,
       avgScroll: sql<number>`COALESCE(AVG(${pv.maxScrollPct}), 0)`
-    }).from(pv).where(gte(pv.enteredAt, border)).groupBy(pv.path).orderBy(desc(sql`COUNT(*)`)).limit(30),
+    }).from(pv).where(and(gte(pv.enteredAt, border), noStaffPageview)).groupBy(pv.path).orderBy(desc(sql`COUNT(*)`)).limit(30),
 
     db.select({
       path: s.exitPath,
       exits: sql<number>`COUNT(*)`
-    }).from(s).where(gte(s.startedAt, border)).groupBy(s.exitPath),
+    }).from(s).where(and(gte(s.startedAt, border), noStaffSession)).groupBy(s.exitPath),
 
     db.select({
       type: ev.type,
       total: sql<number>`COUNT(*)`
-    }).from(ev).where(gte(ev.createdAt, border)).groupBy(ev.type).orderBy(desc(sql`COUNT(*)`)),
+    }).from(ev).where(and(gte(ev.createdAt, border), noStaffEvent)).groupBy(ev.type).orderBy(desc(sql`COUNT(*)`)),
 
     db.select({
       id: ev.id,
@@ -140,7 +184,7 @@ export default defineApi(async (event) => {
     }).from(ev)
       .innerJoin(s, eq(ev.sessionId, s.id))
       .leftJoin(users, eq(s.linkedUserId, users.id))
-      .where(sql`${ev.createdAt} >= ${border} AND ${inArray(ev.type, [...CONVERSION_EVENT_TYPES])}`)
+      .where(and(gte(ev.createdAt, border), inArray(ev.type, [...CONVERSION_EVENT_TYPES]), noStaffSession))
       .orderBy(desc(ev.createdAt))
       .limit(30),
 
@@ -163,14 +207,22 @@ export default defineApi(async (event) => {
       city: s.city,
       linkedUserId: s.linkedUserId,
       linkedUserName: users.name
-    }).from(s).leftJoin(users, eq(s.linkedUserId, users.id)).where(gte(s.startedAt, border)).orderBy(desc(s.startedAt)).limit(40),
+    }).from(s).leftJoin(users, eq(s.linkedUserId, users.id))
+      .where(and(gte(s.startedAt, border), noStaffSession))
+      .orderBy(desc(s.startedAt))
+      .limit(visitsLimit),
+
+    // Полное число визитов за период — для подписи «показаны последние N из M»
+    db.select({
+      total: sql<number>`COUNT(*)`
+    }).from(s).where(and(gte(s.startedAt, border), noStaffSession)),
 
     db.select({
       day: sql<string>`DATE(${s.startedAt})`,
       visits: sql<number>`COUNT(*)`,
       visitors: sql<number>`COUNT(DISTINCT ${s.visitorId})`,
       conversions: sql<number>`COALESCE(SUM(${s.converted}), 0)`
-    }).from(s).where(gte(s.startedAt, border)).groupBy(sql`DATE(${s.startedAt})`).orderBy(sql`DATE(${s.startedAt})`),
+    }).from(s).where(and(gte(s.startedAt, border), noStaffSession)).groupBy(sql`DATE(${s.startedAt})`).orderBy(sql`DATE(${s.startedAt})`),
 
     db.select({
       visits: sql<number>`COUNT(*)`,
@@ -179,7 +231,7 @@ export default defineApi(async (event) => {
       bounces: sql<number>`COALESCE(SUM(${s.isBounce}), 0)`,
       avgSeconds: sql<number>`COALESCE(AVG(${s.activeSeconds}), 0)`,
       avgPages: sql<number>`COALESCE(AVG(${s.pagesCount}), 0)`
-    }).from(s).where(gte(s.startedAt, border)),
+    }).from(s).where(and(gte(s.startedAt, border), noStaffSession)),
 
     // Все события за период: таблица «События» (место + meta + переход в визит).
     // Микро-события формы идут отдельной выборкой, чтобы не вытеснять конверсии из сотни.
@@ -203,7 +255,7 @@ export default defineApi(async (event) => {
     }).from(ev)
       .innerJoin(s, eq(ev.sessionId, s.id))
       .leftJoin(users, eq(s.linkedUserId, users.id))
-      .where(and(gte(ev.createdAt, border), not(inArray(ev.type, [...FORM_MICRO_EVENT_TYPES]))))
+      .where(and(gte(ev.createdAt, border), not(inArray(ev.type, [...FORM_MICRO_EVENT_TYPES])), noStaffSession))
       .orderBy(desc(ev.createdAt))
       .limit(EVENTS_LIMIT),
 
@@ -228,13 +280,13 @@ export default defineApi(async (event) => {
     }).from(ev)
       .innerJoin(s, eq(ev.sessionId, s.id))
       .leftJoin(users, eq(s.linkedUserId, users.id))
-      .where(and(gte(ev.createdAt, border), inArray(ev.type, [...FORM_MICRO_EVENT_TYPES])))
+      .where(and(gte(ev.createdAt, border), inArray(ev.type, [...FORM_MICRO_EVENT_TYPES]), noStaffSession))
       .orderBy(desc(ev.createdAt))
       .limit(MICRO_EVENTS_LIMIT),
 
     db.select({
       total: sql<number>`COUNT(*)`
-    }).from(ev).where(gte(ev.createdAt, border)),
+    }).from(ev).where(and(gte(ev.createdAt, border), noStaffEvent)),
 
     db.select({
       path: ev.path,
@@ -279,6 +331,10 @@ export default defineApi(async (event) => {
 
   return {
     days,
+    /** Скрыты ли из цифр визиты сотрудников (linked_user_id) */
+    excludeStaff,
+    /** Сколько последних визитов отдано в историю (полное число — visitsTotal) */
+    visitsLimit,
     totals: {
       visits: totalVisits,
       visitors: num(totalsRow?.visitors),
@@ -383,6 +439,8 @@ export default defineApi(async (event) => {
       submitEvents: num(formTotals?.submitEvents)
     },
     conversions: conversionRows.map(r => ({ ...r, channelLabel: label(r.channel) })),
+    /** Полное число визитов за период (visits обрезан до visitsLimit) */
+    visitsTotal: num(visitsTotalRows?.[0]?.total),
     visits: visitRows.map(r => ({ ...r, channelLabel: label(r.channel) }))
   }
 })

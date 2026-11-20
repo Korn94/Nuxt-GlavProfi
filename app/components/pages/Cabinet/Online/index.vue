@@ -58,7 +58,11 @@
         :error="visitorsStore.statsError"
         :is-admin="isAdmin"
         :deleting-id="deletingVisitId"
+        :hide-staff="visitorsStore.hideStaff"
+        :stats-updated-at="visitorsStore.statsUpdatedAt"
         @update:stats-days="onStatsDaysChange"
+        @update:hide-staff="onHideStaffChange"
+        @more-visits="onMoreVisits"
         @refresh="loadStats"
         @delete-visit="onDeleteVisit"
       />
@@ -156,6 +160,33 @@ function onStatsDaysChange(value: number) {
   loadStats()
 }
 
+/** «Показать ещё»: поднять лимит истории визитов и перезагрузить аналитику */
+async function onMoreVisits() {
+  try { await visitorsStore.showMoreVisits() }
+  catch (e) { console.error('[Онлайн] Ошибка загрузки визитов:', e) }
+}
+
+/** Фильтр «скрывать визиты сотрудников» (по умолчанию включён) */
+async function onHideStaffChange(value: boolean) {
+  try { await visitorsStore.setHideStaff(value) }
+  catch (e) { console.error('[Онлайн] Ошибка переключения фильтра сотрудников:', e) }
+}
+
+// 🔄 Автообновление аналитики: таблицы читаются из БД, а реестр посетителей
+// сбрасывается туда раз в минуту — держим блок свежим, пока вкладка видима.
+const STATS_REFRESH_MS = 60 * 1000
+let statsPoller: ReturnType<typeof setInterval> | null = null
+
+function refreshStatsIfVisible() {
+  if (document.visibilityState !== 'visible') return
+  if (visitorsStore.isStatsLoading) return
+  loadStats()
+}
+
+function onPageVisible() {
+  if (document.visibilityState === 'visible') refreshStatsIfVisible()
+}
+
 /**
  * 🗑️ Удаление визита из истории (только администратор).
  * Нужно, чтобы вручную вычищать записи роботов и случайных посетителей.
@@ -216,6 +247,10 @@ onMounted(() => {
       refreshData()
     }
   }, 15000)
+
+  // 📊 Аналитика: обновление раз в минуту + сразу при возврате на вкладку
+  statsPoller = setInterval(refreshStatsIfVisible, STATS_REFRESH_MS)
+  document.addEventListener('visibilitychange', onPageVisible)
 })
 
 onUnmounted(() => {
@@ -223,6 +258,8 @@ onUnmounted(() => {
   visitorsStore.unsubscribeFromUpdates()
   stopClock()
   if (fallbackPoller) clearInterval(fallbackPoller)
+  if (statsPoller) clearInterval(statsPoller)
+  document.removeEventListener('visibilitychange', onPageVisible)
 })
 </script>
 

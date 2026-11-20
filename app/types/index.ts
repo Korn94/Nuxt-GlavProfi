@@ -308,6 +308,12 @@ export interface VisitorStatsResponse {
   /** @deprecated для таблицы событий используйте events */
   conversions: VisitorConversion[]
   visits: VisitorVisit[]
+  /** Скрыты ли из цифр визиты сотрудников (linked_user_id) */
+  excludeStaff: boolean
+  /** Сколько последних визитов отдано в историю (visitsTotal — полное число) */
+  visitsLimit: number
+  /** Полное число визитов за период (visits обрезан до visitsLimit) */
+  visitsTotal: number
 }
 
 /** Заход на страницу внутри сессии (строка детализации страницы) */
