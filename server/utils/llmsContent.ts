@@ -142,11 +142,19 @@ export async function buildLlmsContent(): Promise<LlmsContent> {
 /**
  * Кэш на 5 минут + SWR до часа: цены из БД не читаются на каждый запрос,
  * но правки в прайсе попадают в llms-файлы без пересборки/деплоя.
+ *
+ * ⚠️ Опции вынесены в отдельную константу осознанно: mlly (сканер экспортов
+ * для авто-импортов Nitro) принимает поля объектного литерала справа от `=`
+ * за дополнительные экспорты файла. Из-за этого Nuxt писал
+ * «Duplicated imports "getKey"» и генерировал битую запись в
+ * `.nuxt/types/nitro-imports.d.ts` (ссылка на несуществующий экспорт).
  */
-export const getLlmsContent = defineCachedFunction(buildLlmsContent, {
+const llmsContentCacheOptions = {
   name: 'llms-content',
   maxAge: CONTENT_MAX_AGE_SECONDS,
   staleMaxAge: CONTENT_STALE_MAX_AGE_SECONDS,
   swr: true,
   getKey: () => 'v1'
-})
+}
+
+export const getLlmsContent = defineCachedFunction(buildLlmsContent, llmsContentCacheOptions)

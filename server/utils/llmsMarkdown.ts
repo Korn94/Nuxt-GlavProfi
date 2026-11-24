@@ -1100,11 +1100,17 @@ export async function buildLlmsMarkdown(htmlPath: string): Promise<LlmsMarkdownD
 /**
  * Кэш на 5 минут + SWR до часа: markdown-версии пересобираются из БД так же,
  * как `/llms.txt`, поэтому правки цен попадают в `.md` без пересборки сайта.
+ *
+ * ⚠️ Опции вынесены в отдельную константу по той же причине, что и в
+ * `llmsContent.ts`: иначе mlly считает поле `getKey` дополнительным экспортом
+ * файла и Nuxt пишет «Duplicated imports "getKey"».
  */
-export const getLlmsMarkdown = defineCachedFunction(buildLlmsMarkdown, {
+const llmsMarkdownCacheOptions = {
   name: 'llms-markdown',
   maxAge: 300,
   staleMaxAge: 3600,
   swr: true,
   getKey: (htmlPath: string) => htmlPath
-})
+}
+
+export const getLlmsMarkdown = defineCachedFunction(buildLlmsMarkdown, llmsMarkdownCacheOptions)
