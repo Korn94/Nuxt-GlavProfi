@@ -15,12 +15,13 @@
  * - страницы видов работ — `workTypes/data/pages/*` (те же данные, что рендерит UI).
  * Поэтому цены и тексты не расходятся с сайтом, а новых зависимостей нет.
  *
- * ⚠️ Список поддерживаемых путей — `shared/constants/llmsMarkdown.ts`.
- * Добавили рендер здесь — добавьте slug туда, иначе страница не получит
- * `rel="alternate"` на HTML-версии.
+ * 🧭 Матчер путей («есть ли у этой страницы `.md`») собирается здесь из данных:
+ * `PREMISES_CATALOG` (`isReady: true`) и `WORK_TYPES`; прайсы и кейсы — регэкспом.
+ * Движок общий с клиентом — `shared/constants/llmsMarkdown.ts`.
  */
 import { and, eq, inArray } from 'drizzle-orm'
 import { COMPANY } from 'shared/constants/company'
+import { createLlmsMarkdownMatcher } from 'shared/constants/llmsMarkdown'
 import { db } from '../db'
 import { portfolioCases, portfoCaseWorks } from '../db/schema'
 import { formatMoney, formatPrice, itemsLabel, loadPriceData, type PriceSnapshot } from './llmsPrice'
@@ -325,6 +326,60 @@ const WORK_TYPE_PAGES: Record<string, WorkTypeModule> = {
   'shtukaturka-sten': shtukaturkaSten,
   'shpaklevka-sten': shpaklevkaSten,
   'ukladka-plitki': ukladkaPlitki
+}
+
+// ========================================
+// 🧭 МАТЧЕР ПУТЕЙ (движок — shared/constants/llmsMarkdown.ts)
+// ========================================
+
+/**
+ * Списки `.md`-страниц собираются из данных, а не ведутся руками:
+ * - типы помещений — `PREMISES_CATALOG` с `isReady: true`;
+ * - виды работ — ключи `WORK_TYPES` (тот же реестр, что рендерит ссылки в UI).
+ * Прайсы и кейсы матчатся регэкспом: новые записи в БД получают `.md` сами.
+ * Такой же матчер строит клиент (`app/utils/llmsMarkdown.ts`) — для `<link>`.
+ */
+const llmsMarkdownMatcher = createLlmsMarkdownMatcher({
+  premisesSlugs: PREMISES_CATALOG.filter(item => item.isReady).map(item => item.slug),
+  workTypeSlugs: Object.keys(WORK_TYPES)
+})
+
+/** HTML-путь → путь `.md` — для плагина HTTP-заголовка `Link`. */
+export const toLlmsMarkdownPath = llmsMarkdownMatcher.toLlmsMarkdownPath
+
+/** `.md`-путь → HTML-путь — для middleware отдачи markdown-версий. */
+export const fromLlmsMarkdownPath = llmsMarkdownMatcher.fromLlmsMarkdownPath
+
+/**
+ * ⚠️ Проверка полноты при загрузке модуля (один раз на процесс Nitro):
+ * реестр UI (`WORK_TYPES`) и карта data-модулей (`WORK_TYPE_PAGES`) ведутся
+ * отдельно, и рассинхрон даёт битую ссылку — матчер обещает `.md`, а рендерер
+ * вернёт `null` и middleware отдаст 404. Динамический `import()` не используем:
+ * Nitro нестабильно трассирует такие зависимости, поэтому карта остаётся явной.
+ */
+const missingWorkTypePages = Object.keys(WORK_TYPES).filter(slug => !WORK_TYPE_PAGES[slug])
+
+if (missingWorkTypePages.length > 0) {
+  console.warn(
+    `[llms] Нет data-модуля страницы для вида работ: ${missingWorkTypePages.join(', ')}. ` +
+      'Добавьте его в WORK_TYPE_PAGES (server/utils/llmsMarkdown.ts), иначе .md вернёт 404.'
+  )
+}
+
+/**
+ * ⚠️ Симметричная проверка по типам помещений: ключи `premisesSeo` набраны
+ * литералами, поэтому при добавлении нового `PremisesSlug` TypeScript промолчит —
+ * ловим рассинхрон в рантайме, иначе `.md` вернёт 404.
+ */
+const premisesWithoutSeo = PREMISES_CATALOG.filter(
+  item => item.isReady && !(premisesSeo as Record<string, unknown>)[item.slug]
+).map(item => item.slug)
+
+if (premisesWithoutSeo.length > 0) {
+  console.warn(
+    `[llms] Нет SEO-записи для типа помещения: ${premisesWithoutSeo.join(', ')}. ` +
+      'Добавьте её в pageTypes/data/premisesSeo.ts, иначе .md вернёт 404.'
+  )
 }
 
 /** Русские подписи характеристик методов (MethodSpecs). */

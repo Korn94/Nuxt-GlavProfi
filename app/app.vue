@@ -14,7 +14,7 @@ import { siteMeta, metaTags, linkTags, scriptTags } from '~/config/meta.config';
 import { useActivityTracker } from '~/composables/useActivityTracker';
 import { useVisitorTracker } from '~/composables/useVisitorTracker';
 import { buildOrganizationSchema, organizationId } from '~/utils/organizationSchema';
-import { toLlmsMarkdownPath } from 'shared/constants/llmsMarkdown';
+import { toLlmsMarkdownPath } from '~/utils/llmsMarkdown';
 
 // ============================================
 // ✅ ГЛОБАЛЬНЫЙ ТРЕКИНГ АКТИВНОСТИ / AFK
@@ -35,18 +35,21 @@ if (process.client) {
 const route = useRoute();
 const config = useRuntimeConfig();
 
-// Формируем путь БЕЗ trailing slash
-let cleanPath = route.path;
-if (cleanPath.endsWith('/')) {
-  cleanPath = cleanPath.slice(0, -1); // убираем последний слеш
-}
+// Путь БЕЗ trailing slash. computed, а не const: app.vue монтируется один раз
+// на всё приложение, и без реактивности canonical/og:url/link оставались бы
+// от первой загруженной страницы при клиентской навигации.
+const cleanPath = computed(() => {
+  const path = route.path;
+  return path.endsWith('/') ? path.slice(0, -1) : path; // убираем последний слеш
+});
 
 // Формируем полный URL текущей страницы — БЕЗ слеша на конце
-const currentPageUrl = `${config.public.siteUrl}${cleanPath}`;
+const currentPageUrl = computed(() => `${config.public.siteUrl}${cleanPath.value}`);
 
 // Markdown-версия страницы (llmstxt.org v2). null — если для этого URL её нет:
 // ссылку rel="alternate" в этом случае НЕ выводим, чтобы не вести в 404.
-const markdownPath = toLlmsMarkdownPath(route.path);
+// Списки `.md`-страниц собираются из данных — см. ~/utils/llmsMarkdown.
+const markdownPath = computed(() => toLlmsMarkdownPath(route.path));
 
 // JSON-LD разметка (GeneralContractor + WebSite).
 // 🏗️ Узел организации собирается единым builder'ом — он же используется на страницах
@@ -70,7 +73,9 @@ const jsonLd = {
   ]
 };
 
-useHead({
+// useHead с функцией-геттером: head пересобирается при смене route,
+// поэтому canonical/og:url/alternate не «залипают» на первой странице.
+useHead(() => ({
   htmlAttrs: {
     lang: 'ru'
   },
@@ -79,7 +84,7 @@ useHead({
     // Глобальные мета из config
     ...metaTags,
     // Динамический og:url
-    { property: 'og:url', content: currentPageUrl },
+    { property: 'og:url', content: currentPageUrl.value },
     // При необходимости можно добавить og:type здесь или на страницах
     { property: 'og:type', content: 'website' },
     // og:image глобально
@@ -100,13 +105,13 @@ useHead({
     // HTTP-заголовком Link на HTML-ответах — server/plugins/llms-link-header.ts.
     { rel: 'describedby', type: 'text/plain', href: `${config.public.siteUrl}/llms.txt` },
     // 📄 Markdown-версия этой же страницы (`<url>.md`): только если она существует.
-    // Реестр путей — shared/constants/llmsMarkdown.ts, отдаёт её
-    // server/middleware/llms-markdown.ts.
-    ...(markdownPath
-      ? [{ rel: 'alternate', type: 'text/markdown', href: `${config.public.siteUrl}${markdownPath}` }]
+    // Списки `.md`-страниц собираются из данных — ~/utils/llmsMarkdown.ts,
+    // отдаёт её server/middleware/llms-markdown.ts.
+    ...(markdownPath.value
+      ? [{ rel: 'alternate', type: 'text/markdown', href: `${config.public.siteUrl}${markdownPath.value}` }]
       : []),
     // Динамический canonical URL
-    { rel: 'canonical', href: currentPageUrl }
+    { rel: 'canonical', href: currentPageUrl.value }
   ],
   script: [
     ...scriptTags,
@@ -115,5 +120,5 @@ useHead({
       innerHTML: JSON.stringify(jsonLd)
     }
   ]
-});
+}));
 </script>

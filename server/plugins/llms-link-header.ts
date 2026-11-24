@@ -12,8 +12,8 @@
  * Что добавляем:
  *  - `rel="describedby"` → `/llms.txt` — индекс документации для ИИ;
  *  - `rel="alternate"; type="text/markdown"` → `.md`-версия ЭТОЙ страницы,
- *    но только если она реально существует (реестр —
- *    `shared/constants/llmsMarkdown.ts`). Иначе ссылка вела бы в 404.
+ *    но только если она реально существует (списки `.md`-страниц собирает
+ *    `server/utils/llmsMarkdown.ts` из данных). Иначе ссылка вела бы в 404.
  *
  * Хук `render:response` — единственное место, где заголовки SSR уже собраны, но
  * ответ ещё не отправлен: изменения в response.headers применяет рендерер Nitro.
@@ -21,7 +21,7 @@
  */
 import { defineNitroPlugin } from 'nitropack/runtime/plugin'
 import { COMPANY } from 'shared/constants/company'
-import { toLlmsMarkdownPath } from 'shared/constants/llmsMarkdown'
+import { toLlmsMarkdownPath } from '../utils/llmsMarkdown'
 
 /** Документы, у которых `Link` выставляет сам обработчик. */
 const LLMS_DOCUMENTS = new Set(['/llms.txt', '/llms-full.txt'])

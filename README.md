@@ -333,10 +333,11 @@ Nitro **раньше** серверных роутов, и файл перекр
 
 | Что | Где |
 |---|---|
-| Реестр путей (какие `.md` существуют) | `shared/constants/llmsMarkdown.ts` |
-| Рендереры и кэш | `server/utils/llmsMarkdown.ts` |
+| Движок матчера (статические пути, регэкспы, нормализация) | `shared/constants/llmsMarkdown.ts` |
+| Клиентский матчер (списки slug'ов из данных) | `app/utils/llmsMarkdown.ts` |
+| Серверный матчер, рендереры и кэш | `server/utils/llmsMarkdown.ts` |
 | Отдача `.md` (middleware) | `server/middleware/llms-markdown.ts` |
-| HTML `<link rel="alternate">` | `app/app.vue` (только для путей из реестра) |
+| HTML `<link rel="alternate">` | `app/app.vue` (только если `.md` существует) |
 | HTTP `Link` на HTML-страницах | `server/plugins/llms-link-header.ts` |
 
 **Какие страницы есть сейчас**
@@ -371,9 +372,24 @@ Link: <https://glavprofi.ru/page>; rel="canonical", <https://glavprofi.ru/llms.t
 `rel="canonical"` + `noindex` обязательны: канонической остаётся HTML-страница,
 иначе `.md` начнёт индексироваться как дубль.
 
-**Как добавить новую `.md`-страницу**: добавить рендер в `renderBody()`
-(`server/utils/llmsMarkdown.ts`) и путь в `shared/constants/llmsMarkdown.ts` —
-после этого ссылки появятся сами (и в `<link>`, и в `Link`).
+**Как добавить новую `.md`-страницу**: реестра путей больше нет — списки slug'ов
+собираются из данных (`app/utils/llmsMarkdown.ts` на клиенте, тот же расчёт в
+`server/utils/llmsMarkdown.ts` на сервере), поэтому обычно достаточно самих данных:
+
+- **новый тип помещения** — карточка в `pageTypes/data/premisesCatalog.ts`
+  с `isReady: true` + SEO-запись в `pageTypes/data/premisesSeo.ts` →
+  `/remont-pomescheniy/<slug>.md` и `rel="alternate"` появляются сами;
+- **новый вид работ** — slug в `WORK_TYPES` (`pageTypes/data/workTypesByCategory.ts`)
+  + data-модуль в карту `WORK_TYPE_PAGES` (`server/utils/llmsMarkdown.ts`).
+  Если модуль забыть, Nitro при старте напишет `console.warn`;
+- **новый прайс или кейс** — только запись в БД: `/prices/<slug>.md` и
+  `/projects/<slug>.md` матчатся регэкспом;
+- **принципиально новая страница** (свой рендер в `renderBody()`) — путь в
+  `LLMS_MD_STATIC_PATHS` (`shared/constants/llmsMarkdown.ts`), иначе `<link>`
+  и HTTP `Link` её не увидят.
+
+`console.warn` при старте Nitro предупредит и об обратном рассинхроне: готовый тип
+помещения без записи в `premisesSeo.ts`.
 
 ⚠️ nginx: `md` **нельзя** добавлять в regex статики (см. раздел про nginx выше) —
 иначе файлы пойдут мимо Nitro. `text/markdown` в `gzip_types` уже покрыт

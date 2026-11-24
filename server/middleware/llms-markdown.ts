@@ -15,12 +15,12 @@
  *   но обход и переходы по ссылкам разрешены;
  * - `Link: </llms.txt>; rel="describedby"` — связь с индексом документации.
  *
- * Список поддерживаемых путей — `shared/constants/llmsMarkdown.ts`.
+ * Матчер путей — `server/utils/llmsMarkdown.ts` (списки `.md`-страниц
+ * собираются из данных, а не ведутся руками).
  */
 import { defineEventHandler, getQuery, getRequestURL, setResponseHeader, setResponseStatus } from 'h3'
 import { COMPANY } from 'shared/constants/company'
-import { fromLlmsMarkdownPath } from 'shared/constants/llmsMarkdown'
-import { buildLlmsMarkdown, getLlmsMarkdown } from '../utils/llmsMarkdown'
+import { buildLlmsMarkdown, fromLlmsMarkdownPath, getLlmsMarkdown } from '../utils/llmsMarkdown'
 
 export default defineEventHandler(async (event) => {
   const { pathname } = getRequestURL(event)
