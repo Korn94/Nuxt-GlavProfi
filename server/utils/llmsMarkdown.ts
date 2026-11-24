@@ -335,6 +335,9 @@ interface WorkTypeModule {
   projectSlugs?: readonly string[]
 }
 
+/** Один вариант исполнения из `comparisonMethods`. */
+type WorkTypeMethod = NonNullable<WorkTypeModule['comparisonMethods']>[number]
+
 /** slug страницы вида работ → её data-модуль (те же данные, что рендерит UI). */
 const WORK_TYPE_PAGES: Record<string, WorkTypeModule> = {
   'peregorodki-gkl': gklPeregorodki,
@@ -437,9 +440,92 @@ function specsLine(specs: Record<string, string | undefined> | undefined): strin
 }
 
 /** Id цен метода: основной + дополнительные. */
-function methodPriceIds(method: NonNullable<WorkTypeModule['comparisonMethods']>[number]): number[] {
+function methodPriceIds(method: WorkTypeMethod): number[] {
   const ids = [method.priceWorkId, ...(method.priceWorkIds ?? [])]
   return ids.filter((value): value is number => typeof value === 'number')
+}
+
+/**
+ * Точная цена варианта исполнения — та же логика, что в UI (`MethodComparison.vue`):
+ * - задан `priceWorkIds` → суммируем эти позиции (например, шпаклёвка «старт + финиш»:
+ *   300 + 400 = 700 ₽/м²), а `priceWorkId` не учитываем;
+ * - иначе одна позиция `priceWorkId` — её цена как есть.
+ * Возвращает `null`, если цены нет в прайсе или она нулевая.
+ */
+function methodPrice(
+  method: WorkTypeMethod,
+  index: Map<number, PriceRow>
+): { value: number; unit: string } | null {
+  const ids = method.priceWorkIds?.length
+    ? method.priceWorkIds
+    : typeof method.priceWorkId === 'number'
+      ? [method.priceWorkId]
+      : []
+
+  const rows: PriceRow[] = []
+  for (const id of ids) {
+    const row = index.get(Number(id))
+    if (row) rows.push(row)
+  }
+
+  const [first] = rows
+  if (!first) return null
+
+  let value = 0
+  for (const row of rows) {
+    const price = Number(row.price)
+    if (Number.isFinite(price) && price > 0) value += price
+  }
+
+  return value > 0 ? { value, unit: first.unit } : null
+}
+
+/** Единица из БД для строки-диапазона: «от / шт» → «шт», «м² +» → «м² +». */
+function priceUnitLabel(unit: string): string {
+  return String(unit ?? '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^от\s*/i, '')
+    .replace(/^\/\s*/, '')
+}
+
+/**
+ * Строка «Цена» в шапке `.md` страницы вида работ — без «от»: на сайте цены точные.
+ *
+ * - цены всех вариантов совпадают → `- Цена: 2 100 ₽/м²`;
+ * - цены разные → диапазон `- Цена: 2 100–2 700 ₽/м² (зависит от варианта исполнения)`;
+ * - разные единицы измерения (диапазон не построить) → перечисление точных цен;
+ * - цен нет → `- Цена: по запросу`.
+ */
+function workTypePriceLine(methods: readonly WorkTypeMethod[], index: Map<number, PriceRow>): string {
+  const priced: Array<{ title: string; value: number; unit: string }> = []
+
+  for (const method of methods) {
+    const price = methodPrice(method, index)
+    if (price) priced.push({ title: method.title, value: price.value, unit: price.unit })
+  }
+
+  const [first] = priced
+  if (!first) return '- Цена: по запросу'
+
+  const units = new Set(priced.map(item => priceUnitLabel(item.unit)))
+
+  if (units.size > 1) {
+    const parts = priced.map(
+      item => `${formatPrice(item.value, item.unit)} (${item.title.toLowerCase()})`
+    )
+    return `- Цена: ${parts.join(', ')}`
+  }
+
+  const unit = priceUnitLabel(first.unit)
+  const suffix = unit ? ` ₽/${unit}` : ' ₽'
+  const values = priced.map(item => item.value)
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+
+  if (min === max) return `- Цена: ${formatMoney(min)}${suffix}`
+
+  return `- Цена: ${formatMoney(min)}–${formatMoney(max)}${suffix} (зависит от варианта исполнения)`
 }
 
 /**
@@ -459,17 +545,20 @@ async function renderWorkTypePage(
   const methods = data.comparisonMethods ?? []
   const methodIds = methods.flatMap(methodPriceIds)
   const ids = [...new Set([...Object.values(data.WORK_IDS ?? {}), ...methodIds])]
-  // «от …» считаем по основным вариантам исполнения: в WORK_IDS есть, например,
-  // укладка утеплителя (380 ₽/м²), и минимум по всем id давал «от 380 ₽/м²»
-  // вместо реальной цены перегородки.
-  const from = minPriceFrom(methodIds, index) ?? minPriceFrom(ids, index)
+  // Цена в шапке — точный диапазон по вариантам исполнения (как в UI, без «от»):
+  // в WORK_IDS есть, например, укладка утеплителя (380 ₽/м²), и минимум по всем id
+  // давал «от 380 ₽/м²» вместо реальной цены перегородки. Минимум по всем id берём
+  // только если вариантов исполнения у страницы нет.
+  const priceLine = methods.length > 0
+    ? workTypePriceLine(methods, index)
+    : `- Цена: ${minPriceFrom(ids, index) ?? 'по запросу'}`
 
   const lines: string[] = [
     `# ${data.seoData.title}`,
     '',
     `> ${data.seoData.description}`,
     '',
-    `- Цена: ${from ?? 'по запросу'}`,
+    priceLine,
     `- HTML-версия страницы: ${url(siteUrl, definition.to)}`,
     `- Работы и цены в общем прайсе: ${md(siteUrl, '/prices/otdelochnye-raboty')}`,
     ''
@@ -485,8 +574,8 @@ async function renderWorkTypePage(
       lines.push(`### ${position + 1}. ${method.title}`, '')
       if (method.tagline) lines.push(method.tagline, '')
 
-      const methodFrom = minPriceFrom(methodPriceIds(method), index)
-      if (methodFrom) lines.push(`- Цена: ${methodFrom}`)
+      const price = methodPrice(method, index)
+      if (price) lines.push(`- Цена: ${formatPrice(price.value, price.unit)}`)
 
       const specs = specsLine(method.specs)
       if (specs) lines.push(`- Характеристики: ${specs}`)
