@@ -4,45 +4,11 @@
 </template>
 
 <script setup lang="ts">
-// Explicit import вместо auto-import
 import OfisyPage from '~/components/pages/public/remontPomescheniy/pageTypes/ofisy/index.vue'
 import { usePageSeo } from '~/components/pages/public/remontPomescheniy/composables/usePageSeo'
-// Цена «от» — из единого каталога (тот же источник, что и карточки услуг)
-import { getPremisesPriceFrom } from '~/components/pages/public/remontPomescheniy/pageTypes/data/premisesCatalog'
+// SEO-данные страницы (title/description/FAQ) — в едином data-модуле:
+// из него же сервер собирает markdown-версию (/remont-pomescheniy/ofisy.md).
+import { premisesSeo } from '~/components/pages/public/remontPomescheniy/pageTypes/data/premisesSeo'
 
-// === SEO: мета-теги + JSON-LD Schema.org ===
-usePageSeo({
-  type: 'ofisy',
-  typeName: 'Офисы',
-  city: 'Рязань',
-  title: 'Ремонт офисов в Рязани с фиксированной сметой и сроком',
-  description:
-    'Сдаём офис, в который можно заехать и работать: с готовой планировкой, инженерией и отделкой. Работаем по вашему проекту или составляем ТЗ с нуля. Смета и срок фиксируются в договоре.',
-  priceFrom: getPremisesPriceFrom('ofisy'),
-  currency: 'RUB',
-  phone: '+7-910-909-69-47',
-  ogImage: 'https://glavprofi.ru/og-ofisy.jpg',
-  faq: [
-    {
-      question: 'Можно ли делать ремонт, если в офисе работают люди?',
-      answer:
-        'Да. Шумные работы (демонтаж, штробление, стяжку) переносим на вечер или выходные. Днём занимаемся тихими этапами: покраска, сборка, монтаж. График согласуем с вами заранее, чтобы бизнес не останавливался.',
-    },
-    {
-      question: 'Как фиксируется смета — не вырастет ли цена в процессе?',
-      answer:
-        'Все изменения — только через дополнительное соглашение с вашей подписью. Итоговая сумма в акте всегда совпадает с договором.',
-    },
-    {
-      question: 'Кто закупает материалы — вы или мы?',
-      answer:
-        'Как удобнее вам. Можете купить сами по своей спецификации — мы просто монтируем. Или доверите закупку нам: возьмём на себя логистику, проверим качество на входе и предоставим чеки/накладные.',
-    },
-    {
-      question: 'Какая гарантия на работы?',
-      answer:
-        '3 года по договору. Если в этот период что-то отклеится, потрескается или потребует регулировки — приедем и исправим за свой счёт. Гарантийный акт и исполнительную документацию передаём вместе с ключами. Гарантия распространяется и на скрытые дефекты, которые могут проявиться со временем.',
-    },
-  ],
-})
+usePageSeo(premisesSeo.ofisy)
 </script>

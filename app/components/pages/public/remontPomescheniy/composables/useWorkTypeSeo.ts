@@ -1,6 +1,7 @@
 // app/components/pages/public/remontPomescheniy/composables/useWorkTypeSeo.ts
 import { useHead, useSeoMeta, useRoute } from 'nuxt/app'
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
+import { organizationId } from '~/utils/organizationSchema'
 
 export interface WorkTypeBreadcrumb {
   label: string
@@ -62,12 +63,10 @@ export function useWorkTypeSeo(options: WorkTypeSeoOptions) {
     currency = 'RUB',
     serviceType,
     faq = [],
-    ogImage = 'https://glavprofi.ru/og-default.jpg',
+    ogImage = 'https://glavprofi.ru/og-image.jpg',
     breadcrumbs,
     baseUrl = 'https://glavprofi.ru',
-    phone = '+7-910-909-69-47',
     companyName = 'ГлавПрофи',
-    companyLogo = 'https://glavprofi.ru/logo.png',
   } = options
 
   // === 🆕 URL: берём текущий путь из роутера (реальный, без догадок) ===
@@ -150,7 +149,7 @@ export function useWorkTypeSeo(options: WorkTypeSeoOptions) {
         name: title,
         serviceType: serviceType ?? `${categoryName} работы`,
         description,
-        provider: { '@type': 'LocalBusiness', '@id': `${baseUrl}#organization` },
+        provider: { '@id': organizationId(baseUrl) },
         areaServed: { '@type': 'City', name: city },
         ...(resolvedPrice.value && {
           offers: {
@@ -178,24 +177,10 @@ export function useWorkTypeSeo(options: WorkTypeSeoOptions) {
         '@id': `${categoryUrl}#category`,
         name: hubName,
         url: categoryUrl,
-        provider: { '@type': 'LocalBusiness', '@id': `${baseUrl}#organization` },
+        provider: { '@id': organizationId(baseUrl) },
       },
-      {
-        '@type': 'LocalBusiness',
-        '@id': `${baseUrl}#organization`,
-        name: companyName,
-        url: baseUrl,
-        logo: companyLogo,
-        telephone: phone,
-        priceRange: '₽₽',
-        address: {
-          '@type': 'PostalAddress',
-          addressLocality: city,
-          addressRegion: 'Рязанская область',
-          addressCountry: 'RU',
-        },
-        areaServed: { '@type': 'City', name: city },
-      },
+      // Узел организации здесь НЕ дублируется: он один на сайте — в app.vue
+      // (buildOrganizationSchema → GeneralContractor, @id = #organization).
       ...(faq.length > 0
         ? [
             {

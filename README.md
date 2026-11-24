@@ -259,6 +259,181 @@ npm run start
 
 ---
 
+## 🤖 LLM-документация (`/llms.txt`)
+
+Для ИИ-агентов на сайте есть два текстовых документа:
+
+| URL | Что внутри |
+|---|---|
+| `/llms.txt` | Краткая документация + сводка цен по разделам прайса |
+| `/llms-full.txt` | Полная документация + **все 800+ позиций прайса из БД** |
+
+**Как это работает**
+- Шаблоны лежат в `server/assets/llms/*.txt` (доступны как `assets:server`).
+- Блок между `<!-- PRICE:START -->` и `<!-- PRICE:END -->` собирается из таблиц
+  `price_pages → price_categories → price_sub_categories → price_items`
+  (`server/utils/llmsPrice.ts`) — вручную цены больше не поддерживаются.
+- Роуты: `server/routes/llms.txt.ts`, `server/routes/llms-full.txt.ts`
+  (имена **без** `.get.ts`, чтобы работал и `HEAD`).
+- Ответ кэшируется в памяти Nitro на 5 минут (+SWR до часа), поэтому правки
+  цен в кабинете попадают в файлы без пересборки и деплоя.
+- В начале блока агенты видят три даты: «Актуально на» (момент генерации),
+  «Сайт собран» (`runtimeConfig.buildTime`, запекается при `nuxt build`),
+  «Цены в базе изменены» (`MAX(updated_at)` по таблицам прайса).
+- Заголовки ответа: `X-LLMS-Generated`, `X-LLMS-Build`, `X-LLMS-Price-Updated`.
+
+**Обнаружение агентами (llmstxt.org v2)**
+- HTML: `<link rel="describedby" href="https://glavprofi.ru/llms.txt">` на всех страницах —
+  `app/app.vue` (`useHead` → `link`; `linkTags` приходят из `app/config/meta.config.ts`).
+- HTTP: `Link: </llms.txt>; rel="describedby"` в заголовках HTML-ответов —
+  `server/plugins/llms-link-header.ts` (хук Nitro `render:response`; ответы API не затрагивает).
+- Внутри документов: `/llms.txt` отдаёт `Link: </llms-full.txt>; rel="alternate"`,
+  `/llms-full.txt` — `Link: </llms.txt>; rel="describedby"` (`server/utils/llmsHttp.ts`).
+- В `robots.txt` и `sitemap.xml` llms-файлы не добавляем: стандартных директив для них
+  нет, а sitemap — карта только HTML-страниц.
+
+**Проверка**
+```bash
+curl -s https://glavprofi.ru/llms.txt | head -40
+curl -sI https://glavprofi.ru/llms.txt            # X-LLMS-*
+curl -sI https://glavprofi.ru/            | grep -i '^link'  # Link на HTML-страницах
+curl -sI https://glavprofi.ru/llms.txt    | grep -i '^link'  # Link на самом документе
+curl -sI https://glavprofi.ru/llms.txt    | grep -i 'x-llms-generated'  # есть → отдаёт Nitro, а не статика
+curl -s "https://glavprofi.ru/llms.txt?refresh=1" # обойти кэш
+```
+
+⚠️ Нельзя хранить копии `llms*.txt` в `public/`: public-ассеты отдаёт middleware
+Nitro **раньше** серверных роутов, и файл перекрыл бы генерацию из БД.
+
+**Как это отдаётся на проде (nginx)**
+- В конфиге nginx (копия — `.devops/nginx/last nginx.txt`; сама папка `.devops` в
+  `.gitignore`, поэтому знания ниже живут только здесь) статический regex
+  `location ~* \.(png|jpg|…)$` **не содержит `txt`**. Поэтому `/llms.txt` и
+  `/llms-full.txt` попадают в `location /` → `try_files $uri $uri/ @fallback` →
+  `@fallback` (proxy на `127.0.0.1:3000`) → роут Nitro.
+- ⛔ **Не добавляйте `txt` и `md` в regex статики.** Тогда nginx начнёт искать файл
+  на диске, и копия `llms.txt`, оставшаяся в `.output/public`, молча перекроет
+  генерацию из БД (симптом: в ответе нет `X-LLMS-*`).
+- `rsync --delete-after` (`.devops/deploy/deploy.sh`) удаляет старые `public/llms*.txt`
+  из `.output/public`, поэтому штатный деплой коллизий не создаёт. При `--skip-build`
+  или ручной заливке — проверьте, что файлов там нет.
+- `gzip_types` в nginx уже содержит `text/plain` (+ `gzip_proxied any`) → документы
+  отдаются сжатыми. `text/markdown` понадобится, только если появятся `.md`-версии страниц.
+- `@fallback` не задаёт собственных `add_header`, поэтому security-заголовки с уровня
+  `server` наследуются. Если добавляете локейшены с `add_header` — продублируйте
+  `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Strict-Transport-Security`.
+- Признак, что отдаёт именно роут, а не статика: в ответе есть `X-LLMS-Generated`.
+
+### 📄 Markdown-версии страниц (`<url>.md`)
+
+Вторая половина llmstxt.org v2: у значимых страниц есть «чистая» markdown-версия
+по тому же URL с расширением `.md`, ссылки на неё — `rel="alternate" type="text/markdown"`
+(ровно так сделано в справке Яндекса: `<link rel="alternate" type="text/markdown">`
++ HTTP `Link` с `alternate` и `describedby`).
+
+| Что | Где |
+|---|---|
+| Реестр путей (какие `.md` существуют) | `shared/constants/llmsMarkdown.ts` |
+| Рендереры и кэш | `server/utils/llmsMarkdown.ts` |
+| Отдача `.md` (middleware) | `server/middleware/llms-markdown.ts` |
+| HTML `<link rel="alternate">` | `app/app.vue` (только для путей из реестра) |
+| HTTP `Link` на HTML-страницах | `server/plugins/llms-link-header.ts` |
+
+**Какие страницы есть сейчас**
+
+- `/index.md` — главная (в спеке URL без имени файла = `index.md`);
+- `/remont-pomescheniy.md` и 11 × `/remont-pomescheniy/<slug>.md`;
+- 5 × `/vidy-rabot/<slug>.md`;
+- 3 × `/prices/<slug>.md` — полный прайс раздела из БД (динамически);
+- `/projects.md` и `/projects/<slug>.md` — кейсы из БД (динамически);
+- `/contacts.md`, `/requisites-ip.md`.
+
+**Откуда берётся контент** (никакой конвертации HTML → markdown):
+
+- цены — `loadPriceData()` (та же выборка, что для `/llms.txt`);
+- страницы типов помещений — `pageTypes/data/premisesCatalog.ts` +
+  `pageTypes/data/premisesSeo.ts` (title/description/FAQ; раньше лежали прямо в
+  `<script setup>` 11 страниц — сервер до них добраться не мог);
+- страницы видов работ — `workTypes/data/pages/*.ts` (те же данные, что рендерит UI);
+- проекты — таблицы `portfolio_cases` / `portfolio_case_works`;
+- реквизиты — `shared/constants/company.ts`.
+
+**Заголовки `.md`-ответа**
+
+```
+Content-Type: text/markdown; charset=utf-8
+Cache-Control: public, max-age=300, stale-while-revalidate=3600
+X-Robots-Tag: noindex, follow
+X-LLMS-Generated: <ISO>
+Link: <https://glavprofi.ru/page>; rel="canonical", <https://glavprofi.ru/llms.txt>; rel="describedby"
+```
+
+`rel="canonical"` + `noindex` обязательны: канонической остаётся HTML-страница,
+иначе `.md` начнёт индексироваться как дубль.
+
+**Как добавить новую `.md`-страницу**: добавить рендер в `renderBody()`
+(`server/utils/llmsMarkdown.ts`) и путь в `shared/constants/llmsMarkdown.ts` —
+после этого ссылки появятся сами (и в `<link>`, и в `Link`).
+
+⚠️ nginx: `md` **нельзя** добавлять в regex статики (см. раздел про nginx выше) —
+иначе файлы пойдут мимо Nitro. `text/markdown` в `gzip_types` уже покрыт
+(`text/plain` + `text/markdown`).
+
+### 🏢 JSON-LD организации (адресный сниппет Яндекса)
+
+Узел организации теперь **один на весь сайт** — `app/utils/organizationSchema.ts`
+(`buildOrganizationSchema`), данные — `shared/constants/company.ts`.
+
+Было (и почему это ломалось):
+- `app.vue` отдавал `Organization` без `streetAddress` и без прямого `telephone`
+  (телефон лежал в `contactPoint`, который Яндекс не читает);
+- `usePageSeo` / `useWorkTypeSeo` переопределяли тот же `@id=#organization` как
+  `LocalBusiness` с другим набором полей — два разных описания одной сущности;
+- `app/pages/remont-pomescheniy/index.vue` содержал **чужой телефон**
+  `+7-900-123-45-67` и несуществующий `logo.png`.
+
+Стало: `GeneralContractor` с `name`, `legalName`, `url`, `logo`, `image`,
+`telephone` (прямое свойство), `email`, `address.streetAddress`,
+`openingHours`, `sameAs`, `areaServed`, `priceRange`, `foundingDate`.
+Страницы-потребители ссылаются на него через `{ '@id': organizationId(url) }`.
+
+Что именно читает Яндекс (справка «Адреса и организации»):
+- обязательные поля для адресного сниппета — `name`, `url`, `address` (со
+  `streetAddress`), `telephone`;
+- `openingHours` строкой `"Mo-Fr 09:00-18:00"`; **`openingHoursSpecification`
+  Яндекс не поддерживает**;
+- `GeneralContractor` входит в список поддерживаемых типов;
+- `sameAs` в этой доке не описан — он полезен Google/LLM, но не для сниппета;
+- сниппет показывается, только если сайт в топ-30, и учитывает карточку
+  Яндекс Бизнеса (телефон/адрес меняются через неё).
+
+### 🖼️ Картинки для OG и логотип
+
+`scripts/generate-brand-images.mjs` собирает из существующих фото:
+`public/og-<slug>.jpg` (11 страниц типов помещений, 1200×630),
+`public/og-default.jpg` и `public/logo.png` (512×512).
+Нужны, потому что `og-ofisy.jpg`, `logo.png` и др. были прописаны в коде,
+но физически отсутствовали (404).
+
+Запуск (повторный безопасен): `node scripts/generate-brand-images.mjs`.
+
+### 🧾 Реквизиты в llms-документах
+
+Реквизиты ИП (ИНН, ОГРНИП, юр. адрес, банк, БИК, счета, ОКВЭД) — единый блок из
+`shared/constants/company.ts` (`requisitesBlock()`). В шаблонах
+`server/assets/llms/*.txt` вместо него стоят маркеры:
+
+- `<!-- REQUISITES -->` — блок реквизитов;
+- `<!-- PREMISES -->` — цены «от … ₽/м²» по типам помещений
+  (из `premisesCatalog.priceFrom`; раньше были вписаны руками и устарели:
+  «Офисы от 8 500 ₽/м²» при актуальных 11 000 ₽/м²).
+
+Подстановка — `composeDocument()` в `server/utils/llmsContent.ts`.
+При переходе ИП → ООО менять нужно два места: этот файл и страницу
+`/requisites-ip` (`app/components/pages/public/requisites/ip.vue`).
+
+---
+
 ## 🗄️ База данных
 
 ### Основные таблицы (30+)

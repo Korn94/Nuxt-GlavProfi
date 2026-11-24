@@ -282,6 +282,10 @@ export default defineNuxtConfig({
   ],
 
   runtimeConfig: {
+    // 📅 Дата-время сборки (ISO). Запекается в бандл при `nuxt build`
+    // (значение вычисляется в момент сборки, не в рантайме).
+    // Используется в /llms.txt и /llms-full.txt как «Сайт собран: … (МСК)».
+    buildTime: new Date().toISOString(),
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
     telegramChatId: process.env.TELEGRAM_CHAT_ID,
     email: {

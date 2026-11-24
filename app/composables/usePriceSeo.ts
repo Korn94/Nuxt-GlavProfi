@@ -14,8 +14,9 @@
  */
 
 import { computed, type Ref } from 'vue'
-import { useHead } from 'nuxt/app'
+import { useHead, useRuntimeConfig } from 'nuxt/app'
 import type { ApiPriceListResponse, PricePage } from 'stores/price/types'
+import { organizationId } from '~/utils/organizationSchema'
 
 /**
  * SEO-хук для страницы прайс-листа.
@@ -93,8 +94,9 @@ export function usePriceSeo(
       'serviceType': 'Ремонтные работы',
       name: pageTitle.value,
       description: pageDescription.value,
-      provider: { '@type': 'Organization', name: 'ГлавПрофи' },
-      areaServed: 'Россия, Рязань',
+      // 🔗 Ссылка на единственный узел организации из app.vue (GeneralContractor)
+      provider: { '@id': organizationId(useRuntimeConfig().public.siteUrl) },
+      areaServed: { '@type': 'City', name: 'Рязань' },
     }
 
     if (!price?.categories?.length) {

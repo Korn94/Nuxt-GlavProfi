@@ -13,6 +13,8 @@
 import { siteMeta, metaTags, linkTags, scriptTags } from '~/config/meta.config';
 import { useActivityTracker } from '~/composables/useActivityTracker';
 import { useVisitorTracker } from '~/composables/useVisitorTracker';
+import { buildOrganizationSchema, organizationId } from '~/utils/organizationSchema';
+import { toLlmsMarkdownPath } from 'shared/constants/llmsMarkdown';
 
 // ============================================
 // ✅ ГЛОБАЛЬНЫЙ ТРЕКИНГ АКТИВНОСТИ / AFK
@@ -42,29 +44,18 @@ if (cleanPath.endsWith('/')) {
 // Формируем полный URL текущей страницы — БЕЗ слеша на конце
 const currentPageUrl = `${config.public.siteUrl}${cleanPath}`;
 
-// JSON-LD разметка (Organization + WebSite)
+// Markdown-версия страницы (llmstxt.org v2). null — если для этого URL её нет:
+// ссылку rel="alternate" в этом случае НЕ выводим, чтобы не вести в 404.
+const markdownPath = toLlmsMarkdownPath(route.path);
+
+// JSON-LD разметка (GeneralContractor + WebSite).
+// 🏗️ Узел организации собирается единым builder'ом — он же используется на страницах
+// услуг (usePageSeo / useWorkTypeSeo / использование в прайсе), поэтому `@id`
+// #organization везде описывается одинаково и не конфликтует.
 const jsonLd = {
   '@context': 'https://schema.org',
   '@graph': [
-    {
-      '@type': 'Organization',
-      '@id': `${config.public.siteUrl}/#organization`,
-      name: 'ГлавПрофи',
-      url: config.public.siteUrl,
-      logo: `${config.public.siteUrl}/og-image.jpg`,
-      description: 'Ремонт и отделка коммерческих помещений под ключ в Рязани и области',
-      address: {
-        '@type': 'PostalAddress',
-        addressLocality: 'Рязань',
-        addressRegion: 'Рязанская область',
-        addressCountry: 'RU'
-      },
-      contactPoint: {
-        '@type': 'ContactPoint',
-        telephone: '+7-910-909-69-47',
-        contactType: 'customer service'
-      }
-    },
+    buildOrganizationSchema(config.public.siteUrl),
     {
       '@type': 'WebSite',
       '@id': `${config.public.siteUrl}/#website`,
@@ -73,7 +64,7 @@ const jsonLd = {
       description: 'Ремонт и отделка коммерческих помещений под ключ в Рязани и области',
       inLanguage: 'ru',
       publisher: {
-        '@id': `${config.public.siteUrl}/#organization`
+        '@id': organizationId(config.public.siteUrl)
       }
     }
   ]
@@ -104,6 +95,16 @@ useHead({
   link: [
     // Глобальные ссылки (favicon)
     ...linkTags,
+    // 🤖 llmstxt.org (v2): страница сообщает, где лежит описание сайта для ИИ-агентов.
+    // Сам /llms.txt генерируется из БД (server/routes/llms.txt.ts). Тот же адрес отдаётся
+    // HTTP-заголовком Link на HTML-ответах — server/plugins/llms-link-header.ts.
+    { rel: 'describedby', type: 'text/plain', href: `${config.public.siteUrl}/llms.txt` },
+    // 📄 Markdown-версия этой же страницы (`<url>.md`): только если она существует.
+    // Реестр путей — shared/constants/llmsMarkdown.ts, отдаёт её
+    // server/middleware/llms-markdown.ts.
+    ...(markdownPath
+      ? [{ rel: 'alternate', type: 'text/markdown', href: `${config.public.siteUrl}${markdownPath}` }]
+      : []),
     // Динамический canonical URL
     { rel: 'canonical', href: currentPageUrl }
   ],

@@ -12,6 +12,8 @@
 </template>
 
 <script setup>
+import { organizationId } from '~/utils/organizationSchema'
+
 // === 1. Базовые мета-теги (переопределяют глобальные из app.vue) ===
 useSeoMeta({
   // Title: главный ключ + город + бренд (до 60 символов)
@@ -40,17 +42,10 @@ useHead({
             name: 'Ремонт коммерческих помещений под ключ',
             serviceType: 'Ремонт и отделка коммерческой недвижимости',
             provider: {
-              '@type': 'LocalBusiness',
-              name: 'ГлавПрофи',
-              image: 'https://glavprofi.ru/logo.png',
-              telephone: '+7-900-123-45-67',
-              priceRange: '₽₽₽',
-              address: {
-                '@type': 'PostalAddress',
-                addressLocality: 'Рязань',
-                addressCountry: 'RU'
-              },
-              areaServed: { '@type': 'City', name: 'Рязань' }
+              // 🔗 Организация описана один раз — в app.vue (GeneralContractor).
+              // Раньше здесь был LocalBusiness с ЧУЖИМ телефоном +7-900-123-45-67
+              // и несуществующим logo.png: разметка противоречила контактам сайта.
+              '@id': organizationId(useRuntimeConfig().public.siteUrl),
             },
             areaServed: { '@type': 'City', name: 'Рязань' },
             // Связь с под-страницами типов помещений

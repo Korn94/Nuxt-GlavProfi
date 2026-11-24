@@ -20,35 +20,30 @@
 Цены за м² работ. Точная смета — после бесплатного выезда замерщика.
 
 ### По типу помещения
-- **Офисы:** от 8 500 ₽/м² (косметика) — от 13 000 ₽/м² (капитальный)
-- **Магазины и стрит-ритейл:** от 4 500 ₽/м² — от 11 000 ₽/м²
-- **Склады и ангары:** от 2 800 ₽/м² — от 4 500 ₽/м²
-- **Клиники и медцентры:** от 8 500 ₽/м² (с учётом СанПиН)
-- **Салоны красоты и барбершопы:** от 9 000 ₽/м² — от 15 000 ₽/м² (СанПиН, вентиляция под химию)
-- **Банковские отделения:** от 14 000 ₽/м² (стандарты ЦБ РФ)
-- **Фитнес-клубы:** от 7 000 ₽/м²
-- **МОПы, подъезды, холлы ЖК:** от 4 500 ₽/м² (антивандальная отделка, пожарная безопасность по ФЗ-123)
-- **Фасады:** от 2 200 ₽/м² (косметика) — от 3 500 ₽/м² (с утеплением по СП 50.13330)
-- **Производственные цеха:** от 5 500 ₽/м²
+<!-- PREMISES -->
 
-### Полные прайс-листы
-- [Прайс на отделочные работы](https://glavprofi.ru/prices/otdelochnye-raboty)
-- [Прайс на сантехнические работы](https://glavprofi.ru/prices/plumbing)
-- [Прайс на электромонтажные работы](https://glavprofi.ru/prices/electricity)
+<!-- PRICE:START -->
+<!-- PRICE:END -->
 
 ## Направления ремонта по типу помещения
 
-- [Ремонт офисов](https://glavprofi.ru/remont-pomescheniy/ofisy)
-- [Ремонт магазинов](https://glavprofi.ru/remont-pomescheniy/magaziny)
-- [Ремонт складов](https://glavprofi.ru/remont-pomescheniy/sklady)
-- [Ремонт ангаров](https://glavprofi.ru/remont-pomescheniy/angary)
-- [Ремонт клиник и медицинских центров](https://glavprofi.ru/remont-pomescheniy/kliniki)
-- [Ремонт фасадов](https://glavprofi.ru/remont-pomescheniy/fasady)
-- [Ремонт фитнес-клубов](https://glavprofi.ru/remont-pomescheniy/fitness)
-- [Ремонт производственных помещений](https://glavprofi.ru/remont-pomescheniy/proizvodstvo)
-- [Ремонт салонов красоты](https://glavprofi.ru/remont-pomescheniy/salony)
-- [Ремонт МОПов, подъездов и холлов ЖК](https://glavprofi.ru/remont-pomescheniy/mopy)
-- [Ремонт банков](https://glavprofi.ru/remont-pomescheniy/banki)
+- [Ремонт офисов](https://glavprofi.ru/remont-pomescheniy/ofisy.md)
+- [Ремонт магазинов](https://glavprofi.ru/remont-pomescheniy/magaziny.md)
+- [Ремонт складов](https://glavprofi.ru/remont-pomescheniy/sklady.md)
+- [Ремонт ангаров](https://glavprofi.ru/remont-pomescheniy/angary.md)
+- [Ремонт клиник и медицинских центров](https://glavprofi.ru/remont-pomescheniy/kliniki.md)
+- [Ремонт фасадов](https://glavprofi.ru/remont-pomescheniy/fasady.md)
+- [Ремонт фитнес-клубов](https://glavprofi.ru/remont-pomescheniy/fitness.md)
+- [Ремонт производственных помещений](https://glavprofi.ru/remont-pomescheniy/proizvodstvo.md)
+- [Ремонт салонов красоты](https://glavprofi.ru/remont-pomescheniy/salony.md)
+- [Ремонт МОПов, подъездов и холлов ЖК](https://glavprofi.ru/remont-pomescheniy/mopy.md)
+- [Ремонт банков](https://glavprofi.ru/remont-pomescheniy/banki.md)
+
+## Прайс-листы (markdown)
+
+- [Отделочные работы](https://glavprofi.ru/prices/otdelochnye-raboty.md)
+- [Сантехнические работы](https://glavprofi.ru/prices/plumbing.md)
+- [Электромонтажные работы](https://glavprofi.ru/prices/electricity.md)
 
 ## Виды отделочных работ
 
@@ -64,11 +59,11 @@
 
 За 12 лет сдано более 250 объектов. Ниже — знаковые кейсы с описанием задач и особенностей.
 
-- [Проект DDX](https://glavprofi.ru/projects/ddx) — фитнес-клуб 2500 м². Полный цикл работ: от зонирования с учётом потоков клиентов и нагрузок на полы в силовых зонах до инженерии под вентиляцию бассейнов и раздевалок.
-- [Проект «Зерно»](https://glavprofi.ru/projects/zerno) — кафе 35 м². Отделка в формате стрит-ритейла: витринная группа, инженерия под оборудование кухни, вентиляция с учётом вытяжки над горячими цехами.
-- [Клиника «Альма»](https://glavprofi.ru/projects/klinika-alma) — медицинский центр 112 м². Отделка с учётом СанПиН и лицензионных требований: зонирование потоков пациентов и персонала, инженерия под медоборудование, подготовка документов для Росздравнадзора.
-- [Банк «Фора»](https://glavprofi.ru/projects/fora-bank) — банковское отделение 255 м². Отделка по стандартам ЦБ РФ и требованиям службы безопасности: подготовка проёмов под бронепанели, усиление зон кассового узла и хранилища, конфиденциальность на всех этапах.
-- [Все проекты](https://glavprofi.ru/projects)
+- [Проект DDX](https://glavprofi.ru/projects/ddx.md) — фитнес-клуб 2500 м². Полный цикл работ: от зонирования с учётом потоков клиентов и нагрузок на полы в силовых зонах до инженерии под вентиляцию бассейнов и раздевалок.
+- [Проект «Зерно»](https://glavprofi.ru/projects/zerno.md) — кафе 35 м². Отделка в формате стрит-ритейла: витринная группа, инженерия под оборудование кухни, вентиляция с учётом вытяжки над горячими цехами.
+- [Клиника «Альма»](https://glavprofi.ru/projects/klinika-alma.md) — медицинский центр 112 м². Отделка с учётом СанПиН и лицензионных требований: зонирование потоков пациентов и персонала, инженерия под медоборудование, подготовка документов для Росздравнадзора.
+- [Банк «Фора»](https://glavprofi.ru/projects/fora-bank.md) — банковское отделение 255 м². Отделка по стандартам ЦБ РФ и требованиям службы безопасности: подготовка проёмов под бронепанели, усиление зон кассового узла и хранилища, конфиденциальность на всех этапах.
+- [Все проекты](https://glavprofi.ru/projects.md)
 
 ## Как мы работаем
 
@@ -123,6 +118,12 @@
 - **Сайт:** https://glavprofi.ru
 - **Регион работ:** Рязань и Рязанская область, Москва и МО
 
+<!-- REQUISITES -->
+
 ## Дополнительная информация
 
 - [Полная документация для ИИ-агентов](https://glavprofi.ru/llms-full.txt)
+- [Главная страница (markdown)](https://glavprofi.ru/index.md)
+- [Ремонт коммерческих помещений (markdown)](https://glavprofi.ru/remont-pomescheniy.md)
+- [Контакты (markdown)](https://glavprofi.ru/contacts.md)
+- [Реквизиты ИП (markdown)](https://glavprofi.ru/requisites-ip.md)

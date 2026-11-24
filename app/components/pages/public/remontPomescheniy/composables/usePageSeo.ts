@@ -1,6 +1,7 @@
 // app/components/pages/public/remontPomescheniy/composables/usePageSeo.ts
 
 import { useHead, useSeoMeta } from "nuxt/app"
+import { organizationId } from "~/utils/organizationSchema"
 
 export interface PageSeoOptions {
   /** Тип помещения (slug): 'ofisy', 'magaziny', 'kliniki' и т.д. */
@@ -23,11 +24,15 @@ export interface PageSeoOptions {
   ogImage?: string
   /** Базовый URL сайта */
   baseUrl?: string
-  /** Телефон компании */
+  /**
+   * @deprecated Не используется: телефон и логотип берутся из единого узла
+   * организации (`shared/constants/company.ts` → `buildOrganizationSchema`).
+   * Поле оставлено, чтобы не ломать существующие вызовы.
+   */
   phone?: string
-  /** Название компании */
+  /** Название компании (для title/og) */
   companyName?: string
-  /** Логотип компании (URL) */
+  /** @deprecated См. `phone` — логотип задаётся в `shared/constants/company.ts`. */
   companyLogo?: string
 }
 
@@ -41,11 +46,9 @@ export function usePageSeo(options: PageSeoOptions) {
     priceFrom,
     currency = 'RUB',
     faq = [],
-    ogImage = 'https://glavprofi.ru/og-default.jpg',
+    ogImage = 'https://glavprofi.ru/og-image.jpg',
     baseUrl = 'https://glavprofi.ru',
-    phone = '+7-910-909-69-47',
     companyName = 'ГлавПрофи',
-    companyLogo = 'https://glavprofi.ru/logo.png',
   } = options
 
   const pageUrl = `${baseUrl}/remont-pomescheniy/${type}`
@@ -77,22 +80,11 @@ export function usePageSeo(options: PageSeoOptions) {
         serviceType: `Ремонт и отделка ${typeName.toLowerCase()}`,
         description,
         provider: {
-          '@type': 'LocalBusiness',
-          '@id': `${baseUrl}#organization`,
-          name: companyName,
-          image: companyLogo,
-          telephone: phone,
-          priceRange: priceFrom ? `от ${priceFrom} ₽/м²` : '₽₽₽',
-          address: {
-            '@type': 'PostalAddress',
-            addressLocality: city,
-            addressCountry: 'RU',
-          },
-          areaServed: {
-            '@type': 'City',
-            name: city,
-          },
-          url: baseUrl,
+          // 🔗 Ссылка на единственный узел организации из app.vue
+          // (GeneralContractor, @id = #organization). Дублировать здесь поля нельзя:
+          // получалось два разных описания одной сущности с одним @id, и Яндекс
+          // с Google читали то, что оказалось «свежее» в графе.
+          '@id': organizationId(baseUrl),
         },
         areaServed: {
           '@type': 'City',
@@ -114,24 +106,9 @@ export function usePageSeo(options: PageSeoOptions) {
         url: pageUrl,
       },
 
-      // Организация (один раз на сайте)
-      {
-        '@type': 'LocalBusiness',
-        '@id': `${baseUrl}#organization`,
-        name: companyName,
-        url: baseUrl,
-        logo: companyLogo,
-        telephone: phone,
-        address: {
-          '@type': 'PostalAddress',
-          addressLocality: city,
-          addressCountry: 'RU',
-        },
-        areaServed: {
-          '@type': 'City',
-          name: city,
-        },
-      },
+      // Узел организации здесь НЕ дублируется: он один на сайте — в app.vue
+      // (buildOrganizationSchema → GeneralContractor, @id = #organization).
+      // Service выше ссылается на него через @id.
 
       // FAQ (если есть вопросы)
       ...(faq.length > 0
