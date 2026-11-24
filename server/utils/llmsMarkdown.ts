@@ -37,6 +37,9 @@ import {
   type PremisesSlug
 } from '../../app/components/pages/public/remontPomescheniy/pageTypes/data/workTypesByCategory'
 import { getProjectsCategories } from '../../app/components/pages/public/remontPomescheniy/pageTypes/data/projectsByCategory'
+import { privacyPolicy } from '../../app/components/pages/public/legal/data/privacyPolicy'
+import { termsOfService } from '../../app/components/pages/public/legal/data/termsOfService'
+import type { LegalPage } from '../../app/components/pages/public/legal/types'
 import * as gklPeregorodki from '../../app/components/pages/public/remontPomescheniy/workTypes/data/pages/gkl-peregorodki'
 import * as oblitsovkaGkl from '../../app/components/pages/public/remontPomescheniy/workTypes/data/pages/oblitsovka-gkl'
 import * as shtukaturkaSten from '../../app/components/pages/public/remontPomescheniy/workTypes/data/pages/shtukaturka-sten'
@@ -97,6 +100,19 @@ function processBlock(): string[] {
     '5. Работы — штатные бригады, один прораб на объект.',
     '6. Сдача — с исполнительной документацией, актами КС-2/КС-3.',
     '7. Гарантийное обслуживание — 3 года.',
+    ''
+  ]
+}
+
+/** Блок «Ключевые цифры» — общий для `/index.md` и `/about.md` (те же цифры, что в Hero). */
+function keyFiguresBlock(): string[] {
+  return [
+    '## Ключевые цифры',
+    '',
+    '- Более 250 сданных коммерческих объектов.',
+    '- 5 специализированных бригад в штате (отделочники, электрики, сантехники).',
+    '- Площадь объектов: от 35 до 3 500 м².',
+    '- 12+ лет опыта, 7 прямых контрактов с поставщиками материалов.',
     ''
   ]
 }
@@ -692,14 +708,7 @@ async function renderHome(siteUrl: string, snapshot: PriceSnapshot): Promise<str
     ''
   ]
 
-  lines.push('## Ключевые цифры', '')
-  lines.push(
-    '- Более 250 сданных коммерческих объектов.',
-    '- 5 специализированных бригад в штате (отделочники, электрики, сантехники).',
-    '- Площадь объектов: от 35 до 3 500 м².',
-    '- 12+ лет опыта, 7 прямых контрактов с поставщиками материалов.',
-    ''
-  )
+  lines.push(...keyFiguresBlock())
 
   lines.push('## Типы помещений', '')
   for (const item of PREMISES_CATALOG.filter(candidate => candidate.isReady)) {
@@ -859,6 +868,93 @@ function renderRequisites(siteUrl: string): string {
   ])
 }
 
+/**
+ * `/privacy-policy.md`, `/terms-of-service.md` — юридический документ целиком.
+ *
+ * Тексты берутся из того же data-модуля, что рендерит HTML-страница
+ * (`app/components/pages/public/legal/data/*`), поэтому md и HTML не расходятся.
+ * `contactsBlock()` сюда НЕ добавляем: у документа свой раздел 8 с контактами,
+ * а общий блок тянет другой email из `COMPANY` (в документе — `info@glavprofi.ru`).
+ */
+function renderLegalPage(siteUrl: string, page: LegalPage, htmlPath: string): string {
+  const lines: string[] = [
+    `# ${page.title}`,
+    '',
+    `> ${page.summary}`,
+    '',
+    `- HTML-версия: ${url(siteUrl, htmlPath)}`,
+    `- Реквизиты для договора: ${md(siteUrl, '/requisites-ip')}`,
+    ''
+  ]
+
+  for (const section of page.sections) {
+    lines.push(`## ${section.title}`, '')
+
+    for (const block of section.blocks) {
+      if (typeof block === 'string') {
+        lines.push(block, '')
+      } else {
+        lines.push(...block.map(item => `- ${item}`), '')
+      }
+    }
+  }
+
+  lines.push(`- Индекс документации для ИИ-агентов: ${url(siteUrl, '/llms.txt')}`)
+  lines.push('')
+  return finish(lines)
+}
+
+/**
+ * `/about.md` — компактное представление страницы «О компании»: цифры,
+ * направления, виды работ, часть кейсов, процесс, гарантии.
+ *
+ * ⚠️ Это НЕ дословный перенос визуальных блоков `about/blocks/*`: их тексты
+ * живут в SFC, а Nitro до них не добирается. Здесь собраны те же факты из
+ * общих источников (`COMPANY`, `PREMISES_CATALOG`, `WORK_TYPES`, кейсы из БД),
+ * поэтому ничего не дублируется и не расходится с сайтом. Кейсов на странице
+ * тоже только часть — полный список ссылкой на `/projects.md`.
+ */
+async function renderAbout(siteUrl: string): Promise<string> {
+  // Те же кейсы, что показывает HTML-страница (`app/components/.../about/index.vue`)
+  const cases = await loadCasesBySlugs(['ddx', 'fora-bank', 'klinika-alma', 'zerno'])
+
+  const lines: string[] = [
+    `# О компании ${COMPANY.name}`,
+    '',
+    `> ${COMPANY.legalShortName} — строительная компания из Рязани, работаем с ${COMPANY.foundedYear} года. Ремонт и отделка коммерческих помещений «под ключ»: офисы, магазины, склады, ангары, клиники, фитнес-клубы, производственные цеха. Собственные бригады в штате, без субподряда. Смета фиксируется в договоре, гарантия 3 года.`,
+    '',
+    `- HTML-версия: ${url(siteUrl, '/about')}`,
+    `- Краткая документация для ИИ-агентов: ${url(siteUrl, '/llms.txt')}`,
+    `- Полная документация: ${url(siteUrl, '/llms-full.txt')}`,
+    ''
+  ]
+
+  lines.push(...keyFiguresBlock())
+
+  lines.push('## Направления ремонта', '')
+  for (const item of PREMISES_CATALOG.filter(candidate => candidate.isReady)) {
+    lines.push(
+      `- [${item.title}](${md(siteUrl, `/remont-pomescheniy/${item.slug}`)}) — от ${money(item.priceFrom)} ₽/м²`
+    )
+  }
+  lines.push(`- [Все типы помещений](${md(siteUrl, '/remont-pomescheniy')})`, '')
+
+  lines.push('## Виды отделочных работ', '')
+  for (const definition of Object.values(WORK_TYPES)) {
+    lines.push(`- [${definition.title}](${md(siteUrl, definition.to)})`)
+  }
+  lines.push(`- [Прайс на отделочные работы](${md(siteUrl, '/prices/otdelochnye-raboty')})`, '')
+
+  // `caseListBlock` закрывает список пустой строкой — убираем её, чтобы ссылка
+  // на полный список осталась в том же маркированном списке
+  const caseLines = caseListBlock(cases, siteUrl, 'Реализованные проекты')
+  if (caseLines.length > 0) caseLines.pop()
+  lines.push(...caseLines, `- [Все проекты: полный список кейсов](${md(siteUrl, '/projects')})`, '')
+
+  lines.push(...processBlock(), ...guaranteesBlock(), ...contactsBlock(siteUrl))
+  return finish(lines)
+}
+
 // ========================================
 // 🚦 ДИСПЕТЧЕР + КЭШ
 // ========================================
@@ -877,6 +973,9 @@ async function renderBody(htmlPath: string, siteUrl: string): Promise<string | n
   if (htmlPath === '/contacts') return renderContacts(siteUrl)
   if (htmlPath === '/requisites-ip') return renderRequisites(siteUrl)
   if (htmlPath === '/projects') return renderProjectsIndex(siteUrl)
+  if (htmlPath === '/about') return renderAbout(siteUrl)
+  if (htmlPath === '/privacy-policy') return renderLegalPage(siteUrl, privacyPolicy, '/privacy-policy')
+  if (htmlPath === '/terms-of-service') return renderLegalPage(siteUrl, termsOfService, '/terms-of-service')
 
   const projectMatch = /^\/projects\/([a-z0-9-]+)$/.exec(htmlPath)
   if (projectMatch?.[1]) return renderProjectPage(siteUrl, projectMatch[1])

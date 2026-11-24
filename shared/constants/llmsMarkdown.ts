@@ -20,9 +20,13 @@
 /**
  * Статические разделы с markdown-версией.
  * `/` отдаётся как `/index.md` (в спеке: для URL без имени файла — `index.md`).
+ * У `/partner` `.md` намеренно нет: это лендинг для партнёров без текстовой версии.
  */
 export const LLMS_MD_STATIC_PATHS = [
   '/',
+  '/about',
+  '/privacy-policy',
+  '/terms-of-service',
   '/remont-pomescheniy',
   '/projects',
   '/contacts',

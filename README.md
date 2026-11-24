@@ -318,7 +318,7 @@ Nitro **раньше** серверных роутов, и файл перекр
   из `.output/public`, поэтому штатный деплой коллизий не создаёт. При `--skip-build`
   или ручной заливке — проверьте, что файлов там нет.
 - `gzip_types` в nginx уже содержит `text/plain` (+ `gzip_proxied any`) → документы
-  отдаются сжатыми. `text/markdown` понадобится, только если появятся `.md`-версии страниц.
+  отдаются сжатыми. `text/markdown` для `.md`-версий в `gzip_types` уже есть.
 - `@fallback` не задаёт собственных `add_header`, поэтому security-заголовки с уровня
   `server` наследуются. Если добавляете локейшены с `add_header` — продублируйте
   `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Strict-Transport-Security`.
@@ -347,7 +347,12 @@ Nitro **раньше** серверных роутов, и файл перекр
 - 5 × `/vidy-rabot/<slug>.md`;
 - 3 × `/prices/<slug>.md` — полный прайс раздела из БД (динамически);
 - `/projects.md` и `/projects/<slug>.md` — кейсы из БД (динамически);
-- `/contacts.md`, `/requisites-ip.md`.
+- `/contacts.md`, `/requisites-ip.md`;
+- `/about.md` — о компании (компактное представление: цифры, направления, виды
+  работ, часть кейсов со ссылкой на полное портфолио);
+- `/privacy-policy.md`, `/terms-of-service.md` — юридические документы целиком.
+
+У `/partner` markdown-версии намеренно нет: запрос `/partner.md` → 404.
 
 **Откуда берётся контент** (никакой конвертации HTML → markdown):
 
@@ -357,7 +362,12 @@ Nitro **раньше** серверных роутов, и файл перекр
   `<script setup>` 11 страниц — сервер до них добраться не мог);
 - страницы видов работ — `workTypes/data/pages/*.ts` (те же данные, что рендерит UI);
 - проекты — таблицы `portfolio_cases` / `portfolio_case_works`;
-- реквизиты — `shared/constants/company.ts`.
+- реквизиты — `shared/constants/company.ts`;
+- юридические страницы — `app/components/pages/public/legal/data/*.ts`
+  (те же данные рендерит HTML-страница, поэтому тексты не расходятся);
+- `/about.md` — из `COMPANY`, `PREMISES_CATALOG`, `WORK_TYPES`, кейсов из БД и
+  общих блоков рендерера: это компактное представление страницы, а не дословный
+  перенос текстов визуальных блоков `about/blocks/*`.
 
 **Заголовки `.md`-ответа**
 
@@ -371,6 +381,21 @@ Link: <https://glavprofi.ru/page>; rel="canonical", <https://glavprofi.ru/llms.t
 
 `rel="canonical"` + `noindex` обязательны: канонической остаётся HTML-страница,
 иначе `.md` начнёт индексироваться как дубль.
+
+**404 для `.md`** формирует само middleware, а не error-handler Nitro: тот в проде
+всегда отдаёт `application/json`, а в dev выбирает JSON или HTML `youch` по
+заголовку `Accept`. Ответ одинаков в dev и в проде и не зависит от `Accept`:
+
+```
+404
+Content-Type: text/plain; charset=utf-8
+Cache-Control: no-store
+X-Robots-Tag: noindex
+Link: <https://glavprofi.ru/llms.txt>; rel="describedby"
+
+Markdown-версия недоступна: /partner.md
+Индекс документации: https://glavprofi.ru/llms.txt
+```
 
 **Как добавить новую `.md`-страницу**: реестра путей больше нет — списки slug'ов
 собираются из данных (`app/utils/llmsMarkdown.ts` на клиенте, тот же расчёт в
