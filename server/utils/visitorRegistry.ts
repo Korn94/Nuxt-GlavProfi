@@ -29,6 +29,7 @@ import {
   MAX_VISITORS,
   SESSION_TIMEOUT_MS,
   VISITOR_TTL_MS,
+  isImpressionEvent,
   type ActiveVisitor,
   type VisitorEventType,
   type VisitorRecord
@@ -368,10 +369,21 @@ export function recordVisitorEvent(input: {
 
   const type = input.type as VisitorEventType
   const path = input.path ? normalizePath(clampString(input.path, 500)) : rec.activePath
+  const meta = sanitizeMeta(input.meta)
 
-  // Дубли (двойной слушатель / двойной клик) в пределах 3 секунд
+  // Дубли (двойной слушатель / двойной клик) в пределах 3 секунд.
+  // Источник (meta.source) входит в ключ: показы двух разных форм на одной странице —
+  // это разные события, а не дубль.
+  const source = typeof meta?.source === 'string' ? meta.source : ''
   const last = rec.pendingEvents[rec.pendingEvents.length - 1]
-  if (last && last.type === type && last.path === path && now - new Date(last.createdAt).getTime() < 3000) {
+  const lastSource = typeof last?.meta?.source === 'string' ? last.meta.source : ''
+  if (
+    last &&
+    last.type === type &&
+    last.path === path &&
+    lastSource === source &&
+    now - new Date(last.createdAt).getTime() < 3000
+  ) {
     return rec
   }
 
@@ -379,11 +391,13 @@ export function recordVisitorEvent(input: {
     rec.pendingEvents.push({
       type,
       path,
-      meta: sanitizeMeta(input.meta),
+      meta,
       createdAt: new Date(now).toISOString()
     })
   }
-  rec.eventsCount++
+  // Показ формы (impression) — не действие пользователя: не снимает «отказ»
+  // (computeIsBounce смотрит eventsCount) и не забивает буфер pendingEvents.
+  if (!isImpressionEvent(type)) rec.eventsCount++
   if (CONVERSION_EVENT_TYPES.includes(type)) rec.converted = true
   rec.lastActivity = new Date(now).toISOString()
   rec.dirty = true

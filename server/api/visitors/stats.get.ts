@@ -5,11 +5,15 @@
  * - channels: источники трафика (визиты, посетители, обращения, отказы, средняя длительность);
  * - pages: страницы (просмотры, среднее время, скролл, выходы);
  * - eventTypes / eventStats: количество событий по типам;
- * - events: последние события ВСЕХ типов (клик, форма, CTA) с местом и meta;
+ * - events: последние события (клик, форма, CTA) с местом и meta, плюс последние
+ *   микро-события формы и показы (form_view = impression, отдельная небольшая пачка);
  * - formFunnel: воронка «CTA → показ формы → открытие → фокус → ввод → заявка» по страницам
- *   (form_view / form_focus / form_typing — опциональные микро-события);
+ *   (form_view / form_focus / form_typing — микро-события; form_view — показ, не вовлечение);
  * - conversions: последние обращения с источником и путём посетителя;
  * - visits: последние визиты (не больше limit; полное число за период — visitsTotal).
+ *
+ * eventsTotal считает только события-действия: показы формы (form_view) в него не входят —
+ * иначе лента «разбавляется» пролистываниями страницы мимо формы.
  *
  * Параметры запроса:
  * - days — период в днях, 1..90 (по умолчанию 30);
@@ -36,6 +40,7 @@ import {
   FORM_OPEN_EVENT_TYPE,
   FORM_TYPING_EVENT_TYPE,
   FORM_VIEW_EVENT_TYPE,
+  IMPRESSION_EVENT_TYPES,
   LEAD_EVENT_TYPE,
   VISITOR_EVENT_TYPES,
   isConversionEvent
@@ -46,6 +51,12 @@ const EVENTS_LIMIT = 100
 
 /** Сколько последних микро-событий формы добавляем к таблице (не вытесняют конверсии) */
 const MICRO_EVENTS_LIMIT = 50
+
+/** Сколько последних показов формы (impression, form_view) добавляем — отдельный лимит */
+const IMPRESSION_EVENTS_LIMIT = 20
+
+/** Микро-события-действия (фокус/ввод): показы формы в ленту не попадают */
+const FORM_ACTION_EVENT_TYPES = [FORM_FOCUS_EVENT_TYPE, FORM_TYPING_EVENT_TYPE]
 
 /** Сколько последних визитов отдаём в «Историю визитов» по умолчанию */
 const VISITS_LIMIT = 40
@@ -135,6 +146,7 @@ export default defineApi(async (event) => {
     totalsRows,
     eventRows,
     microEventRows,
+    impressionRows,
     eventTotalRows,
     formFunnelRows,
     formTotalsRows
@@ -259,7 +271,7 @@ export default defineApi(async (event) => {
       .orderBy(desc(ev.createdAt))
       .limit(EVENTS_LIMIT),
 
-    // Микро-события формы за период (показ / фокус / ввод) — отдельный, меньший лимит
+    // Микро-события-действия формы за период (фокус / ввод) — отдельный, меньший лимит
     db.select({
       id: ev.id,
       sessionId: ev.sessionId,
@@ -280,13 +292,44 @@ export default defineApi(async (event) => {
     }).from(ev)
       .innerJoin(s, eq(ev.sessionId, s.id))
       .leftJoin(users, eq(s.linkedUserId, users.id))
-      .where(and(gte(ev.createdAt, border), inArray(ev.type, [...FORM_MICRO_EVENT_TYPES]), noStaffSession))
+      .where(and(gte(ev.createdAt, border), inArray(ev.type, FORM_ACTION_EVENT_TYPES), noStaffSession))
       .orderBy(desc(ev.createdAt))
       .limit(MICRO_EVENTS_LIMIT),
 
+    // Показы формы (impression, form_view) — своя небольшая выборка: они не должны
+    // вытеснять из ленты фокус и ввод, которых меньше, но которые важнее
+    db.select({
+      id: ev.id,
+      sessionId: ev.sessionId,
+      visitorId: ev.visitorId,
+      type: ev.type,
+      path: ev.path,
+      meta: ev.meta,
+      createdAt: ev.createdAt,
+      channel: s.channel,
+      utmCampaign: s.utmCampaign,
+      referrerHost: s.referrerHost,
+      visitNumber: s.visitNumber,
+      pagesCount: s.pagesCount,
+      landingPath: s.landingPath,
+      city: s.city,
+      linkedUserId: s.linkedUserId,
+      linkedUserName: users.name
+    }).from(ev)
+      .innerJoin(s, eq(ev.sessionId, s.id))
+      .leftJoin(users, eq(s.linkedUserId, users.id))
+      .where(and(gte(ev.createdAt, border), inArray(ev.type, [...IMPRESSION_EVENT_TYPES]), noStaffSession))
+      .orderBy(desc(ev.createdAt))
+      .limit(IMPRESSION_EVENTS_LIMIT),
+
+    // Всего событий-действий за период (показы формы не в счёт — это метрика, не событие)
     db.select({
       total: sql<number>`COUNT(*)`
-    }).from(ev).where(and(gte(ev.createdAt, border), noStaffEvent)),
+    }).from(ev).where(and(
+      gte(ev.createdAt, border),
+      notInArray(ev.type, [...IMPRESSION_EVENT_TYPES]),
+      noStaffEvent
+    )),
 
     db.select({
       path: ev.path,
@@ -392,8 +435,9 @@ export default defineApi(async (event) => {
       isConversion: isConversionEvent(type)
     })),
     eventsTotal: num(eventTotalRows?.[0]?.total),
-    // Основная сотня событий + последние микро-события формы, по времени (свежие выше)
-    events: [...eventRows, ...microEventRows]
+    // Основная сотня событий + последние микро-события формы + последние показы формы,
+    // по времени (свежие выше)
+    events: [...eventRows, ...microEventRows, ...impressionRows]
       .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
       .map(r => ({
         ...r,

@@ -8,8 +8,8 @@
  *   скролл, обращения, конверсия, отказы, доля первых визитов;
  * - daily: просмотры/посетители по дням (для графика);
  * - channels / devices / scroll / eventTypes / eventStats: разрезы по этой странице;
- * - events: последние события ВСЕХ типов на странице (клик, форма, CTA) с meta
- *   и переходом в визит (полное число — eventsTotal);
+ * - events: последние события страницы (клик, форма, CTA) с meta и переходом в визит
+ *   (полное число — eventsTotal), плюс микро-события формы и показы (form_view = impression);
  * - conversions: последние обращения, совершённые на странице;
  * - sessions: заходы на страницу по сессиям (для перехода к посетителю
  *   и его полной истории визитов).
@@ -27,13 +27,23 @@ import { formatMySQLDate } from '../../utils/sessions'
 import { CHANNEL_LABELS, normalizePath, type TrafficChannel } from '../../utils/trafficSource'
 import {
   CONVERSION_EVENT_TYPES,
+  FORM_FOCUS_EVENT_TYPE,
   FORM_MICRO_EVENT_TYPES,
+  FORM_TYPING_EVENT_TYPE,
+  IMPRESSION_EVENT_TYPES,
   VISITOR_EVENT_TYPES,
-  isConversionEvent
+  isConversionEvent,
+  isImpressionEvent
 } from '../../utils/visitorTypes'
 
 /** Сколько последних микро-событий формы добавляем к таблице страницы */
 const MICRO_EVENTS_LIMIT = 50
+
+/** Сколько последних показов формы (impression, form_view) добавляем — отдельный лимит */
+const IMPRESSION_EVENTS_LIMIT = 20
+
+/** Микро-события-действия (фокус/ввод): показы формы в ленту не попадают */
+const FORM_ACTION_EVENT_TYPES = [FORM_FOCUS_EVENT_TYPE, FORM_TYPING_EVENT_TYPE]
 
 const num = (value: unknown): number => {
   const n = Number(value)
@@ -82,6 +92,7 @@ export default defineApi(async (event) => {
     eventTypeRows,
     eventRows,
     microEventRows,
+    impressionRows,
     conversionCountRows,
     conversionRows,
     sessionRows
@@ -200,7 +211,7 @@ export default defineApi(async (event) => {
       .orderBy(desc(ev.createdAt))
       .limit(limit),
 
-    // Микро-события формы на странице (показ / фокус / ввод) — отдельный, меньший лимит
+    // Микро-события-действия формы на странице (фокус / ввод) — отдельный, меньший лимит
     db.select({
       id: ev.id,
       sessionId: ev.sessionId,
@@ -225,10 +236,41 @@ export default defineApi(async (event) => {
       .where(and(
         eq(ev.path, path),
         gte(ev.createdAt, border),
-        inArray(ev.type, [...FORM_MICRO_EVENT_TYPES])
+        inArray(ev.type, FORM_ACTION_EVENT_TYPES)
       ))
       .orderBy(desc(ev.createdAt))
       .limit(MICRO_EVENTS_LIMIT),
+
+    // Показы формы (impression, form_view) — своя небольшая выборка, чтобы не вытеснять
+    // из ленты фокус и ввод, которых меньше, но которые важнее
+    db.select({
+      id: ev.id,
+      sessionId: ev.sessionId,
+      visitorId: ev.visitorId,
+      type: ev.type,
+      path: ev.path,
+      meta: ev.meta,
+      createdAt: ev.createdAt,
+      channel: s.channel,
+      utmCampaign: s.utmCampaign,
+      referrerHost: s.referrerHost,
+      visitNumber: s.visitNumber,
+      pagesCount: s.pagesCount,
+      landingPath: s.landingPath,
+      city: s.city,
+      linkedUserId: s.linkedUserId,
+      linkedUserName: users.name
+    })
+      .from(ev)
+      .innerJoin(s, eq(ev.sessionId, s.id))
+      .leftJoin(users, eq(s.linkedUserId, users.id))
+      .where(and(
+        eq(ev.path, path),
+        gte(ev.createdAt, border),
+        inArray(ev.type, [...IMPRESSION_EVENT_TYPES])
+      ))
+      .orderBy(desc(ev.createdAt))
+      .limit(IMPRESSION_EVENTS_LIMIT),
 
     // Сколько всего обращений на странице
     db.select({ total: sql<number>`COUNT(*)` })
@@ -315,7 +357,10 @@ export default defineApi(async (event) => {
 
   const scrollByBucket = new Map(scrollRows.map(r => [r.bucket, num(r.views)]))
   const eventCounts = new Map(eventTypeRows.map(r => [r.type, num(r.total)]))
-  const eventsTotal = eventTypeRows.reduce((sum, r) => sum + num(r.total), 0)
+  // Показы формы (impression) — метрика, а не событие: в общий счётчик не входят
+  const eventsTotal = eventTypeRows
+    .filter(r => !isImpressionEvent(r.type))
+    .reduce((sum, r) => sum + num(r.total), 0)
 
   return {
     path,
@@ -365,8 +410,8 @@ export default defineApi(async (event) => {
       isConversion: isConversionEvent(type)
     })),
     eventsTotal,
-    // Конверсии/CTA + последние микро-события формы, по времени (свежие выше)
-    events: [...eventRows, ...microEventRows]
+    // Конверсии/CTA + последние микро-события формы + показы формы, по времени (свежие выше)
+    events: [...eventRows, ...microEventRows, ...impressionRows]
       .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
       .map(r => ({
         ...r,

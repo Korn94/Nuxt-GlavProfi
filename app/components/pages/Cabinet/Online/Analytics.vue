@@ -86,7 +86,7 @@
       <!-- Формы за период: полная воронка «показ → открытие → фокус → ввод → заявка» -->
       <div
         class="stats-forms"
-        title="CTA — клик по кнопке, ведущей к форме (cta_click). Показ — форма попала в поле зрения (form_view, только встроенные формы). Открытие — форма открыта или начато заполнение (form_open). Фокус — курсор в поле (form_focus). Ввод — начали печатать (form_typing). Заявка — отправленная форма (form_submit). Микро-события включаются точечно (см. NUXT_PUBLIC_VISITOR_MICRO_TRACKING)."
+        title="CTA — клик по кнопке, ведущей к форме (cta_click). Показ — форма продержалась в кадре (form_view, impression: вовлечением не считается и «отказ» не снимает). Открытие — форма открыта или начато заполнение (form_open). Фокус — курсор в поле (form_focus). Ввод — начали печатать (form_typing). Заявка — отправленная форма (form_submit). Микро-события включаются точечно (см. NUXT_PUBLIC_VISITOR_MICRO_TRACKING), минимальная пауза в кадре — NUXT_PUBLIC_VISITOR_MICRO_VIEW_MIN_MS."
       >
         <span class="stats-forms__item">
           <Icon name="mdi:cursor-default-click-outline" size="13" />
@@ -100,7 +100,7 @@
           <Icon name="mdi:form-select" size="13" />
           Открытий формы: <b>{{ formatNumber(stats.totals?.formOpens) }}</b>
         </span>
-        <span v-if="hasMicroData" class="stats-forms__item">
+        <span v-if="hasMicroData" class="stats-forms__item" title="Показ (impression, form_view): форма продержалась в кадре. Действием пользователя не считается">
           <Icon name="mdi:eye-outline" size="13" />
           Показ формы: <b>{{ formatNumber(stats.totals?.formViews) }}</b>
         </span>
@@ -543,7 +543,7 @@
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import type { ECharts, EChartsOption } from 'echarts'
 import { echarts } from '~/lib/echarts'
-import { isConversionEvent, isFormMicroEvent } from 'shared/constants/visitorEvents'
+import { isConversionEvent, isFormMicroEvent, isImpressionEvent } from 'shared/constants/visitorEvents'
 import type { VisitorEventRow, VisitorStatsResponse, VisitorVisit } from '~/types'
 import { useOnlineFormatters } from './composables/useOnlineFormatters'
 import { buildDailySeries, chartThemeColors } from './composables/useEchartsTheme'
@@ -605,35 +605,41 @@ function formatClock(ts: number | null | undefined): string {
 }
 
 // ── События: фильтры по группам ─────────────────────────────────────────
-type EventFilterKey = 'all' | 'conversion' | 'form_open' | 'other'
+type EventFilterKey = 'all' | 'conversion' | 'form_open' | 'other' | 'impression'
 
 const EVENT_FILTER_HINTS: Record<EventFilterKey, string> = {
-  all: 'Все события посетителей за период',
+  all: 'Все события-действия посетителей за период (показы формы сюда не входят)',
   conversion: 'Обращения: клик по телефону, мессенджеру, email и отправка формы',
-  form_open: 'Работа с формой: открытие/начало заполнения (form_open) и микро-события — показ, фокус, ввод',
-  other: 'Прочие события: клики по CTA'
+  form_open: 'Работа с формой: открытие/начало заполнения (form_open), фокус и ввод (form_focus / form_typing)',
+  other: 'Прочие события: клики по CTA',
+  impression: 'Показы формы (form_view, impression): форма продержалась в кадре. Действием не считается и в вовлечение не входит'
 }
 
 const eventFilter = ref<EventFilterKey>('all')
 
-/** Микро-события формы: показ / фокус / ввод (учитываются в группе «Открытия формы») */
-const isFormEvent = (type: string) => type === 'form_open' || isFormMicroEvent(type)
+/** События-действия в форме: открытие, фокус, ввод (без показа — это impression) */
+const isFormActionEvent = (type: string) => type === 'form_open' || (isFormMicroEvent(type) && !isImpressionEvent(type))
 
 /** Счётчики по группам (полные за период, не только загруженная сотня) */
 const eventTabs = computed(() => {
   const stats = props.stats?.eventStats || []
   const conversionTotal = stats.filter(s => s.isConversion).reduce((sum, s) => sum + s.total, 0)
-  const formOpenTotal = stats.filter(s => isFormEvent(s.type)).reduce((sum, s) => sum + s.total, 0)
+  const formActionTotal = stats.filter(s => isFormActionEvent(s.type)).reduce((sum, s) => sum + s.total, 0)
+  const impressionTotal = stats.filter(s => isImpressionEvent(s.type)).reduce((sum, s) => sum + s.total, 0)
   const otherTotal = stats
-    .filter(s => !s.isConversion && !isFormEvent(s.type))
+    .filter(s => !s.isConversion && !isFormActionEvent(s.type) && !isImpressionEvent(s.type))
     .reduce((sum, s) => sum + s.total, 0)
-  const allTotal = stats.reduce((sum, s) => sum + s.total, 0) || (props.stats?.eventsTotal || 0)
+  // «Все» — события-действия: показы формы не должны раздувать счётчик
+  const allTotal = stats
+    .filter(s => !isImpressionEvent(s.type))
+    .reduce((sum, s) => sum + s.total, 0) || (props.stats?.eventsTotal || 0)
 
   return [
     { key: 'all' as const, label: 'Все', total: allTotal, hint: EVENT_FILTER_HINTS.all },
     { key: 'conversion' as const, label: 'Обращения', total: conversionTotal, hint: EVENT_FILTER_HINTS.conversion },
-    { key: 'form_open' as const, label: 'Открытия формы', total: formOpenTotal, hint: EVENT_FILTER_HINTS.form_open },
-    { key: 'other' as const, label: 'Прочее', total: otherTotal, hint: EVENT_FILTER_HINTS.other }
+    { key: 'form_open' as const, label: 'Открытия формы', total: formActionTotal, hint: EVENT_FILTER_HINTS.form_open },
+    { key: 'other' as const, label: 'Прочее', total: otherTotal, hint: EVENT_FILTER_HINTS.other },
+    { key: 'impression' as const, label: 'Показы формы', total: impressionTotal, hint: EVENT_FILTER_HINTS.impression }
   ]
 })
 
@@ -641,9 +647,10 @@ const filteredEvents = computed<VisitorEventRow[]>(() => {
   const events = props.stats?.events || []
   switch (eventFilter.value) {
     case 'conversion': return events.filter(row => isConversionEvent(row.type))
-    case 'form_open': return events.filter(row => isFormEvent(row.type))
-    case 'other': return events.filter(row => !isConversionEvent(row.type) && !isFormEvent(row.type))
-    default: return events
+    case 'form_open': return events.filter(row => isFormActionEvent(row.type))
+    case 'impression': return events.filter(row => isImpressionEvent(row.type))
+    case 'other': return events.filter(row => !isConversionEvent(row.type) && !isFormActionEvent(row.type) && !isImpressionEvent(row.type))
+    default: return events.filter(row => !isImpressionEvent(row.type))
   }
 })
 
@@ -654,10 +661,12 @@ const hiddenEventsCount = computed(
   () => Math.max(0, eventsInFilterTotal.value - filteredEvents.value.length)
 )
 
-/** Бейдж смысла события: заявка / обращение / вовлечение */
+/** Бейдж смысла события: заявка / обращение / вовлечение / показ */
 function eventBadge(row: VisitorEventRow): { label: string; tone: 'success' | 'info' | 'muted' } {
   if (row.type === 'form_submit') return { label: 'заявка', tone: 'success' }
   if (row.isConversion) return { label: 'обращение', tone: 'info' }
+  // Показ формы — impression: пользователь ничего не сделал, это не вовлечение
+  if (isImpressionEvent(row.type)) return { label: 'показ', tone: 'muted' }
   return { label: 'вовлечение', tone: 'muted' }
 }
 
@@ -727,7 +736,7 @@ const noLeadVisits = computed(() => Math.max(
   (props.stats?.totals?.formOpens ?? 0) - (props.stats?.totals?.formSubmits ?? 0)
 ))
 
-const hasEventData = computed(() => (props.stats?.eventStats || []).some(item => item.total > 0))
+const hasEventData = computed(() => (props.stats?.eventStats || []).some(item => item.total > 0 && !isImpressionEvent(item.type)))
 
 // ── Страницы: логическая группировка по разделам сайта (прайс, офферы…) ─
 const pageGroups = computed(() => groupPages(props.stats?.pages || []))
@@ -935,7 +944,8 @@ function channelsOption(): EChartsOption {
 function eventsOption(): EChartsOption {
   const c = chartThemeColors()
   const data = [...(props.stats?.eventStats || [])]
-    .filter(item => item.total > 0)
+    // Показы формы (impression) — не события: в графике «События» им не место
+    .filter(item => item.total > 0 && !isImpressionEvent(item.type))
     .sort((a, b) => a.total - b.total)
 
   return {
@@ -1255,7 +1265,7 @@ watch(() => props.stats, (s) => {
   color: var(--crm-text-secondary);
 }
 
-/* 🗂️ Фильтры событий: Все / Обращения / Открытия формы / Прочее */
+/* 🗂️ Фильтры событий: Все / Обращения / Открытия формы / Прочее / Показы формы */
 .stats-tabs {
   display: flex;
   flex-wrap: wrap;

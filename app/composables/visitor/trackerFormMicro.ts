@@ -8,6 +8,12 @@
  *   form_focus — пользователь поставил курсор в поле ввода;
  *   form_typing — пользователь начал печатать в любом поле.
  *
+ * ВАЖНО про form_view: это impression (показ), а не действие пользователя. Чтобы
+ * обычное пролистывание страницы не превращалось в «вовлечение», показ засчитывается
+ * только если форма продержалась в кадре не меньше minVisibleMs (по умолчанию 1200 мс,
+ * env NUXT_PUBLIC_VISITOR_MICRO_VIEW_MIN_MS) и вкладка была видима. Форма, мелькнувшая
+ * при быстром скролле, события не даёт.
+ *
  * Опциональность (чтобы не спамить событиями все формы):
  * - микро-трекинг подключается ТОЛЬКО там, где его явно вызвали (см. bindFormMicro /
  *   observeFormView) — «opt-in» на уровне разметки;
@@ -45,10 +51,15 @@ const NON_TEXT_INPUT_TYPES = new Set([
 /** Уже отправленные микро-события в рамках просмотра страницы: `${path}|${source}|${type}` */
 const sentOnPage = new Set<string>()
 
+/** Сколько форма должна пробыть в кадре, чтобы показ считался осознанным (мс) */
+export const DEFAULT_VIEW_MIN_MS = 1200
+
 interface MicroConfig {
   enabled: boolean
   /** null — без ограничений по подписи формы */
   sources: Set<string> | null
+  /** Минимальное время в кадре для form_view, мс */
+  viewMinMs: number
 }
 
 let microConfig: MicroConfig | null = null
@@ -59,6 +70,7 @@ function getMicroConfig(): MicroConfig {
 
   let enabled = true
   let sources: Set<string> | null = null
+  let viewMinMs = DEFAULT_VIEW_MIN_MS
 
   try {
     const pub = useRuntimeConfig().public as Record<string, unknown>
@@ -69,11 +81,13 @@ function getMicroConfig(): MicroConfig {
     if (typeof raw === 'string' && raw.trim()) {
       sources = new Set(raw.split(',').map(item => item.trim()).filter(Boolean))
     }
+    const rawMin = Number(pub.visitorMicroViewMinMs)
+    if (Number.isFinite(rawMin) && rawMin >= 0) viewMinMs = rawMin
   } catch {
     // Вне Nuxt-контекста (SSR-хелперы, тесты) — дефолт: включено, без allowlist
   }
 
-  microConfig = { enabled, sources }
+  microConfig = { enabled, sources, viewMinMs }
   return microConfig
 }
 
@@ -174,17 +188,21 @@ export function trackFormTyping(source: FormMicroSource): void {
 
 /**
  * Наблюдать за появлением встроенной формы в viewport (Intersection Observer).
- * Событие form_view отправляется один раз за просмотр страницы.
+ * Показ (form_view) отправляется один раз за просмотр страницы и только если форма
+ * продержалась в кадре minVisibleMs при видимой вкладке — быстрый скролл мимо формы
+ * событие не создаёт.
  *
  * @param el     Корневой элемент формы
  * @param source Подпись формы (= source у form_open / form_submit)
- * @param opts.threshold Доля видимости формы, при которой считаем «увидел» (по умолчанию 0.4)
+ * @param opts.threshold    Доля видимости формы, при которой считаем «увидел» (по умолчанию 0.4)
+ * @param opts.minVisibleMs Сколько мс форма должна быть в кадре (по умолчанию из
+ *                          runtimeConfig.public.visitorMicroViewMinMs, 1200 мс)
  * @returns функция отписки (вызвать в onBeforeUnmount)
  */
 export function observeFormView(
   el: Element | null | undefined,
   source: FormMicroSource,
-  opts: { threshold?: number } = {}
+  opts: { threshold?: number; minVisibleMs?: number } = {}
 ): () => void {
   if (typeof window === 'undefined' || !el) return () => {}
   if (!isFormMicroEnabled(source)) return () => {}
@@ -195,14 +213,72 @@ export function observeFormView(
     return () => {}
   }
 
-  const observer = new IntersectionObserver((entries) => {
-    if (!entries.some(entry => entry.isIntersecting)) return
-    trackFormView(source)
+  const minVisibleMs = opts.minVisibleMs ?? getMicroConfig().viewMinMs
+  let timer: ReturnType<typeof setTimeout> | null = null
+  let inView = false
+  let finished = false
+
+  const clearTimer = () => {
+    if (timer) {
+      clearTimeout(timer)
+      timer = null
+    }
+  }
+
+  const cleanup = () => {
+    clearTimer()
     observer.disconnect()
+    document.removeEventListener('visibilitychange', onVisibilityChange)
+  }
+
+  /** Показ состоялся: отправляем form_view и снимаем наблюдение */
+  const fire = () => {
+    if (finished) return
+    finished = true
+    trackFormView(source)
+    cleanup()
+  }
+
+  /** Форма в кадре и вкладка видима — запускаем паузу (или отправляем сразу при 0) */
+  const maybeStart = () => {
+    if (finished || !inView || timer) return
+    if (document.visibilityState !== 'visible') return
+
+    if (minVisibleMs <= 0) {
+      fire()
+      return
+    }
+
+    timer = setTimeout(() => {
+      timer = null
+      if (document.visibilityState !== 'visible') return
+      fire()
+    }, minVisibleMs)
+  }
+
+  /** Вкладка вернулась в фокус: если форма на экране — отсчёт начинается заново */
+  function onVisibilityChange() {
+    if (document.visibilityState !== 'visible') {
+      clearTimer()
+      return
+    }
+    maybeStart()
+  }
+
+  const observer = new IntersectionObserver((entries) => {
+    inView = entries.some(entry => entry.isIntersecting)
+    // Ушла из кадра — показ не состоялся (обычный скролл мимо формы)
+    if (!inView) {
+      clearTimer()
+      return
+    }
+    maybeStart()
   }, { threshold: opts.threshold ?? 0.4 })
 
+  document.addEventListener('visibilitychange', onVisibilityChange)
   observer.observe(el)
-  return () => observer.disconnect()
+
+  return cleanup
 }
 
 export interface FormMicroOptions {

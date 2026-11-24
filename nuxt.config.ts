@@ -1,5 +1,12 @@
 import { defineNuxtConfig } from 'nuxt/config';
 
+/**
+ * Микро-трекинг формы: сколько мс форма должна пробыть в кадре, чтобы form_view
+ * считался показом (быстрый скролл мимо формы событие не создаёт). Пусто → 1200 мс.
+ */
+const visitorMicroViewMinMsRaw = process.env.NUXT_PUBLIC_VISITOR_MICRO_VIEW_MIN_MS;
+const visitorMicroViewMinMs = visitorMicroViewMinMsRaw ? Number(visitorMicroViewMinMsRaw) : Number.NaN;
+
 export default defineNuxtConfig({
   app: {
     head: {
@@ -319,6 +326,11 @@ export default defineNuxtConfig({
       // Опциональный allowlist подписей форм (как source у form_open), через запятую:
       // NUXT_PUBLIC_VISITOR_MICRO_SOURCES="Футер — обратный звонок,Hero-форма: Офисы"
       visitorMicroSources: process.env.NUXT_PUBLIC_VISITOR_MICRO_SOURCES || '',
+      // Сколько мс форма должна пробыть в кадре, чтобы form_view считался показом.
+      // Защита от спама «вовлечений» при обычном пролистывании страницы: 0 — сразу.
+      visitorMicroViewMinMs: Number.isFinite(visitorMicroViewMinMs) && visitorMicroViewMinMs >= 0
+        ? visitorMicroViewMinMs
+        : 1200,
     },
     private: {
       dbHost: process.env.NUXT_DB_HOST,

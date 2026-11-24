@@ -7,15 +7,19 @@
  * Термины:
  * - заявка (lead)         — отправка формы (form_submit), пишется сервером в /api/send-message;
  * - обращение (conversion) — контактное действие: звонок, мессенджер, email, заявка;
- * - вовлечение (engagement) — форма открыта / CTA нажат, но заявки нет.
+ * - вовлечение (engagement) — форма открыта / CTA нажат, но заявки нет;
+ * - показ (impression)    — форма попала в кадр. Действием пользователя НЕ является:
+ *   в вовлечение не входит, «отказ» не снимает, в ленте событий помечается отдельно.
  *
  * Цепочка вовлечения: cta_click → form_open → form_submit.
  * meta у cta_click: { cta: 'Раздел — кнопка', target: 'подпись формы (= source)', href? },
  * где target совпадает с meta.source у form_open и source в /api/send-message.
  *
- * Микро-события формы (опциональные, включаются точечно на конкретных формах):
- * form_view (форма попала в viewport) → form_focus (фокус в поле) →
- * form_typing (первый ввод) — детализация «застревания» между form_open и form_submit.
+ * Микро-события формы:
+ * form_view (показ/impression — форма пробыла в кадре достаточно долго) →
+ * form_focus (фокус в поле) → form_typing (первый ввод) — детализация «застревания»
+ * между form_open и form_submit. form_view в воронке используется как база «показ»,
+ * но событием-действием не считается.
  */
 
 export const VISITOR_EVENT_TYPES = [
@@ -42,11 +46,13 @@ export const CONVERSION_EVENT_TYPES: readonly VisitorEventType[] = [
   'form_submit'
 ]
 
-/** События-вовлечения: действие было, но обращения/заявки нет */
+/**
+ * События-вовлечения: пользователь что-то СДЕЛАЛ, но обращения/заявки нет.
+ * form_view сюда не входит: показ формы в кадре действием не является (см. IMPRESSION_EVENT_TYPES).
+ */
 export const ENGAGEMENT_EVENT_TYPES: readonly VisitorEventType[] = [
   'form_open',
   'cta_click',
-  'form_view',
   'form_focus',
   'form_typing'
 ]
@@ -76,6 +82,14 @@ export const FORM_MICRO_EVENT_TYPES: readonly VisitorEventType[] = [
   'form_typing'
 ]
 
+/**
+ * Показы (impressions): форма попала в кадр. Это метрика, а не действие пользователя:
+ * не считается вовлечением, не снимает «отказ» и в ленте событий идёт отдельной группой.
+ */
+export const IMPRESSION_EVENT_TYPES: readonly VisitorEventType[] = [
+  'form_view'
+]
+
 export const VISITOR_EVENT_LABELS: Record<VisitorEventType, string> = {
   click_phone: 'Клик по телефону',
   copy_phone: 'Копирование телефона',
@@ -90,7 +104,7 @@ export const VISITOR_EVENT_LABELS: Record<VisitorEventType, string> = {
 }
 
 /** Группы событий для фильтров в интерфейсе аналитики */
-export type VisitorEventGroup = 'lead' | 'conversion' | 'engagement'
+export type VisitorEventGroup = 'lead' | 'conversion' | 'engagement' | 'impression'
 
 export function isVisitorEventType(value: string): value is VisitorEventType {
   return (VISITOR_EVENT_TYPES as readonly string[]).includes(value)
@@ -109,9 +123,15 @@ export function isFormMicroEvent(type: string): boolean {
   return (FORM_MICRO_EVENT_TYPES as readonly string[]).includes(type)
 }
 
+/** Показ (impression): форма попала в кадр — действие пользователя не подразумевается */
+export function isImpressionEvent(type: string): boolean {
+  return (IMPRESSION_EVENT_TYPES as readonly string[]).includes(type)
+}
+
 export function eventGroupOf(type: string): VisitorEventGroup {
   if (isLeadEvent(type)) return 'lead'
-  return isConversionEvent(type) ? 'conversion' : 'engagement'
+  if (isConversionEvent(type)) return 'conversion'
+  return isImpressionEvent(type) ? 'impression' : 'engagement'
 }
 
 export function visitorEventLabel(type: string): string {

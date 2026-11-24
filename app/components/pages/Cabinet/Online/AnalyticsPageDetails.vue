@@ -92,7 +92,7 @@
         <div class="details-section details-section--wide">
           <div class="details-section__title">
             <Icon name="mdi:pulse" size="13" /> События страницы
-            <span class="details-chip">всего: {{ formatNumber(data.eventsTotal) }}</span>
+            <span class="details-chip" title="События-действия за период; показы формы (impression) в счётчик не входят">всего: {{ formatNumber(data.eventsTotal) }}</span>
           </div>
           <div class="details-tabs">
             <button
@@ -287,7 +287,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { ECharts, EChartsOption } from 'echarts'
 import { echarts } from '~/lib/echarts'
 import { useApi } from '~/composables/useApi'
-import { isConversionEvent, isFormMicroEvent } from 'shared/constants/visitorEvents'
+import { isConversionEvent, isFormMicroEvent, isImpressionEvent } from 'shared/constants/visitorEvents'
 import type { VisitorEventRow, VisitorPageDetailsResponse } from '~/types'
 import { useOnlineFormatters } from './composables/useOnlineFormatters'
 import { buildDailySeries, chartThemeColors } from './composables/useEchartsTheme'
@@ -378,35 +378,41 @@ const scrollLabel = (bucket: string): string => SCROLL_LABELS[bucket] || bucket
 const hasScrollData = computed(() => Boolean(data.value?.scroll.some(row => row.views > 0)))
 
 // ── События страницы: фильтры по смыслу ────────────────────────────────
-type EventFilterKey = 'all' | 'conversion' | 'form_open' | 'other'
+type EventFilterKey = 'all' | 'conversion' | 'form_open' | 'other' | 'impression'
 
 const EVENT_FILTER_HINTS: Record<EventFilterKey, string> = {
-  all: 'Все события посетителей на этой странице за период',
+  all: 'Все события-действия посетителей на этой странице за период (показы формы сюда не входят)',
   conversion: 'Обращения: клик по телефону, мессенджеру, email и отправка формы',
-  form_open: 'Работа с формой: открытие/начало заполнения (form_open) и микро-события — показ, фокус, ввод',
-  other: 'Прочие события: клики по CTA'
+  form_open: 'Работа с формой: открытие/начало заполнения (form_open), фокус и ввод (form_focus / form_typing)',
+  other: 'Прочие события: клики по CTA',
+  impression: 'Показы формы (form_view, impression): форма продержалась в кадре. Действием не считается и в вовлечение не входит'
 }
 
 const eventFilter = ref<EventFilterKey>('all')
 
-/** Микро-события формы: показ / фокус / ввод (учитываются в группе «Открытия формы») */
-const isFormEvent = (type: string) => type === 'form_open' || isFormMicroEvent(type)
+/** События-действия в форме: открытие, фокус, ввод (без показа — это impression) */
+const isFormActionEvent = (type: string) => type === 'form_open' || (isFormMicroEvent(type) && !isImpressionEvent(type))
 
 /** Счётчики по группам (полные за период, не только загруженная сотня) */
 const eventTabs = computed(() => {
   const stats = data.value?.eventStats || []
   const conversionTotal = stats.filter(s => s.isConversion).reduce((sum, s) => sum + s.total, 0)
-  const formOpenTotal = stats.filter(s => isFormEvent(s.type)).reduce((sum, s) => sum + s.total, 0)
+  const formActionTotal = stats.filter(s => isFormActionEvent(s.type)).reduce((sum, s) => sum + s.total, 0)
+  const impressionTotal = stats.filter(s => isImpressionEvent(s.type)).reduce((sum, s) => sum + s.total, 0)
   const otherTotal = stats
-    .filter(s => !s.isConversion && !isFormEvent(s.type))
+    .filter(s => !s.isConversion && !isFormActionEvent(s.type) && !isImpressionEvent(s.type))
     .reduce((sum, s) => sum + s.total, 0)
-  const allTotal = stats.reduce((sum, s) => sum + s.total, 0) || (data.value?.eventsTotal || 0)
+  // «Все» — события-действия: показы формы не должны раздувать счётчик
+  const allTotal = stats
+    .filter(s => !isImpressionEvent(s.type))
+    .reduce((sum, s) => sum + s.total, 0) || (data.value?.eventsTotal || 0)
 
   return [
     { key: 'all' as const, label: 'Все', total: allTotal, hint: EVENT_FILTER_HINTS.all },
     { key: 'conversion' as const, label: 'Обращения', total: conversionTotal, hint: EVENT_FILTER_HINTS.conversion },
-    { key: 'form_open' as const, label: 'Открытия формы', total: formOpenTotal, hint: EVENT_FILTER_HINTS.form_open },
-    { key: 'other' as const, label: 'Прочее', total: otherTotal, hint: EVENT_FILTER_HINTS.other }
+    { key: 'form_open' as const, label: 'Открытия формы', total: formActionTotal, hint: EVENT_FILTER_HINTS.form_open },
+    { key: 'other' as const, label: 'Прочее', total: otherTotal, hint: EVENT_FILTER_HINTS.other },
+    { key: 'impression' as const, label: 'Показы формы', total: impressionTotal, hint: EVENT_FILTER_HINTS.impression }
   ]
 })
 
@@ -414,9 +420,10 @@ const filteredEvents = computed<VisitorEventRow[]>(() => {
   const events = data.value?.events || []
   switch (eventFilter.value) {
     case 'conversion': return events.filter(row => isConversionEvent(row.type))
-    case 'form_open': return events.filter(row => isFormEvent(row.type))
-    case 'other': return events.filter(row => !isConversionEvent(row.type) && !isFormEvent(row.type))
-    default: return events
+    case 'form_open': return events.filter(row => isFormActionEvent(row.type))
+    case 'impression': return events.filter(row => isImpressionEvent(row.type))
+    case 'other': return events.filter(row => !isConversionEvent(row.type) && !isFormActionEvent(row.type) && !isImpressionEvent(row.type))
+    default: return events.filter(row => !isImpressionEvent(row.type))
   }
 })
 
@@ -427,10 +434,12 @@ const hiddenEventsCount = computed(
   () => Math.max(0, eventsInFilterTotal.value - filteredEvents.value.length)
 )
 
-/** Бейдж смысла события: заявка / обращение / вовлечение */
+/** Бейдж смысла события: заявка / обращение / вовлечение / показ */
 function eventBadge(row: VisitorEventRow): { label: string; tone: 'success' | 'info' | 'muted' } {
   if (row.type === 'form_submit') return { label: 'заявка', tone: 'success' }
   if (row.isConversion) return { label: 'обращение', tone: 'info' }
+  // Показ формы — impression: пользователь ничего не сделал, это не вовлечение
+  if (isImpressionEvent(row.type)) return { label: 'показ', tone: 'muted' }
   return { label: 'вовлечение', tone: 'muted' }
 }
 

@@ -225,7 +225,7 @@ export interface VisitorFormFunnelRow {
   path: string | null
   /** Визиты с кликом по CTA на этой странице */
   ctaClicks: number
-  /** Визиты, где форма попала в viewport (только встроенные формы, form_view) */
+  /** Визиты, где форма попала в кадр (только встроенные формы, form_view / impression) */
   views: number
   opens: number
   /** Визиты с первым фокусом на поле формы (form_focus) */
@@ -274,7 +274,7 @@ export interface VisitorTotals {
   leadEvents: number
   /** Визиты, в которых кликали по CTA */
   ctaClicks: number
-  /** Визиты, где форма попала в viewport (встроенные формы) */
+  /** Визиты, где форма попала в кадр (встроенные формы); impression — не вовлечение */
   formViews: number
   /** Визиты, в которых открывали/начинали форму */
   formOpens: number
@@ -299,8 +299,9 @@ export interface VisitorStatsResponse {
   eventTypes: Array<{ type: string; total: number }>
   /** Счётчики по всем типам событий за период */
   eventStats: VisitorEventTypeStat[]
-  /** Последние события всех типов (полный список — eventsTotal) */
+  /** Последние события-действия (плюс небольшая пачка показов формы; полный счётчик — eventsTotal) */
   events: VisitorEventRow[]
+  /** Всего событий-действий за период; показы формы (impression) не входят */
   eventsTotal: number
   /** Воронка форм по страницам (уникальные визиты) */
   formFunnel: VisitorFormFunnelRow[]
@@ -397,8 +398,9 @@ export interface VisitorPageDetailsResponse {
   eventTypes: Array<{ type: string; total: number }>
   /** Счётчики по всем типам событий на странице (нули для отсутствующих) */
   eventStats: VisitorEventTypeStat[]
-  /** Последние события всех типов на странице (полный список — eventsTotal) */
+  /** Последние события-действия страницы (плюс небольшая пачка показов формы; полный счётчик — eventsTotal) */
   events: VisitorEventRow[]
+  /** Всего событий-действий на странице; показы формы (impression) не входят */
   eventsTotal: number
   /** @deprecated для таблицы событий используйте events */
   conversions: VisitorConversion[]
