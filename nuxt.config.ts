@@ -305,6 +305,11 @@ export default defineNuxtConfig({
       from: process.env.NUXT_EMAIL_FROM || 'noreply@glavprofi.ru',
     },
     public: {
+      // 📊 Google Analytics 4 (G-XXXXXXX). Пусто → GA не загружается вообще.
+      // Переопределяется в рантайме через NUXT_PUBLIC_GA_ID (без пересборки).
+      // ⚠️ gtag.js = 532 КБ (183 КБ gzip), поэтому грузится ЛЕНИВО и только в prod —
+      // см. app/plugins/analytics.client.ts. В <head> тега нет намеренно.
+      googleAnalyticsId: process.env.NUXT_PUBLIC_GA_ID || '',
       yandexMetricaId: process.env.YANDEX_METRICA_ID,
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || 
         (process.env.NODE_ENV === 'production' 
