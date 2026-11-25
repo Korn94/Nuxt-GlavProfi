@@ -171,6 +171,47 @@
                       </div>
                     </div>
 
+                    <!-- Доп. статистика объекта в работе -->
+                    <div v-if="obj.status === 'active'" class="object-item__stats">
+                      <span
+                        class="stat-chip"
+                        :class="{ 'stat-chip--muted': getDaysInWork(obj) === null }"
+                        :title="getInWorkTooltip(obj)"
+                      >
+                        <Icon name="mdi:calendar-clock" size="12" />
+                        {{ getInWorkText(obj) }}
+                      </span>
+
+                      <!-- Фактически завершён, но ещё в работе (ожидание оплаты/документов) -->
+                      <template v-if="obj.completedDate">
+                        <span class="stat-chip" title="Фактическая дата завершения">
+                          <Icon name="mdi:calendar-check-outline" size="12" />
+                          Завершён {{ formatDate(obj.completedDate) }}
+                        </span>
+
+                        <span
+                          v-if="getPlanDeltaDays(obj) !== null"
+                          class="stat-chip"
+                          :class="(getPlanDeltaDays(obj) || 0) > 0 ? 'stat-chip--neg' : 'stat-chip--pos'"
+                          :title="getPlanTooltip(obj)"
+                        >
+                          <Icon name="mdi:clock-alert-outline" size="12" />
+                          {{ getPlanDeltaText(obj) }}
+                        </span>
+                      </template>
+
+                      <!-- Пока фактическое завершение не отмечено — сколько осталось до плана -->
+                      <span
+                        v-else-if="getDaysLeft(obj) !== null"
+                        class="stat-chip"
+                        :class="getDaysLeftClass(obj)"
+                        :title="getPlanLeftTooltip(obj)"
+                      >
+                        <Icon :name="getDaysLeftIcon(obj)" size="12" />
+                        {{ getDaysLeftText(obj) }}
+                      </span>
+                    </div>
+
                     <!-- Доп. статистика завершённого объекта -->
                     <div v-if="obj.status === 'completed'" class="object-item__stats">
                       <span
@@ -429,6 +470,74 @@ function getWorkDays(obj: any): number | null {
   const end = parseDay(obj.completedDate || obj.statusDate)
   if (start === null || end === null || end < start) return null
   return Math.round((end - start) / DAY_MS) + 1
+}
+
+/** Timestamp начала сегодняшнего дня (локальная дата) */
+function todayStart(): number {
+  const now = new Date()
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+}
+
+/**
+ * Сколько дней объект уже в работе (включительно): от даты начала до фактического
+ * завершения, а если фактическое завершение не отмечено — по сегодняшний день.
+ */
+function getDaysInWork(obj: any): number | null {
+  const start = parseDay(obj.startDate)
+  if (start === null) return null
+  const end = parseDay(obj.completedDate) ?? todayStart()
+  if (end < start) return null
+  return Math.round((end - start) / DAY_MS) + 1
+}
+
+function getInWorkText(obj: any) {
+  const days = getDaysInWork(obj)
+  return days === null ? 'Дата начала не указана' : `${days} ${pluralDays(days)} в работе`
+}
+
+function getInWorkTooltip(obj: any) {
+  if (parseDay(obj.startDate) === null) return 'Дата начала не указана'
+  const end = parseDay(obj.completedDate) !== null
+    ? `факт. завершение ${formatDate(obj.completedDate)}`
+    : 'по сегодня'
+  return `Старт: ${formatDate(obj.startDate)} · ${end}`
+}
+
+/**
+ * Дней до плановой даты завершения: > 0 — осталось, 0 — срок сегодня, < 0 — просрочка.
+ * Для фактически завершённых объектов (заполнена `completedDate`) не считается —
+ * вместо «осталось» показываем отклонение факта от плана (`getPlanDeltaDays`).
+ */
+function getDaysLeft(obj: any): number | null {
+  if (parseDay(obj.completedDate) !== null) return null
+  const plan = parseDay(obj.plannedEndDate)
+  if (plan === null) return null
+  return Math.round((plan - todayStart()) / DAY_MS)
+}
+
+function getDaysLeftText(obj: any) {
+  const left = getDaysLeft(obj)
+  if (left === null) return '—'
+  if (left > 0) return `Осталось ${left} ${pluralDays(left)}`
+  if (left === 0) return 'Срок сегодня'
+  const over = Math.abs(left)
+  return `Просрочено ${over} ${pluralDays(over)}`
+}
+
+function getDaysLeftClass(obj: any) {
+  const left = getDaysLeft(obj)
+  if (left === null) return ''
+  return left < 0 ? 'stat-chip--neg' : 'stat-chip--pos'
+}
+
+function getDaysLeftIcon(obj: any) {
+  const left = getDaysLeft(obj)
+  return left !== null && left < 0 ? 'mdi:calendar-alert' : 'mdi:calendar-end'
+}
+
+function getPlanLeftTooltip(obj: any) {
+  if (getDaysLeft(obj) === null) return 'Плановая дата не указана'
+  return `План: ${formatDate(obj.plannedEndDate)} · ${getDaysLeftText(obj)}`
 }
 
 /** Плановый срок в днях (включительно) — от старта до плановой даты */
