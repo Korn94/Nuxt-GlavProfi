@@ -322,6 +322,9 @@ Nitro **раньше** серверных роутов, и файл перекр
 - `@fallback` не задаёт собственных `add_header`, поэтому security-заголовки с уровня
   `server` наследуются. Если добавляете локейшены с `add_header` — продублируйте
   `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Strict-Transport-Security`.
+  На статике (`/_nuxt/`, картинки/шрифты/видео) дублируются два заголовка
+  (`X-Content-Type-Options` + `Referrer-Policy`), в `/uploads/` — все четыре
+  (там пользовательские файлы любого типа, включая html/svg).
 - Признак, что отдаёт именно роут, а не статика: в ответе есть `X-LLMS-Generated`.
 
 ### 📄 Markdown-версии страниц (`<url>.md`)
@@ -699,11 +702,25 @@ TELEGRAM_WEBHOOK_URL=https://yourdomain.com/api/telegram
   прокси-кэш). `/cabinet/**`, `/login`, `/api/**` — явный `private, no-store`.
 - Опциональный микро-кэш SSR: `NUXT_HTML_SWR=60 npm run build` (по умолчанию выключен,
   см. комментарий в `nuxt.config.ts` и `proxy_cache` в `.devops/nginx/last nginx.txt`).
-- nginx: `ssl_session_cache shared:SSL:10m` + `ssl_session_tickets on` (без них каждый
+- nginx: `ssl_session_cache shared:glavprofi_ssl:10m` + `ssl_session_tickets on` (без них каждый
   новый коннект — полный TLS-handshake), security-заголовки продублированы в локациях
-  со своим `add_header`.
+  со своим `add_header` (`/_nuxt/`, regex статики, `/uploads/`).
+  ⚠️ Имя зоны **не `SSL`**: FastPanel сам объявляет `ssl_session_cache shared:SSL:1m;` в
+  `/etc/nginx/conf.d/ssl.conf` (файл генерируется панелью, подключается в `http{}` раньше
+  vhost'а), а nginx не даёт переопределить зону тем же именем с другим размером —
+  `[emerg] the size 10485760 of shared memory zone "SSL" conflicts with already declared
+  size 1048576`. Своё имя зоны = независимый кэш на 10 МиБ, конфиг не ломается даже если
+  панель перегенерирует `ssl.conf`.
 - `/api/portfolio?slugs=ddx,fora-bank` — главная тянет 2 кейса вместо 12 (5 SQL → 3,
   HTML уменьшился с 58.4 до 29.9 КБ gzip).
+- Статику отдаёт сам nginx (`/_nuxt/*`, картинки, `offers/*.html`), **но только если каталоги
+  `.output/**` на сервере доступны воркерам (`www-data`) на чтение**. Windows-rsync приносил
+  их как `drwxrwx--- glavprofi_ru_usr40` → в логе `[crit] stat() ".../.output/public/" failed
+  (13: Permission denied)` и весь JS/CSS шёл через Node.js. Теперь `deploy.sh` передаёт
+  `--chmod=D755,F644`; разово для текущего деплоя: `chmod o+x .output && chmod -R o+rX
+  .output/public`. ⚠️ В `location /` из-за этого стоит `try_files $uri $uri/index.html
+  $uri.html @fallback` (без `$uri/`: `index.html` в `.output/public` нет, и проверка каталога
+  увела бы `/` в index-модуль → 403/500).
 
 **JS/CSS**
 - `@telegram-apps/sdk` (~22.5 КБ gzip) вынесен из entry в отдельный async-чанк. Плагин теперь
