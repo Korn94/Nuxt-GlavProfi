@@ -46,7 +46,7 @@ export function usePageSeo(options: PageSeoOptions) {
     priceFrom,
     currency = 'RUB',
     faq = [],
-    ogImage = 'https://glavprofi.ru/og-image.jpg',
+    ogImage = 'https://glavprofi.ru/og-default.jpg',
     baseUrl = 'https://glavprofi.ru',
     companyName = 'ГлавПрофи',
   } = options
@@ -54,8 +54,11 @@ export function usePageSeo(options: PageSeoOptions) {
   const pageUrl = `${baseUrl}/remont-pomescheniy/${type}`
 
   // === 1. Базовые мета-теги ===
+  // ⚠️ Бренд в `title` НЕ добавляем: суффикс «| ГлавПрофи» уже даёт titleTemplate
+  // в app.vue. Пока здесь было `${title} | ${companyName}`, в <title> попадал
+  // дубль «… | ГлавПрофи | ГлавПрофи» на всех 11 страницах типов помещений.
   useSeoMeta({
-    title: `${title} | ${companyName}`,
+    title,
     description,
     ogTitle: `${typeName}: ${title}`,
     ogDescription: description,
@@ -63,7 +66,7 @@ export function usePageSeo(options: PageSeoOptions) {
     ogUrl: pageUrl,
     ogType: 'website',
     twitterCard: 'summary_large_image',
-    twitterTitle: `${title} | ${companyName}`,
+    twitterTitle: `${title} — ${companyName}`,
     twitterDescription: description,
     twitterImage: ogImage,
   })

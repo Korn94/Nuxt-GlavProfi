@@ -40,6 +40,9 @@ const config = useRuntimeConfig();
 // от первой загруженной страницы при клиентской навигации.
 const cleanPath = computed(() => {
   const path = route.path;
+  // Корень оставляем со слэшем: именно так его отдаёт sitemap.xml
+  // (https://glavprofi.ru/), поэтому canonical/og:url не расходятся с картой сайта.
+  if (path === '/') return '/';
   return path.endsWith('/') ? path.slice(0, -1) : path; // убираем последний слеш
 });
 
@@ -87,15 +90,19 @@ useHead(() => ({
     { property: 'og:url', content: currentPageUrl.value },
     // При необходимости можно добавить og:type здесь или на страницах
     { property: 'og:type', content: 'website' },
-    // og:image глобально
-    { property: 'og:image', content: `${config.public.siteUrl}/og-image.jpg` },
+    // og:image — только 1200×630 (`og-default.jpg` — производная от квадратного
+    // мастера `og-image.jpg`, см. scripts/generate-brand-images.mjs).
+    // Раньше сюда попадал мастер 1200×1200, а размеры декларировались 1200×630.
+    { property: 'og:image', content: `${config.public.siteUrl}/og-default.jpg` },
     { property: 'og:image:width', content: '1200' },
     { property: 'og:image:height', content: '630' },
+    { property: 'og:image:alt', content: 'ГлавПрофи — ремонт и отделка коммерческих помещений' },
+    { property: 'og:site_name', content: 'ГлавПрофи' },
     { property: 'og:locale', content: 'ru_RU' },
+    // twitter:title/description/image намеренно НЕ заданы: при их отсутствии
+    // соцсети берут og:*-значения конкретной страницы. Раньше здесь висели
+    // общие тексты и перекрывали страничные og-теги (на главной — расходились).
     { name: 'twitter:card', content: 'summary_large_image' },
-    { name: 'twitter:title', content: 'ГлавПрофи — Ремонт коммерческих помещений' },
-    { name: 'twitter:description', content: 'Ремонт и отделка коммерческих помещений под ключ в Рязани и области' },
-    { name: 'twitter:image', content: `${config.public.siteUrl}/og-image.jpg` },
   ],
   link: [
     // Глобальные ссылки (favicon)

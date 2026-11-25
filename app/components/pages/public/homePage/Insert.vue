@@ -1,7 +1,9 @@
 <!-- app\components\pages\public\homePage\Insert.vue -->
 <template>
-  <div class="box" ref="boxRef">
-    <h2 class="visually-hidden">Наши работы</h2>
+  <!-- Заголовок-метка вместо скрытого h2: «Наши работы» дублировало соседний
+       h2 «Наши проекты» и ломало структуру. Для скринридеров секция
+       подписана через role/aria-label. -->
+  <div class="box" ref="boxRef" role="region" aria-label="Наши работы">
 
     <!-- Декоративный фон -->
     <div class="box__glow box__glow--1"></div>

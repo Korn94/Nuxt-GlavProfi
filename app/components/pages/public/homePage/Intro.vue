@@ -4,7 +4,7 @@
     <h2 class="visually-hidden">О компании ГлавПрофи</h2>
     <div class="content">
       <div class="text">
-        <h4>О нас</h4>
+        <p class="intro__eyebrow">О нас</p>
         <h3>Почему выбирают <span>Глав Профи?</span></h3>
         <p>
           Работаем с <b>2014</b> года и за это время завоевали доверие сотен
@@ -18,7 +18,7 @@
       <img
         class="image"
         v-bind="responsiveImageAttrs('/main/about.png', { sizes: '(max-width: 768px) 100vw, 45vw' })"
-        alt="Изображение наброска здания"
+        alt="Планировка коммерческого помещения — этап проектирования"
         loading="lazy"
         decoding="async"
       />
@@ -73,7 +73,9 @@ import { responsiveImageAttrs } from '~/utils/responsiveImage'
       width: 100%;
       margin-bottom: 1em;
 
-      h4 {
+      // Надзаголовок «О нас» — не заголовок: раньше это был <h4>, который
+      // шёл ДО <h3> «Почему выбирают…» и ломал иерархию h2 → h3.
+      .intro__eyebrow {
         font-family: 'Rubik', sans-serif;
         font-size: 0.875rem;
         font-weight: 700;

@@ -48,7 +48,7 @@
           коммерческих помещений
         </span>
         <span class="hero__title-line">
-          под <span class="hero__title-accent">любые</span> задачи и масштабы
+          в <span class="hero__title-accent">Рязани</span> — под любые задачи и масштабы
         </span>
       </h1>
 

@@ -16,8 +16,8 @@
         >
           <div class="premises-preview__card-image">
             <img
-              v-bind="responsiveImageAttrs(item.image, { sizes: '(max-width: 768px) 100vw, 33vw' })"
-              :alt="item.title"
+              v-bind="responsiveImageAttrs(getPremisesImageUrl(item), { sizes: '(max-width: 768px) 100vw, 33vw' })"
+              :alt="`${item.title} — ремонт в Рязани`"
               loading="lazy"
               decoding="async"
               class="premises-preview__img"
@@ -51,39 +51,25 @@
 
 <script setup lang="ts">
 import { responsiveImageAttrs } from '~/utils/responsiveImage'
+import {
+  PREMISES_CATALOG,
+  getPremisesImageUrl,
+  type PremisesCatalogItem
+} from '~/components/pages/public/remontPomescheniy/pageTypes/data/premisesCatalog'
 
-const previewItems = [
-  {
-    slug: 'banki',
-    title: 'Банки',
-    subtitle: 'отделения, операционные залы, хранилища',
-    category: 'commercial',
-    price: 'от 14 000 ₽ за м²',
-    priceExample: 'за 100 м² ~1.4–2.0 млн ₽',
-    description: 'Работаем с учетом требований безопасности: усиленные перегородки, кабель-каналы под охранно-пожарную сигнализацию, зоны для инкассации.',
-    image: 'main/remont-pomescheniy/banki.webp',
-  },
-  {
-    slug: 'magaziny',
-    title: 'Магазины',
-    subtitle: 'ТЦ, стрит-ритейл, бутики',
-    category: 'commercial',
-    price: 'от 13 000 ₽ за м²',
-    priceExample: 'за 100 м² ~1.3–1.9 млн ₽',
-    description: 'Монтируем витринные группы, торговое оборудование, напольные покрытия по вашей спецификации. Сдаем объект готовым к выкладке товара.',
-    image: 'main/remont-pomescheniy/magaziny.webp',
-  },
-  {
-    slug: 'kliniki',
-    title: 'Медицинские центры',
-    subtitle: 'клиники, стоматологии, аптеки, лаборатории',
-    category: 'other',
-    price: 'от 8 500 ₽ за м²',
-    priceExample: 'за 100 м² ~0.8–1.5 млн ₽',
-    description: 'Отделка по проекту или ТЗ: бесшовные покрытия, стены под дезинфекцию, специфические материалы. Проверяем основание под спец. полы, герметичность мокрых зон.',
-    image: 'main/remont-pomescheniy/medicina.webp',
-  }
-]
+/**
+ * ⚠️ Данные карточек берём из единого каталога, а не копируем сюда.
+ * Пока здесь лежал свой массив, карточка «Медицинские центры» показывала
+ * «от 8 500 ₽ за м²», тогда как на /remont-pomescheniy/kliniki и в её JSON-LD
+ * стоит 18 000 ₽/м². Описания и заголовки тоже успели разойтись с каталогом.
+ *
+ * Порядок карточек на главной задаётся явным списком slug'ов.
+ */
+const HOME_PREMISES_SLUGS = ['banki', 'magaziny', 'kliniki'] as const
+
+const previewItems = HOME_PREMISES_SLUGS
+  .map((slug) => PREMISES_CATALOG.find((item) => item.slug === slug))
+  .filter((item): item is PremisesCatalogItem => Boolean(item))
 </script>
 
 <style scoped lang="scss">

@@ -1,9 +1,10 @@
 <!-- app\components\pages\public\homePage\Brands.vue -->
 <template>
   <div class="container">
-    <h2 class="visually-hidden">Наши проекты и бренды</h2>
     <div class="content">
-      <p class="title">За <span>12 лет</span> выполнено<br> более <span>250+</span> проектов по<br> ремонту <span>коммерческих</span> объектов</p>
+      <!-- Заголовок секции — видимый heading вместо скрытого: тот же текст, но
+           реальный заголовок (раньше был <p class="title"> + невидимый mark). -->
+      <h2 class="title">За <span>12 лет</span> выполнено<br> более <span>250+</span> проектов по<br> ремонту <span>коммерческих</span> объектов</h2>
       <p class="brands">Среди них — помещения известных и премиальных брендов.</p>
     </div>
     <!-- УБРАЛИ inline-стили, всё теперь в классе .line -->
@@ -25,12 +26,12 @@
 import { responsiveImageAttrs } from '~/utils/responsiveImage'
 
 const brands = [
-  { src: '/brands/logo-sber.png', alt: 'ремонт сбербанка' },
-  { src: '/brands/ddx.png', alt: 'ремонт фитнес центра DDX' },
-  { src: '/brands/gos.png', alt: 'ремонт гос. учреждений' },
-  { src: '/brands/marmacs.png', alt: 'ремонт мармакс' },
-  { src: '/brands/gasprombank.png', alt: 'ремонт газпромбанк' },
-  { src: '/brands/nearmedic.png', alt: 'ремонт клиники Неармедик' },
+  { src: '/brands/logo-sber.png', alt: 'Сбербанк — отделение после ремонта' },
+  { src: '/brands/ddx.png', alt: 'Фитнес-клуб DDX — объект после ремонта' },
+  { src: '/brands/gos.png', alt: 'Государственное учреждение — ремонт помещения' },
+  { src: '/brands/marmacs.png', alt: 'Мармакс — ремонт помещения' },
+  { src: '/brands/gasprombank.png', alt: 'Газпромбанк — отделение после ремонта' },
+  { src: '/brands/nearmedic.png', alt: 'Клиника Неармедик — ремонт под ключ' },
 ]
 </script>
 
