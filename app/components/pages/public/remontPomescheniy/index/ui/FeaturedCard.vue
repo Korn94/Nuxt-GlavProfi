@@ -3,7 +3,13 @@
   <NuxtLink v-if="slug" :to="`/projects/${slug}`" class="featured-card-link">
     <div class="featured-card">
       <div class="image-container">
-        <img :src="image" :alt="title" class="featured-image" loading="lazy" />
+        <img
+          v-bind="responsiveImageAttrs(image, { sizes: '(max-width: 768px) 100vw, 50vw' })"
+          :alt="title"
+          class="featured-image"
+          loading="lazy"
+          decoding="async"
+        />
       </div>
       <div class="overlay">
         <p>{{ space }} м²</p>
@@ -15,6 +21,8 @@
 </template>
 
 <script setup>
+import { responsiveImageAttrs } from '~/utils/responsiveImage'
+
 defineProps({
   slug: String,
   image: String,

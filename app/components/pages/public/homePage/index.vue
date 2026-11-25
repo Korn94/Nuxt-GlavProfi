@@ -6,20 +6,26 @@
       <div class="hero__overlay"></div>
       <div class="hero__glow hero__glow--1"></div>
       <div class="hero__glow hero__glow--2"></div>
+      <!--
+        ⚡ Видео НЕ грузится на первой загрузке (6.4 МБ = главный тормоз LCP).
+        `autoplay` намеренно не выставлен в разметке: с ним браузер игнорирует
+        preload="none" и тянет файл сразу. Источник подставляется в onMounted —
+        после window.load + requestIdleCallback, и только если пользователь не
+        просил экономить трафик (saveData / медленная сеть / prefers-reduced-motion).
+        До этого в кадре постер (23 КБ).
+      -->
       <video
         ref="videoRef"
         class="hero__video"
-        autoplay
         muted
         loop
         playsinline
         preload="none"
-        poster="/main/video/main-poster.webp"
-      >
-        <source :src="videoSrc" type="video/mp4" />
-      </video>
+        :poster="POSTER_SRC"
+      ></video>
       <div class="hero__noise"></div>
     </div>
+
 
     <!-- Контент -->
     <div class="hero__content">
@@ -117,13 +123,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { trackCtaClick } from '~/composables/visitor/trackerCta';
 
 const isDesktop = ref(false);
 const showModal = ref(false);
 const videoRef = ref(null);
-let observer = null;
 
 const trustPoints = [
   { text: 'Смета в день обращения', icon: 'mdi:phone-in-talk' },
@@ -141,14 +146,97 @@ const stats = [
   { value: 'до 20%', label: 'экономии на материалах' },
 ];
 
-// Видео отдаём и на мобиле, и на десктопе.
-// Если есть отдельный облегчённый файл для мобильных — подставьте его.
-const videoSrc = computed(() =>
-  isDesktop.value
-    ? '/main/video/main-pk.mp4'
-    : '/main/video/main-pk.mp4'
-    // : '/main/video/main-mobile.mp4'
-);
+// ============================================================
+// ВИДЕО-ФОН
+// ============================================================
+// Постер показывается сразу (23 КБ) и остаётся на экране, пока видео
+// не загрузится. Сам файл (6.4 МБ) — только после window.load + idle.
+const POSTER_SRC = '/main/video/main-poster.webp';
+
+/**
+ * Отдельный облегчённый файл для мобильных. Пока не задан — используется
+ * десктопный (но и он грузится только после load, т.е. уже не мешает LCP).
+ * Когда появится `/main/video/main-mobile.mp4` (~1 МБ, 720p) — вписать сюда.
+ */
+const MOBILE_VIDEO_SRC = null;
+const DESKTOP_VIDEO_SRC = '/main/video/main-pk.mp4';
+
+let loadTimer = null;
+let idleHandle = null;
+
+/** Стоит ли вообще грузить видео: уважаем экономию трафика и reduced-motion */
+function shouldLoadVideo() {
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return false;
+
+  // @ts-ignore — NetworkInformation есть не во всех браузерах, тип не в lib.dom
+  const connection = navigator.connection;
+
+  if (connection?.saveData) return false;
+  if (connection?.effectiveType && ['slow-2g', '2g', '3g'].includes(connection.effectiveType)) {
+    return false;
+  }
+
+  return true;
+}
+
+function mountVideoSource() {
+  const el = videoRef.value;
+  if (!el) return;
+
+  const src = !isDesktop.value && MOBILE_VIDEO_SRC ? MOBILE_VIDEO_SRC : DESKTOP_VIDEO_SRC;
+  const source = document.createElement('source');
+  source.src = src;
+  source.type = 'video/mp4';
+  el.appendChild(source);
+
+  el.preload = 'auto';
+  el.load();
+
+  // play() может быть отклонён (например, энергосберегающий режим) — не падаем
+  void el.play?.().catch(() => {});
+}
+
+/** Ждём полной загрузки страницы: видео не конкурирует за канал с CSS/JS/шрифтами */
+function scheduleVideoLoad() {
+  if (!shouldLoadVideo()) return;
+
+  const run = () => {
+    if (typeof window.requestIdleCallback === 'function') {
+      idleHandle = window.requestIdleCallback(mountVideoSource, { timeout: 3000 });
+    } else {
+      loadTimer = setTimeout(mountVideoSource, 1200);
+    }
+  };
+
+  if (document.readyState === 'complete') run();
+  else window.addEventListener('load', run, { once: true });
+}
+
+const checkScreenSize = () => {
+  isDesktop.value = window.innerWidth > 768;
+};
+
+onMounted(() => {
+  checkScreenSize();
+  window.addEventListener('resize', checkScreenSize);
+  scheduleVideoLoad();
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', checkScreenSize);
+  if (loadTimer) clearTimeout(loadTimer);
+  if (idleHandle !== null && typeof window.cancelIdleCallback === 'function') {
+    window.cancelIdleCallback(idleHandle);
+  }
+  // Освобождаем декодер и сеть, если компонент размонтирован
+  const el = videoRef.value;
+  if (el) {
+    el.pause();
+    el.removeAttribute('src');
+    el.querySelectorAll('source').forEach((node) => node.remove());
+    el.load();
+  }
+});
 
 const openModal = () => {
   // 📊 CTA → модальная форма заявки (цепочка CTA → form_open → form_submit)
@@ -160,43 +248,6 @@ const handleFormSubmitted = (formData) => {
   console.log('Форма отправлена:', formData);
   closeModal();
 };
-
-const checkScreenSize = () => {
-  isDesktop.value = window.innerWidth > 768;
-};
-
-const lazyLoadVideo = () => {
-  if (!videoRef.value) return;
-
-  observer = new IntersectionObserver(
-    ([entry]) => {
-      if (entry.isIntersecting) {
-        const videoEl = videoRef.value;
-        if (videoEl) {
-          videoEl.preload = 'auto';
-          videoEl.load();
-        }
-        observer?.disconnect();
-        observer = null;
-      }
-    },
-    { rootMargin: '200px' }
-  );
-
-  observer.observe(videoRef.value);
-};
-
-onMounted(() => {
-  checkScreenSize();
-  window.addEventListener('resize', checkScreenSize);
-  lazyLoadVideo();
-});
-
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', checkScreenSize);
-  observer?.disconnect();
-  observer = null;
-});
 </script>
 
 <style lang="scss" scoped>

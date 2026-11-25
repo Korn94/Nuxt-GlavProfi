@@ -10,11 +10,12 @@
     <!-- Слой "ДО" (нижний) со своим затемнением -->
     <div class="before-after__layer before-after__layer--before">
       <img
-        :src="beforeImage"
+        v-bind="responsiveImageAttrs(beforeImage, { sizes: '(max-width: 768px) 100vw, 60vw' })"
         :alt="beforeAlt"
         class="before-after__image"
         draggable="false"
-        loading="eager"
+        loading="lazy"
+        decoding="async"
       />
       <div v-if="dimming" class="before-after__layer-dim" />
     </div>
@@ -25,11 +26,12 @@
       :style="afterLayerStyle"
     >
       <img
-        :src="afterImage"
+        v-bind="responsiveImageAttrs(afterImage, { sizes: '(max-width: 768px) 100vw, 60vw' })"
         :alt="afterAlt"
         class="before-after__image"
         draggable="false"
-        loading="eager"
+        loading="lazy"
+        decoding="async"
       />
       <div v-if="dimming" class="before-after__layer-dim" />
     </div>
@@ -41,6 +43,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { responsiveImageAttrs } from '~/utils/responsiveImage'
 
 // === Эмиты ===
 const emit = defineEmits<{

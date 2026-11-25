@@ -64,10 +64,38 @@ function parseInitDataFromHash() {
   return initData;
 }
 
+/**
+ * Ждём инициализацию Telegram-плагина (событие `telegram:ready` из
+ * `app/plugins/telegram.client.ts`), но не дольше таймаута.
+ *
+ * Раньше здесь была фиксированная пауза 100 мс «чтобы плагин успел»: плагин был async
+ * и Nuxt ждал его перед монтированием. Теперь плагин монтирование не блокирует, поэтому
+ * на медленной сети 100 мс могло не хватить и страница уходила в разбор хеша раньше
+ * времени. Если запуск явно не из Telegram — не ждём вовсе.
+ */
+function waitForTelegramReady(timeoutMs = 1500) {
+  if (typeof window === 'undefined') return Promise.resolve();
+  if (window.__telegramReady) return Promise.resolve();
+
+  const launchParams = `${window.location.hash} ${window.location.search}`;
+  if (!/tgWebApp(Data|Platform|Version|StartParam)/i.test(launchParams)) return Promise.resolve();
+
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      window.removeEventListener('telegram:ready', finish);
+      resolve();
+    };
+    window.addEventListener('telegram:ready', finish);
+    window.setTimeout(finish, timeoutMs);
+  });
+}
+
 onMounted(async () => {
   try {
-    // Ждем немного, чтобы плагин успел инициализироваться
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await waitForTelegramReady();
 
     let initData = null;
 

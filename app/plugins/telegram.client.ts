@@ -1,7 +1,15 @@
 // plugins/telegram.client.ts
 
 import { defineNuxtPlugin } from 'nuxt/app';
-import { init, isTMA } from '@telegram-apps/sdk';
+
+// ⚡ @telegram-apps/sdk (~22.5 КБ gzip) не должен попадать в первую загрузку: он нужен
+// только внутри Telegram Mini App. Поэтому здесь три правила:
+//   1) сначала дешёвая проверка БЕЗ импорта SDK (window.Telegram.WebApp.initData /
+//      параметры запуска tgWebApp* в hash) — обычный браузер её не проходит;
+//   2) SDK грузится динамическим import() только если проверка прошла;
+//   3) плагин НЕ async: Nuxt ждёт async-плагины перед монтированием приложения,
+//      поэтому `await import()` внутри плагина задерживал гидратацию на лишний RTT
+//      у ВСЕХ посетителей, а не только у пользователей Telegram.
 
 // Добавляем типизацию для Telegram WebApp SDK
 declare global {
@@ -21,18 +29,69 @@ declare global {
   }
 }
 
-export default defineNuxtPlugin(async () => {
+/**
+ * Дешёвый детект Telegram Mini App — БЕЗ импорта SDK.
+ *
+ * Признаки запуска внутри Telegram:
+ * - `window.Telegram.WebApp.initData` — непустая строка (клиент Telegram уже внедрил WebApp);
+ * - параметры запуска `tgWebAppData` / `tgWebAppPlatform` / … в hash или search: так Telegram
+ *   открывает Mini App даже когда объект `window.Telegram` ещё не создан.
+ *
+ * Проверка намеренно нестрогая (дешёвая): окончательное решение принимает `isTMA()` из SDK,
+ * который загружается только после неё. Ложное срабатывание стоит одного лишнего чанка,
+ * пропуск настоящего Mini App сломал бы интеграцию.
+ */
+function isLikelyTelegramMiniApp(): boolean {
+  if (typeof window === 'undefined') return false;
+
+  const webApp = (window as any)?.Telegram?.WebApp as { initData?: string } | undefined;
+  if (typeof webApp?.initData === 'string' && webApp.initData.length > 0) return true;
+
+  const launchParams = `${window.location.hash} ${window.location.search}`;
+  return /tgWebApp(Data|Platform|Version|StartParam)/i.test(launchParams);
+}
+
+export default defineNuxtPlugin(() => {
+  if (!isLikelyTelegramMiniApp()) {
+    console.log('ℹ️ Приложение запущено не в Telegram. SDK не загружается.');
+    return;
+  }
+
+  // ⚡ Не блокируем гидратацию: загрузка SDK и его инициализация — фоновая задача.
+  // (Раньше это был `await import()` прямо в плагине → Nuxt ждал его перед mount.)
+  // `finally` гарантирует, что ждущие страницы (например /telegram) узнают о завершении
+  // и не полагаются на фиксированную паузу.
+  void initTelegramSdk().finally(markTelegramReady);
+});
+
+/**
+ * Сообщает страницам, что инициализация Telegram завершена (успешно или нет).
+ * Слушатель — `app/pages/telegram/index.vue` (`waitForTelegramReady`).
+ */
+function markTelegramReady(): void {
+  if (typeof window === 'undefined') return;
+  (window as any).__telegramReady = true;
+  window.dispatchEvent(new Event('telegram:ready'));
+}
+
+/**
+ * Загружает и инициализирует Telegram SDK.
+ * Вызывается только после дешёвой проверки `isLikelyTelegramMiniApp()`.
+ */
+async function initTelegramSdk(): Promise<void> {
   if (process.client) {
     // Проверяем, что мы в Telegram Mini App
     let isInTelegram = false;
 
+    let sdk: typeof import('@telegram-apps/sdk') | null = null;
     try {
-      isInTelegram = await isTMA();
+      sdk = await import('@telegram-apps/sdk');
+      isInTelegram = await sdk.isTMA();
     } catch (e) {
       console.warn('⚠️ Не удалось проверить, что мы в Telegram:', e);
     }
 
-    if (!isInTelegram) {
+    if (!isInTelegram || !sdk) {
       console.log('ℹ️ Приложение запущено не в Telegram. SDK не будет инициализирован.');
       return;
     }
@@ -40,7 +99,7 @@ export default defineNuxtPlugin(async () => {
     // Инициализируем SDK
     let tg: any;
     try {
-      tg = init();
+      tg = sdk.init();
     } catch (e) {
       console.error('❌ Ошибка инициализации SDK:', e);
     }
@@ -127,4 +186,4 @@ export default defineNuxtPlugin(async () => {
       console.log('✅ Данные получены через SDK:', tg.initDataUnsafe);
     }
   }
-});
+}

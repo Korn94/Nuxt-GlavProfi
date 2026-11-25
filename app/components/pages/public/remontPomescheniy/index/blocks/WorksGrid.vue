@@ -75,7 +75,13 @@
               tabindex="0"
             >
               <div class="work-card__image">
-                <img :src="work.image" :alt="work.title" loading="lazy" class="work-card__img">
+                <img
+                  v-bind="responsiveImageAttrs(work.image, { sizes: '(max-width: 768px) 100vw, 33vw' })"
+                  :alt="work.title"
+                  loading="lazy"
+                  decoding="async"
+                  class="work-card__img"
+                >
                 <div class="work-card__overlay">
                   <h3 class="work-card__title">{{ work.title }}</h3>
                   <span class="work-card__count">{{ work.links.length }} услуг</span>
@@ -119,7 +125,13 @@
             ]"
           >
             <div class="work-card__image">
-              <img :src="work.image" :alt="work.title" loading="lazy" class="work-card__img">
+              <img
+                  v-bind="responsiveImageAttrs(work.image, { sizes: '(max-width: 768px) 100vw, 33vw' })"
+                  :alt="work.title"
+                  loading="lazy"
+                  decoding="async"
+                  class="work-card__img"
+                >
               <div class="work-card__overlay">
                 <h3 class="work-card__title">{{ work.title }}</h3>
                 <span class="work-card__count">{{ work.links.length }} услуг</span>
@@ -155,6 +167,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { responsiveImageAttrs } from '~/utils/responsiveImage'
 import { useGridControls } from '../../composables/useGridControls'
 
 const workTabs = [

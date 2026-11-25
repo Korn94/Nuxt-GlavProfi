@@ -20,7 +20,10 @@
     "db:setup": "npm run migrate && npm run seed",
     "db:reset-roles": "npm run seed:roles",
     "sitemap:check": "node scripts/check-sitemap.mjs",
-    "typecheck": "nuxt typecheck"
+    "typecheck": "nuxt typecheck",
+    "images:optimize": "node scripts/optimize-public-images.mjs",
+    "perf:baseline": "node scripts/perf-baseline.mjs",
+    "perf:local": "node scripts/perf-baseline.mjs --base=http://127.0.0.1:3000 --routes=/,/about,/projects,/remont-pomescheniy --out=logs/perf-local.md"
   },
   "dependencies": {
     "@iconify-json/bx": "^1.2.3",

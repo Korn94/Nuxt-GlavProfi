@@ -22,7 +22,13 @@
               tabindex="0"
             >
               <div class="works-preview__card-image">
-                <img :src="work.image" :alt="work.title" loading="lazy" class="works-preview__img">
+                <img
+                  v-bind="responsiveImageAttrs(work.image, { sizes: '(max-width: 768px) 100vw, 33vw' })"
+                  :alt="work.title"
+                  loading="lazy"
+                  decoding="async"
+                  class="works-preview__img"
+                >
                 <div class="works-preview__card-overlay">
                   <h3 class="works-preview__card-title">{{ work.title }}</h3>
                   <span class="works-preview__card-count">{{ work.links.length }} услуг</span>
@@ -69,6 +75,8 @@
 </template>
 
 <script setup lang="ts">
+import { responsiveImageAttrs } from '~/utils/responsiveImage'
+
 const previewItems = [
   {
     slug: 'peregorodki',

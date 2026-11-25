@@ -61,10 +61,12 @@
           <img
             v-else
             :key="'single-' + activeIndex"
-            :src="activeItem.src!"
+            v-bind="responsiveImageAttrs(activeItem.src!, { sizes: '(max-width: 768px) 100vw, 60vw' })"
             :alt="activeItem.alt || 'Пример работы'"
             class="showcase-main-image"
             draggable="false"
+            loading="lazy"
+            decoding="async"
           />
         </Transition>
       </div>
@@ -83,9 +85,10 @@
           @click="switchTo(index)"
         >
           <img
-            :src="getThumbnailSrc(item)"
+            v-bind="responsiveImageAttrs(getThumbnailSrc(item), { sizes: '96px' })"
             :alt="getThumbnailAlt(item, index)"
             loading="lazy"
+            decoding="async"
           />
           <!-- Иконка сравнения только для пар -->
           <span v-if="isPair(item)" class="thumbnail__overlay">
@@ -101,6 +104,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import BeforeAfterSlider from '../../ui/BeforeAfterSlider.vue'
+import { responsiveImageAttrs } from '~/utils/responsiveImage'
 
 /**
  * Универсальный ShowcaseItem живёт в `workTypes/types.ts`:

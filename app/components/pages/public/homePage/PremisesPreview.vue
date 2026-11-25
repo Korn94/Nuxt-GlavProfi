@@ -15,7 +15,13 @@
           class="premises-preview__card"
         >
           <div class="premises-preview__card-image">
-            <img :src="item.image" :alt="item.title" loading="lazy" class="premises-preview__img">
+            <img
+              v-bind="responsiveImageAttrs(item.image, { sizes: '(max-width: 768px) 100vw, 33vw' })"
+              :alt="item.title"
+              loading="lazy"
+              decoding="async"
+              class="premises-preview__img"
+            >
             <div class="premises-preview__card-overlay">
               <h3 class="premises-preview__card-title">{{ item.title }}</h3>
               <p v-if="item.subtitle" class="premises-preview__card-subtitle">{{ item.subtitle }}</p>
@@ -44,6 +50,8 @@
 </template>
 
 <script setup lang="ts">
+import { responsiveImageAttrs } from '~/utils/responsiveImage'
+
 const previewItems = [
   {
     slug: 'banki',

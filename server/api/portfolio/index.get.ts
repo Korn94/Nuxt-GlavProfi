@@ -1,5 +1,5 @@
 // server/api/portfolio/index.get.ts
-import { eventHandler, createError, getQuery } from 'h3'
+import { eventHandler, createError, getQuery, setHeader } from 'h3'
 import { db } from '../../db'
 import { portfolioCases, portfolioImages, portfoCaseWorks } from '../../db/schema'
 import { eq, and, inArray, sql } from 'drizzle-orm'
@@ -20,6 +20,54 @@ const validCategories = [
 ] as const
 
 type Category = Exclude<typeof validCategories[number], 'Все'>
+
+/** Поля кейса, которые уходят на клиент (без тяжёлых колонок) */
+const CASE_FIELDS = {
+  id: portfolioCases.id,
+  title: portfolioCases.title,
+  space: portfolioCases.space,
+  address: portfolioCases.address,
+  category: portfolioCases.category,
+  order: portfolioCases.order,
+  slug: portfolioCases.slug,
+  isPublished: portfolioCases.isPublished,
+  createdAt: portfolioCases.createdAt
+}
+
+/** Собирает кейсы с вложенными images/works (единая точка для обоих сценариев) */
+function groupCases(cases: any[], images: any[], works: any[]) {
+  const casesMap = new Map()
+  cases.forEach(c => {
+    casesMap.set(c.id, {
+      ...c,
+      images: [],
+      works: [],
+      isPublished: !!c.isPublished
+    })
+  })
+
+  images.forEach(img => {
+    if (casesMap.has(img.caseId)) {
+      casesMap.get(img.caseId).images.push({
+        id: img.id,
+        url: img.url,
+        type: img.type
+      })
+    }
+  })
+
+  works.forEach(w => {
+    if (casesMap.has(w.caseId)) {
+      casesMap.get(w.caseId).works.push({
+        id: w.id,
+        workType: w.workType,
+        value: w.value
+      })
+    }
+  })
+
+  return Array.from(casesMap.values())
+}
 
 export default eventHandler(async (event) => {
   const query = getQuery(event)
@@ -66,6 +114,59 @@ export default eventHandler(async (event) => {
 
   // 🔥 Фильтр по публикации: только для публичного режима
   const publishedFilter = isAdminMode ? undefined : eq(portfolioCases.isPublished, true)
+
+  // ⚡ Точечная выборка по slug'ам — главная показывает 2 кейса, а не все 12.
+  // Экономит 2 запроса из 5 и примерно половину payload в HTML.
+  // Пример: /api/portfolio?slugs=ddx,fora-bank
+  const slugsStr = query.slugs as string | undefined
+  const requestedSlugs = slugsStr
+    ? slugsStr
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean)
+    : []
+
+  if (requestedSlugs.length > 0) {
+    const pickedCases = await db
+      .select(CASE_FIELDS)
+      .from(portfolioCases)
+      .where(and(publishedFilter, inArray(portfolioCases.slug, requestedSlugs)))
+      .orderBy(portfolioCases.order, portfolioCases.id)
+
+    const pickedIds = pickedCases.map((c) => c.id)
+    const [pickedImages, pickedWorks] = pickedIds.length
+      ? await Promise.all([
+          db
+            .select({
+              id: portfolioImages.id,
+              caseId: portfolioImages.caseId,
+              url: portfolioImages.url,
+              type: portfolioImages.type
+            })
+            .from(portfolioImages)
+            .where(inArray(portfolioImages.caseId, pickedIds))
+            .orderBy(portfolioImages.order),
+          db
+            .select({
+              id: portfoCaseWorks.id,
+              caseId: portfoCaseWorks.caseId,
+              workType: portfoCaseWorks.workType,
+              value: portfoCaseWorks.value
+            })
+            .from(portfoCaseWorks)
+            .where(inArray(portfoCaseWorks.caseId, pickedIds))
+            .orderBy(portfoCaseWorks.order)
+        ])
+      : [[], []]
+
+    // Публичные данные, меняются редко — можно коротко кэшировать у клиента
+    setHeader(event, 'Cache-Control', 'public, max-age=60, stale-while-revalidate=300')
+
+    return {
+      data: groupCases(pickedCases, pickedImages, pickedWorks),
+      meta: { page: 1, limit: pickedCases.length, total: pickedCases.length, totalPages: 1 }
+    }
+  }
 
   // 1. Подсчёт общего количества кейсов
   const [countResult] = await db
@@ -116,17 +217,7 @@ export default eventHandler(async (event) => {
 
   // 3. Загружаем поля кейсов + 🔥 isPublished
   const cases = await db
-    .select({
-      id: portfolioCases.id,
-      title: portfolioCases.title,
-      space: portfolioCases.space,
-      address: portfolioCases.address,
-      category: portfolioCases.category,
-      order: portfolioCases.order,
-      slug: portfolioCases.slug,
-      isPublished: portfolioCases.isPublished,  // 🔥 Добавлено
-      createdAt: portfolioCases.createdAt       // 🔥 Добавлено для сортировки
-    })
+    .select(CASE_FIELDS)
     .from(portfolioCases)
     .where(inArray(portfolioCases.id, caseIds))
     .orderBy(portfolioCases.order)
@@ -155,41 +246,10 @@ export default eventHandler(async (event) => {
     .where(inArray(portfoCaseWorks.caseId, caseIds))
     .orderBy(portfoCaseWorks.order)
 
-  // 6. Группируем данные по кейсам
-  const casesMap = new Map()
-  cases.forEach(c => {
-    casesMap.set(c.id, { 
-      ...c, 
-      images: [], 
-      works: [],
-      // 🔥 Исправлено: простое приведение к boolean
-      isPublished: !!c.isPublished
-    })
-  })
-
-  images.forEach(img => {
-    if (casesMap.has(img.caseId)) {
-      casesMap.get(img.caseId).images.push({
-        id: img.id,
-        url: img.url,
-        type: img.type
-      })
-    }
-  })
-
-  works.forEach(w => {
-    if (casesMap.has(w.caseId)) {
-      casesMap.get(w.caseId).works.push({
-        id: w.id,
-        workType: w.workType,
-        value: w.value
-      })
-    }
-  })
-
+  // 6. Группируем данные по кейсам (общий хелпер — см. groupCases выше)
   // 7. Возвращаем результат
   return {
-    data: Array.from(casesMap.values()),
+    data: groupCases(cases, images, works),
     meta: {
       page,
       limit,

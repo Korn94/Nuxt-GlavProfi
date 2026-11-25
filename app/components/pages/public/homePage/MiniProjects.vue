@@ -24,9 +24,10 @@
         <!-- Изображение -->
         <div class="case-card__image">
           <img
-            :src="useImageUrl(getMainImage(card.images))"
+            v-bind="responsiveImageAttrs(useImageUrl(getMainImage(card.images)), { sizes: '(max-width: 768px) 100vw, 50vw' })"
             :alt="card.title"
             loading="lazy"
+            decoding="async"
           />
         </div>
 
@@ -70,16 +71,25 @@
 
 <script setup>
 import { computed } from 'vue'
+import { responsiveImageAttrs } from '~/utils/responsiveImage'
 
 // Загрузка данных на сервере (SSR).
 // Nuxt выполняет $fetch на сервере, встраивает результат в HTML и в payload;
 // на клиенте данные приходят из payload без повторного запроса, поэтому кейсы
 // видны и поисковикам, и пользователям с самого первого кадра.
+//
+// ⚡ Запрашиваем ТОЛЬКО два нужных кейса (`slugs`), а не весь портфолио:
+// на главной блок показывает две карточки, а полный список тянул 5 SQL-запросов
+// и складывал все 12 кейсов с картинками в payload каждой страницы.
+const FEATURED_SLUGS = ['ddx', 'fora-bank']
+
 const { data, pending } = await useAsyncData(
   'home-featured',
   async () => {
     try {
-      const data = await $fetch('/api/portfolio')
+      const data = await $fetch('/api/portfolio', {
+        query: { slugs: FEATURED_SLUGS.join(',') }
+      })
       return data?.data || []
     } catch (err) {
       // Кратковременный сбой API — не роняем SSR-рендер (200 с пустым списком)
@@ -93,12 +103,11 @@ const { data, pending } = await useAsyncData(
 const allCards = computed(() => data.value || [])
 const loading = computed(() => pending.value)
 
-// Выборка нужных кейсов по slug
-const featuredCards = computed(() => {
-  // const slugs = ['ddx', 'fora-bank', 'klinika-alma', 'zerno']
-  const slugs = ['ddx', 'fora-bank']
-  return allCards.value.filter(card => slugs.includes(card.slug))
-})
+// Выборка нужных кейсов по slug (единый источник — FEATURED_SLUGS выше;
+// порядок карточек задаёт порядок в ответе API — portfolioCases.order)
+const featuredCards = computed(() =>
+  allCards.value.filter(card => FEATURED_SLUGS.includes(card.slug))
+)
 
 // ✅ НОВОЕ: Фильтруем только карточки с валидным slug для рендеринга ссылок
 const validFeaturedCards = computed(() => 

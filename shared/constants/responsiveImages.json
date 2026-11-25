@@ -1,0 +1,1399 @@
+{
+  "/brands/ddx.png": [
+    1024,
+    312,
+    [
+      480,
+      960
+    ]
+  ],
+  "/brands/gasprombank.png": [
+    1024,
+    312,
+    [
+      480,
+      960
+    ]
+  ],
+  "/brands/gos.png": [
+    1024,
+    312,
+    [
+      480,
+      960
+    ]
+  ],
+  "/brands/logo-sber.png": [
+    1024,
+    312,
+    [
+      480,
+      960
+    ]
+  ],
+  "/brands/marmacs.png": [
+    1024,
+    312,
+    [
+      480,
+      960
+    ]
+  ],
+  "/brands/nearmedic.png": [
+    1024,
+    312,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/1-1.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/1.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/10.jpg": [
+    4000,
+    3000,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/11.jpg": [
+    4000,
+    3000,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/2-1.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/2.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/3-1.jpg": [
+    4000,
+    3000,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/3.jpg": [
+    4000,
+    3000,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/4-1.jpg": [
+    4000,
+    3000,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/4.jpg": [
+    960,
+    1280,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/5.jpg": [
+    2560,
+    1920,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/6.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/7-1.webp": [
+    2560,
+    1920,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/7.webp": [
+    2560,
+    1920,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/8-1.jpg": [
+    4000,
+    3000,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/8.jpg": [
+    4000,
+    3000,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/9.jpg": [
+    960,
+    1280,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/about.png": [
+    1000,
+    763,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/login.jpg": [
+    3840,
+    2160,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/login2.jpg": [
+    4970,
+    3313,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/projects.webp": [
+    1920,
+    1152,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/projects3.webp": [
+    1920,
+    1150,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/remont-pomescheniy/angary.webp": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/remont-pomescheniy/banki.webp": [
+    2560,
+    1920,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/remont-pomescheniy/banki/2-1.webp": [
+    1440,
+    1920,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/remont-pomescheniy/banki/2.webp": [
+    1440,
+    1920,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/remont-pomescheniy/banki/3-1.webp": [
+    1440,
+    1920,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/remont-pomescheniy/banki/3.webp": [
+    1440,
+    1920,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/remont-pomescheniy/banki/4-1.webp": [
+    1440,
+    1920,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/remont-pomescheniy/banki/4.webp": [
+    1440,
+    1920,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/remont-pomescheniy/ceha.webp": [
+    960,
+    1280,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/remont-pomescheniy/fasady.webp": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/remont-pomescheniy/fitnes.webp": [
+    2560,
+    1920,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/remont-pomescheniy/magaziny.webp": [
+    2560,
+    1920,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/remont-pomescheniy/medicina.webp": [
+    2560,
+    1920,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/remont-pomescheniy/mopy.webp": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/remont-pomescheniy/ofisy.webp": [
+    2560,
+    1920,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/remont-pomescheniy/pischevye.webp": [
+    2560,
+    1920,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/remont-pomescheniy/remont-pomescheniy.png": [
+    1366,
+    768,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/remont-pomescheniy/salony.webp": [
+    2560,
+    1920,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/remont-pomescheniy/sklady.webp": [
+    3000,
+    4000,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/video/main-poster.webp": [
+    1920,
+    1080,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/finish.jpg": [
+    1280,
+    960,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/vidy-rabot/gkl/1.webp": [
+    560,
+    420,
+    [
+      480
+    ]
+  ],
+  "/main/vidy-rabot/gkl/1layer.webp": [
+    560,
+    420,
+    [
+      480
+    ]
+  ],
+  "/main/vidy-rabot/gkl/2.webp": [
+    559,
+    420,
+    [
+      480
+    ]
+  ],
+  "/main/vidy-rabot/gkl/2layers.webp": [
+    560,
+    420,
+    [
+      480
+    ]
+  ],
+  "/main/vidy-rabot/gkl/gkl.png": [
+    800,
+    800,
+    [
+      480
+    ]
+  ],
+  "/main/vidy-rabot/gkl/gklo.jpg": [
+    810,
+    925,
+    [
+      480
+    ]
+  ],
+  "/main/vidy-rabot/gkl/gklv.webp": [
+    958,
+    957,
+    [
+      480
+    ]
+  ],
+  "/main/vidy-rabot/gkl/gklvo.png": [
+    800,
+    600,
+    [
+      480
+    ]
+  ],
+  "/main/vidy-rabot/gkl/gvl.jpg": [
+    600,
+    685,
+    [
+      480
+    ]
+  ],
+  "/main/vidy-rabot/gkl/gvlv.png": [
+    800,
+    600,
+    [
+      480
+    ]
+  ],
+  "/main/vidy-rabot/peregorodki-gkl/1.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/peregorodki-gkl/10.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/peregorodki-gkl/11.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/peregorodki-gkl/12.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/peregorodki-gkl/2.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/peregorodki-gkl/3.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/peregorodki-gkl/4.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/peregorodki-gkl/5.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/peregorodki-gkl/6.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/peregorodki-gkl/7.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/peregorodki-gkl/8.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/peregorodki-gkl/9.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/plitka.jpg": [
+    1280,
+    960,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/vidy-rabot/plitka/1-1.webp": [
+    2560,
+    1920,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/plitka/1.webp": [
+    2560,
+    1920,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/plitka/10.jpg": [
+    1280,
+    960,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/vidy-rabot/plitka/11.jpg": [
+    1280,
+    960,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/vidy-rabot/plitka/12.jpg": [
+    1280,
+    960,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/vidy-rabot/plitka/13.jpg": [
+    1280,
+    960,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/vidy-rabot/plitka/14.jpg": [
+    1280,
+    960,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/vidy-rabot/plitka/15.jpg": [
+    1280,
+    960,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/vidy-rabot/plitka/16.jpg": [
+    1280,
+    960,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/vidy-rabot/plitka/2-1.webp": [
+    1440,
+    1920,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/vidy-rabot/plitka/2.webp": [
+    1440,
+    1920,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/vidy-rabot/plitka/3.jpg": [
+    960,
+    1280,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/vidy-rabot/plitka/4.jpg": [
+    960,
+    1280,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/vidy-rabot/plitka/5.jpg": [
+    960,
+    1280,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/vidy-rabot/plitka/6.jpg": [
+    960,
+    1280,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/vidy-rabot/plitka/7.jpg": [
+    960,
+    1280,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/vidy-rabot/plitka/8.jpg": [
+    960,
+    1280,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/vidy-rabot/plitka/9.jpg": [
+    960,
+    1280,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/4.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/8.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_12-02-24.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_12-02-40.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_12-02-47.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_12-03-11.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_12-03-15.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_12-03-49.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_12-03-52.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_12-04-43.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_12-05-07.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_12-05-31.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_12-05-39.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_12-05-46.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_12-05-56.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_12-07-34.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_12-08-34.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_12-08-52.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_12-10-20.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_12-10-53.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_12-11-45.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_12-14-25.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_12-29-55.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_12-46-09.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_12-49-00.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_13-07-27.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_13-12-16.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_13-13-33.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_13-13-40.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_13-14-02.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_13-17-28.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_13-22-30.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_14-46-09.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_14-48-34.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_15-00-28.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/pokraska/photo_2026-09-01_15-04-27.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/poly-pokrytiya.jpg": [
+    690,
+    433,
+    [
+      480
+    ]
+  ],
+  "/main/vidy-rabot/potolki-armstrong/photo_2026-09-01_12-53-05.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/potolki-armstrong/photo_2026-09-01_13-00-32.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/potolki.jpg": [
+    1280,
+    762,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/vidy-rabot/shpaklevka.jpg": [
+    960,
+    1280,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/vidy-rabot/shpaklevka/1.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/shpaklevka/10.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/shpaklevka/11.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/shpaklevka/12.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/shpaklevka/13.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/shpaklevka/14.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/shpaklevka/2.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/shpaklevka/3.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/shpaklevka/4.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/shpaklevka/5.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/shpaklevka/6.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/shpaklevka/7.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/shpaklevka/8.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/shpaklevka/9.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/shtukaturka/1.jpg": [
+    960,
+    1280,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/vidy-rabot/shtukaturka/10.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/shtukaturka/11.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/shtukaturka/12.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/shtukaturka/13.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/shtukaturka/14.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/shtukaturka/15.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/shtukaturka/16.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/shtukaturka/17.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/shtukaturka/2.jpg": [
+    960,
+    1280,
+    [
+      480,
+      960
+    ]
+  ],
+  "/main/vidy-rabot/shtukaturka/3.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/shtukaturka/4.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/shtukaturka/5.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/shtukaturka/6.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/shtukaturka/7.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/shtukaturka/8.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ],
+  "/main/vidy-rabot/shtukaturka/9.jpg": [
+    1920,
+    2560,
+    [
+      480,
+      960,
+      1600
+    ]
+  ]
+}

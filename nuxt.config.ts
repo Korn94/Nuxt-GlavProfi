@@ -7,14 +7,51 @@ import { defineNuxtConfig } from 'nuxt/config';
 const visitorMicroViewMinMsRaw = process.env.NUXT_PUBLIC_VISITOR_MICRO_VIEW_MIN_MS;
 const visitorMicroViewMinMs = visitorMicroViewMinMsRaw ? Number(visitorMicroViewMinMsRaw) : Number.NaN;
 
+/**
+ * ⚡ Микро-кэш SSR (Nitro SWR) для публичных страниц, в секундах.
+ *
+ * По умолчанию ВЫКЛЮЧЕН (`NUXT_HTML_SWR` не задан): включение меняет поведение
+ * деплоя — карточки контента из кабинета (цены, кейсы) появляются с задержкой
+ * до N секунд, а сразу после `rsync --delete-after` кэшированный HTML может
+ * ссылаться на уже удалённые чанки.
+ *
+ * Включать осознанно: `NUXT_HTML_SWR=60 npm run build` (значение запекается в сборку).
+ */
+const htmlSwrSeconds = Number(process.env.NUXT_HTML_SWR || 0);
+const SWR_ROUTES = [
+  '/',
+  '/about',
+  '/contacts',
+  '/projects',
+  '/projects/**',
+  '/prices/**',
+  '/remont-pomescheniy',
+  '/remont-pomescheniy/**',
+  '/vidy-rabot/**',
+];
+const swrRouteRules = htmlSwrSeconds > 0
+  ? Object.fromEntries(SWR_ROUTES.map((route) => [route, { swr: htmlSwrSeconds }]))
+  : {};
+
 export default defineNuxtConfig({
   app: {
     head: {
       link: [
-        // Добавляем предзагрузку для ОСНОВНОГО шрифта
+        // Предзагрузка ОСНОВНЫХ шрифтов первого экрана.
+        // ⚠️ Раньше здесь был только Rubik-Regular, хотя H1 набран font-weight: 700 —
+        // браузер стартовал загрузку Bold позже, и заголовок «перещёлкивался»
+        // с системного шрифта на Rubik уже после первой отрисовки.
+        // Оба файла всё равно нужны странице, поэтому preload — чистая экономия времени.
         {
           rel: 'preload',
           href: '/fonts/rubik/Rubik-Regular.woff2',
+          as: 'font',
+          type: 'font/woff2',
+          crossorigin: 'anonymous'
+        },
+        {
+          rel: 'preload',
+          href: '/fonts/rubik/Rubik-Bold.woff2',
           as: 'font',
           type: 'font/woff2',
           crossorigin: 'anonymous'
@@ -59,8 +96,9 @@ export default defineNuxtConfig({
   css: [
     '~/assets/styles/index.scss',
     '~/assets/styles/animations-custom.scss',
-    // Стили коммерческих предложений (конструктор КП): app/components/pages/public/offers/kp
-    '~/assets/styles/kp.scss',
+    // ⚠️ kp.scss (конструктор КП) здесь БОЛЬШЕ НЕТ: он нужен только /offers/**
+    // и подключается в app/components/pages/public/offers/kp/KpPage.vue.
+    // Глобально он уезжал в entry-CSS каждой публичной страницы.
   ],
 
   vite: {
@@ -133,6 +171,24 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
   ],
 
+  // 🎨 Иконки (@nuxt/icon v2)
+  // ⚠️ Без этой секции клиентский бандл иконок пустой (`init() {}`), и все иконки,
+  // отрендеренные ТОЛЬКО на клиенте (шапка/мобильное меню — они client-only),
+  // тянутся с `api.iconify.design` отдельным сторонним запросом в рантайме.
+  // `scan: true` вырезает в клиентский бандл только реально используемые иконки
+  // (лимит 256 КБ — страховка от раздувания).
+  // `serverBundle.collections` — только используемые коллекции: раньше в Nitro
+  // уезжали ВСЕ установленные @iconify-json/* (~40 МБ JSON в памяти процесса).
+  icon: {
+    clientBundle: {
+      scan: true,
+      sizeLimitKb: 256,
+    },
+    serverBundle: {
+      collections: ['mdi', 'material-symbols', 'solar', 'ph', 'bx', 'bxl', 'lucide', 'weui'],
+    },
+  },
+
   // 🌐 Адрес сайта для <loc> в sitemap.xml (nuxt-site-config → site.url).
   // ⚠️ Опции `sitemap.hostname` НЕ существует ни в v7, ни в v9 — она молча
   // игнорировалась, и модуль подставлял адрес из заголовка Host запроса.
@@ -196,42 +252,55 @@ export default defineNuxtConfig({
       strict: true,
     },
     routeRules: {
-      // 🔥 ГЛОБАЛЬНОЕ ПРАВИЛО ДЛЯ SEO: Запрещаем кэширование HTML-страниц
-      // Это заставляет Яндекса всегда скачивать свежий HTML с актуальными хэшами JS/CSS
+      // ⚡ Микро-кэш SSR (только если задан NUXT_HTML_SWR при сборке)
+      ...swrRouteRules,
+
+      // 🔥 ПУБЛИЧНЫЕ HTML-страницы
+      // Раньше здесь стояло `no-store`, и это:
+      //   • полностью отключало bfcache в Chrome/Firefox → «назад» = полная перезагрузка;
+      //   • запрещало любой кэш на прокси/CDN, хотя HTML одинаков для всех
+      //     (шапка рендерится на клиенте, персональных данных в разметке нет).
+      // `max-age=0, must-revalidate` оставляет свежесть (каждый заход — 304), но кэш разрешён.
       '/**': {
         headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
+          'Cache-Control': 'public, max-age=0, must-revalidate'
         }
       },
 
-      '/api/**': {
-        cors: true,
-        headers: {
-          'Access-Control-Allow-Origin': process.env.NODE_ENV === 'production' 
-            ? 'https://glavprofi.ru' 
-            : 'http://192.168.31.244:3000',
-          'Access-Control-Allow-Credentials': 'true',
-          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-        }
-      },
+      // 🔒 Кабинет и служебные страницы — не кэшируем и не индексируем
       '/cabinet': {
         cors: true,
         headers: {
+          'Cache-Control': 'private, no-store',
+          'X-Robots-Tag': 'noindex, nofollow',
+        }
+      },
+      '/cabinet/**': {
+        headers: {
+          'Cache-Control': 'private, no-store',
           'X-Robots-Tag': 'noindex, nofollow',
         }
       },
       '/login': {
         cors: true,
         headers: {
+          'Cache-Control': 'private, no-store',
           'X-Robots-Tag': 'noindex, nofollow',
         }
       },
-      '/cabinet/**': {
+
+      '/api/**': {
+        cors: true,
         headers: {
-          'X-Robots-Tag': 'noindex, nofollow',
+          // ⚠️ Правило `/**` выше отдаёт `public, …` — для API это недопустимо:
+          // ответы могут содержать данные пользователя. Явно запрещаем кэш.
+          'Cache-Control': 'private, no-store',
+          'Access-Control-Allow-Origin': process.env.NODE_ENV === 'production' 
+            ? 'https://glavprofi.ru' 
+            : 'http://192.168.31.244:3000',
+          'Access-Control-Allow-Credentials': 'true',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization'
         }
       },
       // Диагностика переименована: /cabinet/testpage → /cabinet/diagnostics
@@ -281,7 +350,9 @@ export default defineNuxtConfig({
   },
 
   plugins: [
-    '~/plugins/yandexMetrica.js',
+    // ⚡ .client-суффикс обязателен: скрипт метрики работает только в браузере,
+    // раньше плагин собирался и в серверный бандл (лишний вес + мёртвый код).
+    '~/plugins/yandexMetrica.client.js',
     '~/plugins/analytics.client.ts',
     '~/plugins/telegram.client.ts',
     '~/plugins/socket.client.ts',

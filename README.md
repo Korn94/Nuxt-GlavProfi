@@ -656,6 +656,107 @@ TELEGRAM_WEBHOOK_URL=https://yourdomain.com/api/telegram
 | `npm run migrate:push` | Push схемы в БД |
 | `npm run migrate:all` | Генерация + применение миграций |
 | `npm run typecheck` | Проверка типов (`nuxt typecheck` → `vue-tsc --noEmit`) |
+| `npm run images:optimize` | Webp-варианты 480/960/1600 px для `public/main/**` и `public/brands/**` + манифест `shared/constants/responsiveImages.json` |
+| `npm run perf:baseline` | Замер первой загрузки по боевому сайту → `logs/perf-baseline.md` |
+| `npm run perf:local` | То же по локальному серверу `:3000` → `logs/perf-local.md` |
+
+---
+
+## ⚡ Производительность первой загрузки
+
+Замеры (`npm run perf:baseline` по https://glavprofi.ru, размеры сетевые, gzip):
+
+| Страница | JS | CSS | Медиа из разметки |
+|---|---|---|---|
+| `/` | 194 → **181 КБ** | 8.0 → **4.4 КБ** | 11.0 → **1.7 МБ** |
+| `/about` | 195 → **181 КБ** | 8.0 → **5.9 КБ** | 5.0 → **1.2 МБ** |
+| `/remont-pomescheniy` | 191 → **177 КБ** | 8.0 → **4.4 КБ** | 1.34 → **0.66 МБ** |
+
+> ⚠️ Методика: в JS/CSS попадают только теги из SSR-HTML (`<script>`, `modulepreload`,
+> `stylesheet`) — см. `scripts/perf-baseline.mjs`. Чанки, которые плагины запрашивают уже
+> в рантайме через `import()`, в эти цифры **не входят** (до изоляции так грузился
+> `@telegram-apps/sdk` — 22.5 КБ gzip на каждой странице).
+> HTML главной: 58.4 → 29.9 КБ gzip (`logs/perf-after.md`, сборка до изоляции Telegram —
+> на размер HTML это не влияет); в `logs/perf-after-home.md` — 28.1 КБ от другой сборки
+> (иные хэши чанков).
+
+### Что сделано
+
+**Медиа (главный вес)**
+- `scripts/optimize-public-images.mjs` готовит webp-варианты 480/960/1600 px (162 картинки →
+  банк `public/main`/`public/brands` уменьшился в 3–8 раз на кадр, например `banki.webp`
+  421 КБ → `banki-960.webp` 50 КБ).
+- `app/utils/responsiveImage.ts` → `responsiveImageAttrs(src, { sizes })` собирает
+  `srcset`/`width`/`height` для обычного `<img>` (без компонента-обёртки, чтобы не ломать
+  scoped-CSS). Подключено на главной, `/remont-pomescheniy`, страницах типов помещений.
+- Hero-видео (6.4 МБ) больше не грузится на первой загрузке: `autoplay` убран из разметки,
+  источник подставляется после `window.load` + `requestIdleCallback` и только если
+  пользователь не просил экономить трафик (`saveData` / 2G-3G / `prefers-reduced-motion`).
+  Постер (23 КБ) предзагружается как LCP-кандидат.
+
+**Кэш и TTFB**
+- `/**`: `no-store` → `public, max-age=0, must-revalidate` (возвращает bfcache, разрешает
+  прокси-кэш). `/cabinet/**`, `/login`, `/api/**` — явный `private, no-store`.
+- Опциональный микро-кэш SSR: `NUXT_HTML_SWR=60 npm run build` (по умолчанию выключен,
+  см. комментарий в `nuxt.config.ts` и `proxy_cache` в `.devops/nginx/last nginx.txt`).
+- nginx: `ssl_session_cache shared:SSL:10m` + `ssl_session_tickets on` (без них каждый
+  новый коннект — полный TLS-handshake), security-заголовки продублированы в локациях
+  со своим `add_header`.
+- `/api/portfolio?slugs=ddx,fora-bank` — главная тянет 2 кейса вместо 12 (5 SQL → 3,
+  HTML уменьшился с 58.4 до 29.9 КБ gzip).
+
+**JS/CSS**
+- `@telegram-apps/sdk` (~22.5 КБ gzip) вынесен из entry в отдельный async-чанк. Плагин теперь
+  сначала делает дешёвую проверку Telegram **без импорта SDK** (`window.Telegram.WebApp.initData`
+  или параметры `tgWebApp*` в hash) и грузит SDK только внутри Mini App, не блокируя
+  монтирование (`void initTelegramSdk()`). Раньше `await import()` выполнялся на каждой
+  странице и задерживал гидратацию на один RTT у всех посетителей.
+  ⚠️ Нюанс: Nuxt добавляет `<link rel="prefetch">` для всех async-чанков entry
+  (`vue-bundle-renderer` → `getPrefetchLinks`, опцией это не отключается), поэтому браузер
+  может подтянуть чанк SDK в простое. Но он больше не блокирует mount и не исполняется
+  вне Telegram. Полностью убрать этот чанк можно только отказавшись от SDK — в плагине уже
+  есть разбор `tgWebAppData` из hash как фолбэк.
+  🔗 Синхронизация со страницей входа: по завершении инициализации плагин ставит
+  `window.__telegramReady` и шлёт событие `telegram:ready`; `app/pages/telegram/index.vue`
+  ждёт его (`waitForTelegramReady`, максимум 1.5 с) вместо прежней фиксированной паузы 100 мс —
+  иначе на медленной сети страница успевала уйти в фолбэк разбора хеша.
+- `buffer` (7.9 КБ gzip) переведён на динамический импорт, но из первой загрузки он **не ушёл**:
+  его статически импортирует чанк `socket.io-client`, и он качается вместе с сокетом.
+  Экономия — только в размере entry-чанка.
+- `socket.io-client` (16.5 КБ gzip) + `buffer` (7.9 КБ gzip) остаются в первой загрузке
+  **осознанно**: сокет поднимает сессию и трекинг активности (`activity` / AFK / `tab:navigate`)
+  для авторизованных на всех маршрутах, включая публичные (см. «WebSocket и Real-time»).
+  Анонимных посетителей это не касается — они трекаются по HTTP (`POST /api/visitors/ping`),
+  сокет им недоступен (сервер отклоняет подключение без JWT).
+- `yandexMetrica` → `.client.js` (не собирается в серверный бандл).
+- `kp.scss` (33 КБ) вынесен из глобальных стилей в `KpPage.vue` — entry-CSS 31.2 → 12.3 КБ (raw).
+- `@nuxt/icon`: `clientBundle.scan` — клиентский бандл иконок стал реальным (167 КБ вместо
+  пустого `init() {}`), запросов к `api.iconify.design` в рантайме нет. `serverBundle.collections`
+  ограничил набор 8 коллекциями из 11 установленных, но иконки всё ещё занимают **29 МБ**
+  из 66.5 МБ серверного бандла (без source maps); крупнейший чанк — 12.1 МБ.
+- Шапка рендерится на сервере (было: пустой `<div>` до гидрации → CLS и отсутствие
+  навигации в HTML); preload добавлен для `Rubik-Bold`, которым набран H1.
+- Проверено по сборке: на публичных страницах грузятся только `entry.css` (3.0 КБ gzip) и
+  стили компонентов (ContactForm 0.8 + forms 0.7); `cabinet.*.css` в HTML публичных страниц
+  не попадает.
+
+**Размер `.output`**
+- `server` — 74.2 МБ (66.5 МБ без source maps), из них иконки 29 МБ.
+- `public` — 139.6 МБ, в том числе webp-банк 39.7 МБ (457 файлов).
+
+### Что осталось за кадром
+- Hero-видео на мобильных: `MOBILE_VIDEO_SRC` не задан, поэтому телефон после `load` + idle
+  скачивает тот же `main-pk.mp4` (6.4 МБ). Ограничитель — только `saveData` / 2G-3G.
+  Нужен отдельный файл ~1 МБ (720p) — тогда прописать путь в `MOBILE_VIDEO_SRC`
+  (`app/components/pages/public/homePage/index.vue`).
+- Шрифты не сабсеттились: 5 весов Rubik × ~63 КБ + 3 × ~38 КБ Comfortaa. Сабсеттинг
+  с `unicode-range` даст ~25 КБ на вес (нужен fonttools). Comfortaa удалять нельзя:
+  она используется в шапке, подвале и `kp.scss`.
+- `socket.io-client` + `buffer` (24.4 КБ gzip) можно убрать из публичного бандла динамическим
+  импортом по cookie `auth_token`, но это требует разрыва статической цепочки
+  `app.vue → useActivityTracker → stores/socket → socket.service`. Пока оставлено осознанно.
+- Иконки на сервере: 8 коллекций, 29 МБ. Ревизия реально используемых коллекций может снять
+  до ~10 МБ (память процесса и вес деплоя), на клиента не влияет.
 
 ---
 

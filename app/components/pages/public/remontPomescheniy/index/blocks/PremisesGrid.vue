@@ -87,7 +87,13 @@
                 </div>
 
                 <div class="premise-row__image">
-                  <img :src="item.image" :alt="item.title" loading="lazy" class="premise-row__img">
+                  <img
+                  v-bind="responsiveImageAttrs(item.image, { sizes: '(max-width: 768px) 100vw, 50vw' })"
+                  :alt="item.title"
+                  loading="lazy"
+                  decoding="async"
+                  class="premise-row__img"
+                >
                 </div>
 
                 <span class="premise-row__corner" aria-hidden="true"></span>
@@ -118,7 +124,13 @@
                 </div>
 
                 <div class="premise-row__image">
-                  <img :src="item.image" :alt="item.title" loading="lazy" class="premise-row__img">
+                  <img
+                  v-bind="responsiveImageAttrs(item.image, { sizes: '(max-width: 768px) 100vw, 50vw' })"
+                  :alt="item.title"
+                  loading="lazy"
+                  decoding="async"
+                  class="premise-row__img"
+                >
                 </div>
               </div>
             </template>
@@ -136,7 +148,13 @@
                 }]"
               >
                 <div class="premise-card__image">
-                  <img :src="item.image" :alt="item.title" loading="lazy" class="premise-card__img">
+                  <img
+                  v-bind="responsiveImageAttrs(item.image, { sizes: '(max-width: 768px) 100vw, 33vw' })"
+                  :alt="item.title"
+                  loading="lazy"
+                  decoding="async"
+                  class="premise-card__img"
+                >
                   <div class="premise-card__overlay">
                     <h3 class="premise-card__title">{{ item.title }}</h3>
                     <p v-if="item.subtitle" class="premise-card__subtitle">{{ item.subtitle }}</p>
@@ -165,7 +183,13 @@
                 }]"
               >
                 <div class="premise-card__image">
-                  <img :src="item.image" :alt="item.title" loading="lazy" class="premise-card__img">
+                  <img
+                  v-bind="responsiveImageAttrs(item.image, { sizes: '(max-width: 768px) 100vw, 33vw' })"
+                  :alt="item.title"
+                  loading="lazy"
+                  decoding="async"
+                  class="premise-card__img"
+                >
                   <div class="premise-card__overlay">
                     <h3 class="premise-card__title">{{ item.title }}</h3>
                     <p v-if="item.subtitle" class="premise-card__subtitle">{{ item.subtitle }}</p>
@@ -204,6 +228,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { responsiveImageAttrs } from '~/utils/responsiveImage'
 import { useGridControls } from '../../composables/useGridControls'
 import { PREMISES_CATALOG } from '../../pageTypes/data/premisesCatalog'
 

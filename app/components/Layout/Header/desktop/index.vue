@@ -96,8 +96,8 @@
         <p class="phone" @click="copyPhoneNumber">+7 910 909 69 47</p>
       </div>
     </div>
-    <!-- Попап уведомления -->
-    <UiNotificationsContainer />
+    <!-- Попап уведомлений рендерится глобально в app.vue (<UiNotificationsContainer />) —
+         здесь дубль убран, чтобы уведомления не появлялись дважды -->
   </header>
 </template>
 

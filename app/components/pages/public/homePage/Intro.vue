@@ -17,8 +17,10 @@
       </div>
       <img
         class="image"
-        src="/main/about.png"
+        v-bind="responsiveImageAttrs('/main/about.png', { sizes: '(max-width: 768px) 100vw, 45vw' })"
         alt="Изображение наброска здания"
+        loading="lazy"
+        decoding="async"
       />
     </div>
     <div class="exp">
@@ -44,6 +46,10 @@
     </div>
   </div>
 </template>
+
+<script setup lang="ts">
+import { responsiveImageAttrs } from '~/utils/responsiveImage'
+</script>
 
 <style lang="scss" scoped>
 @use '@/assets/styles/variables' as *;

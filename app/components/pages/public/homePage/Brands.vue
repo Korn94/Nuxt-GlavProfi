@@ -9,15 +9,30 @@
     <!-- УБРАЛИ inline-стили, всё теперь в классе .line -->
     <hr class="line">
     <div class="imgbox">
-      <img src="/brands/logo-sber.png" alt="ремонт сбербанка">
-      <img src="/brands/ddx.png" alt="ремонт фитнес центра DDX">
-      <img src="/brands/gos.png" alt="ремонт гос. учреждений">
-      <img src="/brands/marmacs.png" alt="ремонт мармакс">
-      <img src="/brands/gasprombank.png" alt="ремонт газпромбанк">
-      <img src="/brands/nearmedic.png" alt="ремонт клиники Неармедик">
+      <img
+        v-for="brand in brands"
+        :key="brand.src"
+        v-bind="responsiveImageAttrs(brand.src, { sizes: '160px' })"
+        :alt="brand.alt"
+        loading="lazy"
+        decoding="async"
+      >
     </div>
   </div>
 </template>
+
+<script setup lang="ts">
+import { responsiveImageAttrs } from '~/utils/responsiveImage'
+
+const brands = [
+  { src: '/brands/logo-sber.png', alt: 'ремонт сбербанка' },
+  { src: '/brands/ddx.png', alt: 'ремонт фитнес центра DDX' },
+  { src: '/brands/gos.png', alt: 'ремонт гос. учреждений' },
+  { src: '/brands/marmacs.png', alt: 'ремонт мармакс' },
+  { src: '/brands/gasprombank.png', alt: 'ремонт газпромбанк' },
+  { src: '/brands/nearmedic.png', alt: 'ремонт клиники Неармедик' },
+]
+</script>
 
 <style lang="scss" scoped>
 @use '@/assets/styles/variables' as *;

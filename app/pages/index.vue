@@ -67,6 +67,11 @@ const beforeAfterItems = [
 
 useHead({
   title: 'Ремонт и отделка коммерческих помещений под ключ в Рязани и области - ГлавПрофи',
+  link: [
+    // ⚡ LCP-кандидат первого экрана — постер hero-видео (23 КБ, main-poster.webp).
+    // Сам mp4 грузится только после window.load (см. components/.../homePage/index.vue).
+    { rel: 'preload', as: 'image', href: '/main/video/main-poster.webp', fetchpriority: 'high' }
+  ],
   meta: [
     { name: 'description', content: 'Ремонт коммерческих помещений под ключ в Рязани и области. Офисы, магазины, склады. Гарантия 3 года, собственные бригады, обслуживание после сдачи. Звоните!' },
     { property: 'og:title', content: 'Ремонт и отделка коммерческих помещений под ключ в Рязани и области - ГлавПрофи' },

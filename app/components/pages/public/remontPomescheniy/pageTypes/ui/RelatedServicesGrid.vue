@@ -22,9 +22,10 @@
           <!-- Изображение + подпись поверх -->
           <div class="related-service-card__image">
             <img
-              :src="getPremisesImageUrl(item)"
+              v-bind="responsiveImageAttrs(getPremisesImageUrl(item), { sizes: '(max-width: 768px) 100vw, 33vw' })"
               :alt="item.title"
               loading="lazy"
+              decoding="async"
             >
             <div class="related-service-card__overlay">
               <h3 class="related-service-card__title">{{ item.title }}</h3>
@@ -53,6 +54,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { getPremisesImageUrl, getSimilarPremises } from '../data/premisesCatalog'
+import { responsiveImageAttrs } from '~/utils/responsiveImage'
 
 const props = withDefaults(
   defineProps<{

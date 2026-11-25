@@ -110,3 +110,13 @@ watch(() => props.offer, () => {
   variantKey.value = resolveInitialKey()
 })
 </script>
+
+<!--
+  ⚡ Стили коммерческих предложений подключаются ЗДЕСЬ, а не в nuxt.config.css:
+  kp.scss (~33 КБ исходника) нужен только страницам /offers/**, а глобально
+  он попадал в entry-CSS каждой публичной страницы.
+-->
+<style lang="scss">
+@use '~/assets/styles/kp.scss';
+</style>
+
