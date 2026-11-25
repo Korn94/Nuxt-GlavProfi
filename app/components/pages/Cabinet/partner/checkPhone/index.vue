@@ -57,6 +57,7 @@ import { ref, computed, onMounted } from 'vue'
 import { navigateTo } from 'nuxt/app'
 import { useAuthStore } from 'stores/auth'
 import { useApi } from '~/composables/useApi'
+import { isCompleteRuPhone } from 'shared/utils/phone'
 
 const authStore = useAuthStore()
 const api = useApi()
@@ -66,8 +67,7 @@ const isChecking = ref(false)
 const result = ref<'found' | 'free' | null>(null)
 const error = ref('')
 
-const digits = computed(() => phone.value.replace(/\D/g, ''))
-const isComplete = computed(() => digits.value.length >= 11)
+const isComplete = computed(() => isCompleteRuPhone(phone.value))
 
 function resetResult() {
   result.value = null

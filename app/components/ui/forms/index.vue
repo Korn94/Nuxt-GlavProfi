@@ -27,6 +27,7 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useNotifications } from '~/composables/useNotifications'
 import { trackFormOpen } from '~/composables/visitor/trackerForms'
 import { bindFormMicro, observeFormView } from '~/composables/visitor/trackerFormMicro'
+import { isCompleteRuPhone } from 'shared/utils/phone'
 
 const notifications = useNotifications()
 
@@ -61,7 +62,7 @@ onBeforeUnmount(() => {
 
 // Реактивные данные
 const name = ref('')
-const phoneNumber = ref('+7 ')
+const phoneNumber = ref('')
 const comment = ref('')
 const agreed = ref(false)
 const phoneError = ref(false)
@@ -78,10 +79,8 @@ function textFilter() {
 
 // Отправка формы через API
 async function submitForm() {
-  const phoneCleaned = phoneNumber.value.replace(/\D/g, '')
-  
   // Проверка телефона
-  if (phoneCleaned.length < 11) {
+  if (!isCompleteRuPhone(phoneNumber.value)) {
     phoneError.value = true
     notifications.error('Введите корректный номер телефона')
     return
@@ -124,7 +123,7 @@ async function submitForm() {
     
     // Очистка формы после успешной отправки
     name.value = ''
-    phoneNumber.value = '+7 '
+    phoneNumber.value = ''
     comment.value = ''
     agreed.value = false
     

@@ -320,7 +320,13 @@
             </p>
             <form class="modal__form" @submit.prevent="submitForm">
               <input v-model="form.name" required placeholder="Ваше имя" />
-              <input v-model="form.phone" required placeholder="Телефон" />
+              <input
+                v-model="form.phone"
+                v-phone-format
+                type="tel"
+                required
+                placeholder="+7 (___) ___-__-__"
+              />
               <input v-model="form.company" placeholder="Агентство / компания" />
               <textarea
                 v-model="form.comment"

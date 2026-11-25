@@ -82,7 +82,6 @@
         ]"
         placeholder="+7 (___) ___-__-__"
         autocomplete="tel"
-        @focus="ensurePrefix"
         @blur="validatePhone"
       />
       <span v-if="errors.phone" class="mini-form__error">{{ errors.phone }}</span>
@@ -124,6 +123,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { trackFormOpen } from '~/composables/visitor/trackerForms'
 import { bindFormMicro, observeFormView } from '~/composables/visitor/trackerFormMicro'
+import { isCompleteRuPhone, normalizeRuPhone, toPhoneDigits } from 'shared/utils/phone'
 
 type FormStatus = 'idle' | 'submitting' | 'success' | 'error'
 
@@ -190,18 +190,11 @@ const repairTypes = computed<RepairTypeOption[]>(
 const form = reactive({
   type: 'capital',
   area: props.defaultArea,
-  phone: '+7 ',
+  phone: '',
 })
 
 const errors = reactive<FormErrors>({})
 const status = ref<FormStatus>('idle')
-
-// === Префикс "+7 " при фокусе на пустом поле ===
-const ensurePrefix = () => {
-  if (!form.phone.trim() || form.phone === '+7') {
-    form.phone = '+7 '
-  }
-}
 
 // === Работа с площадью ===
 const clampArea = () => {
@@ -224,13 +217,12 @@ const decreaseArea = () => {
 const validatePhone = () => {
   delete errors.phone
 
-  if (!form.phone.trim()) {
+  if (!toPhoneDigits(form.phone)) {
     errors.phone = 'Укажите номер телефона'
     return
   }
 
-  const digits = form.phone.replace(/\D/g, '')
-  if (digits.length < 11) {
+  if (!isCompleteRuPhone(form.phone)) {
     errors.phone = 'Введите корректный номер'
   }
 }
@@ -288,7 +280,7 @@ const buildMessage = (): string => {
     minute: '2-digit',
   })
 
-  const phoneDigits = form.phone.replace(/\D/g, '')
+  const phoneDigits = normalizeRuPhone(form.phone)
   const phoneLink = `<a href="tel:${phoneDigits}">${form.phone}</a>`
 
   return `
@@ -345,7 +337,7 @@ const submitForm = async () => {
     // Сброс формы через 4 секунды
     setTimeout(() => {
       if (status.value === 'success') {
-        form.phone = '+7 '
+        form.phone = ''
         form.area = props.defaultArea
         form.type = 'capital'
         status.value = 'idle'

@@ -24,6 +24,7 @@
         <label class="form-field__label">Телефон</label>
         <input 
           v-model="form.phone" 
+          v-phone-format
           type="tel" 
           class="form-field__input"
           placeholder="+7 (999) 123-45-67"

@@ -9,6 +9,7 @@ import { ref, reactive } from 'vue'
 import { useNotifications } from '~/composables/useNotifications'
 import { trackFormOpen } from '~/composables/visitor/trackerForms'
 import { trackCtaClick } from '~/composables/visitor/trackerCta'
+import { isCompleteRuPhone } from 'shared/utils/phone'
 
 /** Подпись формы: одна и та же для form_open и form_submit */
 const PARTNER_FORM_SOURCE = 'Партнёрская программа (/partner)'
@@ -22,7 +23,7 @@ const phoneError = ref(false)
 
 const form = reactive({
   name: '',
-  phone: '+7 ',
+  phone: '',
   company: '',
   comment: '',
 })
@@ -66,10 +67,8 @@ export function usePartnerLeadForm() {
 
   // Отправка через безопасный API-эндпоинт (токены хранятся на сервере)
   async function submit() {
-    const phoneCleaned = form.phone.replace(/\D/g, '')
-
     // Валидация телефона
-    if (phoneCleaned.length < 11) {
+    if (!isCompleteRuPhone(form.phone)) {
       phoneError.value = true
       notifications.error('Введите корректный номер телефона')
       return
@@ -115,7 +114,7 @@ export function usePartnerLeadForm() {
 
       // Очистка полей
       form.name = ''
-      form.phone = '+7 '
+      form.phone = ''
       form.company = ''
       form.comment = ''
     } catch (error) {

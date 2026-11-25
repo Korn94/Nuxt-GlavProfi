@@ -33,7 +33,6 @@
               class="form-input"
               placeholder="+7 (___) ___-__-__"
               autocomplete="tel"
-              @focus="ensurePrefix"
             />
           </div>
           <button
@@ -73,6 +72,7 @@
 import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { trackFormOpen } from '~/composables/visitor/trackerForms'
 import { bindFormMicro, observeFormView } from '~/composables/visitor/trackerFormMicro'
+import { isCompleteRuPhone, normalizeRuPhone } from 'shared/utils/phone'
 
 interface MessageConfig {
   emoji: string
@@ -100,7 +100,7 @@ const props = withDefaults(
 
 const form = reactive({
   name: '',
-  contact: '+7 ',
+  contact: '',
   consent: false,
 })
 
@@ -131,16 +131,8 @@ onBeforeUnmount(() => {
 
 const status = ref<FormStatus>('idle')
 
-const ensurePrefix = () => {
-  if (!form.contact.trim() || form.contact === '+7') {
-    form.contact = '+7 '
-  }
-}
-
 const validateForm = (): boolean => {
-  if (!form.contact.trim()) return false
-  const digits = form.contact.replace(/\D/g, '')
-  if (digits.length < 11) return false
+  if (!isCompleteRuPhone(form.contact)) return false
   if (!form.consent) return false
   return true
 }
@@ -153,7 +145,7 @@ const buildMessage = (): string => {
     hour: '2-digit',
     minute: '2-digit',
   })
-  const phoneDigits = form.contact.replace(/\D/g, '')
+  const phoneDigits = normalizeRuPhone(form.contact)
   const phoneLink = `<a href="tel:${phoneDigits}">${form.contact}</a>`
 
   const emoji = props.messageConfig?.emoji || '❓'
@@ -192,7 +184,7 @@ const handleSubmit = async () => {
     setTimeout(() => {
       status.value = 'idle'
       form.name = ''
-      form.contact = '+7 '
+      form.contact = ''
       form.consent = false
     }, 3000)
   } catch (err) {

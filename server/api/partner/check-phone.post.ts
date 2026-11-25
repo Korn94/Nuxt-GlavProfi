@@ -10,23 +10,7 @@
 import { defineEventHandler, readBody, createError } from 'h3'
 import { db } from '../../db'
 import { partnerLeads } from '../../db/schema'
-
-/**
- * Приведение номера к каноничному виду для сравнения.
- * Русские 8…/7… и 10-значные номера приводим к виду 7XXXXXXXXXX.
- */
-function normalizePhone(value: unknown): string {
-  if (typeof value !== 'string') return ''
-  let digits = value.replace(/\D/g, '')
-
-  if (digits.length === 11 && (digits.startsWith('7') || digits.startsWith('8'))) {
-    digits = '7' + digits.slice(1)
-  } else if (digits.length === 10) {
-    digits = '7' + digits
-  }
-
-  return digits
-}
+import { normalizeRuPhone } from 'shared/utils/phone'
 
 export default defineEventHandler(async (event) => {
   const user = event.context.user
@@ -35,11 +19,11 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readBody(event)
-  const phone = normalizePhone(body?.phone)
+  const phone = normalizeRuPhone(body?.phone)
 
-  // Ответ даём только при полностью заполненном номере (≥ 11 цифр),
+  // Ответ даём только при полностью заполненном РФ-номере (7XXXXXXXXXX),
   // чтобы нельзя было перебирать и «подсматривать» чужие номера.
-  if (phone.length < 11) {
+  if (!phone) {
     throw createError({ statusCode: 400, statusMessage: 'Введите номер телефона полностью' })
   }
 
@@ -47,7 +31,7 @@ export default defineEventHandler(async (event) => {
     .select({ clientPhone: partnerLeads.clientPhone })
     .from(partnerLeads)
 
-  const found = rows.some((row) => normalizePhone(row.clientPhone) === phone)
+  const found = rows.some((row) => normalizeRuPhone(row.clientPhone) === phone)
 
   // Никогда не возвращаем сам номер и его владельца — только факт наличия.
   return { found }

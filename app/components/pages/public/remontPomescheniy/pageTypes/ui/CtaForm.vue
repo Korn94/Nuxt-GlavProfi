@@ -32,7 +32,6 @@
         :class="{ 'form-field__input--error': errors.contact }"
         placeholder="+7 (___) ___-__-__"
         autocomplete="tel"
-        @focus="ensurePrefix"
       />
       <span v-if="errors.contact" class="form-field__error">{{ errors.contact }}</span>
     </div>
@@ -153,6 +152,7 @@
 
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue'
+import { isCompleteRuPhone, normalizeRuPhone, toPhoneDigits } from 'shared/utils/phone'
 
 // === Типы ===
 interface CustomField {
@@ -211,7 +211,7 @@ const emit = defineEmits<{
 const createInitialState = () => {
   const state: Record<string, unknown> = {
     name: '',
-    contact: '+7 ',
+    contact: '',
     files: [] as File[],
     consent: false,
   }
@@ -240,13 +240,6 @@ watch(
   },
   { deep: true }
 )
-
-// === Префикс "+7 " при фокусе на пустом поле ===
-const ensurePrefix = () => {
-  if (!form.contact.trim() || form.contact === '+7') {
-    form.contact = '+7 '
-  }
-}
 
 // === Работа с файлами ===
 const handleFiles = (e: Event) => {
@@ -285,13 +278,10 @@ const validateForm = (): boolean => {
   (Object.keys(errors) as (keyof FormErrors)[]).forEach((k) => delete errors[k])
   filesError.value = null
 
-  if (!form.contact.trim()) {
+  if (!toPhoneDigits(form.contact)) {
     errors.contact = 'Укажите номер телефона'
-  } else {
-    const digits = form.contact.replace(/\D/g, '')
-    if (digits.length < 11) {
-      errors.contact = 'Введите корректный номер телефона'
-    }
+  } else if (!isCompleteRuPhone(form.contact)) {
+    errors.contact = 'Введите корректный номер телефона'
   }
 
   if (!form.consent) {
@@ -310,7 +300,7 @@ const buildMessage = (): string => {
     hour: '2-digit',
     minute: '2-digit',
   })
-  const phoneDigits = form.contact.replace(/\D/g, '')
+  const phoneDigits = normalizeRuPhone(form.contact)
   const phoneLink = `<a href="tel:${phoneDigits}">${form.contact}</a>`
 
   // Кастомные блоки из customFields

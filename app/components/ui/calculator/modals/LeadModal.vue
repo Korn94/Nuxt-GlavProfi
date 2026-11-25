@@ -85,7 +85,6 @@
                     :class="{ 'is-error': errors.phone }"
                     placeholder="+7 (___) ___-__-__"
                     autocomplete="tel"
-                    @focus="ensurePrefix"
                   />
                   <span v-if="errors.phone" class="form-error">{{ errors.phone }}</span>
                 </div>
@@ -148,6 +147,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, watch, onMounted, onBeforeUnmount, nextTick, computed } from 'vue'
+import { isCompleteRuPhone, normalizeRuPhone, toPhoneDigits } from 'shared/utils/phone'
 import { trackFormOpen } from '~/composables/visitor/trackerForms'
 import { bindFormMicro } from '~/composables/visitor/trackerFormMicro'
 import type { CalculationResult, CalculatorState, WorkUnit } from '~/types/calculator'
@@ -184,7 +184,7 @@ const status = ref<FormStatus>('idle')
 
 const form = reactive({
   name: '',
-  phone: '+7 ',
+  phone: '',
   comment: '',
   consent: false,
 })
@@ -212,12 +212,6 @@ function getUnitLabel(unit: WorkUnit): string {
     case 'm2': return 'м²'
     case 'linear': return 'м.п.'
     default: return 'шт'
-  }
-}
-
-function ensurePrefix() {
-  if (!form.phone.trim() || form.phone === '+7') {
-    form.phone = '+7 '
   }
 }
 
@@ -277,7 +271,7 @@ function buildMessage(): string {
     minute: '2-digit',
   })
 
-  const phoneDigits = form.phone.replace(/\D/g, '')
+  const phoneDigits = normalizeRuPhone(form.phone)
   const phoneLink = `<a href="tel:${phoneDigits}">${form.phone}</a>`
   const s = props.calculatorState
 
@@ -510,13 +504,10 @@ function buildComment(): string {
 function validate(): boolean {
   ;(Object.keys(errors) as (keyof typeof errors)[]).forEach((k) => delete errors[k])
 
-  if (!form.phone.trim()) {
+  if (!toPhoneDigits(form.phone)) {
     errors.phone = 'Укажите номер телефона'
-  } else {
-    const digits = form.phone.replace(/\D/g, '')
-    if (digits.length < 11) {
-      errors.phone = 'Введите корректный номер'
-    }
+  } else if (!isCompleteRuPhone(form.phone)) {
+    errors.phone = 'Введите корректный номер'
   }
 
   if (!form.consent) {
@@ -564,7 +555,7 @@ async function submitForm() {
 // -----------------------------------------------------------------------------
 function resetForm() {
   form.name = ''
-  form.phone = '+7 '
+  form.phone = ''
   form.comment = ''
   form.consent = false
   status.value = 'idle'

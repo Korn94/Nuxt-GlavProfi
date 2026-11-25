@@ -34,10 +34,11 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useNotifications } from '~/composables/useNotifications'
 import { onFormInteraction } from '~/composables/visitor/trackerForms'
 import { bindFormMicro, observeFormView } from '~/composables/visitor/trackerFormMicro'
+import { isCompleteRuPhone } from 'shared/utils/phone'
 
 // Данные формы
 const name = ref('')
-const phoneNumber = ref('+7 ')
+const phoneNumber = ref('')
 const phoneError = ref(false)
 const showConsentModal = ref(false)
 const isSubmitting = ref(false)
@@ -79,8 +80,7 @@ function textFilter() {
 
 // Открытие модального окна после валидации
 function openConsentModal() {
-  const phoneCleaned = phoneNumber.value.replace(/\D/g, '')
-  phoneError.value = phoneCleaned.length < 11
+  phoneError.value = !isCompleteRuPhone(phoneNumber.value)
   
   if (phoneError.value) {
     notifications.error('Введите корректный номер телефона', 'Ошибка')
@@ -124,7 +124,7 @@ async function acceptConsent() {
     
     // Очистка полей
     name.value = ''
-    phoneNumber.value = '+7 '
+    phoneNumber.value = ''
     
     // Логируем статус каналов (если бэкенд вернул)
     if (result.channels) {

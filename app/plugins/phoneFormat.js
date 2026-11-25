@@ -1,91 +1,127 @@
-// app\plugins\phoneFormat.js
+// app/plugins/phoneFormat.js
+/**
+ * Директива v-phone-format: живое форматирование РФ-телефона в любом поле ввода.
+ *
+ * Логика нормализации — в shared/utils/phone.ts (единая для клиента и сервера).
+ * Директива отвечает только за DOM: форматирование по мере ввода, вставку из буфера
+ * и сохранение позиции курсора.
+ *
+ * ⚠️ Плагин универсальный (НЕ .client): при SSR Vue должен найти директиву,
+ * иначе в консоли появляется «Failed to resolve directive: phone-format».
+ */
 import { defineNuxtPlugin } from '#app'
-
-// Функция formatPhoneNumber принимает строку value и форматирует ее в соответствии с требуемым форматом
-function formatPhoneNumber(value) {
-  // Оставляем только цифры в строке value
-  let cleaned = value.replace(/\D/g, '')
-  let formattedValue = ''
-
-  // Проверяем, начинается ли строка с кода +7 или +8
-  if (cleaned.startsWith('7') || cleaned.startsWith('8')) {
-    // Определяем код страны: +7 или +8
-    const countryCode = cleaned.startsWith('8') ? '+8' : '+7'
-    cleaned = cleaned.slice(1) // Удаляем первую цифру (7 или 8)
-
-    formattedValue = countryCode // Начинаем форматирование с кода страны
-
-    // Добавляем скобки и пробелы после кода страны в зависимости от длины cleaned
-    if (cleaned.length > 0) {
-      formattedValue += ' (' + cleaned.slice(0, 3)
-    }
-    if (cleaned.length > 3) {
-      formattedValue += ') ' + cleaned.slice(3, 6)
-    }
-    if (cleaned.length > 6) {
-      formattedValue += '-' + cleaned.slice(6, 8)
-    }
-    if (cleaned.length > 8) {
-      formattedValue += '-' + cleaned.slice(8, 10)
-    }
-  } else if (cleaned.startsWith('373')) {
-    cleaned = cleaned.slice(3) // Удаляем "373"
-    formattedValue = '+373' // Начинаем форматирование с кода страны
-
-    // Добавляем скобки и пробелы после кода страны в зависимости от длины cleaned
-    if (cleaned.length > 0) {
-      formattedValue += ' (' + cleaned.slice(0, 3)
-    }
-    if (cleaned.length > 3) {
-      formattedValue += ') ' + cleaned.slice(3, 5)
-    }
-    if (cleaned.length > 5) {
-      formattedValue += '-' + cleaned.slice(5, 8)
-    }
-  } else {
-    // В случае, если код страны не соответствует ожидаемым, удаляем все символы, кроме цифр и "+"
-    formattedValue = value.replace(/[^\d+]/g, '')
-    // Ограничиваем количество символов до 16
-    if (formattedValue.length > 16) {
-      formattedValue = formattedValue.slice(0, 16)
-    }
-  }
-
-  return formattedValue
-}
+import {
+  caretPositionAfterNationalDigits,
+  countNationalDigitsBefore,
+  formatRuPhone,
+  getRuNationalDigits,
+} from 'shared/utils/phone'
 
 export default defineNuxtPlugin((nuxtApp) => {
   nuxtApp.vueApp.directive('phone-format', {
     mounted(el) {
-      let isFormatting = false // Флаг для предотвращения рекурсивного вызова
+      // Флаг от рекурсии: синтетический input не должен запускать наш же обработчик
+      let formatting = false
 
-      el.addEventListener('input', function (e) {
-        if (isFormatting) return
+      /**
+       * Записать отформатированное значение в поле и синхронизировать v-model.
+       * @param {string} nextValue
+       * @param {{ keepCaret?: boolean, bubbles?: boolean }} [options]
+       */
+      const apply = (nextValue, options = {}) => {
+        const { keepCaret = true, bubbles = true } = options
+        if (el.value === nextValue) return
 
-        isFormatting = true
+        const caret = el.selectionStart ?? el.value.length
+        // Считаем цифры национальной части (без кода страны «+7») — иначе курсор
+        // после первой набранной цифры встаёт сразу после префикса.
+        const bodyBefore = keepCaret ? countNationalDigitsBefore(el.value, caret) : 0
 
-        const formattedValue = formatPhoneNumber(e.target.value)
+        el.value = nextValue
 
-        if (e.target.value !== formattedValue) {
-          e.target.value = formattedValue
-          e.target.dispatchEvent(new Event('input'))
+        if (keepCaret) {
+          const position = getRuNationalDigits(nextValue)
+            ? caretPositionAfterNationalDigits(nextValue, bodyBefore)
+            : nextValue.length
+
+          try {
+            el.setSelectionRange(position, position)
+          } catch {
+            // Некоторые браузеры/типы input не поддерживают setSelectionRange — не критично
+          }
         }
 
-        isFormatting = false
-      })
-    },
-    // Обновляем при изменении привязки (если нужно)
-    updated(el) {
-      let isFormatting = false
-      const value = el.value
-      const formattedValue = formatPhoneNumber(value)
-
-      if (value !== formattedValue && !isFormatting) {
-        isFormatting = true
-        el.value = formattedValue
-        el.dispatchEvent(new Event('input'))
-        isFormatting = false
+        // v-model слушает input на самом элементе. Всплытие нужно только микро-трекингу
+        // формы (form_typing), поэтому при инициализации/программной синхронизации его нет.
+        el.dispatchEvent(new Event('input', { bubbles }))
       }
-    }
+
+      const onInput = (event) => {
+        if (formatting) return
+
+        formatting = true
+        try {
+          const formatted = formatRuPhone(el.value)
+
+          // Backspace по «застрявшему» префиксу «+7 » очищает поле целиком:
+          // иначе стереть номер до конца было бы невозможно.
+          if (event?.inputType === 'deleteContentBackward' && formatted === '+7 ') {
+            apply('')
+            return
+          }
+
+          apply(formatted)
+        } finally {
+          formatting = false
+        }
+      }
+
+      const onPaste = (event) => {
+        const text = event.clipboardData?.getData('text') ?? ''
+
+        // Короткую вставку (пара цифр) отдаём обычному input-сценарию.
+        // Полный номер заменяем целиком — так вставка «+7910…» не склеивается
+        // с уже введёнными цифрами.
+        if (getRuNationalDigits(text).length < 10) return
+
+        event.preventDefault()
+        apply(formatRuPhone(text), { keepCaret: false })
+
+        // При вставке полного номера курсор логично поставить в конец поля
+        const end = el.value.length
+        try {
+          el.setSelectionRange(end, end)
+        } catch {
+          // ignore
+        }
+      }
+
+      // Значение могло прийти из БД/стора в «сыром» виде — нормализуем один раз
+      const initial = formatRuPhone(el.value)
+      if (initial !== el.value) apply(initial, { keepCaret: false, bubbles: false })
+
+      el.__phoneFormatHandlers = { onInput, onPaste }
+      el.addEventListener('input', onInput)
+      el.addEventListener('paste', onPaste)
+    },
+
+    updated(el) {
+      // Программное изменение модели (сброс формы, автозаполнение) — нормализуем.
+      // Пользовательский ввод уже отформатирован в onInput, поэтому здесь no-op.
+      const formatted = formatRuPhone(el.value)
+      if (formatted === el.value) return
+
+      el.value = formatted
+      el.dispatchEvent(new Event('input', { bubbles: false }))
+    },
+
+    unmounted(el) {
+      const handlers = el.__phoneFormatHandlers
+      if (!handlers) return
+
+      el.removeEventListener('input', handlers.onInput)
+      el.removeEventListener('paste', handlers.onPaste)
+      delete el.__phoneFormatHandlers
+    },
   })
 })
