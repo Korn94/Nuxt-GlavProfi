@@ -50,7 +50,7 @@ useHead({
   title: 'О компании — ремонт коммерческих помещений в Рязани',
   meta: [
     { name: 'description', content: description },
-    { name: 'keywords', content: 'о компании ГлавПрофи, ремонт коммерческих помещений Рязань, отделка под ключ, ремонт офисов, магазинов, складов, клиник, салонов, фитнес-клубов' },
+    // ⚠️ meta keywords убран: тег не учитывается ни Google, ни Яндексом.
     { property: 'og:title', content: 'О компании ГлавПрофи — более 250 проектов с 2014 года' },
     { property: 'og:description', content: description }
   ],

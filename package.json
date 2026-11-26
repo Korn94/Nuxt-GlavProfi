@@ -22,6 +22,7 @@
     "sitemap:check": "node scripts/check-sitemap.mjs",
     "typecheck": "nuxt typecheck",
     "images:optimize": "node scripts/optimize-public-images.mjs",
+    "images:og-remont": "node scripts/optimize-og-remont.mjs",
     "perf:baseline": "node scripts/perf-baseline.mjs",
     "perf:local": "node scripts/perf-baseline.mjs --base=http://127.0.0.1:3000 --routes=/,/about,/projects,/remont-pomescheniy --out=logs/perf-local.md"
   },

@@ -1,22 +1,21 @@
 
 User-agent: *
-Clean-param: etext
+Clean-param: etext&utm_source&utm_medium&utm_campaign&utm_term&utm_content&utm_referrer&utm_media&utm_group&utm_expid&yabizcmpgn&erid&_ym_debug&_ym_status-check&_ytm_preview
 
 Disallow: /cabinet
 Disallow: /login
 Disallow: /api
 
-# Служебные / технические страницы и загрузки
-Disallow: /uploads
+# Служебные / технические страницы
 Disallow: /access-denied
-Disallow: /_nuxt/
 
-# Не индексировать мусорные и трекинговые URL-параметры
-Disallow: /*?utm_
-Disallow: /*?yabizcmpgn
-Disallow: /*?erid
-Disallow: /*?_ym_debug
-Disallow: /*?_ym_status-check
-Disallow: /*?_ytm_preview
+# Приватные вложения кабинета (файлы задач и досок) — публично не нужны
+Disallow: /uploads/boards/
+
+# /_nuxt/ (JS/CSS) и /uploads/ (фото кейсов /uploads/case-*/…) НЕ закрываем:
+# без статики робот не отрендерит страницу, а фото кейсов не попадут в Яндекс
+# Картинки — Яндекс официально рекомендует открывать JS/CSS для робота.
+# Трекинг-параметры не закрываем через Disallow: они перечислены в Clean-param
+# выше, чтобы накопленные показатели переходили на основной URL.
 
 Sitemap: https://glavprofi.ru/sitemap.xml

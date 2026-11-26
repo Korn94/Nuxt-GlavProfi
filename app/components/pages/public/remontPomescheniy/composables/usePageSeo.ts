@@ -60,7 +60,9 @@ export function usePageSeo(options: PageSeoOptions) {
   useSeoMeta({
     title,
     description,
-    ogTitle: `${typeName}: ${title}`,
+    // og:title без префикса `${typeName}:` — он давал «Офисы: Ремонт офисов…»,
+    // дублируя смысл. Бренд добавляем один раз: titleTemplate на og-теги не действует.
+    ogTitle: `${title} — ${companyName}`,
     ogDescription: description,
     ogImage,
     ogUrl: pageUrl,
