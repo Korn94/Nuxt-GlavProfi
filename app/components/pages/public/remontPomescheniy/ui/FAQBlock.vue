@@ -10,13 +10,14 @@
         </header>
       </slot>
 
-      <!-- Список вопросов -->
-      <div class="faq-block__list" role="list">
-        <article
+      <!-- Список вопросов: нативные ul/li. role="list" на ul нужен из-за
+           list-style: none (иначе Safari/VoiceOver теряет семантику списка).
+           Почему не article с ролью элемента списка — см. комментарий в script setup. -->
+      <ul class="faq-block__list" role="list">
+        <li
           v-for="(item, index) in items"
           :key="index"
           :class="['faq-item', { 'faq-item--open': isOpen(index) }]"
-          role="listitem"
         >
           <!-- Кнопка вопроса -->
           <button
@@ -55,8 +56,8 @@
               </slot>
             </div>
           </div>
-        </article>
-      </div>
+        </li>
+      </ul>
 
       <!-- Футер (опциональный) -->
       <div v-if="$slots.footer || footerNote" class="faq-block__footer">
@@ -92,6 +93,14 @@
 </template>
 
 <script setup lang="ts">
+// ⚠️ Список вопросов размечен нативными <ul role="list"> + <li>, а НЕ как <article>,
+// которому раньше навешивался role="listitem". role="listitem" не входит в перечень
+// ролей, допустимых для <article> (ARIA in HTML: feed / presentation / none /
+// document / application / main / region), поэтому axe-правило aria-allowed-role —
+// «ARIA role should be appropriate for the element» — падало в отчёте PageSpeed
+// (категория «Агентный просмотр → Доступность агента»). У <li> роль listitem неявная,
+// дублировать её не нужно. role="list" на <ul> оставлен намеренно: глобальный ресет
+// li { list-style: none } в Safari/VoiceOver убирает семантику списка.
 import { ref, computed } from 'vue'
 import type { FAQItem } from './types'
 
@@ -259,6 +268,10 @@ const closeAll = () => {
 
   // === Список ===
   &__list {
+    // Дублирует глобальный ресет (~/assets/styles/index.scss): компонент самодостаточен
+    list-style: none;
+    margin: 0;
+    padding: 0;
     display: flex;
     flex-direction: column;
     gap: 0.85rem;
