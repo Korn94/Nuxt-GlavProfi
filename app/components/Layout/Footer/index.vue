@@ -34,7 +34,7 @@
             <span>г. Рязань, Право-Лыбедская ул., 40</span>
           </li>
           <!-- <li>
-            <NuxtLink href="/requisites">Реквизиты компании</NuxtLink>
+            <NuxtLink to="/requisites">Реквизиты компании</NuxtLink>
           </li> -->
         </ul>
       </div>
@@ -44,31 +44,31 @@
         <h3 class="footer-title">Полезные ссылки</h3>
         <ul class="footer-nav">
           <li>
-            <NuxtLink href="/about">О компании</NuxtLink>
+            <NuxtLink to="/about">О компании</NuxtLink>
           </li>
           <li>
-            <NuxtLink href="/projects">Портфолио</NuxtLink>
+            <NuxtLink to="/projects">Портфолио</NuxtLink>
           </li>
           <li>
-            <NuxtLink href="/remont-pomescheniy">Услуги</NuxtLink>
+            <NuxtLink to="/remont-pomescheniy">Услуги</NuxtLink>
           </li>
           <li>
-            <NuxtLink href="/prices/otdelochnye-raboty">Прайс-лист</NuxtLink>
+            <NuxtLink to="/prices/otdelochnye-raboty">Прайс-лист</NuxtLink>
           </li>
           <li>
-            <NuxtLink href="/contacts">Контакты</NuxtLink>
+            <NuxtLink to="/contacts">Контакты</NuxtLink>
           </li>
           <li>
-            <NuxtLink href="/privacy-policy">Политика конфиденциальности</NuxtLink>
+            <NuxtLink to="/privacy-policy">Политика конфиденциальности</NuxtLink>
           </li>
           <li>
-            <NuxtLink href="/terms-of-service">Условия использования</NuxtLink>
+            <NuxtLink to="/terms-of-service">Условия использования</NuxtLink>
           </li>
           <li>
-            <NuxtLink href="/login">Войти</NuxtLink>
+            <NuxtLink to="/login">Войти</NuxtLink>
           </li>
           <!-- <li>
-            <NuxtLink href="/telegram">Вход через ТГ</NuxtLink>
+            <NuxtLink to="/telegram">Вход через ТГ</NuxtLink>
           </li> -->
         </ul>
       </div>
@@ -87,22 +87,22 @@
         </form>
 
         <div class="social-icons">
-          <NuxtLink href="https://max.ru/u/f9LHodD0cOLfbBSpAeCwHBcJ83SJtKVj9mVKY7K8OLd6OwYB0gH6g3XE_Cs" target="_blank"
-            aria-label="Наш Max">
+          <a href="https://max.ru/u/f9LHodD0cOLfbBSpAeCwHBcJ83SJtKVj9mVKY7K8OLd6OwYB0gH6g3XE_Cs" target="_blank"
+            rel="noopener noreferrer" aria-label="Наш Max">
             <img src="https://maxicons.ru/icons/Max_logo.svg" alt="MAX" width="22" height="22" class="ico" />
-          </NuxtLink>
-          <NuxtLink href="tg://resolve?domain=glavprofii" target="_blank" aria-label="Наш Telegram">
+          </a>
+          <a href="tg://resolve?domain=glavprofii" target="_blank" rel="noopener noreferrer" aria-label="Наш Telegram">
             <Icon name="mdi:telegram" class="ico" size="28px" />
-          </NuxtLink>
-          <!-- <NuxtLink href=" https://vk.com/glavprofi " target="_blank">
+          </a>
+          <!-- <a href="https://vk.com/glavprofi" target="_blank" rel="noopener noreferrer">
             <Icon name="mdi:vk" class="ico" size="28px" />
-          </NuxtLink>
-          <NuxtLink href="https://instagram.com/glavprofi " target="_blank">
+          </a>
+          <a href="https://instagram.com/glavprofi" target="_blank" rel="noopener noreferrer">
             <Icon name="mdi:instagram" class="ico" size="28px" />
-          </NuxtLink>
-          <NuxtLink href="https://youtube.com/ @glavstroy62" target="_blank">
+          </a>
+          <a href="https://youtube.com/@glavstroy62" target="_blank" rel="noopener noreferrer">
             <Icon name="mdi:youtube" class="ico" size="28px" />
-          </NuxtLink> -->
+          </a> -->
         </div>
 
       </div>

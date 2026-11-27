@@ -15,7 +15,7 @@
  * без знаний о внутренностях Pinia или lifecycle-хуках.
  */
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
+import { useRoute, onBeforeRouteLeave } from 'vue-router'
 import { useAsyncData, createError } from 'nuxt/app'
 import { useAuthStore } from 'stores/auth'
 import { usePriceUIStore } from 'stores/price/usePriceUIStore'
@@ -26,7 +26,6 @@ import type { ApiPriceListResponse, PricePage } from 'stores/price/types'
 
 export function usePriceStores() {
   const route = useRoute()
-  const router = useRouter()
   const authStore = useAuthStore()
   const uiStore = usePriceUIStore()
   const dataStore = usePriceDataStore()
@@ -233,10 +232,6 @@ export function usePriceStores() {
     console.error('[usePriceStores] Не удалось загрузить список категорий прайса:', pagesError.value)
   }
 
-  const setCategory = (categorySlug: string) => {
-    router.push({ params: { category: categorySlug } })
-  }
-
   // ========================================
   // 🛡️ ЗАЩИТА ОТ ПОТЕРИ ДАННЫХ
   // ========================================
@@ -278,6 +273,5 @@ export function usePriceStores() {
     pagesData,
     pagesError,
     currentSlug,
-    setCategory,
   }
 }

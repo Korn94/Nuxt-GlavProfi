@@ -1,14 +1,27 @@
+<!-- app\components\pages\public\prices\ui\Navigation.vue -->
 <template>
   <div class="navigation-wrapper">
     <div v-if="isFixed" class="placeholder"></div>
     <!-- <h3>Страницы</h3> -->
-    <div class="navigation" :class="{ 'is-fixed': isFixed }" ref="navRef">
+    <!--
+      Навигация по страницам прайса — именно ссылки (<a href>), а не кнопки:
+      SSR отдаёт краулерам реальные href на смежные категории, поэтому вес
+      передаётся между /prices/<slug>, а не теряется в @click-обработчике.
+    -->
+    <nav
+      ref="navRef"
+      class="navigation"
+      :class="{ 'is-fixed': isFixed }"
+      aria-label="Категории прайс-листа"
+    >
       <div class="navigation__inner">
-        <button
+        <NuxtLink
           v-for="category in props.categories"
           :key="category.id"
+          :to="`/prices/${category.slug}`"
+          class="navigation__link"
           :class="{ active: props.activeCategory === category.slug }"
-          @click="emit('update:active-category', category.slug)"
+          :aria-current="props.activeCategory === category.slug ? 'page' : undefined"
         >
           <Icon
             :name="getCategoryIcon(category.slug)"
@@ -16,9 +29,9 @@
             class="navigation__icon"
           />
           <span class="navigation__label">{{ category.name }}</span>
-        </button>
+        </NuxtLink>
       </div>
-    </div>
+    </nav>
   </div>
 </template>
 
@@ -28,10 +41,6 @@ import { ref, onMounted, onUnmounted } from 'vue'
 const props = defineProps<{
   categories: Array<{ id: number; name: string; slug: string }>
   activeCategory: string
-}>()
-
-const emit = defineEmits<{
-  (e: 'update:active-category', value: string): void
 }>()
 
 // ═══════════════════════════════════════════
@@ -162,7 +171,7 @@ onUnmounted(() => {
     }
   }
 
-  button {
+  &__link {
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -175,8 +184,14 @@ onUnmounted(() => {
     font-weight: 600;
     font-size: 0.85rem;
     color: $text-gray;
+    text-decoration: none;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     white-space: nowrap;
+
+    &:focus-visible {
+      outline: 2px solid $blue;
+      outline-offset: 2px;
+    }
 
     &:hover:not(.active) {
       background: rgba(0, 195, 245, 0.1);

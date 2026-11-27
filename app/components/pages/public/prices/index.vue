@@ -96,7 +96,6 @@
       <PagesPublicPricesUiNavigation
         :categories="props.categories"
         :active-category="activeCategory"
-        @update:active-category="setCategory"
       />
 
       <!-- ═══════════ ПРАЙС ═══════════ -->
@@ -189,7 +188,6 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRouter } from 'vue-router'
 import { usePriceUIStore, usePriceDataStore, usePriceEditStore } from 'stores/price'
 import type { PriceCategory } from 'stores/price/types'
 import { buildPriceIndex, searchPriceIndex } from '~/utils/priceSearch'
@@ -202,14 +200,9 @@ const props = withDefaults(defineProps<{
   activeCategory: '',
 })
 
-const emit = defineEmits<{
-  (e: 'update:active-category', value: string): void
-}>()
-
 const uiStore = usePriceUIStore()
 const dataStore = usePriceDataStore()
 const editStore = usePriceEditStore()
-const router = useRouter()
 
 const isAdminMode = computed<boolean>(
   () => dataStore.isAdmin && uiStore.isAdminView,
@@ -286,11 +279,6 @@ const filteredWorks = computed<PriceCategory[]>(() => {
   uiStore.openSubcategories = { ...openSubcategoriesTemp }
   return result
 })
-
-const setCategory = async (categorySlug: string) => {
-  await router.push({ params: { category: categorySlug } })
-  emit('update:active-category', categorySlug)
-}
 </script>
 
 <style lang="scss" scoped>

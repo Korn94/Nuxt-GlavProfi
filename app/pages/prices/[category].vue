@@ -4,7 +4,6 @@
     <PagesPublicPrices
       :categories="categories"
       :active-category="currentSlug"
-      @update:active-category="setCategory"
     />
     <UiWidgetsOffer
       title="Делимся своими оптовыми скидками на материал"
@@ -19,7 +18,7 @@ import { computed } from 'vue'
 import { usePriceStores } from '~/composables/usePriceStores'
 import { usePriceSeo } from '~/composables/usePriceSeo'
 
-const { pricePayload, pagesData, currentSlug, setCategory } = usePriceStores()
+const { pricePayload, pagesData, currentSlug } = usePriceStores()
 
 const categories = computed(() =>
   (pagesData.value ?? []).map(page => ({
