@@ -58,10 +58,12 @@ export function usePartnerLeadForm() {
     }, 300)
   }
 
+  // 📊 Цель Метрики. $ym — обёртка с уже подставленным номером счётчика
+  // (app/plugins/yandexMetrica.client.js). В dev её нет — отсюда проверка.
   function triggerYandexGoal(goal: string) {
-    const ym = (window as unknown as { $ym?: (g: string) => void }).$ym
-    if (typeof ym === 'function') {
-      ym(goal)
+    const $ym = window.$ym
+    if (typeof $ym === 'function') {
+      $ym('reachGoal', goal)
     }
   }
 

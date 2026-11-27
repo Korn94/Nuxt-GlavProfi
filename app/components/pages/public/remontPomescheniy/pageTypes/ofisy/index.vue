@@ -337,8 +337,8 @@ const faqItems: FAQItem[] = [
 // === Аналитика (опционально) ===
 const onMiniFormSubmit = (data: unknown) => {
   console.log('[ofisy] Быстрая заявка:', data)
-  // Здесь можно дёрнуть цель Я.Метрики:
-  // ym(XXXXXX, 'reachGoal', 'office_quick_estimate')
+  // Здесь можно дёрнуть цель Я.Метрики ($ym уже знает номер счётчика):
+  // $ym('reachGoal', 'office_quick_estimate')
 }
 </script>
 
