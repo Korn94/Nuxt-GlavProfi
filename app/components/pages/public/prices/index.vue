@@ -7,34 +7,43 @@
         <div class="hero__grid">
           <!-- ── Левая колонка: контент ── -->
           <div class="hero__content">
+            <!--
+              Бейдж: реальная дата последнего изменения прайса (максимум
+              updated_at по дереву — категории, подкатегории, работы).
+              Если даты нет, показываем год, а не выдуманное «сегодня».
+            -->
             <div class="hero__badge">
               <span class="hero__badge-dot"></span>
               <Icon name="mdi:shield-check" size="15" class="green" />
-              <span>Актуальные цены <strong>2026</strong></span>
+              <span v-if="lastUpdatedLabel">
+                {{ hero.badge.updatedPrefix }}
+                <strong>{{ lastUpdatedLabel }}</strong>
+              </span>
+              <span v-else>
+                {{ hero.badge.fallbackPrefix }}
+                <strong>{{ CURRENT_YEAR }}</strong>
+                {{ hero.badge.fallbackSuffix }}
+              </span>
             </div>
 
             <h1 class="hero__title">
-              Актуальные цены на
-              <span class="hero__accent">{{ activeCategoryTitle }}</span>
+              {{ hero.h1.lead }}
+              <span class="hero__accent">{{ hero.h1.accent }}</span>
+              {{ hero.h1.tail }}
             </h1>
 
             <p class="hero__subtitle">
-              Полный прайс-лист с прозрачными расценками на работы.
-              Используйте поиск или навигацию по категориям.
+              {{ hero.subtitle }}
             </p>
 
             <ul class="hero__meta">
-              <li class="hero__meta-item">
-                <Icon name="mdi:check-circle" size="16" class="green" />
-                <span>Рыночные цены</span>
-              </li>
-              <li class="hero__meta-item">
-                <Icon name="mdi:check-circle" size="16" class="green" />
-                <span>Делаем скидки на объем</span>
-              </li>
-              <li class="hero__meta-item">
-                <Icon name="mdi:check-circle" size="16" class="green" />
-                <span>Обновлено в 2026</span>
+              <li
+                v-for="chip in hero.chips"
+                :key="chip.text"
+                class="hero__meta-item"
+              >
+                <Icon :name="chip.icon" size="16" class="green" />
+                <span>{{ chip.text }}</span>
               </li>
             </ul>
           </div>
@@ -72,7 +81,7 @@
         <meta itemprop="numberOfItems" :content="String(filteredWorks.length)" />
         <div class="toc__header">
           <Icon name="mdi:format-list-bulleted" size="18" />
-          <span>Содержание</span>
+          <span>{{ hero.tocTitle }}</span>
         </div>
         <ul class="toc__list">
           <li
@@ -103,8 +112,22 @@
         <!-- Поиск -->
         <PagesPublicPricesUiSearchBar
           v-model="uiStore.searchQuery"
+          :label="hero.searchLabel"
+          :placeholder="hero.searchPlaceholder"
           @clear="uiStore.clearSearch"
         />
+
+        <!--
+          Счётчик найденного: aria-live, чтобы скринридер озвучивал
+          результат по мере ввода, а не только визуально.
+        -->
+        <p
+          v-if="searchStatus"
+          class="price-list__search-status"
+          aria-live="polite"
+        >
+          {{ searchStatus }}
+        </p>
 
         <!-- Админ-меню -->
         <div v-if="filteredWorks.length && isAdminMode" class="work-navigation">
@@ -142,7 +165,7 @@
         <!-- Индикатор загрузки -->
         <div v-if="dataStore.isLoading" class="price-list__loading">
           <Icon name="mdi:loading" size="32" class="spin" />
-          <span>Загружаем цены…</span>
+          <span>{{ hero.loadingText }}</span>
         </div>
 
         <!-- Ошибка -->
@@ -161,10 +184,25 @@
             :search-query="uiStore.searchQuery"
           />
 
+          <!--
+            Пустой результат: не тупик. Пользователю, который искал работу,
+            предлагаем позвонить/написать — иначе он уходит на другой сайт.
+            Админу контакты не показываем: он и так в CRM.
+          -->
           <div v-if="!filteredWorks.length" class="no-results">
             <Icon name="mdi:magnify-close" size="32" />
-            <p>Ничего не найдено</p>
-            <span>Попробуйте изменить поисковый запрос</span>
+            <p>{{ emptyTitle }}</p>
+            <span>{{ hero.emptyHint }}</span>
+            <div v-if="!isAdminMode" class="no-results__contacts">
+              <a :href="`tel:${COMPANY.phoneE164}`">
+                <Icon name="mdi:phone-outline" size="15" />
+                {{ COMPANY.phone }}
+              </a>
+              <a href="https://t.me/glavprofii" target="_blank" rel="noopener">
+                <Icon name="mdi:send-outline" size="15" />
+                Telegram
+              </a>
+            </div>
           </div>
         </div>
       </div>
@@ -191,6 +229,11 @@ import { computed } from 'vue'
 import { usePriceUIStore, usePriceDataStore, usePriceEditStore } from 'stores/price'
 import type { PriceCategory } from 'stores/price/types'
 import { buildPriceIndex, searchPriceIndex } from '~/utils/priceSearch'
+import { COMPANY } from 'shared/constants/company'
+import {
+  CURRENT_YEAR,
+  getPricesHeroContent,
+} from '~/components/pages/public/prices/data/pricesContent'
 
 const props = withDefaults(defineProps<{
   categories: Array<{ id: number; name: string; slug: string }>
@@ -204,6 +247,9 @@ const uiStore = usePriceUIStore()
 const dataStore = usePriceDataStore()
 const editStore = usePriceEditStore()
 
+/** Тексты hero-блока (H1, подзаголовок, чипы, микрокопирайт) — по slug. */
+const hero = computed(() => getPricesHeroContent(props.activeCategory))
+
 const isAdminMode = computed<boolean>(
   () => dataStore.isAdmin && uiStore.isAdminView,
 )
@@ -213,14 +259,57 @@ const currentPageId = computed(() => {
   return page?.id ?? 0
 })
 
-const categoryTitlesForH1: Record<string, string> = {
-  'otdelochnye-raboty': 'отделочные работы',
-  'plumbing': 'сантехнические работы',
-  'electricity': 'электромонтажные работы',
+/**
+ * Дата последнего изменения прайса — максимум `updated_at` по дереву.
+ *
+ * `price_pages.updated_at` для бейджа не подходит: правки работ, деталей
+ * и подкатегорий его не трогают (см. server/api/price/[entity]/[id].put.ts),
+ * поэтому дата страницы оставалась бы датой создания и вводила в заблуждение.
+ */
+const lastUpdated = computed<Date | null>(() => {
+  let latest = 0
+
+  const track = (value?: string | Date | null) => {
+    if (!value) return
+    const time = new Date(value).getTime()
+    if (Number.isFinite(time) && time > latest) latest = time
+  }
+
+  for (const category of dataStore.works) {
+    track(category.updatedAt)
+    for (const subcategory of category.subcategories) {
+      track(subcategory.updatedAt)
+      for (const item of subcategory.items) {
+        track(item.updatedAt)
+        for (const detail of item.details ?? []) track(detail.updatedAt)
+        for (const dopwork of item.dopworks ?? []) track(dopwork.updatedAt)
+      }
+    }
+  }
+
+  return latest ? new Date(latest) : null
+})
+
+/**
+ * Формат «27.11.2026» с фиксированной таймзоной.
+ * Без `timeZone` сервер (UTC) и браузер пользователя могли бы отрендерить
+ * разные дни — это hydration mismatch и визуальный «прыжок» даты.
+ */
+const formatUpdatedDate = (value: Date): string => {
+  try {
+    return new Intl.DateTimeFormat('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      timeZone: 'Europe/Moscow',
+    }).format(value)
+  } catch {
+    return ''
+  }
 }
 
-const activeCategoryTitle = computed(() =>
-  categoryTitlesForH1[props.activeCategory] || 'ремонтные работы',
+const lastUpdatedLabel = computed(() =>
+  lastUpdated.value ? formatUpdatedDate(lastUpdated.value) : '',
 )
 
 const allWorks = computed(() =>
@@ -279,6 +368,32 @@ const filteredWorks = computed<PriceCategory[]>(() => {
   uiStore.openSubcategories = { ...openSubcategoriesTemp }
   return result
 })
+
+/** Сколько позиций реально видно с учётом поиска и админ-фильтра */
+const filteredItemsCount = computed(() =>
+  filteredWorks.value.reduce(
+    (sum, category) =>
+      sum +
+      category.subcategories.reduce(
+        (subSum, subcategory) => subSum + subcategory.items.length,
+        0,
+      ),
+    0,
+  ),
+)
+
+/** Подпись под поиском; пустая строка, когда поиск не активен */
+const searchStatus = computed(() =>
+  uiStore.searchQuery.trim() && !dataStore.isLoading
+    ? hero.value.searchStatus(filteredItemsCount.value)
+    : '',
+)
+
+const emptyTitle = computed(() =>
+  uiStore.searchQuery.trim()
+    ? hero.value.emptyTitle(uiStore.searchQuery.trim())
+    : 'В прайсе пока нет позиций',
+)
 </script>
 
 <style lang="scss" scoped>
@@ -431,6 +546,8 @@ const filteredWorks = computed<PriceCategory[]>(() => {
     color: $text-gray;
     max-width: 480px;
     margin: 0 0 1.6rem;
+    /* Тексты в pricesContent.ts содержат \n — сохраняем перенос на две строки */
+    white-space: pre-line;
 
     @media (max-width: 900px) {
       max-width: none;
@@ -819,6 +936,56 @@ const filteredWorks = computed<PriceCategory[]>(() => {
 
   span {
     font-size: 0.85rem;
+  }
+
+  /* Контакты в пустом результате — чтобы поиск не заканчивался тупиком */
+  &__contacts {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 10px 18px;
+    margin-top: 12px;
+
+    a {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: $blue;
+      text-decoration: none;
+      background: #fff;
+      border: 1px solid rgba(0, 195, 245, 0.45);
+      border-radius: 50px;
+      transition: all 0.2s ease;
+
+      &:hover {
+        color: #fff;
+        background: $blue;
+        border-color: $blue;
+        box-shadow: 0 6px 18px rgba(0, 195, 245, 0.3);
+      }
+
+      svg {
+        margin: 0;
+        color: inherit;
+        opacity: 0.9;
+      }
+    }
+  }
+}
+
+/* Счётчик результатов поиска (aria-live) */
+.price-list__search-status {
+  margin: -8px 0 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: $text-gray;
+
+  @media (max-width: 600px) {
+    margin: -4px 0 12px;
   }
 }
 

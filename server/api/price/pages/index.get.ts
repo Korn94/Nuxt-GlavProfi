@@ -14,14 +14,30 @@ const handler = defineApi(async () => {
 
   console.log(`✅ Загружено страниц: ${pages.length}`)
 
-  // Особая логика: формируем SEO-поля по умолчанию, если они пустые
+  /**
+   * ⚠️ SEO-поля отдаём как есть (null, если не заполнены).
+   *
+   * Раньше здесь генерировались заглушки:
+   *   metaTitle: `Цены на ${page.title} - 2026`
+   *   metaDescription: `Описание для ${page.title}`
+   *   metaKeywords: `ключевые, слова, для ${page.title}`
+   * и `usePriceSeo` брал metaDescription из этого ответа первым приоритетом —
+   * в `<meta name="description">` публичной страницы уходило
+   * «Описание для Отделочные работы». Осмысленные fallback-тексты живут
+   * в app/composables/usePriceSeo.ts и prices/data/pricesContent.ts.
+   *
+   * updatedAt/order/createdAt нужны типу PricePage и дате «обновлено» в UI.
+   */
   return pages.map(page => ({
     id: page.id,
     title: page.title,
     slug: page.slug,
-    metaTitle: page.metaTitle || `Цены на ${page.title} - 2026`,
-    metaDescription: page.metaDescription || `Описание для ${page.title}`,
-    metaKeywords: page.metaKeywords || `ключевые, слова, для ${page.title}`
+    metaTitle: page.metaTitle ?? null,
+    metaDescription: page.metaDescription ?? null,
+    metaKeywords: page.metaKeywords ?? null,
+    order: page.order ?? 0,
+    createdAt: page.createdAt,
+    updatedAt: page.updatedAt,
   }))
 })
 

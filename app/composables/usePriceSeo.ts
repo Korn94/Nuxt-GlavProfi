@@ -13,73 +13,125 @@
  * ИСТОЧНИК ТИПОВ: ~/stores/price/types (единый источник истины)
  */
 
-import { computed, type Ref } from 'vue'
+import { computed, toValue, type MaybeRefOrGetter, type Ref } from 'vue'
 import { useHead, useRuntimeConfig } from 'nuxt/app'
 import type { ApiPriceListResponse, PricePage } from 'stores/price/types'
 import { organizationId } from '~/utils/organizationSchema'
 
 /**
+ * Год в заголовках и описаниях. Не хардкодим: статичный «2026» через месяц
+ * превращается в ложную информацию, которую видят и пользователи, и роботы.
+ */
+const CURRENT_YEAR = new Date().getFullYear()
+
+/**
+ * Очистка мета-значений.
+ *
+ * `/api/price/pages` раньше возвращал сгенерированные заглушки
+ * («Описание для Отделочные работы», «ключевые, слова, для …»),
+ * и они попадали в `<meta name="description">` — такой сниппет хуже,
+ * чем отсутствие описания. Теперь заглушки отфильтрованы ещё и здесь:
+ * если в БД поле пустое, работает осмысленный текст из словаря ниже.
+ */
+function cleanMeta(value?: string | null): string | undefined {
+  const text = (value ?? '').replace(/\s+/g, ' ').trim()
+  if (!text) return undefined
+  if (/^описание для /i.test(text)) return undefined
+  if (/^ключевые, слова/i.test(text)) return undefined
+  return text
+}
+
+/**
+ * Актуализация года в мета-текстах из БД.
+ *
+ * Тексты в `price_pages.meta_title` / `meta_description` правятся вручную и
+ * почти всегда содержат год: «Цены на Отделочные работы 2026». Без этой
+ * замены 1 января title и description начинают врать.
+ * Меняем ТОЛЬКО прошлый год (2026 → 2027), чтобы не задеть «с 2014 года»,
+ * «гарантия 3 года» и прочие исторические даты.
+ */
+function withActualYear(text: string): string {
+  return text.replace(
+    new RegExp(`\\b${CURRENT_YEAR - 1}\\b`, 'g'),
+    String(CURRENT_YEAR),
+  )
+}
+
+/**
  * SEO-хук для страницы прайс-листа.
  *
- * @param currentSlug - Текущий slug категории из параметров роута
+ * @param currentSlug - Текущий slug категории (Ref/computed или getter —
+ *   вычисляется внутри, чтобы title/JSON-LD обновлялись при клиентском
+ *   переходе между /prices/<slug> без перезагрузки страницы)
  * @param pricePayload - Ref с загруженными данными прайса (из useAsyncData)
  * @param pagesData - Ref со списком всех страниц прайс-листа (для навигации)
  */
 export function usePriceSeo(
-  currentSlug: string,
+  currentSlug: MaybeRefOrGetter<string>,
   pricePayload: Ref<{ priceData: ApiPriceListResponse | null; isAdminUser: boolean } | null | undefined>,
   pagesData: Ref<PricePage[] | null | undefined>,
 ) {
-  // 🛡️ Защита: не делаем ничего, если slug пустой (например, при переходе на главную)
-  if (!currentSlug) {
-    console.warn('[usePriceSeo] currentSlug пустой, пропускаем инициализацию SEO')
-    return {
-      pageTitle: computed(() => ''),
-      currentPage: computed(() => null),
-      jsonLdSchema: computed(() => '{}'),
-    }
-  }
+  const slug = computed(() => String(toValue(currentSlug) ?? '').trim())
+
+  /**
+   * ⚠️ `useRuntimeConfig()` читаем здесь, в setup.
+   * Раньше он вызывался внутри computed JSON-LD, который вычислялся сразу при
+   * создании useHead-объекта. После перехода на функцию-геттер computed
+   * выполняется уже во время рендера head — вне Nuxt-контекста, и падал
+   * с «A composable that requires access to the Nuxt instance…».
+   */
+  const siteUrl = useRuntimeConfig().public.siteUrl
 
   // ========================================
   // 📊 ВЫЧИСЛЯЕМЫЕ СВОЙСТВА
   // ========================================
   const currentPage = computed(() =>
-    pagesData.value?.find(p => p.slug === currentSlug) || null,
+    pagesData.value?.find(p => p.slug === slug.value) || null,
   )
 
   const priceData = computed(() => pricePayload.value?.priceData ?? null)
 
-  // ✅ Заголовки по умолчанию (fallback, если metaTitle не задан в БД)
+  // ✅ Заголовки по умолчанию (fallback, если metaTitle не задан в БД).
+  // Формулировка совпадает с H1 в prices/data/pricesContent.ts.
   const categoryTitles: Record<string, string> = {
-    'otdelochnye-raboty': 'Цены на отделочные работы 2026 — Рязань и область',
-    'plumbing': 'Цены на работы по сантехнике 2026 — Рязань и область',
-    'electricity': 'Цены на электромонтаж 2026 — Рязань и область',
+    'otdelochnye-raboty': `Прайс-лист на отделочные работы в Рязани — цены ${CURRENT_YEAR}`,
+    'plumbing': `Прайс-лист на сантехнические работы в Рязани — цены ${CURRENT_YEAR}`,
+    'electricity': `Прайс-лист на электромонтажные работы в Рязани — цены ${CURRENT_YEAR}`,
   }
 
-  // ✅ Описания по умолчанию (fallback, если metaDescription не задан в БД)
+  // ✅ Описания по умолчанию (fallback, если metaDescription не задан в БД).
+  // До 160–170 символов: длиннее Яндекс и Google обрезают в сниппете.
   const categoryDescriptions: Record<string, string> = {
-    'otdelochnye-raboty': 'Прайс-лист на отделочные работы в Рязани и области 2026. Цены на штукатурку, шпаклёвку, покраску, укладку плитки и другие виды отделки помещений.',
-    'plumbing': 'Стоимость сантехнических работ в Рязани 2026. Цены на установку унитазов, ванн, смесителей, разводку труб и другие сантехнические услуги.',
-    'electricity': 'Цены на электромонтажные работы в Рязани 2026. Стоимость установки розеток, выключателей, электрощитов, прокладки кабеля и других электромонтажных услуг.',
+    'otdelochnye-raboty': `Прайс-лист на отделочные работы в Рязани и области — ${CURRENT_YEAR}. Цены за работу без материалов: штукатурка, шпаклёвка, покраска, плитка, ГКЛ. Смета в договоре.`,
+    'plumbing': `Прайс-лист на сантехнические работы в Рязани — ${CURRENT_YEAR}. Цены за работу: установка унитазов, ванн, смесителей, разводка труб. Материалы отдельно, смета в договоре.`,
+    'electricity': `Прайс-лист на электромонтажные работы в Рязани — ${CURRENT_YEAR}. Цены за работу: розетки, выключатели, щиты, кабельные линии, освещение. Материалы отдельно, смета в договоре.`,
   }
 
   // ✅ Приоритет: metaTitle из БД → словарь → дефолт
+  // Бренд «| ГлавПрофи» добавляет titleTemplate в app.vue — здесь его нет.
   const pageTitle = computed(() => {
+    const fromDb = cleanMeta(currentPage.value?.metaTitle)
+    if (fromDb) return withActualYear(fromDb)
+
     return (
-      currentPage.value?.metaTitle ||
-      categoryTitles[currentSlug] ||
-      'Цены на ремонт помещений - 2026 | ГлавПрофи'
+      categoryTitles[slug.value] ||
+      `Прайс-лист на ремонтные работы в Рязани — цены ${CURRENT_YEAR}`
     )
   })
 
   // ✅ Описание: metaDescription из БД → metaDescription из API прайса → словарь → дефолт
-  const pageDescription = computed(
-    () =>
-      currentPage.value?.metaDescription ||
-      priceData.value?.metaDescription ||
-      categoryDescriptions[currentSlug] ||
-      'Актуальные цены 2026 на ремонт помещений.',
-  )
+  const pageDescription = computed(() => {
+    const fromDb =
+      cleanMeta(currentPage.value?.metaDescription) ||
+      cleanMeta(priceData.value?.metaDescription)
+
+    if (fromDb) return withActualYear(fromDb)
+
+    return (
+      categoryDescriptions[slug.value] ||
+      `Актуальные цены ${CURRENT_YEAR} на ремонтные работы в Рязани и области. Цены за работу без материалов, смета фиксируется в договоре.`
+    )
+  })
 
   // ========================================
   // 🕸️ ГЕНЕРАЦИЯ JSON-LD (Schema.org)
@@ -95,7 +147,7 @@ export function usePriceSeo(
       name: pageTitle.value,
       description: pageDescription.value,
       // 🔗 Ссылка на единственный узел организации из app.vue (GeneralContractor)
-      provider: { '@id': organizationId(useRuntimeConfig().public.siteUrl) },
+      provider: { '@id': organizationId(siteUrl) },
       areaServed: { '@type': 'City', name: 'Рязань' },
     }
 
@@ -181,7 +233,11 @@ export function usePriceSeo(
   // ========================================
   // 🏷️ ПРИМЕНЕНИЕ МЕТА-ТЕГОВ
   // ========================================
-  useHead({
+  // ⚠️ useHead получает функцию-геттер, а не готовый объект: при клиентском
+  // переходе /prices/plumbing → /prices/electricity компонент страницы
+  // переиспользуется, и статический объект оставлял бы title/description
+  // и JSON-LD от предыдущей категории.
+  useHead(() => ({
     title: pageTitle.value,
     meta: [
       { name: 'description', content: pageDescription.value },
@@ -198,7 +254,7 @@ export function usePriceSeo(
         innerHTML: jsonLdSchema.value,
       },
     ],
-  })
+  }))
 
   return { pageTitle, currentPage, jsonLdSchema }
 }

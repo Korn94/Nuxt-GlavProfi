@@ -37,7 +37,9 @@ const breadcrumbItems = computed(() => {
   ]
 })
 
-usePriceSeo(currentSlug.value, pricePayload, pagesData)
+// Передаём computed, а не currentSlug.value: композабл должен сам следить
+// за сменой slug, иначе при переходе между категориями мета остаётся старой.
+usePriceSeo(currentSlug, pricePayload, pagesData)
 </script>
 
 <style lang="scss" scoped>

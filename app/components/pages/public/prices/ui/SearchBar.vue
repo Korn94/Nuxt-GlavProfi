@@ -1,13 +1,23 @@
 <template>
-  <div class="search-bar">
+  <!-- role="search" — ориентир для скринридеров/агентов -->
+  <div class="search-bar" role="search">
     <div class="search-bar__wrapper">
-      <Icon name="mdi:magnify" class="search-bar__icon" size="20" />
+      <Icon
+        name="mdi:magnify"
+        class="search-bar__icon"
+        size="20"
+        aria-hidden="true"
+      />
       <input
-        type="text"
+        type="search"
         :value="modelValue"
-        placeholder="Поиск по работам..."
+        :placeholder="placeholder"
+        :aria-label="label"
         class="search-bar__input"
+        autocomplete="off"
+        spellcheck="false"
         @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
+        @keydown.esc="$emit('clear')"
       />
       <Transition name="fade">
         <button
@@ -24,9 +34,15 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
+withDefaults(defineProps<{
   modelValue: string
-}>()
+  /** Подпись для скринридеров: видимого label у поля нет */
+  label?: string
+  placeholder?: string
+}>(), {
+  label: 'Поиск по прайс-листу',
+  placeholder: 'Поиск по работам...',
+})
 
 defineEmits<{
   (e: 'update:modelValue', value: string): void
@@ -70,6 +86,13 @@ defineEmits<{
       background: #fff;
       border-color: $blue;
       box-shadow: 0 0 0 4px rgba(0, 195, 245, 0.12);
+    }
+
+    /* type="search" рисует свою «×» в WebKit — у нас уже есть кнопка очистки */
+    &::-webkit-search-cancel-button,
+    &::-webkit-search-decoration {
+      -webkit-appearance: none;
+      appearance: none;
     }
 
     @media (max-width: 600px) {
