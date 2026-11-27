@@ -107,6 +107,11 @@ useHead(() => ({
   link: [
     // Глобальные ссылки (favicon)
     ...linkTags,
+    // 🔌 Ранний DNS для счётчика Метрики: сам tag.js грузится лениво
+    // (app/plugins/yandexMetrica.client.js → после app:mounted + requestIdleCallback),
+    // но к моменту старта домен уже должен быть разрешён. Именно dns-prefetch,
+    // а не preconnect: не открываем лишний сокет в критический путь первой загрузки.
+    { rel: 'dns-prefetch', href: 'https://mc.yandex.ru' },
     // 🤖 llmstxt.org (v2): страница сообщает, где лежит описание сайта для ИИ-агентов.
     // Сам /llms.txt генерируется из БД (server/routes/llms.txt.ts). Тот же адрес отдаётся
     // HTTP-заголовком Link на HTML-ответах — server/plugins/llms-link-header.ts.

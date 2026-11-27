@@ -11,8 +11,9 @@ declare global {
     /**
      * Обёртка Яндекс.Метрики с уже подставленным номером счётчика:
      * `$ym('reachGoal', 'FORM_SUBMITTED')` === `ym(93400187, 'reachGoal', 'FORM_SUBMITTED')`.
-     * Ставится в app/plugins/yandexMetrica.client.js. В dev отсутствует
-     * (плагин работает только в production) — поэтому проверяем на function.
+     * Ставится в app/plugins/yandexMetrica.client.js. Отсутствует в dev
+     * (плагин работает только в production) и на внутренних страницах
+     * (/cabinet/**, /login, /access-denied) — поэтому проверяем на function.
      */
     $ym?: (method: string, ...args: unknown[]) => void
   }

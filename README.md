@@ -697,6 +697,17 @@ TELEGRAM_WEBHOOK_URL=https://yourdomain.com/api/telegram
   пользователь не просил экономить трафик (`saveData` / 2G-3G / `prefers-reduced-motion`).
   Постер (23 КБ) предзагружается как LCP-кандидат.
 
+**Аналитика (Метрика, GA4)**
+- Метрика стартует сразу после гидратации (`app:mounted`) + `requestIdleCallback` и с
+  `fetchPriority="low"`, а не после `window.load` (`app/plugins/yandexMetrica.client.js`):
+  основной контент уже на экране, main thread свободен, hero-видео стартует позже —
+  тег не конкурирует за канал. На `saveData` / 2G-3G поведение прежнее (после `load`),
+  `window.load` и потолок 6 с — страховки, чтобы тег не потерялся.
+- Внутренние страницы (`/cabinet/**`, `/login`, `/access-denied`) не трекаются: общий список
+  путей — `isExcludedPath` в `app/composables/visitor/trackerCore.ts` (тот же, что у GA).
+  Если тег догрузился, когда пользователь уже в кабинете, `ym('init')` откладывается до
+  первой публичной страницы, а SPA-переходы внутрь кабинета хитов не дают.
+
 **Кэш и TTFB**
 - `/**`: `no-store` → `public, max-age=0, must-revalidate` (возвращает bfcache, разрешает
   прокси-кэш). `/cabinet/**`, `/login`, `/api/**` — явный `private, no-store`.
